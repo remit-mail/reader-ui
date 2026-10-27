@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { RemitImapThreadMessageResponse } from "@remit/api-http-client/types.gen.ts";
-import { toImapDraftRowData } from "@/lib/drafts";
+import { toImapDraftRowData } from "../../lib/drafts";
 import { threadToRowData } from "./MessageListItem";
 import { swipeableRowData } from "./SwipeableMessageRow";
 

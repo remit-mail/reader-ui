@@ -9,14 +9,14 @@ import {
 import type { RemitImapSpamReportBulkResult } from "@remit/api-http-client/types.gen.ts";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
-import { useErrorBanners } from "@/components/ui/ErrorBannerProvider";
-import { formatErrorDetail } from "@/components/ui/error-banners";
-import { ApiError } from "@/lib/api";
-import { runChunkedMutation } from "@/lib/bulk-actions";
+import { useErrorBanners } from "../components/ui/ErrorBannerProvider";
+import { formatErrorDetail } from "../components/ui/error-banners";
+import { ApiError } from "../lib/api";
+import { runChunkedMutation } from "../lib/bulk-actions";
 import {
 	invalidateThreadListQueries,
 	threadListCacheKeys,
-} from "@/lib/thread-list-cache";
+} from "../lib/thread-list-cache";
 
 interface UseReportSpamOptions {
 	/** The mailbox the message currently sits in — scopes which list caches settle-time invalidation reaches. */

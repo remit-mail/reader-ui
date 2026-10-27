@@ -12,8 +12,8 @@ import {
 	useRef,
 	useState,
 } from "react";
-import { isNotFound, softErrorStatuses } from "@/lib/error-classifier";
-import type { ReplyMode } from "@/routing";
+import { isNotFound, softErrorStatuses } from "../../lib/error-classifier";
+import type { ReplyMode } from "../../routing";
 
 /**
  * What a composer opened on. The three ways to answer a message are the path

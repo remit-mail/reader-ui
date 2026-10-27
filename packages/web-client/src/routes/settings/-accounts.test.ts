@@ -14,9 +14,9 @@ import { act, createElement } from "react";
 import {
 	REDIRECT_STALL_MESSAGE,
 	REDIRECT_STALL_MS,
-} from "@/hooks/useRedirectEnded";
-import { createDomHarness, type DomHarness } from "@/test-support/dom";
-import { type HttpMock, mockFetch } from "@/test-support/http";
+} from "../../hooks/useRedirectEnded";
+import { createDomHarness, type DomHarness } from "../../test-support/dom";
+import { type HttpMock, mockFetch } from "../../test-support/http";
 import { mapOauthError, Route } from "./accounts.tsx";
 
 describe("mapOauthError", () => {
@@ -97,8 +97,8 @@ const CONSENT_URL = "http://localhost/#microsoft-consent";
 
 const REAUTH_ACCOUNT = {
 	accountId: "acc-1",
-	email: "matthijs@ischen.nl",
-	displayName: "Matthijs",
+	email: "reader@example.com",
+	displayName: "Reader",
 	authType: "oauthMicrosoft",
 	connectionState: "reauth_required",
 	syncedServices: ["Mail", "Calendar"],
@@ -284,7 +284,7 @@ describe("the Microsoft callback landing on the accounts page (#1183)", () => {
 	test("a reconnect that comes back connected ends on the granted screen", async () => {
 		const dom = await mountAccounts("/settings/accounts?connected=acc-1");
 		await dom.waitFor(
-			() => dom.text().includes("Connected matthijs@ischen.nl"),
+			() => dom.text().includes("Connected reader@example.com"),
 			"the granted screen",
 		);
 
@@ -296,17 +296,17 @@ describe("the Microsoft callback landing on the accounts page (#1183)", () => {
 
 	test("a reconnect Microsoft refused a service reopens that account, address filled", async () => {
 		const dom = await mountAccounts(
-			"/settings/accounts?oauthError=scope_not_granted&oauthEmail=matthijs%40ischen.nl&missingServices=Calendar",
+			"/settings/accounts?oauthError=scope_not_granted&oauthEmail=reader%40example.com&missingServices=Calendar",
 		);
 		await dom.waitFor(
-			() => dom.text().includes("Reconnect matthijs@ischen.nl"),
+			() => dom.text().includes("Reconnect reader@example.com"),
 			"the reconnect sign-in",
 		);
 
 		assert.match(dom.text(), /Microsoft did not grant access to Calendar\./);
 		assert.equal(
 			dom.query<HTMLInputElement>("#microsoft-email")?.value,
-			"matthijs@ischen.nl",
+			"reader@example.com",
 		);
 		const choice = dom
 			.queryAll("fieldset")

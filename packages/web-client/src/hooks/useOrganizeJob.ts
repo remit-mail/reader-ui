@@ -9,11 +9,11 @@ import {
 	buildOrganizeInput,
 	buildRunFilterInput,
 	type OrganizeDraft,
-} from "@/lib/organize/organize-model";
+} from "../lib/organize/organize-model";
 import {
 	isTerminalJobState,
 	nextPollDelayMs,
-} from "@/lib/organize/organize-poll";
+} from "../lib/organize/organize-poll";
 
 export interface OrganizeJobProgress {
 	state: RemitImapOrganizeJobResponse["state"] | undefined;

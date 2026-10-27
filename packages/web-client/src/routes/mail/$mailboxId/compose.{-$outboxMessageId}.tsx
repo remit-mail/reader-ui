@@ -5,7 +5,7 @@
  * Drafts folder's own rows open here.
  */
 import { createFileRoute } from "@tanstack/react-router";
-import { FullCompose } from "@/components/compose/FullCompose";
+import { FullCompose } from "../../../components/compose/FullCompose";
 
 export const Route = createFileRoute(
 	"/mail/$mailboxId/compose/{-$outboxMessageId}",

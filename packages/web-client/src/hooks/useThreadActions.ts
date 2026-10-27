@@ -11,12 +11,12 @@
  */
 import type { RemitImapThreadMessageResponse } from "@remit/api-http-client/types.gen.ts";
 import { useCallback } from "react";
-import { useDeleteMessages } from "@/hooks/useDeleteMessages";
-import { useMailboxAccount } from "@/hooks/useMailboxAccount";
-import { useMoveMessages } from "@/hooks/useMoveMessages";
-import { useThreadMessageIds } from "@/hooks/useThreadMessageIds";
-import { useThreadConversation } from "@/hooks/useThreadRow";
-import { useToggleStar } from "@/hooks/useToggleStar";
+import { useDeleteMessages } from "./useDeleteMessages";
+import { useMailboxAccount } from "./useMailboxAccount";
+import { useMoveMessages } from "./useMoveMessages";
+import { useThreadMessageIds } from "./useThreadMessageIds";
+import { useThreadConversation } from "./useThreadRow";
+import { useToggleStar } from "./useToggleStar";
 
 interface UseThreadActionsOptions {
 	thread: RemitImapThreadMessageResponse | undefined;

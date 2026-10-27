@@ -16,11 +16,11 @@ import { ErrorState } from "@remit/ui";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect } from "react";
-import { CalendarShellProvider } from "@/components/calendar/CalendarShell";
-import { MailNav } from "@/components/mail/MailNav";
-import { isSinglePaneTier, useLayoutTier } from "@/hooks/useLayoutTier";
-import { panelsWithOverlay, useOpenPanels, useSetOpenPanels } from "@/routing";
-import "@/lib/client";
+import { CalendarShellProvider } from "../components/calendar/CalendarShell";
+import { MailNav } from "../components/mail/MailNav";
+import { isSinglePaneTier, useLayoutTier } from "../hooks/useLayoutTier";
+import { panelsWithOverlay, useOpenPanels, useSetOpenPanels } from "../routing";
+import "../lib/client";
 
 export const Route = createFileRoute("/calendar")({
 	loader: ({ context: { queryClient } }) => {

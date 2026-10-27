@@ -12,8 +12,9 @@
 
    Tests are excluded: they assert on class strings, and a scanned assertion
    emits the utility it names into the shipped stylesheet. */
-@source "./**/*.{ts,tsx}";
+@source "./**/*.{js,ts,tsx}";
 @source not "./**/*.test.{ts,tsx}";
+@source not "./**/*.d.ts";
 
 /* Hide scrollbars while maintaining scroll functionality */
 .overflow-y-auto {

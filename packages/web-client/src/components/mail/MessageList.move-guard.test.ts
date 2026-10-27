@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { makeThreadMessage } from "@/test-support/fixtures";
+import { makeThreadMessage } from "../../test-support/fixtures";
 import { resolveMoveDisabledHint } from "./MessageList";
 
 /**

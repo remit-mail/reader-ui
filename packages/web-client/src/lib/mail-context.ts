@@ -7,14 +7,13 @@ import {
 
 /**
  * Shared mail-layout context. Lives in `lib/` — NOT in `routes/mail.tsx` — on
- * purpose: the generated route tree imports the mail route via a relative
- * specifier (`./routes/mail`) while feature code imports via the `@/` alias.
- * Vite can resolve those to two distinct module instances, which would give the
+ * purpose: the route tree loads route files through the code splitter, so a
+ * context declared in a route file can resolve to two module instances, giving the
  * `MailLayout` provider and a child-route consumer two different `MailContext`
  * objects — the consumer then silently falls back to the defaults below (this
  * bit the intelligence toggle: clicks reached a no-op handler). Keeping the
- * context in a module that is only ever imported through the `@/` alias
- * guarantees a single instance shared by provider and consumers.
+ * context in a module that is not a route file guarantees a single instance
+ * shared by provider and consumers.
  */
 export interface MailContextValue {
 	accounts: RemitImapAccountResponse[];

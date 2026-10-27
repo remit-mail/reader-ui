@@ -1,8 +1,8 @@
 import type { RemitImapThreadMessageResponse } from "@remit/api-http-client/types.gen.ts";
-import type { ReplyWithText } from "@/components/compose/reply-with-times";
-import { Drawer } from "@/components/layout/Drawer";
-import { IntelligencePane } from "@/components/mail/IntelligencePane";
-import type { OpenThreadTarget } from "@/routing";
+import type { OpenThreadTarget } from "../../routing";
+import type { ReplyWithText } from "../compose/reply-with-times";
+import { Drawer } from "../layout/Drawer";
+import { IntelligencePane } from "./IntelligencePane";
 
 /**
  * The intelligence pane as a modal drawer — the surface every list pane uses

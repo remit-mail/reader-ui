@@ -13,18 +13,22 @@ import {
 	RouterContextProvider,
 } from "@tanstack/react-router";
 import { createElement } from "react";
-import { ComposeProvider } from "@/components/compose/ComposeProvider";
-import { useReplyWithText } from "@/components/compose/reply-with-times";
-import { useIntelligenceCalendar } from "@/hooks/useIntelligenceCalendar";
-import { noopTelemetry } from "@/lib/telemetry";
-import { createAppRouter } from "@/router";
-import { createDomHarness, type DomHarness } from "@/test-support/dom";
+import { useIntelligenceCalendar } from "../../hooks/useIntelligenceCalendar";
+import { noopTelemetry } from "../../lib/telemetry";
+import { createAppRouter } from "../../router";
+import { createDomHarness, type DomHarness } from "../../test-support/dom";
 import {
 	makeAccount,
 	makeMailbox,
 	makeThreadMessage,
-} from "@/test-support/fixtures";
-import { type HttpCall, type HttpMock, mockFetch } from "@/test-support/http";
+} from "../../test-support/fixtures";
+import {
+	type HttpCall,
+	type HttpMock,
+	mockFetch,
+} from "../../test-support/http";
+import { ComposeProvider } from "../compose/ComposeProvider";
+import { useReplyWithText } from "../compose/reply-with-times";
 import { ConversationView } from "./ConversationView";
 
 const ACCOUNT_ID = "acc-1";

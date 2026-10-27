@@ -46,9 +46,9 @@ import type {
 import type { ResultCount } from "@remit/ui";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { useCallback, useMemo } from "react";
-import type { BriefSectionParams } from "@/lib/brief-criteria";
-import { type ListFilterParams, sameInboxFilter } from "@/lib/inbox-filters";
-import { toResultCount } from "@/lib/result-count";
+import type { BriefSectionParams } from "../lib/brief-criteria";
+import { type ListFilterParams, sameInboxFilter } from "../lib/inbox-filters";
+import { toResultCount } from "../lib/result-count";
 
 /** A minute: a brief reopened straight away costs nothing. */
 const BRIEF_STALE_TIME_MS = 60_000;

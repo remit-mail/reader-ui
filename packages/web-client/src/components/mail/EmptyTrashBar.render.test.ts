@@ -8,12 +8,12 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import React, { createElement } from "react";
 import { renderToString } from "react-dom/server";
+import { deleteConfirmationCopy } from "../../lib/format";
 import {
 	EmptyTrashBar,
 	type EmptyTrashBarProps,
 	emptyTrashConfirmCopy,
-} from "@/components/mail/EmptyTrashBar";
-import { deleteConfirmationCopy } from "@/lib/format";
+} from "./EmptyTrashBar";
 
 (globalThis as { React?: typeof React }).React = React;
 

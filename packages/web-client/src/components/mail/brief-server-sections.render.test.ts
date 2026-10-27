@@ -32,13 +32,17 @@ import {
 	RouterProvider,
 } from "@tanstack/react-router";
 import { createElement, type ReactNode, useEffect, useState } from "react";
-import { ComposeProvider } from "@/components/compose/ComposeProvider";
-import { MailContext, type MailContextValue } from "@/lib/mail-context";
-import { MailFreshnessProvider } from "@/lib/mail-freshness";
-import { EMPTY_RESULT_FOLDER_INDEX } from "@/lib/result-folder";
-import { createDomHarness, type DomHarness } from "@/test-support/dom";
-import { makeAccount, makeThreadMessage } from "@/test-support/fixtures";
-import { type HttpCall, type HttpMock, mockFetch } from "@/test-support/http";
+import { MailContext, type MailContextValue } from "../../lib/mail-context";
+import { MailFreshnessProvider } from "../../lib/mail-freshness";
+import { EMPTY_RESULT_FOLDER_INDEX } from "../../lib/result-folder";
+import { createDomHarness, type DomHarness } from "../../test-support/dom";
+import { makeAccount, makeThreadMessage } from "../../test-support/fixtures";
+import {
+	type HttpCall,
+	type HttpMock,
+	mockFetch,
+} from "../../test-support/http";
+import { ComposeProvider } from "../compose/ComposeProvider";
 import { DailyBrief } from "./DailyBrief";
 
 const ACCOUNT_ID = "acc-1";

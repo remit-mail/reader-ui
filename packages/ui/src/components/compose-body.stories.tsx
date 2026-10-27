@@ -34,7 +34,7 @@ const DUTCH_PROSE =
 /** The languages a Dutch-writing account has configured, most-used first. */
 const LANGUAGES = ["nl", "en", "de"];
 
-const SIGNED_DOCUMENT = "<p></p><p>-- </p><p>Matthijs</p>";
+const SIGNED_DOCUMENT = "<p></p><p>-- </p><p>Reader</p>";
 
 const LONG_PLAIN_PROSE = [
 	"Beste Anna, hierbij de planning voor volgende week zoals besproken tijdens de vergadering van donderdag.",
@@ -178,7 +178,7 @@ export const OpensAboveTheSignature: Story = {
 			const text = editable.textContent ?? "";
 			await expect(text).toContain("Hoi Anna");
 			await expect(text.indexOf("Hoi Anna")).toBeLessThan(
-				text.indexOf("Matthijs"),
+				text.indexOf("Reader"),
 			);
 		});
 	},
@@ -481,7 +481,7 @@ export const ManualPickSticks: Story = {
 		await expect(chipOf(canvasElement)).toHaveTextContent("EN");
 
 		await userEvent.click(textarea);
-		await userEvent.keyboard(" Groetjes, Matthijs.");
+		await userEvent.keyboard(" Groetjes, Reader.");
 		await new Promise((resolve) => setTimeout(resolve, 800));
 		await expect(chipOf(canvasElement)).toHaveTextContent("EN");
 		await expect(textarea).toHaveAttribute("lang", "en");

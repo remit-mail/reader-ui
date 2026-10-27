@@ -1,5 +1,5 @@
 import { Select } from "@remit/ui";
-import { UNZONED_CALENDAR } from "@/hooks/calendar";
+import { UNZONED_CALENDAR } from "../../hooks/calendar";
 
 /**
  * The zone a calendar's floating times are read in. The empty choice is how

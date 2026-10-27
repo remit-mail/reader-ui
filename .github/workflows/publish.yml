@@ -13,10 +13,16 @@ jobs:
     if: vars.NPM_PUBLISH_ENABLED == 'true'
     runs-on: ubuntu-latest
     permissions:
+      checks: read
       contents: read
       id-token: write
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - run: bash npm-scripts/release-check-commit.sh "$GITHUB_SHA"
+        env:
+          GH_TOKEN: ${{ github.token }}
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc

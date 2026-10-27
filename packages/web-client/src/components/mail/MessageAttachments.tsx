@@ -7,7 +7,7 @@ import { encapsulatedParts } from "@remit/data-ports/message-parts";
 import { type AttachmentDownloadState, AttachmentList } from "@remit/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { useAuthProvider } from "@/auth/provider";
+import { useAuthProvider } from "../../auth/provider";
 import {
 	attachmentFailureContent,
 	attachmentReportUrl,
@@ -16,11 +16,11 @@ import {
 	fetchAttachment,
 	isRepairableByRefetch,
 	saveBlob,
-} from "@/lib/attachment-download";
+} from "../../lib/attachment-download";
 import {
 	type MessageAttachment,
 	selectMessageAttachments,
-} from "@/lib/message-attachments";
+} from "../../lib/message-attachments";
 import { MessageBody } from "./MessageBody";
 
 interface MessageAttachmentsProps {

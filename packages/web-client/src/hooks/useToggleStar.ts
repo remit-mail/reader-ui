@@ -4,9 +4,9 @@ import {
 } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
 import type { RemitImapThreadMessageResponse } from "@remit/api-http-client/types.gen.ts";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useErrorBanners } from "@/components/ui/ErrorBannerProvider";
-import { formatErrorDetail } from "@/components/ui/error-banners";
-import { patchThreadListCache } from "@/lib/thread-cache";
+import { useErrorBanners } from "../components/ui/ErrorBannerProvider";
+import { formatErrorDetail } from "../components/ui/error-banners";
+import { patchThreadListCache } from "../lib/thread-cache";
 import {
 	cancelThreadListQueries,
 	invalidateThreadListQueries,
@@ -16,7 +16,7 @@ import {
 	type ThreadMessagesData,
 	type ThreadMutationContext,
 	threadListCacheKeys,
-} from "@/lib/thread-list-cache";
+} from "../lib/thread-list-cache";
 
 interface UseToggleStarOptions {
 	threadId: string;

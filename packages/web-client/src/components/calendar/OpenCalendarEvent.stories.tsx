@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect, userEvent, within } from "storybook/test";
-import { instancesWithin } from "@/mocks/story-frame/calendar-window";
-import { useOpenCalendarEvent } from "@/routing";
+import { instancesWithin } from "../../mocks/story-frame/calendar-window";
+import { useOpenCalendarEvent } from "../../routing";
 import {
 	calendars,
 	fortnight,

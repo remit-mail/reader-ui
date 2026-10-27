@@ -6,7 +6,7 @@ import {
 	CLAUSE_SUGGESTION_LIMIT,
 	fieldTakesAddressSuggestions,
 	type KnownAddress,
-} from "@/lib/organize/clause-suggestions";
+} from "../lib/organize/clause-suggestions";
 import { useDebouncedValue } from "./useDebouncedValue";
 
 /** How long typing settles before the address lookup fires. */

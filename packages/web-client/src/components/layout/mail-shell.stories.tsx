@@ -1,8 +1,12 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect, userEvent, waitFor, within } from "storybook/test";
-import { AppStory } from "@/mocks/story-frame/AppStory";
-import { mailHandlers } from "@/mocks/story-frame/mail-handlers";
-import { mailboxIdFor, mailWorld, WORK } from "@/mocks/story-frame/mail-world";
+import { AppStory } from "../../mocks/story-frame/AppStory";
+import { mailHandlers } from "../../mocks/story-frame/mail-handlers";
+import {
+	mailboxIdFor,
+	mailWorld,
+	WORK,
+} from "../../mocks/story-frame/mail-world";
 
 const world = mailWorld();
 const inbox = `/mail/${mailboxIdFor(WORK, "Inbox")}`;

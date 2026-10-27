@@ -4,7 +4,7 @@ import {
 } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { getErrorStatus, softErrorStatuses } from "@/lib/error-classifier";
+import { getErrorStatus, softErrorStatuses } from "../../lib/error-classifier";
 import { type CalendarJump, calendarJumpOf, deviceTimeZone } from "./instance";
 
 export type CalendarJumpSearch =

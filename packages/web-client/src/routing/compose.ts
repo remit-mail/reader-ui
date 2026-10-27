@@ -1,6 +1,6 @@
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { useCallback } from "react";
-import { withoutComposeSeed } from "@/lib/mail-search";
+import { withoutComposeSeed } from "../lib/mail-search";
 import { useBrowsedList, useNavigateToBrowsedList } from "./browsed-list";
 import { useRetainOpenPanels } from "./fragment";
 

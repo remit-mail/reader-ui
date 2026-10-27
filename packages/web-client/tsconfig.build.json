@@ -1,0 +1,24 @@
+{
+	"extends": "./tsconfig.json",
+	"compilerOptions": {
+		"noEmit": false,
+		"declaration": true,
+		"rewriteRelativeImportExtensions": true,
+		"rootDir": ".",
+		"outDir": "dist"
+	},
+	"include": [
+		"src/**/*.ts",
+		"src/**/*.tsx",
+		"harness/**/*.ts",
+		"spellcheck/**/*.ts"
+	],
+	"exclude": [
+		"src/**/*.test.ts",
+		"src/**/*.test.tsx",
+		"src/**/*.stories.tsx",
+		"src/test-support/**",
+		"src/mocks/**",
+		"spellcheck/**/*.test.ts"
+	]
+}

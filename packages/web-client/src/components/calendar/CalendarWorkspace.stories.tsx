@@ -9,7 +9,7 @@ import {
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useState } from "react";
 import { expect, userEvent, waitFor, within } from "storybook/test";
-import { stepCalendarDate } from "@/lib/calendar-route";
+import { stepCalendarDate } from "../../lib/calendar-route";
 import { CalendarWaiting } from "./CalendarWaiting";
 import { CalendarWorkspace } from "./CalendarWorkspace";
 

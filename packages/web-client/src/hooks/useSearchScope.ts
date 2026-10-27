@@ -1,12 +1,12 @@
 import type { RemitImapAccountResponse } from "@remit/api-http-client/types.gen.ts";
 import { useCallback, useMemo } from "react";
-import { useMailContext } from "@/lib/mail-context";
+import { useMailContext } from "../lib/mail-context";
 import {
 	SEARCH_SCOPE_CHIP_ID,
 	type SearchScopeState,
 	searchScopeForRoute,
-} from "@/lib/search-scope";
-import { useBrowsedList, useSearchEverything } from "@/routing";
+} from "../lib/search-scope";
+import { useBrowsedList, useSearchEverything } from "../routing";
 import { useCurrentMailboxName } from "./useCurrentMailboxName";
 
 /**

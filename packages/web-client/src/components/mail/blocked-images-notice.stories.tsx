@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { BlockedImagesNotice } from "@/components/mail/BlockedImagesNotice";
+import { BlockedImagesNotice } from "./BlockedImagesNotice";
 
 /**
  * The bar above a message body whose remote images were not loaded.

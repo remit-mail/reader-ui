@@ -36,25 +36,28 @@ import {
 	type Verb,
 } from "@remit/ui";
 import { type RefObject, useCallback, useMemo, useState } from "react";
-import { useIsDesktop } from "@/hooks/useMediaQuery";
-import { useSearchTokenContext } from "@/hooks/useSearchTokenContext";
+import { useIsDesktop } from "../../hooks/useMediaQuery";
+import { useSearchTokenContext } from "../../hooks/useSearchTokenContext";
 import {
 	useStarredThreads,
 	useStarredUnreadCount,
-} from "@/hooks/useStarredThreads";
-import type { TriageContextUpdate } from "@/hooks/useTriageLayer";
-import { matchesSearchTokens, toThreadRowData } from "@/lib/brief";
-import { buildBugReportContext, buildGitHubIssueUrl } from "@/lib/bug-report";
-import { flaggedCriteria } from "@/lib/flagged-criteria";
-import { useListHeaderChrome } from "@/lib/list-header-chrome";
-import { listNarrowing } from "@/lib/list-narrowing";
-import { useMailContext } from "@/lib/mail-context";
-import { rowToSearchResult } from "@/lib/search-result";
-import { parseSearchTokens } from "@/lib/search-tokens";
-import { dedupeByThread } from "@/lib/starred-rows";
-import { wizardSelectionFrom } from "@/lib/wizard-selection";
-import type { OpenThreadTarget } from "@/routing";
-import { useSelectionWizard } from "@/routing";
+} from "../../hooks/useStarredThreads";
+import type { TriageContextUpdate } from "../../hooks/useTriageLayer";
+import { matchesSearchTokens, toThreadRowData } from "../../lib/brief";
+import {
+	buildBugReportContext,
+	buildGitHubIssueUrl,
+} from "../../lib/bug-report";
+import { flaggedCriteria } from "../../lib/flagged-criteria";
+import { useListHeaderChrome } from "../../lib/list-header-chrome";
+import { listNarrowing } from "../../lib/list-narrowing";
+import { useMailContext } from "../../lib/mail-context";
+import { rowToSearchResult } from "../../lib/search-result";
+import { parseSearchTokens } from "../../lib/search-tokens";
+import { dedupeByThread } from "../../lib/starred-rows";
+import { wizardSelectionFrom } from "../../lib/wizard-selection";
+import type { OpenThreadTarget } from "../../routing";
+import { useSelectionWizard } from "../../routing";
 import { MailViewChrome } from "./MailViewChrome";
 import type { MessageListCommands } from "./MessageList";
 import { MessageRow } from "./MessageRow";

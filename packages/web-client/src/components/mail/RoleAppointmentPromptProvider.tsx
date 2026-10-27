@@ -21,12 +21,12 @@ import {
 	useRef,
 	useState,
 } from "react";
-import { isMailboxNotSettledRefusal } from "@/components/ui/folder-role-refusal";
-import { useCreateMailbox } from "@/hooks/useCreateMailbox";
-import { useFolderLabelTranslator } from "@/hooks/useFolderLabelTranslator";
-import { softErrorStatuses } from "@/lib/error-classifier";
-import { buildMailboxRoleMap, labelForMailbox } from "@/lib/folder-roles";
-import { buildMoveOptions, folderDelimiter } from "@/lib/move-options";
+import { useCreateMailbox } from "../../hooks/useCreateMailbox";
+import { useFolderLabelTranslator } from "../../hooks/useFolderLabelTranslator";
+import { softErrorStatuses } from "../../lib/error-classifier";
+import { buildMailboxRoleMap, labelForMailbox } from "../../lib/folder-roles";
+import { buildMoveOptions, folderDelimiter } from "../../lib/move-options";
+import { isMailboxNotSettledRefusal } from "../ui/folder-role-refusal";
 
 export interface AppointmentRequest {
 	accountId: string;

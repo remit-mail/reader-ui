@@ -45,60 +45,47 @@ import {
 	useRef,
 	useState,
 } from "react";
-import { useReplyWithText } from "@/components/compose/reply-with-times";
-import { ConversationView } from "@/components/mail/ConversationView";
-import { DraftsView } from "@/components/mail/DraftsView";
-import { EmptyTrashBar } from "@/components/mail/EmptyTrashBar";
-import { IntelligenceDrawer } from "@/components/mail/IntelligenceDrawer";
-import { IntelligencePane } from "@/components/mail/IntelligencePane";
-import {
-	MessageList,
-	type MessageListCommands,
-} from "@/components/mail/MessageList";
-import { MessageToolbar } from "@/components/mail/MessageToolbar";
-import { PullToRefresh } from "@/components/mail/PullToRefresh";
-import { SpamRescue } from "@/components/mail/SpamRescue";
 import {
 	useArchiveMailbox,
 	useDraftsMailbox,
 	useJunkMailbox,
 	useTrashByAccount,
 	useTrashMailbox,
-} from "@/hooks/useArchiveMailbox";
+} from "../../hooks/useArchiveMailbox";
 import {
 	useCurrentMailboxMessageCount,
 	useCurrentMailboxName,
 	useCurrentMailboxUnseenCount,
-} from "@/hooks/useCurrentMailboxName";
+} from "../../hooks/useCurrentMailboxName";
 import {
 	dropDeletedThreads,
 	useDeleteMessages,
-} from "@/hooks/useDeleteMessages";
-import { useEmptyTrash } from "@/hooks/useEmptyTrash";
-import type { EscalationSearchQuery } from "@/hooks/useEscalatedActions";
-import { useIntelligenceData } from "@/hooks/useIntelligenceData";
-import { useIntelligenceDrawer } from "@/hooks/useIntelligenceDrawer";
+} from "../../hooks/useDeleteMessages";
+import { useEmptyTrash } from "../../hooks/useEmptyTrash";
+import type { EscalationSearchQuery } from "../../hooks/useEscalatedActions";
+import { useIntelligenceData } from "../../hooks/useIntelligenceData";
+import { useIntelligenceDrawer } from "../../hooks/useIntelligenceDrawer";
 import {
 	type IntelligenceCommands,
 	useIntelligenceSurface,
 	usePublishIntelligenceCommands,
-} from "@/hooks/useIntelligenceSurface";
-import { useLayoutTier } from "@/hooks/useLayoutTier";
-import { useMailboxAccount } from "@/hooks/useMailboxAccount";
-import { useToggleReadFor } from "@/hooks/useMarkAsRead";
-import { useMoveMessages } from "@/hooks/useMoveMessages";
-import { useRefreshControl } from "@/hooks/useRefreshControl";
-import { useRescueCandidates } from "@/hooks/useRescueCandidates";
-import { useResultCount } from "@/hooks/useResultCount";
-import { useSearchTokenContext } from "@/hooks/useSearchTokenContext";
-import { useThreadActions } from "@/hooks/useThreadActions";
-import { useThreadMessageIds } from "@/hooks/useThreadMessageIds";
-import { useThreadRow } from "@/hooks/useThreadRow";
-import { useToggleStar } from "@/hooks/useToggleStar";
-import { useTriageContext, useTriageLayer } from "@/hooks/useTriageLayer";
-import { useUpdateAddressFlags } from "@/hooks/useUpdateAddressFlags";
-import type { ConversationTarget } from "@/lib/conversation-target";
-import { dedupeThreadMessages } from "@/lib/dedupe-thread-messages";
+} from "../../hooks/useIntelligenceSurface";
+import { useLayoutTier } from "../../hooks/useLayoutTier";
+import { useMailboxAccount } from "../../hooks/useMailboxAccount";
+import { useToggleReadFor } from "../../hooks/useMarkAsRead";
+import { useMoveMessages } from "../../hooks/useMoveMessages";
+import { useRefreshControl } from "../../hooks/useRefreshControl";
+import { useRescueCandidates } from "../../hooks/useRescueCandidates";
+import { useResultCount } from "../../hooks/useResultCount";
+import { useSearchTokenContext } from "../../hooks/useSearchTokenContext";
+import { useThreadActions } from "../../hooks/useThreadActions";
+import { useThreadMessageIds } from "../../hooks/useThreadMessageIds";
+import { useThreadRow } from "../../hooks/useThreadRow";
+import { useToggleStar } from "../../hooks/useToggleStar";
+import { useTriageContext, useTriageLayer } from "../../hooks/useTriageLayer";
+import { useUpdateAddressFlags } from "../../hooks/useUpdateAddressFlags";
+import type { ConversationTarget } from "../../lib/conversation-target";
+import { dedupeThreadMessages } from "../../lib/dedupe-thread-messages";
 import {
 	filterReach,
 	hasInboxFilter,
@@ -106,22 +93,22 @@ import {
 	type InboxFilterParams,
 	inboxFilterParams,
 	sameInboxFilter,
-} from "@/lib/inbox-filters";
-import { junkDestination } from "@/lib/junk-destination";
-import { listNarrowing } from "@/lib/list-narrowing";
-import { useMailContext } from "@/lib/mail-context";
-import { useMailFreshness } from "@/lib/mail-freshness";
-import { isRescueCandidate } from "@/lib/rescue-candidates";
-import { recordRescueSentToJunk } from "@/lib/rescue-telemetry";
-import { shouldRequestResultCount } from "@/lib/result-count";
-import { normalizeSearchQuery } from "@/lib/search-query";
-import { threadToSearchResult } from "@/lib/search-result";
-import { parseSearchTokens } from "@/lib/search-tokens";
-import { useTelemetry } from "@/lib/telemetry-context";
+} from "../../lib/inbox-filters";
+import { junkDestination } from "../../lib/junk-destination";
+import { listNarrowing } from "../../lib/list-narrowing";
+import { useMailContext } from "../../lib/mail-context";
+import { useMailFreshness } from "../../lib/mail-freshness";
+import { isRescueCandidate } from "../../lib/rescue-candidates";
+import { recordRescueSentToJunk } from "../../lib/rescue-telemetry";
+import { shouldRequestResultCount } from "../../lib/result-count";
+import { normalizeSearchQuery } from "../../lib/search-query";
+import { threadToSearchResult } from "../../lib/search-result";
+import { parseSearchTokens } from "../../lib/search-tokens";
+import { useTelemetry } from "../../lib/telemetry-context";
 import {
 	applyResidualTokens,
 	threadSearchTokens,
-} from "@/lib/thread-search-tokens";
+} from "../../lib/thread-search-tokens";
 import {
 	type OpenThreadPath,
 	type OpenThreadTarget,
@@ -134,8 +121,18 @@ import {
 	useOpenCompose,
 	useOpenReply,
 	useOpenThread,
-} from "@/routing";
+} from "../../routing";
+import { useReplyWithText } from "../compose/reply-with-times";
+import { ConversationView } from "./ConversationView";
+import { DraftsView } from "./DraftsView";
+import { EmptyTrashBar } from "./EmptyTrashBar";
+import { IntelligenceDrawer } from "./IntelligenceDrawer";
+import { IntelligencePane } from "./IntelligencePane";
 import { MailViewChrome } from "./MailViewChrome";
+import { MessageList, type MessageListCommands } from "./MessageList";
+import { MessageToolbar } from "./MessageToolbar";
+import { PullToRefresh } from "./PullToRefresh";
+import { SpamRescue } from "./SpamRescue";
 
 /* ------------------------------------------------------------------ */
 /* Context                                                              */

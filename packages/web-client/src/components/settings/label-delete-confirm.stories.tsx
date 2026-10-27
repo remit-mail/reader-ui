@@ -1,6 +1,6 @@
 import { ConfirmDialog } from "@remit/ui";
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { deleteLabelConfirmCopy } from "@/lib/organize/label-delete-copy";
+import { deleteLabelConfirmCopy } from "../../lib/organize/label-delete-copy";
 
 /**
  * The cascade-aware label delete confirmation (issue #26, #335) — the generic

@@ -5,9 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Remit</title>
     <!--
-      Installability. This is the template the shipped image builds from; the
-      package's top-level index.html is the dev server's and carries the same
-      tags. The two theme colours are the light and dark --canvas tokens from
+      Installability. The preset serves this page for every host. The two theme colours are the light and dark --canvas tokens from
       packages/ui/src/tokens.css.
     -->
     <link rel="manifest" href="/manifest.webmanifest" />
@@ -47,6 +45,6 @@
       replaced per deployment; never bundled.
     -->
     <script src="/config.js"></script>
-    <script type="module" src="./entry.tsx"></script>
+    <script type="module" src="/@remit-web-client/entry"></script>
   </body>
 </html>

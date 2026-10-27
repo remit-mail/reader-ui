@@ -5,8 +5,8 @@
  * reads and writes its own feed, and a hook cannot be called per iteration.
  */
 import type { ReactNode } from "react";
-import { CalendarFeedCard } from "@/components/settings/CalendarFeedCard";
-import { useCalendarFeed } from "@/hooks/calendar/useCalendarFeed";
+import { useCalendarFeed } from "../../hooks/calendar/useCalendarFeed";
+import { CalendarFeedCard } from "./CalendarFeedCard";
 
 export interface CalendarFeedPanelProps {
 	calendarId: string;

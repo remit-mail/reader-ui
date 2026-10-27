@@ -9,7 +9,7 @@ const accounts: NavAccount[] = [
 	{
 		id: "acct-personal",
 		label: "Personal",
-		email: "matthijs@example.com",
+		email: "reader@example.com",
 		mailboxes: [
 			{ id: "personal-inbox", name: "Inbox", role: "inbox", unseen: 12 },
 			{ id: "personal-sent", name: "Sent", role: "sent" },
@@ -174,7 +174,7 @@ describe("NavSidebar", () => {
 	const hostnet: NavAccount = {
 		id: "acct-hostnet",
 		label: "Hostnet",
-		email: "440737+mvhenten@users.noreply.github.com",
+		email: "hostnet-user@example.com",
 		mailboxes: [
 			{ id: "hn-inbox", name: "Inbox", role: "inbox", fullPath: "INBOX" },
 			{ id: "hn-spam", name: "Spam", role: "junk", fullPath: "INBOX/Spam" },

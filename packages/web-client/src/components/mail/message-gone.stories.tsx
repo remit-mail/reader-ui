@@ -1,9 +1,12 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { HttpResponse, http } from "msw";
 import { expect, within } from "storybook/test";
-import { AppStory } from "@/mocks/story-frame/AppStory";
-import { composeWorld, messageUrl } from "@/mocks/story-frame/compose-world";
-import { mailHandlers } from "@/mocks/story-frame/mail-handlers";
+import { AppStory } from "../../mocks/story-frame/AppStory";
+import {
+	composeWorld,
+	messageUrl,
+} from "../../mocks/story-frame/compose-world";
+import { mailHandlers } from "../../mocks/story-frame/mail-handlers";
 
 const world = composeWorld();
 

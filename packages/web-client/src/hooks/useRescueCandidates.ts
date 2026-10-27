@@ -1,7 +1,7 @@
 import { threadOperationsSearchThreadsOptions } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
 import type { RescueCandidate } from "@remit/ui";
 import { useQuery } from "@tanstack/react-query";
-import { rescueCandidateReason } from "@/lib/rescue-candidates";
+import { rescueCandidateReason } from "../lib/rescue-candidates";
 
 const TRUST_REASON = "We can verify this sender";
 

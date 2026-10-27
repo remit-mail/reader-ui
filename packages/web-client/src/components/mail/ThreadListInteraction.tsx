@@ -33,14 +33,14 @@ import {
 	useRef,
 	useState,
 } from "react";
-import { useErrorBanners } from "@/components/ui/ErrorBannerProvider";
-import { useDeleteOutcome } from "@/hooks/useDeleteOutcome";
-import { useFollowFocusOpen } from "@/hooks/useFollowFocusOpen";
-import { useIsDesktop } from "@/hooks/useMediaQuery";
-import type { TriageContextUpdate } from "@/hooks/useTriageLayer";
-import type { DeleteTarget } from "@/lib/format";
-import { tabStopId } from "@/lib/list-focus";
-import { useListHeaderChrome } from "@/lib/list-header-chrome";
+import { useDeleteOutcome } from "../../hooks/useDeleteOutcome";
+import { useFollowFocusOpen } from "../../hooks/useFollowFocusOpen";
+import { useIsDesktop } from "../../hooks/useMediaQuery";
+import type { TriageContextUpdate } from "../../hooks/useTriageLayer";
+import type { DeleteTarget } from "../../lib/format";
+import { tabStopId } from "../../lib/list-focus";
+import { useListHeaderChrome } from "../../lib/list-header-chrome";
+import { useErrorBanners } from "../ui/ErrorBannerProvider";
 import { DeleteConfirmDialog } from "./DeleteConfirmDialog";
 import type { MessageListCommands } from "./MessageList";
 import type { MessageRowSelection } from "./MessageRow";

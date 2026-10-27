@@ -3,7 +3,7 @@ import {
 	syncOperationsTriggerSyncMutation,
 } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useTelemetry } from "@/lib/telemetry-context";
+import { useTelemetry } from "../lib/telemetry-context";
 
 interface UseTriggerSyncResult {
 	trigger: () => void;

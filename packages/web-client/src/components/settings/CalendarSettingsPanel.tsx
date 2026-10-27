@@ -3,12 +3,12 @@
  * subscription address, wired to the server.
  */
 import { type ReactNode, useState } from "react";
-import { CalendarDetailsForm } from "@/components/settings/CalendarDetailsForm";
-import { CalendarFeedPanel } from "@/components/settings/CalendarFeedPanel";
 import {
 	type CalendarCollectionOutcome,
 	useCalendarCollectionWrites,
-} from "@/hooks/calendar/useCalendarCollectionWrites";
+} from "../../hooks/calendar/useCalendarCollectionWrites";
+import { CalendarDetailsForm } from "./CalendarDetailsForm";
+import { CalendarFeedPanel } from "./CalendarFeedPanel";
 
 export interface CalendarSettingsPanelProps {
 	calendarId: string;

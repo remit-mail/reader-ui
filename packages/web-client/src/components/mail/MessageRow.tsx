@@ -27,7 +27,7 @@ import {
 } from "@remit/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { type MouseEvent, memo, type ReactNode, useCallback } from "react";
-import { NavLink } from "@/routing";
+import { NavLink } from "../../routing";
 import { useThreadRowInteraction } from "./ThreadListInteraction";
 import { useModifierSelect } from "./useModifierSelect";
 

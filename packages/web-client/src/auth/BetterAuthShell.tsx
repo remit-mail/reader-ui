@@ -8,9 +8,9 @@ import {
 	PasswordInput,
 } from "@remit/ui";
 import { type FormEvent, type ReactNode, useState } from "react";
-import { AppShellSkeleton } from "@/components/layout/AppShellSkeleton";
-import { FatalErrorOverlay } from "@/components/ui/FatalErrorOverlay";
-import { openBugReport } from "@/lib/bug-report";
+import { AppShellSkeleton } from "../components/layout/AppShellSkeleton";
+import { FatalErrorOverlay } from "../components/ui/FatalErrorOverlay";
+import { openBugReport } from "../lib/bug-report";
 import { authFooterNote } from "./account-menu-mode";
 import {
 	type AuthRequest,

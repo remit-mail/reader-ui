@@ -20,7 +20,7 @@ import {
 	type DeleteOutcome,
 	type DeleteTarget,
 	deleteOutcomeFor,
-} from "@/lib/format";
+} from "../lib/format";
 import { useTrashByAccount } from "./useArchiveMailbox";
 
 export interface DeleteOutcomeResult {

@@ -12,7 +12,7 @@ import {
 	calendarSearchSchema,
 	DEFAULT_CALENDAR_VIEW,
 	isoDate,
-} from "@/lib/calendar-route";
+} from "../../lib/calendar-route";
 
 export const Route = createFileRoute("/calendar/")({
 	validateSearch: calendarSearchSchema,

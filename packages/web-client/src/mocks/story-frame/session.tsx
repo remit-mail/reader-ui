@@ -1,4 +1,4 @@
-import { type AuthProvider, noneAuthProvider } from "@/auth/provider";
+import { type AuthProvider, noneAuthProvider } from "../../auth/provider";
 
 type RuntimeConfig = NonNullable<typeof globalThis.__REMIT_CONFIG__>;
 

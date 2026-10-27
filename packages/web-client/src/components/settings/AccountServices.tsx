@@ -17,8 +17,8 @@ import { useState } from "react";
 import {
 	REDIRECT_STALL_MESSAGE,
 	useRedirectEnded,
-} from "@/hooks/useRedirectEnded";
-import { softErrorMeta } from "@/lib/error-classifier";
+} from "../../hooks/useRedirectEnded";
+import { softErrorMeta } from "../../lib/error-classifier";
 import {
 	type AccountServiceRefusal,
 	AccountServicesCard,

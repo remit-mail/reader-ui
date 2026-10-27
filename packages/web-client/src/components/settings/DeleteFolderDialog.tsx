@@ -11,16 +11,16 @@ import {
 } from "@remit/ui";
 import { AlertTriangle, FolderInput, Loader2, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useCreateMailbox } from "@/hooks/useCreateMailbox";
-import { useDeleteFolder } from "@/hooks/useDeleteFolder";
-import { useFolderLabelTranslator } from "@/hooks/useFolderLabelTranslator";
+import { useCreateMailbox } from "../../hooks/useCreateMailbox";
+import { useDeleteFolder } from "../../hooks/useDeleteFolder";
+import { useFolderLabelTranslator } from "../../hooks/useFolderLabelTranslator";
 import {
 	elapsedLabel,
 	initialStage,
 	moveProgressLabel,
-} from "@/lib/delete-folder";
-import { buildMailboxRoleMap, labelForMailbox } from "@/lib/folder-roles";
-import { buildMoveOptions } from "@/lib/move-options";
+} from "../../lib/delete-folder";
+import { buildMailboxRoleMap, labelForMailbox } from "../../lib/folder-roles";
+import { buildMoveOptions } from "../../lib/move-options";
 
 interface DeleteFolderDialogProps {
 	open: boolean;

@@ -19,9 +19,9 @@ import type {
 	RemitImapCalendarResponse,
 } from "@remit/api-http-client/types.gen.ts";
 import { createElement } from "react";
-import { type CalendarData, useCalendarData } from "@/hooks/useCalendarData";
 import { createDomHarness, type DomHarness } from "../../test-support/dom";
 import { type HttpMock, mockFetch } from "../../test-support/http";
+import { type CalendarData, useCalendarData } from "../useCalendarData";
 
 const WORK = "11111111-1111-4111-8111-111111111111";
 const HOME = "22222222-2222-4222-8222-222222222222";

@@ -31,9 +31,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Search, Star, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { useDebouncedValue } from "@/hooks/useDebouncedValue";
-import { formatDate } from "@/lib/format";
-import { SETTINGS_ID_TO_PATH, SETTINGS_NAV_ITEMS } from "@/routes/settings";
+import { useDebouncedValue } from "../../hooks/useDebouncedValue";
+import { formatDate } from "../../lib/format";
+import { SETTINGS_ID_TO_PATH, SETTINGS_NAV_ITEMS } from "../settings";
 import { sendersHelp } from "./-shared/help-copy";
 
 export const Route = createFileRoute("/settings/senders")({

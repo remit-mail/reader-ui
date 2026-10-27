@@ -1,7 +1,7 @@
 import { PullToRefresh as KitPullToRefresh } from "@remit/ui";
 import type { ReactElement } from "react";
 
-import { useTriggerSync } from "@/hooks/useTriggerSync";
+import { useTriggerSync } from "../../hooks/useTriggerSync";
 
 interface PullToRefreshProps {
 	accountId: string;

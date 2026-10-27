@@ -6,8 +6,8 @@ import {
 import { defaultComposeLanguages } from "@remit/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo } from "react";
-import { useErrorBanners } from "@/components/ui/ErrorBannerProvider";
-import { buildMutationErrorBanner } from "@/components/ui/error-banners";
+import { useErrorBanners } from "../components/ui/ErrorBannerProvider";
+import { buildMutationErrorBanner } from "../components/ui/error-banners";
 
 /**
  * The account's writing languages: the menu the composer's language chip

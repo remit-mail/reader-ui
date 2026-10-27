@@ -1,4 +1,4 @@
-import { codedApiErrorBody } from "@/lib/api";
+import { codedApiErrorBody } from "../../lib/api";
 import { formatErrorDetail } from "../ui/error-banners.js";
 
 export const mailSyncOffReason = (error: unknown): string | undefined => {

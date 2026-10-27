@@ -17,13 +17,12 @@ import { afterEach, describe, it } from "node:test";
 import type { RemitImapCalendarResponse } from "@remit/api-http-client/types.gen.ts";
 import { MutationCache, QueryCache, QueryClient } from "@tanstack/react-query";
 import { act, createElement, Fragment } from "react";
-import { FatalErrorOverlay } from "@/components/ui/FatalErrorOverlay";
-import { useCalendarData } from "@/hooks/useCalendarData";
-import { __resetFatalError } from "@/lib/fatal-error";
+import { FatalErrorOverlay } from "../../components/ui/FatalErrorOverlay";
+import { __resetFatalError } from "../../lib/fatal-error";
 import {
 	handleMutationCacheError,
 	handleQueryCacheError,
-} from "@/lib/query-error-handler";
+} from "../../lib/query-error-handler";
 import { createDomHarness, type DomHarness } from "../../test-support/dom";
 import {
 	type HttpCall,
@@ -31,6 +30,7 @@ import {
 	httpError,
 	mockFetch,
 } from "../../test-support/http";
+import { useCalendarData } from "../useCalendarData";
 import {
 	type CalendarWriteOutcome,
 	type CalendarWrites,

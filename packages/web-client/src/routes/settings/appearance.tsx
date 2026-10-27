@@ -13,8 +13,8 @@ import {
 	getThemePreference,
 	setThemePreference,
 	type ThemePreference,
-} from "@/lib/theme-preference";
-import { SETTINGS_ID_TO_PATH, SETTINGS_NAV_ITEMS } from "@/routes/settings";
+} from "../../lib/theme-preference";
+import { SETTINGS_ID_TO_PATH, SETTINGS_NAV_ITEMS } from "../settings";
 import { appearanceHelp } from "./-shared/help-copy";
 
 export const Route = createFileRoute("/settings/appearance")({

@@ -35,43 +35,46 @@ import {
 	useFolderAppointments,
 	useInboxMailbox,
 	useJunkMailbox,
-} from "@/hooks/useArchiveMailbox";
-import { useClauseSuggestions } from "@/hooks/useClauseSuggestions";
-import { useCreateMailbox } from "@/hooks/useCreateMailbox";
+} from "../../hooks/useArchiveMailbox";
+import { useClauseSuggestions } from "../../hooks/useClauseSuggestions";
+import { useCreateMailbox } from "../../hooks/useCreateMailbox";
 import {
 	type EscalationSearchQuery,
 	useEscalatedActions,
-} from "@/hooks/useEscalatedActions";
-import { useCreateFilter } from "@/hooks/useFilters";
-import { useFolderLabelTranslator } from "@/hooks/useFolderLabelTranslator";
-import { useMatchSample, useSearchMatchSample } from "@/hooks/useMatchSample";
-import { useOrganizeJob } from "@/hooks/useOrganizeJob";
-import { useRulePreview } from "@/hooks/useRulePreview";
-import { useSelectedSubjects } from "@/hooks/useSelectedSubjects";
+} from "../../hooks/useEscalatedActions";
+import { useCreateFilter } from "../../hooks/useFilters";
+import { useFolderLabelTranslator } from "../../hooks/useFolderLabelTranslator";
+import {
+	useMatchSample,
+	useSearchMatchSample,
+} from "../../hooks/useMatchSample";
+import { useOrganizeJob } from "../../hooks/useOrganizeJob";
+import { useRulePreview } from "../../hooks/useRulePreview";
+import { useSelectedSubjects } from "../../hooks/useSelectedSubjects";
 import type {
 	BulkActionProgress,
 	BulkActionTarget,
 	BulkRunOutcome,
 	BulkRunStart,
 	EscalatedAction,
-} from "@/lib/bulk-actions";
-import { NO_JUNK_FOLDER_REASON } from "@/lib/junk-destination";
-import { useMailContext } from "@/lib/mail-context";
-import { buildMoveOptions, folderDelimiter } from "@/lib/move-options";
+} from "../../lib/bulk-actions";
+import { NO_JUNK_FOLDER_REASON } from "../../lib/junk-destination";
+import { useMailContext } from "../../lib/mail-context";
+import { buildMoveOptions, folderDelimiter } from "../../lib/move-options";
 import {
 	buildWizardDraft,
 	type OrganizeMatchPredicate,
 	type OrganizeScope,
 	organizeScopeFor,
-} from "@/lib/organize/organize-model";
+} from "../../lib/organize/organize-model";
 import {
 	normalizeClauseValue,
 	SUPPORTED_CLAUSE_FIELDS,
-} from "@/lib/organize/rule-model";
-import { searchRuleAccountId } from "@/lib/organize/search-to-rule";
-import { useSearchConversion } from "@/lib/search-conversion";
-import type { WizardSelectionMessage } from "@/lib/wizard-selection";
-import { useWizardEntryValue, useWizardStep } from "@/routing";
+} from "../../lib/organize/rule-model";
+import { searchRuleAccountId } from "../../lib/organize/search-to-rule";
+import { useSearchConversion } from "../../lib/search-conversion";
+import type { WizardSelectionMessage } from "../../lib/wizard-selection";
+import { useWizardEntryValue, useWizardStep } from "../../routing";
 import { bulkRunReport } from "./bulk-run-state";
 import { organizeRunState } from "./organize-run-state";
 import {

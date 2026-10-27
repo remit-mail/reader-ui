@@ -6,17 +6,16 @@ import {
 import type { RemitImapThreadMessageResponse } from "@remit/api-http-client/types.gen.ts";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef } from "react";
-import { useRoleAppointmentPrompt } from "@/components/mail/RoleAppointmentPromptProvider";
-import { useErrorBanners } from "@/components/ui/ErrorBannerProvider";
-import { formatErrorDetail } from "@/components/ui/error-banners";
-import { isFolderRoleRefusal } from "@/components/ui/folder-role-refusal";
+import { useRoleAppointmentPrompt } from "../components/mail/RoleAppointmentPromptProvider";
+import { useErrorBanners } from "../components/ui/ErrorBannerProvider";
+import { formatErrorDetail } from "../components/ui/error-banners";
+import { isFolderRoleRefusal } from "../components/ui/folder-role-refusal";
 import {
 	isPlacementRefusal,
 	placementRefusalBanner,
-} from "@/components/ui/placement-refusal";
-import { resolveMailboxesForMessages } from "@/hooks/useMarkAsRead";
-import { runChunkedMutation } from "@/lib/bulk-actions";
-import { softErrorStatuses } from "@/lib/error-classifier";
+} from "../components/ui/placement-refusal";
+import { runChunkedMutation } from "../lib/bulk-actions";
+import { softErrorStatuses } from "../lib/error-classifier";
 import {
 	cancelThreadListQueries,
 	invalidateThreadListQueries,
@@ -26,7 +25,8 @@ import {
 	type ThreadMessagesData,
 	type ThreadMutationContext,
 	threadListCacheKeys,
-} from "@/lib/thread-list-cache";
+} from "../lib/thread-list-cache";
+import { resolveMailboxesForMessages } from "./useMarkAsRead";
 
 interface UseDeleteMessagesOptions {
 	mailboxId: string;

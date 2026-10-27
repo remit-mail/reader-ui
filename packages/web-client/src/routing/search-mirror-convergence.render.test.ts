@@ -31,8 +31,8 @@ import {
 	RouterProvider,
 } from "@tanstack/react-router";
 import { createElement, useState } from "react";
-import { MailContext, type MailContextValue } from "@/lib/mail-context";
-import { EMPTY_RESULT_FOLDER_INDEX } from "@/lib/result-folder";
+import { MailContext, type MailContextValue } from "../lib/mail-context";
+import { EMPTY_RESULT_FOLDER_INDEX } from "../lib/result-folder";
 import { createDomHarness, type DomHarness } from "../test-support/dom";
 import { useSearchMirror } from "./search-mirror";
 

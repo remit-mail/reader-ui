@@ -1,7 +1,10 @@
 // biome-ignore lint/style/useFilenamingConvention: TanStack Router convention
 import { createFileRoute } from "@tanstack/react-router";
-import { ChangeCalendarSuggestion } from "@/components/calendar/ChangeCalendarSuggestion";
-import { useCalendarNavigation, useChangingSuggestionId } from "@/routing";
+import { ChangeCalendarSuggestion } from "../../../components/calendar/ChangeCalendarSuggestion";
+import {
+	useCalendarNavigation,
+	useChangingSuggestionId,
+} from "../../../routing";
 
 function ChangeSuggestionRoute() {
 	const suggestionId = useChangingSuggestionId();

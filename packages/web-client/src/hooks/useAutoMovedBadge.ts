@@ -11,7 +11,7 @@ import {
 	isAutoMoveInEffect,
 	resolveUndoTargetMailboxId,
 	spamReportLabel,
-} from "@/lib/auto-moved";
+} from "../lib/auto-moved";
 import { useInboxMailbox, useJunkMailbox } from "./useArchiveMailbox";
 import { useMoveMessages } from "./useMoveMessages";
 import { useReportSpam } from "./useReportSpam";

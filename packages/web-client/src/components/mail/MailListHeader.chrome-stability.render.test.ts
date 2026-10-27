@@ -28,11 +28,11 @@ import { createElement, Profiler, useCallback, useMemo, useState } from "react";
 import {
 	type ListHeaderChrome,
 	useListHeaderChrome,
-} from "@/lib/list-header-chrome";
-import { MailContext, type MailContextValue } from "@/lib/mail-context";
-import { EMPTY_RESULT_FOLDER_INDEX } from "@/lib/result-folder";
-import { createDomHarness, type DomHarness } from "@/test-support/dom";
-import { type HttpMock, mockFetch } from "@/test-support/http";
+} from "../../lib/list-header-chrome";
+import { MailContext, type MailContextValue } from "../../lib/mail-context";
+import { EMPTY_RESULT_FOLDER_INDEX } from "../../lib/result-folder";
+import { createDomHarness, type DomHarness } from "../../test-support/dom";
+import { type HttpMock, mockFetch } from "../../test-support/http";
 import { MailListHeader } from "./MailListHeader";
 
 const MAILBOX_ID = "11111111-1111-4111-8111-111111111111";

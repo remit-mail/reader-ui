@@ -3,8 +3,8 @@ import type { RemitImapAccountResponse } from "@remit/api-http-client/types.gen.
 import { useQueries } from "@tanstack/react-query";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { buildMailboxRoleMap, labelForMailbox } from "@/lib/folder-roles";
-import { useBrowsedList } from "@/routing";
+import { buildMailboxRoleMap, labelForMailbox } from "../lib/folder-roles";
+import { useBrowsedList } from "../routing";
 
 interface UseCurrentMailboxNameOptions {
 	accounts: RemitImapAccountResponse[];

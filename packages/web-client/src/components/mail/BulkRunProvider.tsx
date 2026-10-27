@@ -10,14 +10,11 @@ import {
 	useRef,
 	useState,
 } from "react";
-import { useErrorBanners } from "@/components/ui/ErrorBannerProvider";
-import { buildMutationErrorBanner } from "@/components/ui/error-banners";
-import { isFolderRoleRefusal } from "@/components/ui/folder-role-refusal";
 import {
 	bulkActionFailureDetail,
 	bulkActionFailureTitle,
 	bulkRunBusyRefusal,
-} from "@/lib/bulk-action-copy";
+} from "../../lib/bulk-action-copy";
 import {
 	type ApplyBatch,
 	type BulkActionProgress,
@@ -30,11 +27,14 @@ import {
 	mailboxesTouchedBy,
 	runChunkedAction,
 	runPredicateAction,
-} from "@/lib/bulk-actions";
+} from "../../lib/bulk-actions";
 import {
 	invalidateThreadListQueries,
 	threadListCacheKeys,
-} from "@/lib/thread-list-cache";
+} from "../../lib/thread-list-cache";
+import { useErrorBanners } from "../ui/ErrorBannerProvider";
+import { buildMutationErrorBanner } from "../ui/error-banners";
+import { isFolderRoleRefusal } from "../ui/folder-role-refusal";
 import { useRoleAppointmentPrompt } from "./RoleAppointmentPromptProvider";
 
 /**

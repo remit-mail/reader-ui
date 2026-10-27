@@ -1,7 +1,7 @@
-import { useMailContext } from "@/lib/mail-context";
-import { isScopedRoute } from "@/lib/search-scope";
-import type { SearchTokenContext } from "@/lib/search-tokens";
-import { useBrowsedList } from "@/routing";
+import { useMailContext } from "../lib/mail-context";
+import { isScopedRoute } from "../lib/search-scope";
+import type { SearchTokenContext } from "../lib/search-tokens";
+import { useBrowsedList } from "../routing";
 
 /**
  * The one context every search engine parses the query through.

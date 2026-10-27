@@ -1,4 +1,4 @@
-import type { LayoutTier } from "@/hooks/useLayoutTier";
+import type { LayoutTier } from "../hooks/useLayoutTier";
 
 /**
  * Which surface a list view shows its search on. Two surfaces exist:

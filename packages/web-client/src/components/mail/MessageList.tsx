@@ -20,44 +20,47 @@ import { useBlocker } from "@tanstack/react-router";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { RefObject } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useErrorBanners } from "@/components/ui/ErrorBannerProvider";
-import { useJunkMailbox } from "@/hooks/useArchiveMailbox";
-import { useDeleteOutcome } from "@/hooks/useDeleteOutcome";
+import { useJunkMailbox } from "../../hooks/useArchiveMailbox";
+import { useDeleteOutcome } from "../../hooks/useDeleteOutcome";
 import {
 	type EscalationSearchQuery,
 	useEscalatedActions,
-} from "@/hooks/useEscalatedActions";
-import { useFollowFocusOpen } from "@/hooks/useFollowFocusOpen";
-import { useLabelList } from "@/hooks/useLabels";
-import { useToggleReadFor } from "@/hooks/useMarkAsRead";
-import { useIsDesktop } from "@/hooks/useMediaQuery";
-import { buildBugReportContext, buildGitHubIssueUrl } from "@/lib/bug-report";
+} from "../../hooks/useEscalatedActions";
+import { useFollowFocusOpen } from "../../hooks/useFollowFocusOpen";
+import { useLabelList } from "../../hooks/useLabels";
+import { useToggleReadFor } from "../../hooks/useMarkAsRead";
+import { useIsDesktop } from "../../hooks/useMediaQuery";
+import {
+	buildBugReportContext,
+	buildGitHubIssueUrl,
+} from "../../lib/bug-report";
 import {
 	type BulkActionKind,
 	bulkActionCompletionText,
 	bulkActionProgressLabel,
 	bulkActionProgressTone,
 	runEndingBanner,
-} from "@/lib/bulk-action-copy";
-import type { BulkRunOutcome } from "@/lib/bulk-actions";
+} from "../../lib/bulk-action-copy";
+import type { BulkRunOutcome } from "../../lib/bulk-actions";
 import {
 	describeSearchScope,
 	escalatedStatusLabel,
 	escalationActionLabel,
-} from "@/lib/escalation-label";
-import { formatEmailDate } from "@/lib/format";
-import { junkDestination } from "@/lib/junk-destination";
-import { tabStopId } from "@/lib/list-focus";
-import { useListHeaderChrome } from "@/lib/list-header-chrome";
-import { listVerbRequest } from "@/lib/list-verb-request";
-import { resolveSelectionAccountScope } from "@/lib/selection-account-scope";
-import { shouldExitSelectionOnNavigate } from "@/lib/selection-mode";
-import type { WizardSelectionMessage } from "@/lib/wizard-selection";
+} from "../../lib/escalation-label";
+import { formatEmailDate } from "../../lib/format";
+import { junkDestination } from "../../lib/junk-destination";
+import { tabStopId } from "../../lib/list-focus";
+import { useListHeaderChrome } from "../../lib/list-header-chrome";
+import { listVerbRequest } from "../../lib/list-verb-request";
+import { resolveSelectionAccountScope } from "../../lib/selection-account-scope";
+import { shouldExitSelectionOnNavigate } from "../../lib/selection-mode";
+import type { WizardSelectionMessage } from "../../lib/wizard-selection";
 import {
 	useOpenThread,
 	useSelectionWizard,
 	useWizardStepValue,
-} from "@/routing";
+} from "../../routing";
+import { useErrorBanners } from "../ui/ErrorBannerProvider";
 import { DeleteConfirmDialog } from "./DeleteConfirmDialog";
 import { LabelApplyTrigger } from "./LabelApplyTrigger";
 import {

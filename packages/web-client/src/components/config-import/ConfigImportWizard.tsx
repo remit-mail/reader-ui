@@ -33,9 +33,9 @@ import { useCallback, useMemo, useState } from "react";
 import {
 	REDIRECT_STALL_MESSAGE,
 	useRedirectEnded,
-} from "@/hooks/useRedirectEnded";
-import { useReturnFromRedirect } from "@/hooks/useReturnFromRedirect";
-import type { SecurityMode } from "@/lib/autodiscovery";
+} from "../../hooks/useRedirectEnded";
+import { useReturnFromRedirect } from "../../hooks/useReturnFromRedirect";
+import type { SecurityMode } from "../../lib/autodiscovery";
 import {
 	type ConfigDocument,
 	type FailureCopy,
@@ -49,8 +49,8 @@ import {
 	sectionResults,
 	WRITE_FAILURE_CODE,
 	writeFailure,
-} from "@/lib/config-import";
-import { softErrorStatuses } from "@/lib/error-classifier";
+} from "../../lib/config-import";
+import { softErrorStatuses } from "../../lib/error-classifier";
 import {
 	ConnectionTestStep,
 	CredentialsStep,

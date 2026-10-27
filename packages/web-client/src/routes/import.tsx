@@ -10,9 +10,9 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback } from "react";
-import { ConfigImportWizard } from "@/components/config-import/ConfigImportWizard";
-import { completeOnboarding } from "@/lib/onboarding-completion";
-import { useTelemetry } from "@/lib/telemetry-context";
+import { ConfigImportWizard } from "../components/config-import/ConfigImportWizard";
+import { completeOnboarding } from "../lib/onboarding-completion";
+import { useTelemetry } from "../lib/telemetry-context";
 
 export const Route = createFileRoute("/import")({
 	component: ConfigImportPage,

@@ -7,7 +7,7 @@
  */
 import type { RemitImapCanonicalMailboxRole } from "@remit/api-http-client/types.gen.ts";
 import { CanonicalMailboxRole } from "@remit/domain-enums";
-import { type CodedApiErrorBody, codedApiErrorBody } from "@/lib/api";
+import { type CodedApiErrorBody, codedApiErrorBody } from "../../lib/api";
 
 /** Why the role is unresolved, as the API's `details.reason` spells it. */
 export type FolderRoleRefusalReason = "none" | "stale" | "unconfirmed";

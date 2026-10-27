@@ -4,7 +4,7 @@
  * lands here and is sent on to the brief carrying whatever it arrived with.
  */
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import { mailIndexSearchSchema } from "@/lib/mail-search";
+import { mailIndexSearchSchema } from "../../lib/mail-search";
 
 export const Route = createFileRoute("/mail/")({
 	validateSearch: mailIndexSearchSchema,

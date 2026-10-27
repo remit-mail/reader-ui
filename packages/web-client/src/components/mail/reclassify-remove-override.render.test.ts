@@ -18,13 +18,13 @@ import assert from "node:assert/strict";
 import { afterEach, describe, it } from "node:test";
 import type { RemitImapAddressResponse } from "@remit/api-http-client/types.gen.ts";
 import { createElement } from "react";
-import { createDomHarness, type DomHarness } from "@/test-support/dom";
+import { createDomHarness, type DomHarness } from "../../test-support/dom";
 import {
 	makeAccount,
 	makeConfig,
 	makeThreadMessage,
-} from "@/test-support/fixtures";
-import { type HttpMock, mockFetch } from "@/test-support/http";
+} from "../../test-support/fixtures";
+import { type HttpMock, mockFetch } from "../../test-support/http";
 import { IntelligencePane } from "./IntelligencePane";
 
 const thread = makeThreadMessage({ messageId: "msg-1", category: "personal" });

@@ -64,7 +64,7 @@ function TopBar() {
 			}
 			account={
 				<button type="button" aria-label="Account">
-					<Avatar name="Matthijs" email="matthijs@example.com" size="sm" />
+					<Avatar name="Reader" email="reader@example.com" size="sm" />
 				</button>
 			}
 		/>

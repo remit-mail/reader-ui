@@ -24,10 +24,10 @@ import {
 	HOT_POLL_INTERVAL_MS,
 	HOT_WINDOW_MS,
 	startHotSyncWindow,
-} from "@/lib/hot-sync-window";
-import { createDomHarness, type DomHarness } from "@/test-support/dom";
-import { makeAccount } from "@/test-support/fixtures";
-import { type HttpMock, mockFetch } from "@/test-support/http";
+} from "../lib/hot-sync-window";
+import { createDomHarness, type DomHarness } from "../test-support/dom";
+import { makeAccount } from "../test-support/fixtures";
+import { type HttpMock, mockFetch } from "../test-support/http";
 
 const ACCOUNT_ID = "acc-1";
 const AMBIENT_SECONDS = 600;

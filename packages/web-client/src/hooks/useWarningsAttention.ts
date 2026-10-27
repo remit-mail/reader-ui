@@ -1,7 +1,7 @@
 import { meOperationsListQuarantineOptions } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
 import type { RemitImapQuarantineListResponse } from "@remit/api-http-client/types.gen.ts";
 import { useQuery } from "@tanstack/react-query";
-import { isUnauthenticated, softErrorStatuses } from "@/lib/error-classifier";
+import { isUnauthenticated, softErrorStatuses } from "../lib/error-classifier";
 
 const WARNINGS_LIST_META = softErrorStatuses(401);
 

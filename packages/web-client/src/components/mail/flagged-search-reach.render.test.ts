@@ -33,19 +33,19 @@ import {
 	RouterProvider,
 } from "@tanstack/react-router";
 import { createElement } from "react";
-import { ComposeProvider } from "@/components/compose/ComposeProvider";
-import { MailContext, type MailContextValue } from "@/lib/mail-context";
-import { MailFreshnessProvider } from "@/lib/mail-freshness";
-import { EMPTY_RESULT_FOLDER_INDEX } from "@/lib/result-folder";
-import { useOpenThreadPath } from "@/routing";
-import { createDomHarness, type DomHarness } from "@/test-support/dom";
-import { makeThreadMessage } from "@/test-support/fixtures";
+import { MailContext, type MailContextValue } from "../../lib/mail-context";
+import { MailFreshnessProvider } from "../../lib/mail-freshness";
+import { EMPTY_RESULT_FOLDER_INDEX } from "../../lib/result-folder";
+import { useOpenThreadPath } from "../../routing";
+import { createDomHarness, type DomHarness } from "../../test-support/dom";
+import { makeThreadMessage } from "../../test-support/fixtures";
 import {
 	type HttpCall,
 	type HttpMock,
 	httpError,
 	mockFetch,
-} from "@/test-support/http";
+} from "../../test-support/http";
+import { ComposeProvider } from "../compose/ComposeProvider";
 import { FlaggedPane } from "./FlaggedPane";
 
 const QUERY = "concierge";

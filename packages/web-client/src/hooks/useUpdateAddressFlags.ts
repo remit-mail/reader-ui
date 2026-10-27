@@ -10,10 +10,10 @@ import type {
 } from "@remit/api-http-client/types.gen.ts";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
-import { useErrorBanners } from "@/components/ui/ErrorBannerProvider";
-import { formatErrorDetail } from "@/components/ui/error-banners";
-import { reportFatalError } from "@/lib/fatal-error";
-import { senderAddressSearchQuery } from "@/lib/sender-address";
+import { useErrorBanners } from "../components/ui/ErrorBannerProvider";
+import { formatErrorDetail } from "../components/ui/error-banners";
+import { reportFatalError } from "../lib/fatal-error";
+import { senderAddressSearchQuery } from "../lib/sender-address";
 
 interface UseUpdateAddressFlagsOptions {
 	addressId: string | undefined;

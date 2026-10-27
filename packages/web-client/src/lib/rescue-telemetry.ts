@@ -1,5 +1,5 @@
 import type { RemitImapSenderTrust } from "@remit/api-http-client/types.gen.ts";
-import type { Telemetry } from "@/lib/telemetry";
+import type { Telemetry } from "./telemetry";
 
 /**
  * Rescue-from-Spam telemetry. Shapes the small, privacy-safe payloads (counts,

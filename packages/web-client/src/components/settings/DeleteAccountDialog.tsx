@@ -6,7 +6,7 @@ import { Button, Dialog, Input } from "@remit/ui";
 import { useMutation } from "@tanstack/react-query";
 import { AlertTriangle, Download, X } from "lucide-react";
 import { useState } from "react";
-import { useAuthProvider } from "@/auth/provider";
+import { useAuthProvider } from "../../auth/provider";
 
 interface DeleteAccountDialogProps {
 	open: boolean;

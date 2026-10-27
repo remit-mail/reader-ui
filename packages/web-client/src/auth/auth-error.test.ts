@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { afterEach, describe, it } from "node:test";
-import { __resetFatalError, getCurrentFatalError } from "@/lib/fatal-error";
+import { __resetFatalError, getCurrentFatalError } from "../lib/fatal-error";
 import {
 	type AuthRequest,
 	authInlineMessage,

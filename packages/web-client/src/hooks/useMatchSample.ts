@@ -8,8 +8,8 @@ import type {
 } from "@remit/api-http-client/types.gen.ts";
 import { senderLabel, type WizardMessage } from "@remit/ui";
 import { useQueries, useQuery } from "@tanstack/react-query";
-import type { EscalationSearchQuery } from "@/hooks/useEscalatedActions";
-import { formatEmailDate } from "@/lib/format";
+import { formatEmailDate } from "../lib/format";
+import type { EscalationSearchQuery } from "./useEscalatedActions";
 
 /**
  * The members of a match, read from the server that matched them.

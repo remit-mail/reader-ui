@@ -19,8 +19,8 @@ import type {
 import type { CalendarViewId } from "@remit/ui";
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo } from "react";
-import { stepCalendarDate } from "@/lib/calendar-route";
-import { softErrorStatuses } from "@/lib/error-classifier";
+import { stepCalendarDate } from "../../lib/calendar-route";
+import { softErrorStatuses } from "../../lib/error-classifier";
 import { type CalendarWindow, calendarWindow } from "./window";
 
 /**

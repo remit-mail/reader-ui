@@ -1,5 +1,5 @@
 import { ErrorState, formatErrorMessage } from "@remit/ui";
-import { getErrorStatus } from "@/lib/error-classifier";
+import { getErrorStatus } from "../../lib/error-classifier";
 
 interface FilterActionErrorProps {
 	title: string;

@@ -26,20 +26,20 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { DeleteFolderDialog } from "@/components/settings/DeleteFolderDialog";
-import { isMailboxNotSettledRefusal } from "@/components/ui/folder-role-refusal";
-import { useCreateMailbox } from "@/hooks/useCreateMailbox";
-import { useFolderLabelTranslator } from "@/hooks/useFolderLabelTranslator";
-import { guardFolderDeletion } from "@/lib/delete-folder";
-import { softErrorStatuses } from "@/lib/error-classifier";
-import { folderFailure } from "@/lib/folder-failure";
+import { DeleteFolderDialog } from "../../components/settings/DeleteFolderDialog";
+import { isMailboxNotSettledRefusal } from "../../components/ui/folder-role-refusal";
+import { useCreateMailbox } from "../../hooks/useCreateMailbox";
+import { useFolderLabelTranslator } from "../../hooks/useFolderLabelTranslator";
+import { guardFolderDeletion } from "../../lib/delete-folder";
+import { softErrorStatuses } from "../../lib/error-classifier";
+import { folderFailure } from "../../lib/folder-failure";
 import {
 	buildMailboxRoleMap,
 	CANONICAL_TO_NAV_ROLE,
 	labelForMailbox,
 	NAV_ROLE_TO_CANONICAL,
-} from "@/lib/folder-roles";
-import { SETTINGS_ID_TO_PATH, SETTINGS_NAV_ITEMS } from "@/routes/settings";
+} from "../../lib/folder-roles";
+import { SETTINGS_ID_TO_PATH, SETTINGS_NAV_ITEMS } from "../settings";
 
 export const Route = createFileRoute("/settings/folders")({
 	component: FoldersSettings,

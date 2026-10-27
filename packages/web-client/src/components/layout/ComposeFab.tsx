@@ -1,5 +1,5 @@
 import { ComposeFab as ComposeFabButton } from "@remit/ui";
-import { useOpenCompose, useOpensDetail } from "@/routing";
+import { useOpenCompose, useOpensDetail } from "../../routing";
 
 /**
  * Floating Action Button for composing a new message. Mobile-only.

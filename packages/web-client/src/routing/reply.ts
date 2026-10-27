@@ -1,8 +1,8 @@
 import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import { useCallback, useMemo } from "react";
 import { z } from "zod";
-import type { MailListRoute } from "@/lib/mail-route";
-import { type ComposeSeed, withoutComposeSeed } from "@/lib/mail-search";
+import type { MailListRoute } from "../lib/mail-route";
+import { type ComposeSeed, withoutComposeSeed } from "../lib/mail-search";
 import { useBrowsedList } from "./browsed-list";
 import { useRetainOpenPanels } from "./fragment";
 

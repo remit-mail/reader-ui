@@ -10,9 +10,9 @@ import {
 	type BulkRunRequest,
 	type BulkRunSource,
 	useBulkRun,
-} from "@/components/mail/BulkRunProvider";
-import { useErrorBanners } from "@/components/ui/ErrorBannerProvider";
-import { buildMutationErrorBanner } from "@/components/ui/error-banners";
+} from "../components/mail/BulkRunProvider";
+import { useErrorBanners } from "../components/ui/ErrorBannerProvider";
+import { buildMutationErrorBanner } from "../components/ui/error-banners";
 import type {
 	ApplyBatch,
 	BulkActionProgress,
@@ -20,7 +20,7 @@ import type {
 	BulkRunStart,
 	EscalatedAction,
 	FetchIdsPage,
-} from "@/lib/bulk-actions";
+} from "../lib/bulk-actions";
 
 /** The predicate a search-scoped run re-issues on every page — the same
  *  filters the visible list is searching with, minus pagination/count knobs. */

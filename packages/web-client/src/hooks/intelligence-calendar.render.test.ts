@@ -23,16 +23,16 @@ import {
 	RouterProvider,
 } from "@tanstack/react-router";
 import { createElement } from "react";
-import { useOpenThread } from "@/routing";
-import { createDomHarness, type DomHarness } from "@/test-support/dom";
-import { makeThreadMessage } from "@/test-support/fixtures";
+import { useOpenThread } from "../routing";
+import { createDomHarness, type DomHarness } from "../test-support/dom";
+import { makeThreadMessage } from "../test-support/fixtures";
 import {
 	type HttpCall,
 	type HttpMock,
 	httpError,
 	mockFetch,
-} from "@/test-support/http";
-import { threadRouter } from "@/test-support/thread-router";
+} from "../test-support/http";
+import { threadRouter } from "../test-support/thread-router";
 import { useIntelligenceCalendar } from "./useIntelligenceCalendar";
 
 const CALENDAR = "11111111-1111-4111-8111-111111111111";

@@ -4,7 +4,7 @@ import {
 } from "@remit/ui";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect, userEvent, waitFor, within } from "storybook/test";
-import { AppStory } from "@/mocks/story-frame/AppStory";
+import { AppStory } from "../../mocks/story-frame/AppStory";
 import {
 	composeWorld,
 	INBOX,
@@ -17,8 +17,8 @@ import {
 	TURNS_SUBJECT,
 	threadUrl,
 	withoutSmtp,
-} from "@/mocks/story-frame/compose-world";
-import { mailHandlers } from "@/mocks/story-frame/mail-handlers";
+} from "../../mocks/story-frame/compose-world";
+import { mailHandlers } from "../../mocks/story-frame/mail-handlers";
 
 const world = composeWorld();
 const phone = { viewport: { value: "mobile", isRotated: false } };

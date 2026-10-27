@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { ApiError } from "@/lib/api";
+import { ApiError } from "../../lib/api";
 import { FilterActionError } from "./FilterActionError";
 
 const meta: Meta<typeof FilterActionError> = {

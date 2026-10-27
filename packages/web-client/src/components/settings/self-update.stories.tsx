@@ -6,10 +6,10 @@ import type {
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { HttpResponse, http } from "msw";
 import { expect, userEvent, waitFor, within } from "storybook/test";
-import { AppStory } from "@/mocks/story-frame/AppStory";
-import { mailHandlers } from "@/mocks/story-frame/mail-handlers";
-import { mailWorld } from "@/mocks/story-frame/mail-world";
-import { withRuntimeConfig } from "@/mocks/story-frame/session";
+import { AppStory } from "../../mocks/story-frame/AppStory";
+import { mailHandlers } from "../../mocks/story-frame/mail-handlers";
+import { mailWorld } from "../../mocks/story-frame/mail-world";
+import { withRuntimeConfig } from "../../mocks/story-frame/session";
 
 const CURRENT = "0.9.3";
 const NEXT = "1.0.0";

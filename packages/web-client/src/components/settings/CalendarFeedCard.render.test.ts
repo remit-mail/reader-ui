@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import React, { createElement } from "react";
 import { renderToString } from "react-dom/server";
-import type { CalendarFeedState } from "@/hooks/calendar/useCalendarFeed";
+import type { CalendarFeedState } from "../../hooks/calendar/useCalendarFeed";
 import { CalendarFeedCard } from "./CalendarFeedCard";
 
 // The node test loader transpiles remit-ui's `.tsx` with the classic JSX

@@ -20,12 +20,12 @@ import {
 } from "@remit/ui";
 import { Check, Copy, Link2, RefreshCw, Trash2 } from "lucide-react";
 import { type ReactNode, useEffect, useId, useRef, useState } from "react";
-import type { CalendarFeedState } from "@/hooks/calendar/useCalendarFeed";
+import type { CalendarFeedState } from "../../hooks/calendar/useCalendarFeed";
 import {
 	revokeFeedConfirmCopy,
 	rotateFeedConfirmCopy,
-} from "@/lib/calendar-feed-copy";
-import { formatDatePreset } from "@/lib/format";
+} from "../../lib/calendar-feed-copy";
+import { formatDatePreset } from "../../lib/format";
 
 export interface CalendarFeedCardProps {
 	calendarName: string;

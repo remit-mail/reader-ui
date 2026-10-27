@@ -7,10 +7,10 @@ import {
 	type ThreadRowData,
 } from "@remit/ui";
 import { useCallback, useState } from "react";
-import { toDisplayCategory } from "@/lib/display-category";
-import { formatEmailDate } from "@/lib/format";
-import { rowSettlement } from "@/lib/row-settlement";
-import { useOpenThread } from "@/routing";
+import { toDisplayCategory } from "../../lib/display-category";
+import { formatEmailDate } from "../../lib/format";
+import { rowSettlement } from "../../lib/row-settlement";
+import { useOpenThread } from "../../routing";
 import { MessageListItem } from "./MessageListItem";
 import { useModifierSelect } from "./useModifierSelect";
 

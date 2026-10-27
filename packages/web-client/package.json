@@ -1,6 +1,6 @@
 {
 	"name": "@remit/web-client",
-	"version": "1.0.0",
+	"version": "0.0.325",
 	"type": "module",
 	"description": "Remit web client, published as composable primitives — the app shell, auth shells, and runtime config. A distributor imports what it composes and bundles it.",
 	"exports": {
@@ -14,24 +14,16 @@
 		"./styles/cognito.css": "./src/auth/cognito/cognito.css",
 		"./vite-preset": "./harness/vite-preset.ts"
 	},
-	"files": [
-		"src",
-		"harness",
-		"spellcheck",
-		"vite.base.ts",
-		"public",
-		"index.html"
-	],
 	"scripts": {
 		"dev": "vite",
 		"generate:routes": "node scripts/generate-routes.mjs",
-		"prepack": "npm run generate:routes",
+		"prepack": "npm run generate:routes && node ../../npm-scripts/pack-dist.mjs prepack",
 		"build": "npm run generate:routes && tsc -b && vite build",
-		"build:dist": "npm run generate:routes && node --import tsx harness/build.mjs",
 		"preview": "vite preview",
 		"test:typecheck": "npm run generate:routes && tsgo --noEmit && tsgo --noEmit -p tsconfig.node.json",
 		"test:run": "TSX_TSCONFIG_PATH=./tsconfig.test.json node $NODE_TEST_FLAGS --import tsx --import ./test-support/register.mjs --experimental-test-coverage --test-coverage-include='src/**' --test-coverage-exclude='src/**/*.test.ts' --test-coverage-exclude='src/**/*.test.tsx' --test-coverage-exclude='src/test-support/**' --test-coverage-lines=86 --test 'src/**/*.test.ts' 'spellcheck/**/*.test.ts'",
-		"test": "npm run test:typecheck && npm run test:run"
+		"test": "npm run test:typecheck && npm run test:run",
+		"postpack": "node ../../npm-scripts/pack-dist.mjs postpack"
 	},
 	"peerDependencies": {
 		"dictionary-en": "^4",
@@ -126,5 +118,43 @@
 		"type": "git",
 		"url": "git+https://github.com/remit-mail/reader-ui.git",
 		"directory": "packages/web-client"
+	},
+	"packManifest": {
+		"exports": {
+			"./shell": {
+				"types": "./dist/src/shell/index.d.ts",
+				"default": "./dist/src/shell/index.js"
+			},
+			"./config": {
+				"types": "./dist/src/runtime-config.d.ts",
+				"default": "./dist/src/runtime-config.js"
+			},
+			"./auth/provider": {
+				"types": "./dist/src/auth/provider.d.ts",
+				"default": "./dist/src/auth/provider.js"
+			},
+			"./auth/cognito": {
+				"types": "./dist/src/auth/cognito-provider.d.ts",
+				"default": "./dist/src/auth/cognito-provider.js"
+			},
+			"./auth/better-auth": {
+				"types": "./dist/src/auth/better-auth-provider.d.ts",
+				"default": "./dist/src/auth/better-auth-provider.js"
+			},
+			"./auth/combined": {
+				"types": "./dist/src/auth/combined-provider.d.ts",
+				"default": "./dist/src/auth/combined-provider.js"
+			},
+			"./styles/app.css": "./dist/src/index.css",
+			"./styles/cognito.css": "./dist/src/auth/cognito/cognito.css",
+			"./vite-preset": {
+				"types": "./dist/harness/vite-preset.d.ts",
+				"default": "./dist/harness/vite-preset.js"
+			}
+		},
+		"files": [
+			"dist",
+			"public"
+		]
 	}
 }

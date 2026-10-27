@@ -16,19 +16,19 @@
  * already holds (`docs/architecture/url-state.md`, R6).
  */
 import { useCallback, useState } from "react";
-import { useLayoutTier } from "@/hooks/useLayoutTier";
 import {
 	readIntelligencePref,
 	resolveRailOpen,
 	writeIntelligencePref,
-} from "@/lib/intelligence-pref";
+} from "../lib/intelligence-pref";
 import {
 	isOverlayPanel,
 	type OverlayPanel,
 	useOpenPanels,
 	useOpenThreadPath,
 	useSetOpenPanels,
-} from "@/routing";
+} from "../routing";
+import { useLayoutTier } from "./useLayoutTier";
 
 export interface RailPanels {
 	/** The overlay the address holds: the nav slide-over or the shortcuts sheet. */

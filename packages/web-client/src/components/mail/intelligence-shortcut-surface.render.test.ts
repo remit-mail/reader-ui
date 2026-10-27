@@ -26,33 +26,33 @@ import {
 	RouterProvider,
 } from "@tanstack/react-router";
 import { createElement, type ReactNode, useCallback, useState } from "react";
-import { ComposeProvider } from "@/components/compose/ComposeProvider";
 import {
 	MailContext,
 	type MailContextValue,
 	useMailContext,
-} from "@/lib/mail-context";
-import { EMPTY_RESULT_FOLDER_INDEX } from "@/lib/result-folder";
+} from "../../lib/mail-context";
+import { EMPTY_RESULT_FOLDER_INDEX } from "../../lib/result-folder";
 import {
 	isOverlayPanel,
 	useOpenPanels,
 	useOpenThreadPath,
 	useSetOpenPanels,
-} from "@/routing";
+} from "../../routing";
 import {
 	createDomHarness,
 	type DomHarness,
 	type DomOptions,
-} from "@/test-support/dom";
-import { makeThreadMessage } from "@/test-support/fixtures";
-import { type HttpMock, mockFetch } from "@/test-support/http";
+} from "../../test-support/dom";
+import { makeThreadMessage } from "../../test-support/fixtures";
+import { type HttpMock, mockFetch } from "../../test-support/http";
 import {
 	describedMessage,
 	intelligenceDrawer,
 	MESSAGE_ID,
 	settle,
 	THREAD_ID,
-} from "@/test-support/intelligence-surface";
+} from "../../test-support/intelligence-surface";
+import { ComposeProvider } from "../compose/ComposeProvider";
 import { MailboxPane } from "./MailboxPane";
 
 /** Below the rail's 1280px gate, above the reading pane's 1024px one. */

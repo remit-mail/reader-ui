@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { runEndingBanner } from "@/lib/bulk-action-copy";
-import type { BulkRunOutcome } from "@/lib/bulk-actions";
-import { type DeleteOutcome, deleteExpunges } from "@/lib/format";
+import { runEndingBanner } from "../../lib/bulk-action-copy";
+import type { BulkRunOutcome } from "../../lib/bulk-actions";
+import { type DeleteOutcome, deleteExpunges } from "../../lib/format";
 
 /**
  * A run states how it ended, to whoever is still there to read it (#521). The

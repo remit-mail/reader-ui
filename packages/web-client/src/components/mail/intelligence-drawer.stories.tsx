@@ -9,10 +9,10 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { ChevronLeft, Info } from "lucide-react";
 import { useState } from "react";
 import { expect, userEvent, within } from "storybook/test";
-import { Drawer } from "@/components/layout/Drawer";
-import { MessageToolbar } from "@/components/mail/MessageToolbar";
-import { useIntelligenceDrawer } from "@/hooks/useIntelligenceDrawer";
+import { useIntelligenceDrawer } from "../../hooks/useIntelligenceDrawer";
+import { Drawer } from "../layout/Drawer";
 import { quietCalendar } from "./intelligence-story-calendar";
+import { MessageToolbar } from "./MessageToolbar";
 
 /**
  * The intelligence drawer below the desktop tier (#777, #778).
@@ -268,11 +268,7 @@ const MidWidthReader = () => {
 					/>
 				}
 				account={
-					<Avatar
-						name="Matthijs van Henten"
-						email="mvh@example.com"
-						size="sm"
-					/>
+					<Avatar name="Reader Example" email="reader@example.com" size="sm" />
 				}
 			/>
 			<MessageToolbar

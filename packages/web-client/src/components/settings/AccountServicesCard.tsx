@@ -4,7 +4,10 @@ import {
 	AccountServiceToggles,
 	Banner,
 } from "@remit/ui";
-import { buildBugReportContext, buildGitHubIssueUrl } from "@/lib/bug-report";
+import {
+	buildBugReportContext,
+	buildGitHubIssueUrl,
+} from "../../lib/bug-report";
 
 export interface AccountServiceRefusal {
 	service: AccountService;

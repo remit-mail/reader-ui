@@ -13,12 +13,12 @@ import type {
 import { isThreadCategory } from "@remit/ui";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
-import { isServerError } from "@/lib/error-classifier";
-import { formatDate } from "@/lib/format";
+import { isServerError } from "../lib/error-classifier";
+import { formatDate } from "../lib/format";
 import {
 	pickSenderAddress,
 	senderAddressSearchQuery,
-} from "@/lib/sender-address";
+} from "../lib/sender-address";
 
 /**
  * Format a creation timestamp as a human-readable "first seen" label.

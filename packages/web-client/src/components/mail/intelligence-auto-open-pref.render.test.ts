@@ -23,26 +23,26 @@ import {
 	RouterProvider,
 } from "@tanstack/react-router";
 import { createElement, type ReactNode, useState } from "react";
-import { ComposeProvider } from "@/components/compose/ComposeProvider";
-import { useRailPanels } from "@/hooks/useRailPanels";
-import { INTELLIGENCE_PREF_KEY } from "@/lib/intelligence-pref";
+import { useRailPanels } from "../../hooks/useRailPanels";
+import { INTELLIGENCE_PREF_KEY } from "../../lib/intelligence-pref";
 import {
 	MailContext,
 	type MailContextValue,
 	useMailContext,
-} from "@/lib/mail-context";
-import { MailFreshnessProvider } from "@/lib/mail-freshness";
-import { EMPTY_RESULT_FOLDER_INDEX } from "@/lib/result-folder";
-import { retainOpenPanelsAtTier, useOpenThreadPath } from "@/routing";
-import { createDomHarness, type DomHarness } from "@/test-support/dom";
-import { makeThreadMessage } from "@/test-support/fixtures";
-import { type HttpMock, mockFetch } from "@/test-support/http";
+} from "../../lib/mail-context";
+import { MailFreshnessProvider } from "../../lib/mail-freshness";
+import { EMPTY_RESULT_FOLDER_INDEX } from "../../lib/result-folder";
+import { retainOpenPanelsAtTier, useOpenThreadPath } from "../../routing";
+import { createDomHarness, type DomHarness } from "../../test-support/dom";
+import { makeThreadMessage } from "../../test-support/fixtures";
+import { type HttpMock, mockFetch } from "../../test-support/http";
 import {
 	describedMessage,
 	MESSAGE_ID,
 	settle,
 	THREAD_ID,
-} from "@/test-support/intelligence-surface";
+} from "../../test-support/intelligence-surface";
+import { ComposeProvider } from "../compose/ComposeProvider";
 import { MailboxPane } from "./MailboxPane";
 
 /** Wide enough for the rail, which is the surface the auto-open acts on. */

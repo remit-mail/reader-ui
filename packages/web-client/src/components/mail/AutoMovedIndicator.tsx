@@ -3,7 +3,7 @@ import type {
 	RemitImapMessageSpamReport,
 } from "@remit/api-http-client/types.gen.ts";
 import { AutoMovedBadge } from "@remit/ui";
-import { useAutoMovedBadge } from "@/hooks/useAutoMovedBadge";
+import { useAutoMovedBadge } from "../../hooks/useAutoMovedBadge";
 
 interface AutoMovedIndicatorProps {
 	accountId: string | undefined;

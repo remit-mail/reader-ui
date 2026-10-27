@@ -7,12 +7,12 @@ import type { RemitImapSyncPhase } from "@remit/api-http-client/types.gen.ts";
 import type { RefreshControlState } from "@remit/ui";
 import { type QueryClient, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { isSyncingPhase } from "@/hooks/useInitialSyncProgress";
-import { shouldEscalate } from "@/lib/error-classifier";
-import { reportFatalError } from "@/lib/fatal-error";
-import { startHotSyncWindow } from "@/lib/hot-sync-window";
-import { useMailFreshness } from "@/lib/mail-freshness";
-import { useTelemetry } from "@/lib/telemetry-context";
+import { shouldEscalate } from "../lib/error-classifier";
+import { reportFatalError } from "../lib/fatal-error";
+import { startHotSyncWindow } from "../lib/hot-sync-window";
+import { useMailFreshness } from "../lib/mail-freshness";
+import { useTelemetry } from "../lib/telemetry-context";
+import { isSyncingPhase } from "./useInitialSyncProgress";
 
 export type { RefreshControlState };
 

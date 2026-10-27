@@ -13,7 +13,7 @@ import type {
 } from "@remit/api-http-client/types.gen.ts";
 import type { ImportedAccount } from "./steps";
 
-export const CONFIG_FILE_NAME = "reader-config.ischen.json";
+export const CONFIG_FILE_NAME = "reader-config.example.json";
 
 const item = (
 	section: string,
@@ -23,12 +23,12 @@ const item = (
 ): RemitImapConfigImportItemReport => ({ section, key, verdict, reason });
 
 export const mixedItems: RemitImapConfigImportItemReport[] = [
-	item("accounts", "matthijs@ischen.nl", "created"),
+	item("accounts", "reader@example.com", "created"),
 	item("accounts", "m.vanhenten@gemeente-amstelveen.nl", "created"),
 	item("accounts", "post@vanhenten-advies.nl", "updated"),
 	item(
 		"accounts",
-		"matthijs@xs4all.nl",
+		"reader@example.net",
 		"skipped",
 		"An account with this address already exists here and its server settings differ. Remove it first, or edit it by hand — importing will not overwrite a working account.",
 	),
@@ -190,7 +190,7 @@ export const nothingLandedImportReport: RemitImapConfigImportReport = report({
 	items: [
 		item(
 			"accounts",
-			"matthijs@ischen.nl",
+			"reader@example.com",
 			"rejected",
 			"the account store refused the write",
 		),
@@ -200,7 +200,7 @@ export const nothingLandedImportReport: RemitImapConfigImportReport = report({
 			code: "import_write_failed",
 			message:
 				"the account store refused the write The items above it were written and remain; import the same file again with merge to finish.",
-			details: { section: "accounts", key: "matthijs@ischen.nl" },
+			details: { section: "accounts", key: "reader@example.com" },
 		},
 	],
 	warnings: [],
@@ -208,11 +208,11 @@ export const nothingLandedImportReport: RemitImapConfigImportReport = report({
 
 export const importedAccounts: ImportedAccount[] = [
 	{
-		accountId: "acct-ischen",
-		address: "matthijs@ischen.nl",
-		displayName: "Matthijs van Henten",
+		accountId: "acct-example",
+		address: "reader@example.com",
+		displayName: "Reader Example",
 		connector: "imap",
-		server: "imap.ischen.nl:993",
+		server: "imap.example.com:993",
 		state: "entered",
 	},
 	{

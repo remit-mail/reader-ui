@@ -18,7 +18,7 @@ import { useMemo } from "react";
 import {
 	buildResultFolderIndex,
 	type ResultFolderIndex,
-} from "@/lib/result-folder";
+} from "../lib/result-folder";
 
 type MailboxItems = RemitImapMailboxResponse[];
 

@@ -10,11 +10,11 @@
  * rendered to earn it back.
  */
 import assert from "node:assert/strict";
-import { mailListSearchSchemas } from "@/lib/mail-search";
-import { Route as MailboxRoute } from "@/routes/mail/$mailboxId";
-import { Route as BriefRoute } from "@/routes/mail/brief";
-import { Route as FlaggedRoute } from "@/routes/mail/flagged";
-import { Route as OutboxRoute } from "@/routes/mail/outbox";
+import { mailListSearchSchemas } from "../lib/mail-search";
+import { Route as MailboxRoute } from "../routes/mail/$mailboxId";
+import { Route as BriefRoute } from "../routes/mail/brief";
+import { Route as FlaggedRoute } from "../routes/mail/flagged";
+import { Route as OutboxRoute } from "../routes/mail/outbox";
 
 const routes = {
 	"/mail/brief": BriefRoute,

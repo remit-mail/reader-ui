@@ -12,15 +12,15 @@ import { NavSidebar } from "@remit/ui";
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { folderFailure } from "@/lib/folder-failure";
+import { folderFailure } from "../../lib/folder-failure";
 import {
 	buildMailboxRoleMap,
 	labelForMailbox,
 	shouldShowUnreadBadgeForRole,
-} from "@/lib/folder-roles";
-import { useMailContext } from "@/lib/mail-context";
-import { isOutboxListRow } from "@/lib/outbox-status";
-import { NavLink, useSelectedNavId } from "@/routing";
+} from "../../lib/folder-roles";
+import { useMailContext } from "../../lib/mail-context";
+import { isOutboxListRow } from "../../lib/outbox-status";
+import { NavLink, useSelectedNavId } from "../../routing";
 
 interface MailSidebarAdapterProps {
 	accounts: RemitImapAccountResponse[];

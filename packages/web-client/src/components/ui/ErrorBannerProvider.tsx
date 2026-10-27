@@ -11,9 +11,12 @@ import {
 	useMemo,
 	useState,
 } from "react";
-import { buildBugReportContext, buildGitHubIssueUrl } from "@/lib/bug-report";
-import { isAlwaysFatal } from "@/lib/error-classifier";
-import { reportFatalError } from "@/lib/fatal-error";
+import {
+	buildBugReportContext,
+	buildGitHubIssueUrl,
+} from "../../lib/bug-report";
+import { isAlwaysFatal } from "../../lib/error-classifier";
+import { reportFatalError } from "../../lib/fatal-error";
 import {
 	appendBanner,
 	buildEntry,

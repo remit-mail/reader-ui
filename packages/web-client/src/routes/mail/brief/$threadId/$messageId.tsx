@@ -12,7 +12,7 @@
  * would collapse and scroll to the top the moment someone pressed Reply.
  */
 import { createFileRoute } from "@tanstack/react-router";
-import { BriefPane } from "@/components/mail/BriefPane";
+import { BriefPane } from "../../../../components/mail/BriefPane";
 
 function BriefMessagePane() {
 	return <BriefPane.Reading />;

@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect, within } from "storybook/test";
-import { getPresetById } from "@/lib/provider-presets";
+import { getPresetById } from "../../lib/provider-presets";
 import { StepServers } from "./OnboardingWizard";
 
 const gmail = getPresetById("gmail");

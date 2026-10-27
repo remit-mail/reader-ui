@@ -73,7 +73,7 @@ const crossFolderMatches: SearchResult[] = [
 	{
 		id: "x2",
 		sender: "me",
-		senderEmail: "matthijs@example.com",
+		senderEmail: "reader@example.com",
 		subject: "Re: invoice query",
 		snippet: "Attaching the invoice you asked for.",
 		date: "Feb 18",

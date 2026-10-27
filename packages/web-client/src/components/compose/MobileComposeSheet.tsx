@@ -7,7 +7,7 @@ import {
 	useAdoptComposeDraft,
 	useCloseCompose,
 	useComposeDraftId,
-} from "@/routing";
+} from "../../routing";
 import { ComposeForm } from "./ComposeForm";
 import { composeSurfaceTitle } from "./compose-title";
 

@@ -4,7 +4,7 @@
  * `$recurrenceId` segment beside this one.
  */
 import { createFileRoute } from "@tanstack/react-router";
-import { OpenCalendarEvent } from "@/components/calendar/OpenCalendarEvent";
+import { OpenCalendarEvent } from "../../../../components/calendar/OpenCalendarEvent";
 
 function CalendarEventRoute() {
 	const { calendarObjectId } = Route.useParams();

@@ -24,15 +24,15 @@ import {
 	RouterProvider,
 } from "@tanstack/react-router";
 import { createElement } from "react";
-import { ComposeProvider } from "@/components/compose/ComposeProvider";
-import { createDomHarness, type DomHarness } from "@/test-support/dom";
+import { MARK_READ_DELAY_MS } from "../../hooks/useMarkAsRead";
+import { createDomHarness, type DomHarness } from "../../test-support/dom";
 import {
 	makeAccount,
 	makeMailbox,
 	makeThreadMessage,
-} from "@/test-support/fixtures";
-import { type HttpMock, mockFetch } from "@/test-support/http";
-import { MARK_READ_DELAY_MS } from "../../hooks/useMarkAsRead";
+} from "../../test-support/fixtures";
+import { type HttpMock, mockFetch } from "../../test-support/http";
+import { ComposeProvider } from "../compose/ComposeProvider";
 import { ConversationView } from "./ConversationView";
 
 const FIRST_ACCOUNT_ID = "acc-first";

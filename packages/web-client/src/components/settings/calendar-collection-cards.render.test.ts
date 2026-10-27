@@ -3,7 +3,7 @@ import { describe, it } from "node:test";
 import type { CalendarClash, EventDraft } from "@remit/ui";
 import React, { createElement } from "react";
 import { renderToString } from "react-dom/server";
-import { CalendarComposePane } from "@/components/calendar/CalendarComposePane";
+import { CalendarComposePane } from "../calendar/CalendarComposePane";
 import { CalendarCreateCard } from "./CalendarCreateCard";
 import { CalendarDetailsForm } from "./CalendarDetailsForm";
 import { CalendarFeedCard } from "./CalendarFeedCard";

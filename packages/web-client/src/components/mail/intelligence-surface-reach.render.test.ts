@@ -27,18 +27,18 @@ import {
 	RouterProvider,
 } from "@tanstack/react-router";
 import { type ComponentType, createElement, type ReactNode } from "react";
-import { ComposeProvider } from "@/components/compose/ComposeProvider";
-import { type OpenThreadPath, useOpenThreadPath } from "@/routing";
-import { createDomHarness, type DomHarness } from "@/test-support/dom";
-import { makeThreadMessage } from "@/test-support/fixtures";
-import { type HttpMock, mockFetch } from "@/test-support/http";
+import { type OpenThreadPath, useOpenThreadPath } from "../../routing";
+import { createDomHarness, type DomHarness } from "../../test-support/dom";
+import { makeThreadMessage } from "../../test-support/fixtures";
+import { type HttpMock, mockFetch } from "../../test-support/http";
 import {
 	describedMessage,
 	intelligenceDrawer,
 	MESSAGE_ID,
 	settle,
 	THREAD_ID,
-} from "@/test-support/intelligence-surface";
+} from "../../test-support/intelligence-surface";
+import { ComposeProvider } from "../compose/ComposeProvider";
 import { BriefPane } from "./BriefPane";
 import { FlaggedPane } from "./FlaggedPane";
 

@@ -16,7 +16,7 @@ import {
 	type EventDraft,
 } from "@remit/ui";
 import { useMemo } from "react";
-import { formatEventWhen } from "@/lib/calendar-format";
+import { formatEventWhen } from "../../lib/calendar-format";
 import {
 	deviceTimeZone,
 	isDrawnInstance,

@@ -6,8 +6,8 @@ import {
 } from "@remit/ui";
 import { Tag } from "lucide-react";
 import { useMemo } from "react";
-import { useApplyLabel } from "@/hooks/useApplyLabel";
-import { useLabelList } from "@/hooks/useLabels";
+import { useApplyLabel } from "../../hooks/useApplyLabel";
+import { useLabelList } from "../../hooks/useLabels";
 
 interface LabelApplyTriggerProps {
 	accountId: string;

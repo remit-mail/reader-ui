@@ -1,6 +1,6 @@
 import type { RunState, StepId } from "@remit/ui";
-import type { BulkActionTarget, BulkRunOutcome } from "@/lib/bulk-actions";
-import type { OrganizeScope } from "@/lib/organize/organize-model";
+import type { BulkActionTarget, BulkRunOutcome } from "../../lib/bulk-actions";
+import type { OrganizeScope } from "../../lib/organize/organize-model";
 
 export interface RetryContext {
 	runState: RunState;

@@ -28,9 +28,7 @@ const config: StorybookConfig = {
 		withUi.plugins.push(spellcheckPlugin());
 		withUi.resolve.alias = {
 			...withUi.resolve.alias,
-			// web-client stories (e.g. ConfirmDialog) use its own "@/" alias for
-			// in-package imports — mirrors `webClientAlias()` in
-			// packages/web-client/vite.base.ts, which Storybook doesn't load.
+			// Workbench prototypes reach the web client's story frame as "@/".
 			"@": fileURLToPath(new URL("../../web-client/src", import.meta.url)),
 		};
 		return withUi;

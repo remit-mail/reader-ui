@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import React, { createElement } from "react";
 import { renderToString } from "react-dom/server";
-import { ApiError } from "@/lib/api";
+import { ApiError } from "../../lib/api";
 import { FilterActionError } from "./FilterActionError";
 
 (globalThis as { React?: typeof React }).React = React;

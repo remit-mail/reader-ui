@@ -2,7 +2,7 @@ import type { CalendarDescriptor, CalendarEventData } from "@remit/ui";
 import { EventDetail } from "@remit/ui";
 import { AlertCircle, CalendarDays, Lock } from "lucide-react";
 import type { ReactNode } from "react";
-import { formatEventWhen } from "@/lib/calendar-format";
+import { formatEventWhen } from "../../lib/calendar-format";
 
 export type CalendarEventAbsence =
 	| { kind: "NotInView" }

@@ -7,25 +7,25 @@ import { ErrorState, type LabelOption, SettingsShell } from "@remit/ui";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useMemo, useState } from "react";
-import { FilterActionError } from "@/components/settings/FilterActionError";
-import { FilterEditorSurface } from "@/components/settings/FilterEditorSurface";
-import { FiltersList } from "@/components/settings/FiltersList";
+import { FilterActionError } from "../../components/settings/FilterActionError";
+import { FilterEditorSurface } from "../../components/settings/FilterEditorSurface";
+import { FiltersList } from "../../components/settings/FiltersList";
 import {
 	useDeleteFilter,
 	useFilterList,
 	useToggleFilter,
-} from "@/hooks/useFilters";
-import { useFolderLabelTranslator } from "@/hooks/useFolderLabelTranslator";
-import { useLabelList } from "@/hooks/useLabels";
-import { useOrganizeJob } from "@/hooks/useOrganizeJob";
+} from "../../hooks/useFilters";
+import { useFolderLabelTranslator } from "../../hooks/useFolderLabelTranslator";
+import { useLabelList } from "../../hooks/useLabels";
+import { useOrganizeJob } from "../../hooks/useOrganizeJob";
 import {
 	filterRunReportHref,
 	filterToggleReportHref,
-} from "@/lib/filter-report";
-import { buildMailboxRoleMap, labelForMailbox } from "@/lib/folder-roles";
-import { buildMoveOptions, folderDelimiter } from "@/lib/move-options";
-import { filterRunStatus } from "@/lib/organize/filter-run";
-import { SETTINGS_ID_TO_PATH, SETTINGS_NAV_ITEMS } from "@/routes/settings";
+} from "../../lib/filter-report";
+import { buildMailboxRoleMap, labelForMailbox } from "../../lib/folder-roles";
+import { buildMoveOptions, folderDelimiter } from "../../lib/move-options";
+import { filterRunStatus } from "../../lib/organize/filter-run";
+import { SETTINGS_ID_TO_PATH, SETTINGS_NAV_ITEMS } from "../settings";
 
 export const Route = createFileRoute("/settings/filters")({
 	component: FiltersSettings,

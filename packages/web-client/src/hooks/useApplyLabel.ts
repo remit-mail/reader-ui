@@ -5,14 +5,14 @@ import type {
 } from "@remit/api-http-client/types.gen.ts";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
-import { useErrorBanners } from "@/components/ui/ErrorBannerProvider";
-import { formatErrorDetail } from "@/components/ui/error-banners";
-import { resolveMailboxesForMessages } from "@/hooks/useMarkAsRead";
-import { runChunkedMutation } from "@/lib/bulk-actions";
+import { useErrorBanners } from "../components/ui/ErrorBannerProvider";
+import { formatErrorDetail } from "../components/ui/error-banners";
+import { runChunkedMutation } from "../lib/bulk-actions";
 import {
 	invalidateThreadListQueries,
 	threadListCacheKeys,
-} from "@/lib/thread-list-cache";
+} from "../lib/thread-list-cache";
+import { resolveMailboxesForMessages } from "./useMarkAsRead";
 
 /**
  * Apply or remove a label on a "just these" selection (issue #26, RFC 034

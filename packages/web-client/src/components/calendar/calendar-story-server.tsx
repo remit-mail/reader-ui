@@ -10,10 +10,10 @@ import {
 	RouterProvider,
 } from "@tanstack/react-router";
 import { type ReactNode, useState } from "react";
-import { CalendarComposeSeedProvider } from "@/components/calendar/CalendarComposeSeed";
-import { calendarSearchSchema } from "@/lib/calendar-route";
-import { client } from "@/lib/client";
-import { stringifySearch } from "@/lib/search-params";
+import { calendarSearchSchema } from "../../lib/calendar-route";
+import { client } from "../../lib/client";
+import { stringifySearch } from "../../lib/search-params";
+import { CalendarComposeSeedProvider } from "./CalendarComposeSeed";
 
 /**
  * The calendar's addresses and its server, stood up for a story.

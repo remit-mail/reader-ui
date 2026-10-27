@@ -25,17 +25,17 @@ import { z } from "zod";
 import {
 	type MicrosoftReturn,
 	OnboardingWizard,
-} from "@/components/onboarding/OnboardingWizard";
-import { AccountFormPanel } from "@/components/settings/AccountFormPanel";
-import { AccountServices } from "@/components/settings/AccountServices";
-import { DangerZone } from "@/components/settings/DangerZone";
+} from "../../components/onboarding/OnboardingWizard";
+import { AccountFormPanel } from "../../components/settings/AccountFormPanel";
+import { AccountServices } from "../../components/settings/AccountServices";
+import { DangerZone } from "../../components/settings/DangerZone";
 import {
 	REDIRECT_STALL_MESSAGE,
 	useRedirectEnded,
-} from "@/hooks/useRedirectEnded";
-import { useReturnFromRedirect } from "@/hooks/useReturnFromRedirect";
-import { formatRelativeTime } from "@/lib/format";
-import { SETTINGS_ID_TO_PATH, SETTINGS_NAV_ITEMS } from "@/routes/settings";
+} from "../../hooks/useRedirectEnded";
+import { useReturnFromRedirect } from "../../hooks/useReturnFromRedirect";
+import { formatRelativeTime } from "../../lib/format";
+import { SETTINGS_ID_TO_PATH, SETTINGS_NAV_ITEMS } from "../settings";
 import { accountsHelp } from "./-shared/help-copy";
 
 const accountsSearchSchema = z.object({

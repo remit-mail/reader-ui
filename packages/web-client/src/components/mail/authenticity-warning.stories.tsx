@@ -1,8 +1,8 @@
 import { type IntelligenceData, IntelligencePanel } from "@remit/ui";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useState } from "react";
-import { Drawer } from "@/components/layout/Drawer";
-import { AuthenticityBanner } from "@/components/mail/AuthenticityBanner";
+import { Drawer } from "../layout/Drawer";
+import { AuthenticityBanner } from "./AuthenticityBanner";
 import { quietCalendar } from "./intelligence-story-calendar";
 
 /**

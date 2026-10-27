@@ -10,7 +10,7 @@ import {
 	canonicalCalendarParams,
 	isoDate,
 	stepCalendarDate,
-} from "@/lib/calendar-route";
+} from "../lib/calendar-route";
 import { useRetainOpenPanels } from "./fragment";
 
 const VIEW_ROUTE = "/calendar/$view/$date" as const;

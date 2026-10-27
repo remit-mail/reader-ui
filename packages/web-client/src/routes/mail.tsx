@@ -16,34 +16,34 @@ import {
 } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo } from "react";
 import { z } from "zod";
-import { ComposeFab } from "@/components/layout/ComposeFab";
-import { MailShellProvider } from "@/components/layout/MailShell";
-import { MailTopBar } from "@/components/layout/MailTopBar";
-import { MailNav } from "@/components/mail/MailNav";
-import { useKeyboardNavigation } from "@/hooks/useKeyboardNavigation";
-import { isSinglePaneTier, useLayoutTier } from "@/hooks/useLayoutTier";
-import { useMailboxNameIndex } from "@/hooks/useMailboxNameIndex";
-import { useRailPanels } from "@/hooks/useRailPanels";
-import { useResultFolderIndex } from "@/hooks/useResultFolderIndex";
-import { useStaleAccountSync } from "@/hooks/useStaleAccountSync";
-import { MailContext } from "@/lib/mail-context";
-import { MailFreshnessProvider } from "@/lib/mail-freshness";
-import { mailListRoute } from "@/lib/mail-route";
-import { buildAccountNameIndex } from "@/lib/search-token-index";
+import { ComposeFab } from "../components/layout/ComposeFab";
+import { MailShellProvider } from "../components/layout/MailShell";
+import { MailTopBar } from "../components/layout/MailTopBar";
+import { MailNav } from "../components/mail/MailNav";
+import { useKeyboardNavigation } from "../hooks/useKeyboardNavigation";
+import { isSinglePaneTier, useLayoutTier } from "../hooks/useLayoutTier";
+import { useMailboxNameIndex } from "../hooks/useMailboxNameIndex";
+import { useRailPanels } from "../hooks/useRailPanels";
+import { useResultFolderIndex } from "../hooks/useResultFolderIndex";
+import { useStaleAccountSync } from "../hooks/useStaleAccountSync";
+import { MailContext } from "../lib/mail-context";
+import { MailFreshnessProvider } from "../lib/mail-freshness";
+import { mailListRoute } from "../lib/mail-route";
+import { buildAccountNameIndex } from "../lib/search-token-index";
 import {
 	useIsComposing,
 	useOpenCompose,
 	useSearchField,
 	wizardEntryValue,
 	wizardStepValue,
-} from "@/routing";
-import "@/lib/client";
+} from "../routing";
+import "../lib/client";
 
 // `MailContext` / `useMailContext` live in `@/lib/mail-context` so the provider
 // here and the child-route consumers resolve to a single module instance — see
 // that file for why the alias-vs-relative route-tree import split otherwise
 // breaks context.
-export { useMailContext } from "@/lib/mail-context";
+export { useMailContext } from "../lib/mail-context";
 
 const mailSearchSchema = z.object({
 	q: z.string().optional(),

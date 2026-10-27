@@ -22,7 +22,7 @@ import {
 	type RsvpState,
 	type ZoneCertainty,
 } from "@remit/ui";
-import { addDays, busySpansByDate } from "@/hooks/calendar";
+import { addDays, busySpansByDate } from "../hooks/calendar";
 import {
 	formatCivilDay,
 	formatClock,

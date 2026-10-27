@@ -17,15 +17,15 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { LabelsList } from "@/components/settings/LabelsList";
+import { LabelsList } from "../../components/settings/LabelsList";
 import {
 	useCreateLabel,
 	useDeleteLabel,
 	useLabelList,
 	useUpdateLabel,
-} from "@/hooks/useLabels";
-import { deleteLabelConfirmCopy } from "@/lib/organize/label-delete-copy";
-import { SETTINGS_ID_TO_PATH, SETTINGS_NAV_ITEMS } from "@/routes/settings";
+} from "../../hooks/useLabels";
+import { deleteLabelConfirmCopy } from "../../lib/organize/label-delete-copy";
+import { SETTINGS_ID_TO_PATH, SETTINGS_NAV_ITEMS } from "../settings";
 
 export const Route = createFileRoute("/settings/labels")({
 	component: LabelsSettings,

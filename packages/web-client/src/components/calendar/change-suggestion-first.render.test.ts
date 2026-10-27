@@ -15,8 +15,8 @@ import {
 	RouterProvider,
 } from "@tanstack/react-router";
 import { createElement } from "react";
-import { calendarSearchSchema } from "@/lib/calendar-route";
-import { stringifySearch } from "@/lib/search-params";
+import { calendarSearchSchema } from "../../lib/calendar-route";
+import { stringifySearch } from "../../lib/search-params";
 import { Route as SuggestionRoute } from "../../routes/calendar/$view.$date/suggestion.$suggestionId.js";
 import { createDomHarness, type DomHarness } from "../../test-support/dom";
 import {

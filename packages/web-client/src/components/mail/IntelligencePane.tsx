@@ -10,14 +10,14 @@ import {
 } from "@remit/ui";
 import { Sparkles } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
-import { useIntelligenceCalendar } from "@/hooks/useIntelligenceCalendar";
-import { useIntelligenceData } from "@/hooks/useIntelligenceData";
-import { useReportSpam } from "@/hooks/useReportSpam";
-import { useUpdateAddressFlags } from "@/hooks/useUpdateAddressFlags";
-import { isRescueCandidate } from "@/lib/rescue-candidates";
-import { recordRescueSentToJunk } from "@/lib/rescue-telemetry";
-import { useTelemetry } from "@/lib/telemetry-context";
-import type { OpenThreadTarget } from "@/routing";
+import { useIntelligenceCalendar } from "../../hooks/useIntelligenceCalendar";
+import { useIntelligenceData } from "../../hooks/useIntelligenceData";
+import { useReportSpam } from "../../hooks/useReportSpam";
+import { useUpdateAddressFlags } from "../../hooks/useUpdateAddressFlags";
+import { isRescueCandidate } from "../../lib/rescue-candidates";
+import { recordRescueSentToJunk } from "../../lib/rescue-telemetry";
+import { useTelemetry } from "../../lib/telemetry-context";
+import type { OpenThreadTarget } from "../../routing";
 import type { ReplyWithText } from "../compose/reply-with-times";
 
 export interface IntelligencePaneProps {

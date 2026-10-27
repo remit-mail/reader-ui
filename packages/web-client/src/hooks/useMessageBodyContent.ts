@@ -1,14 +1,14 @@
 import { messageOperationsDescribeMessageQueryKey } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
-import { useAuthProvider } from "@/auth/provider";
+import { useAuthProvider } from "../auth/provider";
 import {
 	type BodyContentKind,
 	pickRenderablePart,
 	type RenderableBodyPart,
-} from "@/lib/message-body-source";
-import { taggedFetch } from "@/lib/network-error";
-import { useTelemetry } from "@/lib/telemetry-context";
+} from "../lib/message-body-source";
+import { taggedFetch } from "../lib/network-error";
+import { useTelemetry } from "../lib/telemetry-context";
 import { messageKeys } from "./queries/keys";
 
 export interface MessageBodyContent {

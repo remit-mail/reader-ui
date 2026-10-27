@@ -2,7 +2,7 @@ import {
 	APP_BUILD_TIME,
 	APP_SHORT_SHA,
 	GITHUB_COMMIT_URL,
-} from "@/lib/app-info";
+} from "../../lib/app-info";
 
 export interface AppVersionProps {
 	/** Override SHA for testing/Storybook. Defaults to the build-time constant. */

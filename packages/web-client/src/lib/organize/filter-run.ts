@@ -1,7 +1,7 @@
 import type {
 	OrganizeJobFailure,
 	OrganizeJobProgress,
-} from "@/hooks/useOrganizeJob";
+} from "../../hooks/useOrganizeJob";
 
 /** Where a Run now stands, as the filter's row says it. */
 export type FilterRunStatus =

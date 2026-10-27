@@ -5,7 +5,7 @@
  */
 import { SelfUpdateConfirmDialog, SelfUpdateSection } from "@remit/ui";
 import { useState } from "react";
-import { useSelfUpdate } from "@/hooks/use-system-update";
+import { useSelfUpdate } from "../../hooks/use-system-update";
 
 export function SelfUpdatePanel() {
 	const {

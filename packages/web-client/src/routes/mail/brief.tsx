@@ -13,10 +13,10 @@ import {
 	type ErrorComponentProps,
 	Outlet,
 } from "@tanstack/react-router";
-import { MailShell } from "@/components/layout/MailShell";
-import { BriefPane } from "@/components/mail/BriefPane";
-import { briefSearchSchema } from "@/lib/mail-search";
-import { useOpenThreadPath, useSearchMirror } from "@/routing";
+import { MailShell } from "../../components/layout/MailShell";
+import { BriefPane } from "../../components/mail/BriefPane";
+import { briefSearchSchema } from "../../lib/mail-search";
+import { useOpenThreadPath, useSearchMirror } from "../../routing";
 
 const BriefError = ({ error, reset }: ErrorComponentProps) => (
 	<div className="flex h-full items-center justify-center bg-canvas p-4">

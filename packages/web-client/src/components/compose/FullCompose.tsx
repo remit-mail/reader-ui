@@ -2,13 +2,13 @@ import { configOperationsGetConfigOptions } from "@remit/api-http-client/@tansta
 import { ErrorState } from "@remit/ui";
 import { useQuery } from "@tanstack/react-query";
 import { X } from "lucide-react";
-import { useKeyboardNavigation } from "@/hooks/useKeyboardNavigation";
-import { useIsDesktop } from "@/hooks/useMediaQuery";
+import { useKeyboardNavigation } from "../../hooks/useKeyboardNavigation";
+import { useIsDesktop } from "../../hooks/useMediaQuery";
 import {
 	useAdoptComposeDraft,
 	useCloseCompose,
 	useComposeDraftId,
-} from "@/routing";
+} from "../../routing";
 import { ComposeForm } from "./ComposeForm";
 import { composeSurfaceTitle } from "./compose-title";
 import { MobileComposeSheet } from "./MobileComposeSheet";

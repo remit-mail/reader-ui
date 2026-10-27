@@ -11,11 +11,11 @@
 import type { RemitImapAccountResponse } from "@remit/api-http-client/types.gen.ts";
 import { AttentionDot, useAppShellLayout } from "@remit/ui";
 import { LogOut, Settings } from "lucide-react";
-import { AccountSession } from "@/auth/AccountSession";
-import { MailSidebarAdapter } from "@/components/mail/MailSidebarAdapter";
-import { BugReportButton } from "@/components/ui/BugReportButton";
-import { useWarningsAttention } from "@/hooks/useWarningsAttention";
-import { NavLink } from "@/routing";
+import { AccountSession } from "../../auth/AccountSession";
+import { useWarningsAttention } from "../../hooks/useWarningsAttention";
+import { NavLink } from "../../routing";
+import { BugReportButton } from "../ui/BugReportButton";
+import { MailSidebarAdapter } from "./MailSidebarAdapter";
 
 interface MailNavProps {
 	accounts: RemitImapAccountResponse[];

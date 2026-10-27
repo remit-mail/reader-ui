@@ -13,7 +13,7 @@
  * with a param that arrives is a rewritten address and nothing more.
  */
 import { createFileRoute } from "@tanstack/react-router";
-import { FullCompose } from "@/components/compose/FullCompose";
+import { FullCompose } from "../../../components/compose/FullCompose";
 
 export const Route = createFileRoute("/mail/brief/compose/{-$outboxMessageId}")(
 	{

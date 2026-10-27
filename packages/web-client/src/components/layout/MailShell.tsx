@@ -1,14 +1,14 @@
 import { AppShellSlotted } from "@remit/ui";
 import { createContext, type ReactNode, useContext } from "react";
-import { FullCompose } from "@/components/compose/FullCompose";
-import { AppShellSkeleton } from "@/components/layout/AppShellSkeleton";
-import { useIsComposing } from "@/routing";
+import { useIsComposing } from "../../routing";
+import { FullCompose } from "../compose/FullCompose";
+import { AppShellSkeleton } from "./AppShellSkeleton";
 
 /**
  * The chrome every list shares, published by the `/mail` layout and consumed by
  * the list route that mounts the shell.
  *
- * It lives in a module reached only through the `@/` alias for the same reason
+ * It lives outside the route files for the same reason
  * `lib/mail-context.ts` does: the generated route tree imports route files
  * relatively, so a context declared inside one of them can resolve to a second
  * module instance and hand the consumer an empty default.

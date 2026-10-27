@@ -1,5 +1,5 @@
-import { getErrorStatus, isAbortError } from "@/lib/error-classifier";
-import { reportFatalError } from "@/lib/fatal-error";
+import { getErrorStatus, isAbortError } from "../lib/error-classifier";
+import { reportFatalError } from "../lib/fatal-error";
 
 /**
  * How an auth (better-auth) failure should surface.

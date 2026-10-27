@@ -18,13 +18,13 @@ import {
 	failMove,
 	MOVE_BATCH_SIZE,
 	type MoveProgress,
-} from "@/lib/delete-folder";
+} from "../lib/delete-folder";
 import {
 	awaitFreshMailboxCount,
 	type FreshCountOutcome,
 	type MailboxCountReading,
 	mailboxSyncStamp,
-} from "@/lib/fresh-mailbox-count";
+} from "../lib/fresh-mailbox-count";
 
 const PAGE_CAP = 50;
 

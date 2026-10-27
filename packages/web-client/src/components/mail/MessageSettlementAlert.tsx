@@ -3,10 +3,13 @@ import { abandonedMutationOf } from "@remit/data-ports/message-settlement";
 import { MessageMutation } from "@remit/domain-enums";
 import { MessageSettlementNotice, messageSettlementCopy } from "@remit/ui";
 import { useCallback, useMemo } from "react";
-import { useDeleteMessages } from "@/hooks/useDeleteMessages";
-import { useMailboxAccount } from "@/hooks/useMailboxAccount";
-import { useMoveMessages } from "@/hooks/useMoveMessages";
-import { buildBugReportContext, buildGitHubIssueUrl } from "@/lib/bug-report";
+import { useDeleteMessages } from "../../hooks/useDeleteMessages";
+import { useMailboxAccount } from "../../hooks/useMailboxAccount";
+import { useMoveMessages } from "../../hooks/useMoveMessages";
+import {
+	buildBugReportContext,
+	buildGitHubIssueUrl,
+} from "../../lib/bug-report";
 import { MoveToTrigger } from "./MoveToTrigger";
 
 /**

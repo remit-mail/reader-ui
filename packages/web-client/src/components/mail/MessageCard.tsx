@@ -15,12 +15,12 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { BadgeCheck, Paperclip, Star } from "lucide-react";
 import { useState } from "react";
+import { toDisplayCategory } from "../../lib/display-category";
+import { formatDatePreset } from "../../lib/format";
 import {
 	isMessageGoneFromServerError,
 	isMessageNotFoundError,
-} from "@/components/ui/error-banners";
-import { toDisplayCategory } from "@/lib/display-category";
-import { formatDatePreset } from "@/lib/format";
+} from "../ui/error-banners";
 import { AutoMovedIndicator } from "./AutoMovedIndicator";
 import { MessageActionMenu } from "./MessageActionMenu";
 import { MessageAttachments } from "./MessageAttachments";

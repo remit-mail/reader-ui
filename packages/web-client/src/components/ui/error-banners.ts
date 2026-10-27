@@ -3,7 +3,7 @@ import type {
 	ErrorBannerEntry,
 	ErrorBannerSeverity,
 } from "@remit/ui";
-import { codedApiErrorBody } from "@/lib/api";
+import { codedApiErrorBody } from "../../lib/api";
 export interface PushErrorInput {
 	severity?: ErrorBannerSeverity;
 	title: string;

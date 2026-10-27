@@ -1,13 +1,13 @@
 import type { RemitImapFilterResponse } from "@remit/api-http-client/types.gen.ts";
 import { Badge, Button, LabelChip, type LabelOption } from "@remit/ui";
 import { Trash2 } from "lucide-react";
-import type { FilterRunStatus } from "@/lib/organize/filter-run";
+import type { FilterRunStatus } from "../../lib/organize/filter-run";
 import {
 	disabledReasonCopy,
 	filterDisplayStatus,
 	formatExpiresAt,
-} from "@/lib/organize/filter-status";
-import { NO_ACTION } from "@/lib/organize/organize-model";
+} from "../../lib/organize/filter-status";
+import { NO_ACTION } from "../../lib/organize/organize-model";
 
 const runStatusLine = (status: FilterRunStatus): string | undefined => {
 	switch (status.kind) {

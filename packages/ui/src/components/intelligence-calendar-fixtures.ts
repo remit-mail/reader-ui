@@ -165,7 +165,7 @@ export const kickoffInvite: CalendarInvite = {
 
 /** The clash the reader would otherwise find out about after saying yes. */
 export const dentistClash: CalendarClash[] = [
-	{ id: dentist.id, label: "Dentist · 14:30 – 15:15 · Personal (matthijs@)" },
+	{ id: dentist.id, label: "Dentist · 14:30 – 15:15 · Personal (reader@)" },
 ];
 
 const kickoffIntel: CalendarInviteIntel = {

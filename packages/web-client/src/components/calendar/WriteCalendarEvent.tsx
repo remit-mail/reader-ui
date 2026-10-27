@@ -1,7 +1,5 @@
 import type { EventDraft } from "@remit/ui";
 import { useEffect, useState } from "react";
-import { CalendarComposePane } from "@/components/calendar/CalendarComposePane";
-import { useCalendarComposeSeed } from "@/components/calendar/CalendarComposeSeed";
 import {
 	anchorZoneFor,
 	createInputFromDraft,
@@ -11,8 +9,10 @@ import {
 	useCalendars,
 	useCalendarWrites,
 	useDraftClashes,
-} from "@/hooks/calendar";
-import { useCalendarAddress } from "@/routing";
+} from "../../hooks/calendar";
+import { useCalendarAddress } from "../../routing";
+import { CalendarComposePane } from "./CalendarComposePane";
+import { useCalendarComposeSeed } from "./CalendarComposeSeed";
 
 /**
  * Writing a new event.

@@ -7,12 +7,12 @@ import { mailboxLeafName } from "@remit/data-ports/mailbox-name";
 import type { FolderTreeNode } from "@remit/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useRef } from "react";
-import { waitForMailboxSynced } from "@/lib/mailbox-sync-wait";
+import { waitForMailboxSynced } from "../lib/mailbox-sync-wait";
 import {
 	composeFolderPath,
 	type FolderTarget,
 	validateNewFolderName,
-} from "@/lib/new-folder";
+} from "../lib/new-folder";
 
 /**
  * Creates a mailbox for an account and refreshes the folder list on success.

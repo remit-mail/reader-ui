@@ -6,9 +6,9 @@ import {
 	MessageBodyView,
 } from "@remit/ui";
 import { useMemo, useState } from "react";
-import { useIsDark } from "@/hooks/useIsDark";
-import { useMessageBodyContent } from "@/hooks/useMessageBodyContent";
-import { useToggleTrusted } from "@/hooks/useToggleTrusted";
+import { useIsDark } from "../../hooks/useIsDark";
+import { useMessageBodyContent } from "../../hooks/useMessageBodyContent";
+import { useToggleTrusted } from "../../hooks/useToggleTrusted";
 import { BlockedImagesNotice } from "./BlockedImagesNotice";
 import { MessageBodyErrorBanner } from "./MessageBodyErrorBanner";
 

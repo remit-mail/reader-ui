@@ -1,4 +1,4 @@
-import { useAuthProvider } from "@/auth/provider";
+import { useAuthProvider } from "./provider";
 
 export function SignInAgain() {
 	const { Account } = useAuthProvider();

@@ -22,7 +22,7 @@ const phoneFrame: Decorator = (Story) => (
 );
 
 const accounts: FilterAccount[] = [
-	{ id: "personal", label: "matthijs@", count: 42, active: true },
+	{ id: "personal", label: "reader@", count: 42, active: true },
 	{ id: "work", label: "work@acme", count: 17 },
 ];
 
@@ -157,10 +157,10 @@ const acrossFoldersSections: SearchResultSection[] = [
 
 /** The folders `in:` can name, as the app's search vocabulary offers them. */
 const folderSuggestions: Suggestion[] = [
-	{ value: "in:Archive", label: "Archive", hint: "matthijs@ischen.nl" },
-	{ value: "in:Inbox", label: "Inbox", hint: "matthijs@ischen.nl" },
+	{ value: "in:Archive", label: "Archive", hint: "reader@example.com" },
+	{ value: "in:Inbox", label: "Inbox", hint: "reader@example.com" },
 	{ value: 'in:"Sent Items"', label: "Sent Items", hint: "work@acme.test" },
-	{ value: "in:Spam", label: "Spam", hint: "matthijs@ischen.nl" },
+	{ value: "in:Spam", label: "Spam", hint: "reader@example.com" },
 ];
 
 /**

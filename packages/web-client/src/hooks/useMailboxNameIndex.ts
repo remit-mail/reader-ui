@@ -8,7 +8,7 @@ import { mailboxOperationsListMailboxesOptions } from "@remit/api-http-client/@t
 import type { RemitImapAccountResponse } from "@remit/api-http-client/types.gen.ts";
 import { useQueries } from "@tanstack/react-query";
 import { useMemo } from "react";
-import { buildMailboxNameIndex } from "@/lib/search-token-index";
+import { buildMailboxNameIndex } from "../lib/search-token-index";
 
 export function useMailboxNameIndex(
 	accounts: RemitImapAccountResponse[],

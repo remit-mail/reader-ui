@@ -27,7 +27,7 @@ import { unifiedThreadOperationsListAllThreads } from "@remit/api-http-client/sd
 import type { RemitImapThreadMessageResponse } from "@remit/api-http-client/types.gen.ts";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
-import type { ThreadSearchTokenParams } from "@/lib/thread-search-tokens";
+import type { ThreadSearchTokenParams } from "../lib/thread-search-tokens";
 
 /** The criteria the Flagged view narrows its listing by, all server-applied. */
 export interface StarredCriteria extends ThreadSearchTokenParams {

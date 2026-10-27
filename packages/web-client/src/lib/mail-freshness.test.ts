@@ -2,12 +2,12 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import type { RemitImapMailboxSyncProgress } from "@remit/api-http-client/types.gen.ts";
 import type { NavMailboxRole } from "@remit/ui";
-import type { ResultFolderIndex } from "@/lib/result-folder";
 import {
 	grownMailboxIds,
 	hasGrown,
 	highWaterMarksFrom,
 } from "./mail-freshness.js";
+import type { ResultFolderIndex } from "./result-folder";
 
 const mailbox = (
 	mailboxId: string,

@@ -17,15 +17,15 @@ import {
 import {
 	useFolderAppointments,
 	useInboxMailbox,
-} from "@/hooks/useArchiveMailbox";
-import { useFolderLabelTranslator } from "@/hooks/useFolderLabelTranslator";
-import { buildMoveOptions, folderDelimiter } from "@/lib/move-options";
+} from "../../hooks/useArchiveMailbox";
+import { useFolderLabelTranslator } from "../../hooks/useFolderLabelTranslator";
+import { buildMoveOptions, folderDelimiter } from "../../lib/move-options";
 import {
 	recordRescueCandidatesSurfaced,
 	recordRescueCommitted,
 	recordRescueFlowOpened,
-} from "@/lib/rescue-telemetry";
-import { useTelemetry } from "@/lib/telemetry-context";
+} from "../../lib/rescue-telemetry";
+import { useTelemetry } from "../../lib/telemetry-context";
 
 interface SpamRescueProps {
 	accountId: string;

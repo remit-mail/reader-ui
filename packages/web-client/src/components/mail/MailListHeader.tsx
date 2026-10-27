@@ -64,32 +64,35 @@ import {
 	useRef,
 	useState,
 } from "react";
-import { isSinglePaneTier, useLayoutTier } from "@/hooks/useLayoutTier";
-import { useSearchScope } from "@/hooks/useSearchScope";
-import { useSearchSuggestions } from "@/hooks/useSearchSuggestions";
-import { useSearchTokenContext } from "@/hooks/useSearchTokenContext";
+import { isSinglePaneTier, useLayoutTier } from "../../hooks/useLayoutTier";
+import { useSearchScope } from "../../hooks/useSearchScope";
+import { useSearchSuggestions } from "../../hooks/useSearchSuggestions";
+import { useSearchTokenContext } from "../../hooks/useSearchTokenContext";
 import {
 	type ListHeaderChrome,
 	ListHeaderChromeContext,
-} from "@/lib/list-header-chrome";
-import { useMailContext } from "@/lib/mail-context";
-import { convertSearchToRule } from "@/lib/organize/search-to-rule";
-import { loadRecentSearches, saveRecentSearch } from "@/lib/recent-searches";
-import { SearchConversionContext } from "@/lib/search-conversion";
-import { resultsScopeForRoute, routeMailboxId } from "@/lib/search-scope";
-import { applySearchSuggestion } from "@/lib/search-suggestions";
-import { showInlineSearchResults } from "@/lib/search-surface";
+} from "../../lib/list-header-chrome";
+import { useMailContext } from "../../lib/mail-context";
+import { convertSearchToRule } from "../../lib/organize/search-to-rule";
+import {
+	loadRecentSearches,
+	saveRecentSearch,
+} from "../../lib/recent-searches";
+import { SearchConversionContext } from "../../lib/search-conversion";
+import { resultsScopeForRoute, routeMailboxId } from "../../lib/search-scope";
+import { applySearchSuggestion } from "../../lib/search-suggestions";
+import { showInlineSearchResults } from "../../lib/search-surface";
 import {
 	parseSearchTokens,
 	removeSearchToken,
 	searchTokenLabel,
-} from "@/lib/search-tokens";
-import type { SpamOffer } from "@/lib/spam-offer";
+} from "../../lib/search-tokens";
+import type { SpamOffer } from "../../lib/spam-offer";
 import {
 	useBrowsedList,
 	useOpenWizard,
 	useScopeSearchToMailbox,
-} from "@/routing";
+} from "../../routing";
 
 export interface MailListHeaderProps {
 	title: string;

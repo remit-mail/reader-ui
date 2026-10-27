@@ -6,7 +6,7 @@ const accounts: NavAccount[] = [
 	{
 		id: "acct-personal",
 		label: "Personal",
-		email: "matthijs@example.com",
+		email: "reader@example.com",
 		outboxPending: 2,
 		mailboxes: [
 			{ id: "personal-inbox", name: "Inbox", role: "inbox", unseen: 12 },
@@ -20,7 +20,7 @@ const accounts: NavAccount[] = [
 	{
 		id: "acct-work",
 		label: "Work",
-		email: "matthijs@work.example",
+		email: "reader@work.example",
 		outboxPending: 0,
 		mailboxes: [
 			{ id: "work-inbox", name: "Inbox", role: "inbox", unseen: 4 },
@@ -95,7 +95,7 @@ export const ManyFolders: Story = {
 const hostnetAccount: NavAccount = {
 	id: "acct-hostnet",
 	label: "Hostnet",
-	email: "440737+mvhenten@users.noreply.github.com",
+	email: "hostnet-user@example.com",
 	mailboxes: [
 		{
 			id: "hn-inbox",
@@ -181,7 +181,7 @@ export const Loading: Story = {
 			{
 				id: "acct-personal",
 				label: "Personal",
-				email: "matthijs@example.com",
+				email: "reader@example.com",
 				status: "loading",
 				mailboxes: [],
 			},
@@ -196,7 +196,7 @@ export const LoadError: Story = {
 			{
 				id: "acct-personal",
 				label: "Personal",
-				email: "matthijs@example.com",
+				email: "reader@example.com",
 				status: "error",
 				onRetry: () => undefined,
 				mailboxes: [],

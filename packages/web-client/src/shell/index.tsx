@@ -8,23 +8,23 @@ import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { RouterProvider } from "@tanstack/react-router";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { installAuthInterceptor } from "@/auth/auth-interceptor";
-import { type AuthProvider, AuthProviderProvider } from "@/auth/provider";
-import { install as installConsoleErrorCatcher } from "@/lib/console-errors";
-import { setFatalErrorTelemetry } from "@/lib/fatal-error";
+import { installAuthInterceptor } from "../auth/auth-interceptor";
+import { type AuthProvider, AuthProviderProvider } from "../auth/provider";
+import { install as installConsoleErrorCatcher } from "../lib/console-errors";
+import { setFatalErrorTelemetry } from "../lib/fatal-error";
 import {
 	handleMutationCacheError,
 	handleQueryCacheError,
-} from "@/lib/query-error-handler";
-import { initRum } from "@/lib/rum-adapter";
-import { installStaleBuildReload } from "@/lib/stale-build";
-import { TelemetryContext } from "@/lib/telemetry-context";
-import { installThemeSync } from "@/lib/theme";
-import { createAppRouter } from "@/router";
-import { getRuntimeConfig } from "@/runtime-config";
-import "@/lib/i18n";
-import "@/index.css";
-import "@/lib/client"; // Initialize client with error interceptor
+} from "../lib/query-error-handler";
+import { initRum } from "../lib/rum-adapter";
+import { installStaleBuildReload } from "../lib/stale-build";
+import { TelemetryContext } from "../lib/telemetry-context";
+import { installThemeSync } from "../lib/theme";
+import { createAppRouter } from "../router";
+import { getRuntimeConfig } from "../runtime-config";
+import "../lib/i18n";
+import "../index.css";
+import "../lib/client"; // Initialize client with error interceptor
 
 export interface MountOptions {
 	/** The identity system this build composes. */

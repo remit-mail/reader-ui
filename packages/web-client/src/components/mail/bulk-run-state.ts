@@ -1,5 +1,5 @@
 import type { RunState } from "@remit/ui";
-import type { BulkRunOutcome } from "@/lib/bulk-actions";
+import type { BulkRunOutcome } from "../../lib/bulk-actions";
 
 /** What the run screen knows about a chunked bulk run it is reporting on. */
 export interface BulkRunReading {
