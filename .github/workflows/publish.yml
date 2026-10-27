@@ -14,6 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
@@ -22,6 +23,10 @@ jobs:
           cache: npm
           registry-url: https://registry.npmjs.org
       - run: npm ci --no-audit --no-fund --loglevel=error
+      # npm exchanges the GitHub OIDC token with a trusted publisher first and
+      # falls back to NPM_TOKEN when the exchange is refused. npm accepts
+      # provenance from a public source repository only.
       - run: npm run release
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_PROVENANCE: ${{ github.event.repository.visibility == 'public' }}
