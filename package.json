@@ -12,6 +12,7 @@
 		"node": ">=24"
 	},
 	"scripts": {
+		"postinstall": "npm run generate:routes -w @remit/web-client",
 		"fix": "biome check --write",
 		"check": "biome ci",
 		"typecheck": "npm run test:typecheck --workspaces --if-present",

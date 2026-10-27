@@ -17,9 +17,8 @@
  * told when one is missing. Base, `servePath` and the digest belong to that
  * one.
  *
- * The engine is stubbed: what it weighs is gated where it is built
- * (npm-scripts/build-hunspell.mjs), and staging it here would make every one of
- * these tests wait on a WebAssembly toolchain.
+ * The engine is stubbed beside the pins of the installed
+ * `@remit/spellcheck-engine`: what it weighs is gated where reader builds it.
  */
 
 import assert from "node:assert/strict";
@@ -42,6 +41,14 @@ const engineDir = mkdtempSync(join(tmpdir(), "spellcheck-engine-"));
 for (const [name, body] of Object.entries(ENGINE_FILES)) {
 	writeFileSync(join(engineDir, name), body);
 }
+const pins = readFileSync(
+	join(
+		dirname(require.resolve("@remit/spellcheck-engine/package.json")),
+		"pin.env",
+	),
+	"utf8",
+);
+writeFileSync(join(engineDir, "pin.env"), pins);
 
 process.env.REMIT_SPELLCHECK_ENGINE_DIR = engineDir;
 const { stageSpellcheck } = await import("./vite-plugin.ts");
@@ -190,18 +197,6 @@ describe("NOTICE.txt", () => {
 
 	it("carries the engine's own provenance, checksum included", () => {
 		const notice = textOf(staged("en"), "NOTICE.txt");
-		const pins = readFileSync(
-			join(
-				import.meta.dirname,
-				"..",
-				"..",
-				"..",
-				"docker",
-				"hunspell",
-				"pin.env",
-			),
-			"utf8",
-		);
 		const version = /HUNSPELL_VERSION=(\S+)/.exec(pins)?.[1];
 		const sha = /HUNSPELL_SHA256=(\S+)/.exec(pins)?.[1];
 		assert.ok(version && sha);
