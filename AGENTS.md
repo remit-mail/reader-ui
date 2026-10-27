@@ -8,7 +8,7 @@ The remit reader user interface: `@remit/ui` (components), `@remit/web-client` (
 - npm workspaces with one lockfile at the root. Node 24 (`.nvmrc`). Every dependency is an exact version.
 - Biome formats and lints. Run `npm run fix` before every commit.
 - `main` is protected. Branch from `origin/main`, run `npm run ci` before pushing, and open a pull request with a conventional title under 72 characters and a four-line body. Arm `gh pr merge --squash --auto`; it squash merges once `ci` is green.
-- CI is one job named `ci`, the required check on `main`: `npm ci`, then `npm run ci`.
+- CI runs the parts of `npm run ci` as parallel jobs, with the web-client suite in four shards. The `ci` job passes only when every one of them passed, and it is the required check on `main`.
 - Every UI change ships a story beside it; Storybook and the screen never drift. `docs/architecture/storybook.md` states the two story roots, and `docs/architecture/url-state.md` states where a fact may live in a URL.
 - Never import a reader package by a relative path or a `file:` dependency. Reader code arrives from npm.
 
@@ -39,4 +39,4 @@ The remit reader user interface: `@remit/ui` (components), `@remit/web-client` (
 | `npm run release:dry-run`           | Pack every publishable package and print each publish decision                |
 | `npm run release`                   | Publish what changed; the Publish workflow runs it                            |
 | `npm run check:web-client-consumer` | Build the packed web client the way a host does, in a clean directory         |
-| `npm run ci`                        | Everything above that CI runs; run before every push                          |
+| `npm run ci`                        | Every check CI runs, in sequence; run before every push                       |

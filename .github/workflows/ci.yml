@@ -10,19 +10,111 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  ci:
+  static:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
           cache: npm
-      - name: Restore the Chromium build
-        uses: actions/cache@v4
+      - run: npm ci --no-audit --no-fund --loglevel=error
+      - run: npm run check
+      - run: npm run test:scripts
+      - run: npm run typecheck
+
+  unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --no-audit --no-fund --loglevel=error
+      - run: npm run test:run -w @remit/ui -w @remit/workbench
+
+  web-client:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --no-audit --no-fund --loglevel=error
+      - run: node packages/web-client/scripts/test-shard.mjs
+        env:
+          SHARD_INDEX: ${{ matrix.shard }}
+          SHARD_TOTAL: 4
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-client-lcov-${{ matrix.shard }}
+          path: packages/web-client/coverage/shard-${{ matrix.shard }}.lcov
+          if-no-files-found: error
+          retention-days: 7
+
+  web-client-coverage:
+    needs: [web-client]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: web-client-lcov-*
+          path: web-client-lcov
+          merge-multiple: true
+      - run: node packages/web-client/scripts/coverage-merge.mjs web-client-lcov/*.lcov
+
+  stories:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-playwright-chromium-${{ hashFiles('package-lock.json') }}
       - run: npm ci --no-audit --no-fund --loglevel=error
-      - run: npm run ci
+      - run: npm run test:stories
+
+  pack:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --no-audit --no-fund --loglevel=error
+      - run: npm run release:dry-run
+      - run: npm run check:web-client-consumer
+
+  # The one required check. A skipped or failed dependency fails it.
+  ci:
+    needs: [static, unit, web-client, web-client-coverage, stories, pack]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          for result in $RESULTS; do
+            [ "$result" = success ] || { echo "::error::a required job ended $result: $RESULTS"; exit 1; }
+          done
