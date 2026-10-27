@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { useOpenReply } from "@/routing";
+import { useOpenReply } from "../../routing";
 import { useCompose } from "./ComposeProvider";
 
 export interface AnsweredMessage {

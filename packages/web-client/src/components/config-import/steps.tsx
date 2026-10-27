@@ -35,7 +35,7 @@ import {
 	type ReportSection,
 	type SectionResult,
 	verdictTone,
-} from "@/lib/config-import";
+} from "../../lib/config-import";
 
 export const IMPORT_STEPS = ["File", "Review", "Credentials", "Folders"];
 

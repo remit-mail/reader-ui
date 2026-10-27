@@ -6,7 +6,7 @@
 
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import type { EscalationSearchQuery } from "@/hooks/useEscalatedActions";
+import type { EscalationSearchQuery } from "../hooks/useEscalatedActions";
 import {
 	type ResultCountRequestInput,
 	shouldRequestResultCount,

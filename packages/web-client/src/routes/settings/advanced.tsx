@@ -5,12 +5,12 @@
 import { SettingsShell } from "@remit/ui";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { ConfigTransferPanel } from "@/components/settings/ConfigTransferPanel";
-import { SelfUpdatePanel } from "@/components/settings/SelfUpdatePanel";
-import { TlsRootCaDownload } from "@/components/settings/TlsRootCaDownload";
-import { AppVersion } from "@/components/ui/AppVersion";
-import { SETTINGS_ID_TO_PATH, SETTINGS_NAV_ITEMS } from "@/routes/settings";
-import { getRuntimeConfig } from "@/runtime-config";
+import { ConfigTransferPanel } from "../../components/settings/ConfigTransferPanel";
+import { SelfUpdatePanel } from "../../components/settings/SelfUpdatePanel";
+import { TlsRootCaDownload } from "../../components/settings/TlsRootCaDownload";
+import { AppVersion } from "../../components/ui/AppVersion";
+import { getRuntimeConfig } from "../../runtime-config";
+import { SETTINGS_ID_TO_PATH, SETTINGS_NAV_ITEMS } from "../settings";
 import { advancedHelp } from "./-shared/help-copy";
 
 export const Route = createFileRoute("/settings/advanced")({

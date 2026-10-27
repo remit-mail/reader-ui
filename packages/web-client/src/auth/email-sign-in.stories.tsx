@@ -1,11 +1,11 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { HttpResponse, http } from "msw";
 import { expect, userEvent, within } from "storybook/test";
-import { betterAuthProvider } from "@/auth/better-auth-provider";
-import { AppStory } from "@/mocks/story-frame/AppStory";
-import { mailHandlers } from "@/mocks/story-frame/mail-handlers";
-import { mailWorld } from "@/mocks/story-frame/mail-world";
-import { withRuntimeConfig } from "@/mocks/story-frame/session";
+import { AppStory } from "../mocks/story-frame/AppStory";
+import { mailHandlers } from "../mocks/story-frame/mail-handlers";
+import { mailWorld } from "../mocks/story-frame/mail-world";
+import { withRuntimeConfig } from "../mocks/story-frame/session";
+import { betterAuthProvider } from "./better-auth-provider";
 
 const signedOut = http.get("/api/auth/get-session", () =>
 	HttpResponse.json(null),

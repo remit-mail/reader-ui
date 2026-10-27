@@ -20,8 +20,8 @@ import {
 	RouterProvider,
 } from "@tanstack/react-router";
 import { createElement } from "react";
-import { createDomHarness, type DomHarness } from "@/test-support/dom";
-import { type HttpMock, mockFetch } from "@/test-support/http";
+import { createDomHarness, type DomHarness } from "../../test-support/dom";
+import { type HttpMock, mockFetch } from "../../test-support/http";
 import { MessageActionMenu } from "./MessageActionMenu";
 
 const THREAD_ID = "thread-1";

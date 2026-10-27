@@ -48,25 +48,25 @@ import {
 	useMemo,
 	useRef,
 } from "react";
-import { MessageBody } from "@/components/mail/MessageBody";
-import { NavMenuButton } from "@/components/mail/NavMenuButton";
-import { useErrorBanners } from "@/components/ui/ErrorBannerProvider";
-import { buildMutationErrorBanner } from "@/components/ui/error-banners";
-import { useSearchTokenContext } from "@/hooks/useSearchTokenContext";
-import { formatDate as formatLocaleDate, toDate } from "@/lib/format";
-import { useMailContext } from "@/lib/mail-context";
+import { useSearchTokenContext } from "../../hooks/useSearchTokenContext";
+import { formatDate as formatLocaleDate, toDate } from "../../lib/format";
+import { useMailContext } from "../../lib/mail-context";
 import {
 	matchesOutboxSearch,
 	outboxQueryIsUnsupported,
-} from "@/lib/outbox-search";
-import { isOutboxListRow, showsLastError } from "@/lib/outbox-status";
-import { normalizeSearchQuery } from "@/lib/search-query";
-import { parseSearchTokens } from "@/lib/search-tokens";
+} from "../../lib/outbox-search";
+import { isOutboxListRow, showsLastError } from "../../lib/outbox-status";
+import { normalizeSearchQuery } from "../../lib/search-query";
+import { parseSearchTokens } from "../../lib/search-tokens";
 import {
 	useCloseOutboxDraft,
 	useEditDraft,
 	useOpenOutboxDraft,
-} from "@/routing";
+} from "../../routing";
+import { useErrorBanners } from "../ui/ErrorBannerProvider";
+import { buildMutationErrorBanner } from "../ui/error-banners";
+import { MessageBody } from "./MessageBody";
+import { NavMenuButton } from "./NavMenuButton";
 
 /* ------------------------------------------------------------------ */
 /* Helpers (shared between List, Reading, Phone sub-views)             */

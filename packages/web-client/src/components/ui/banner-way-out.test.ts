@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { ApiError } from "@/lib/api";
+import { ApiError } from "../../lib/api";
 import { bannerWayOut } from "./ErrorBannerProvider";
 
 const issueBody = (href: string): string =>

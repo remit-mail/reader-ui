@@ -18,7 +18,7 @@ import {
 	freeStretchesFromSpans,
 	mergeBusySpans,
 } from "@remit/ui";
-import { isoDate } from "@/lib/calendar-route";
+import { isoDate } from "../../lib/calendar-route";
 import { addDays, type CalendarWindow, calendarWindow } from "./window";
 
 /**

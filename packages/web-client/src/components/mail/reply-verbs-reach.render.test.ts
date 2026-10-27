@@ -25,11 +25,11 @@ import {
 	RouterProvider,
 } from "@tanstack/react-router";
 import { createElement } from "react";
-import { ComposeProvider } from "@/components/compose/ComposeProvider";
-import { useOpenThreadPath } from "@/routing";
-import { createDomHarness, type DomHarness } from "@/test-support/dom";
-import { makeAccount } from "@/test-support/fixtures";
-import { type HttpMock, mockFetch } from "@/test-support/http";
+import { useOpenThreadPath } from "../../routing";
+import { createDomHarness, type DomHarness } from "../../test-support/dom";
+import { makeAccount } from "../../test-support/fixtures";
+import { type HttpMock, mockFetch } from "../../test-support/http";
+import { ComposeProvider } from "../compose/ComposeProvider";
 import { BriefPane } from "./BriefPane";
 import { MessageToolbar } from "./MessageToolbar";
 

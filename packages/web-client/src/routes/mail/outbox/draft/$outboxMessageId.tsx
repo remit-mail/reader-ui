@@ -8,7 +8,7 @@
  * distinguishable from it.
  */
 import { createFileRoute } from "@tanstack/react-router";
-import { OutboxPane } from "@/components/mail/OutboxPane";
+import { OutboxPane } from "../../../../components/mail/OutboxPane";
 
 function OutboxDraftPane() {
 	return <OutboxPane.Reading />;

@@ -10,8 +10,8 @@
 import { Banner, Button, ConfirmDialog, Input } from "@remit/ui";
 import { Save, Trash2 } from "lucide-react";
 import { useId, useState } from "react";
-import { TimeZoneSelect } from "@/components/settings/TimeZoneSelect";
-import { deleteCalendarConfirmCopy } from "@/lib/calendar-collection-copy";
+import { deleteCalendarConfirmCopy } from "../../lib/calendar-collection-copy";
+import { TimeZoneSelect } from "./TimeZoneSelect";
 
 export interface CalendarDetails {
 	displayName: string;

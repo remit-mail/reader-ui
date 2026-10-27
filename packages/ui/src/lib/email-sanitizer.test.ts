@@ -498,7 +498,7 @@ describe("detectAuthorSpacing — the mail the inset exists for", () => {
 	test("Outlook paragraph spacing is not a container", () => {
 		const html = [
 			"<style>p.MsoNormal{margin:0cm;margin-bottom:.0001pt}</style>",
-			"<p class=MsoNormal style='margin-bottom:12.0pt'>Beste Matthijs,</p>",
+			"<p class=MsoNormal style='margin-bottom:12.0pt'>Beste Reader,</p>",
 			"<p class=MsoNormal style='margin-bottom:12.0pt'>Met vriendelijke groet,</p>",
 		].join("");
 		assert.equal(detectAuthorSpacing(html), false);

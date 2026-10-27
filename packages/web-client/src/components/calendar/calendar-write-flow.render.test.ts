@@ -26,9 +26,8 @@ import {
 	RouterProvider,
 } from "@tanstack/react-router";
 import { createElement } from "react";
-import { CalendarComposeSeedProvider } from "@/components/calendar/CalendarComposeSeed";
-import { calendarSearchSchema } from "@/lib/calendar-route";
-import { stringifySearch } from "@/lib/search-params";
+import { calendarSearchSchema } from "../../lib/calendar-route";
+import { stringifySearch } from "../../lib/search-params";
 import { Route as OccurrenceRoute } from "../../routes/calendar/$view.$date/$calendarObjectId/$recurrenceId.js";
 import { Route as EventIndexRoute } from "../../routes/calendar/$view.$date/$calendarObjectId/index.js";
 import { Route as EventRoute } from "../../routes/calendar/$view.$date/$calendarObjectId.js";
@@ -39,6 +38,7 @@ import {
 	type HttpMock,
 	mockFetch,
 } from "../../test-support/http";
+import { CalendarComposeSeedProvider } from "./CalendarComposeSeed";
 
 // The router reads `self` at construction; the shared globals stop at `window`.
 (globalThis as { self?: typeof globalThis }).self ??= globalThis;

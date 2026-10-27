@@ -9,7 +9,7 @@ import {
 	type BrowsedList,
 	locationOpensDetail,
 	mailListRoute,
-} from "@/lib/mail-route";
+} from "../lib/mail-route";
 import { useRetainOpenPanels } from "./fragment";
 
 export type { BrowsedList };

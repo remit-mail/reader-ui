@@ -3,16 +3,16 @@ import { expect, userEvent, waitFor, within } from "storybook/test";
 import {
 	REDIRECT_STALL_MESSAGE,
 	REDIRECT_STALL_MS,
-} from "@/hooks/useRedirectEnded";
-import { AppStory } from "@/mocks/story-frame/AppStory";
-import { mailHandlers } from "@/mocks/story-frame/mail-handlers";
-import { mailWorld } from "@/mocks/story-frame/mail-world";
+} from "../../hooks/useRedirectEnded";
+import { AppStory } from "../../mocks/story-frame/AppStory";
+import { mailHandlers } from "../../mocks/story-frame/mail-handlers";
+import { mailWorld } from "../../mocks/story-frame/mail-world";
 import {
 	NEW_ACCOUNT_ID,
 	type OnboardingHandlerOptions,
 	onboardingHandlers,
-} from "@/mocks/story-frame/onboarding-handlers";
-import { makeAccount } from "@/test-support/fixtures";
+} from "../../mocks/story-frame/onboarding-handlers";
+import { makeAccount } from "../../test-support/fixtures";
 
 const EMAIL = "alice@northwind.example";
 

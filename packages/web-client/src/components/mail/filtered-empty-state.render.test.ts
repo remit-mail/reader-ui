@@ -23,13 +23,13 @@ import {
 	RouterProvider,
 } from "@tanstack/react-router";
 import { type ComponentType, createElement, type ReactNode } from "react";
-import { ComposeProvider } from "@/components/compose/ComposeProvider";
-import { MailContext, type MailContextValue } from "@/lib/mail-context";
-import { MailFreshnessProvider } from "@/lib/mail-freshness";
-import { EMPTY_RESULT_FOLDER_INDEX } from "@/lib/result-folder";
-import { useOpenThreadPath } from "@/routing";
-import { createDomHarness, type DomHarness } from "@/test-support/dom";
-import { type HttpMock, mockFetch } from "@/test-support/http";
+import { MailContext, type MailContextValue } from "../../lib/mail-context";
+import { MailFreshnessProvider } from "../../lib/mail-freshness";
+import { EMPTY_RESULT_FOLDER_INDEX } from "../../lib/result-folder";
+import { useOpenThreadPath } from "../../routing";
+import { createDomHarness, type DomHarness } from "../../test-support/dom";
+import { type HttpMock, mockFetch } from "../../test-support/http";
+import { ComposeProvider } from "../compose/ComposeProvider";
 import { FlaggedPane } from "./FlaggedPane";
 import { MailboxPane } from "./MailboxPane";
 

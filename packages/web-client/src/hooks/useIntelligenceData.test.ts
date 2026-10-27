@@ -314,7 +314,7 @@ describe("buildAuthenticityIntel", () => {
 			const result = buildAuthenticityIntel(
 				makeThread({
 					fromEmail: "aramirez@secresaludguaviare.gov.co",
-					fromName: "matthijs@ischen.nl",
+					fromName: "reader@example.com",
 					authenticity: {
 						fromDomain: "secresaludguaviare.gov.co",
 						dkimDomain: "secresaludguaviare.gov.co",
@@ -325,7 +325,7 @@ describe("buildAuthenticityIntel", () => {
 				} as Partial<RemitImapThreadMessageResponse>),
 			);
 			assert.equal(result.verdict, "caution");
-			assert.match(result.summary, /"matthijs@ischen\.nl"/);
+			assert.match(result.summary, /"reader@example\.com"/);
 			assert.match(result.summary, /secresaludguaviare\.gov\.co/);
 		});
 

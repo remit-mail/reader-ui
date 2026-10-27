@@ -1,7 +1,7 @@
 import {
 	BodyFetchError,
 	type BodyFetchReason,
-} from "@/hooks/useMessageBodyContent";
+} from "../../hooks/useMessageBodyContent";
 
 export interface BannerContent {
 	title: string;

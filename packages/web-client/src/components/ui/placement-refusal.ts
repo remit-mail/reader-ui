@@ -5,8 +5,9 @@
  * message-string match
  * would start firing on an unrelated conflict the moment the copy changes.
  */
-import type { PushErrorInput } from "@/components/ui/error-banners";
-import { type CodedApiErrorBody, codedApiErrorBody } from "@/lib/api";
+
+import { type CodedApiErrorBody, codedApiErrorBody } from "../../lib/api";
+import type { PushErrorInput } from "./error-banners";
 
 /**
  * One reason, because one state produces the refusal: a mutation is still in

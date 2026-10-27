@@ -1,4 +1,4 @@
-import { getErrorStatus } from "@/lib/error-classifier";
+import { getErrorStatus } from "../lib/error-classifier";
 
 /**
  * What the session query is actually telling the gate.

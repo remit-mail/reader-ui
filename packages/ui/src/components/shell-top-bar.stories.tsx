@@ -18,7 +18,7 @@ const SCOPE: SearchChip = { id: "in:spam", label: "in:spam", tone: "scope" };
 
 const Account = () => (
 	<button type="button" aria-label="Account">
-		<Avatar name="Matthijs van Henten" email="mvh@example.com" size="sm" />
+		<Avatar name="Reader Example" email="reader@example.com" size="sm" />
 	</button>
 );
 

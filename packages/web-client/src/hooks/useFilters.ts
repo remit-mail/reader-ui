@@ -12,7 +12,7 @@ import {
 	buildCreateFilterInput,
 	type OrganizeDraft,
 	type OrganizeScope,
-} from "@/lib/organize/organize-model";
+} from "../lib/organize/organize-model";
 
 /**
  * The query key the filter list reads and both mutations invalidate on success.

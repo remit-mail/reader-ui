@@ -1,6 +1,6 @@
 import { ComposeSmtpMissingBanner as Banner } from "@remit/ui";
 import type { Ref } from "react";
-import { useConfigureAccountSmtp } from "@/routing";
+import { useConfigureAccountSmtp } from "../../routing";
 
 interface ComposeSmtpMissingBannerProps {
 	accountId: string;

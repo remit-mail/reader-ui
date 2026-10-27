@@ -1,8 +1,8 @@
 import { Banner, Button, ConfirmDialog } from "@remit/ui";
 import { Trash2 } from "lucide-react";
 import { type ReactNode, useState } from "react";
-import type { FolderRoleRefusalReason } from "@/components/ui/folder-role-refusal";
-import { deleteConfirmationCopy, formatNumber } from "@/lib/format";
+import { deleteConfirmationCopy, formatNumber } from "../../lib/format";
+import type { FolderRoleRefusalReason } from "../ui/folder-role-refusal";
 
 const quantified = (count: number): string =>
 	count === 1 ? "1 message" : `${formatNumber(count)} messages`;

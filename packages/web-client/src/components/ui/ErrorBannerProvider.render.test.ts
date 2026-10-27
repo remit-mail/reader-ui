@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { afterEach, describe, it } from "node:test";
 import { createElement } from "react";
 import { renderToString } from "react-dom/server";
-import { ApiError } from "@/lib/api";
-import { __resetFatalError, getCurrentFatalError } from "@/lib/fatal-error";
+import { ApiError } from "../../lib/api";
+import { __resetFatalError, getCurrentFatalError } from "../../lib/fatal-error";
 import { ErrorBannerProvider, useErrorBanners } from "./ErrorBannerProvider";
 import type { PushErrorInput } from "./error-banners";
 

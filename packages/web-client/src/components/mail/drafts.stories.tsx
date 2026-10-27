@@ -1,12 +1,12 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect, within } from "storybook/test";
-import { AppStory } from "@/mocks/story-frame/AppStory";
-import { mailHandlers } from "@/mocks/story-frame/mail-handlers";
+import { AppStory } from "../../mocks/story-frame/AppStory";
+import { mailHandlers } from "../../mocks/story-frame/mail-handlers";
 import {
 	mailboxIdFor,
 	mailWorld,
 	PERSONAL,
-} from "@/mocks/story-frame/mail-world";
+} from "../../mocks/story-frame/mail-world";
 
 const world = mailWorld();
 const draftsMailboxId = mailboxIdFor(PERSONAL, "Drafts");

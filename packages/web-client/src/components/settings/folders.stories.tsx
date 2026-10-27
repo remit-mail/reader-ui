@@ -1,13 +1,13 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect, userEvent, within } from "storybook/test";
-import { AppStory } from "@/mocks/story-frame/AppStory";
-import { mailHandlers } from "@/mocks/story-frame/mail-handlers";
+import { AppStory } from "../../mocks/story-frame/AppStory";
+import { mailHandlers } from "../../mocks/story-frame/mail-handlers";
 import {
 	accountWithFolders,
 	foldersOf,
 	mailWorld,
-} from "@/mocks/story-frame/mail-world";
-import { makeMailbox } from "@/test-support/fixtures";
+} from "../../mocks/story-frame/mail-world";
+import { makeMailbox } from "../../test-support/fixtures";
 
 const ACCOUNT_ID = "acc-work";
 const EMAIL = "alice@northwind.example";

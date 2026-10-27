@@ -1,8 +1,8 @@
 import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { useEffect } from "react";
-import { useMailContext } from "@/lib/mail-context";
-import { addressQuery } from "@/lib/mail-route";
-import { shouldMirrorQuery } from "@/lib/search-view";
+import { useMailContext } from "../lib/mail-context";
+import { addressQuery } from "../lib/mail-route";
+import { shouldMirrorQuery } from "../lib/search-view";
 import { useIsComposing } from "./compose";
 import { useIsReplying } from "./reply";
 

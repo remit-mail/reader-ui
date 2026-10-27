@@ -1,6 +1,6 @@
 import type { ErrorBannerSeverity } from "@remit/ui";
-import type { BulkRunOutcome } from "@/lib/bulk-actions";
-import { type DeleteOutcome, deleteExpunges, formatNumber } from "@/lib/format";
+import type { BulkRunOutcome } from "./bulk-actions";
+import { type DeleteOutcome, deleteExpunges, formatNumber } from "./format";
 
 /** A run ending, as the list banners it. */
 export interface RunEndingBanner {

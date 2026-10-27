@@ -7,8 +7,8 @@ import {
 } from "@remit/ui";
 import { useQuery } from "@tanstack/react-query";
 import { type Ref, useMemo, useState } from "react";
-import { useDebouncedValue } from "@/hooks/useDebouncedValue";
-import { offerableAsRecipient } from "@/lib/recipient-suggestions";
+import { useDebouncedValue } from "../../hooks/useDebouncedValue";
+import { offerableAsRecipient } from "../../lib/recipient-suggestions";
 
 export type { AddressEntry, ComposeAddressFieldHandle, ParsedAddressInput };
 

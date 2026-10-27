@@ -21,30 +21,30 @@ import {
 	redirect,
 } from "@tanstack/react-router";
 import { useCallback, useState } from "react";
-import { AgendaView } from "@/components/calendar/AgendaView";
-import { CalendarComposeSeedProvider } from "@/components/calendar/CalendarComposeSeed";
-import { CalendarShell } from "@/components/calendar/CalendarShell";
-import { CalendarWorkspace } from "@/components/calendar/CalendarWorkspace";
-import { PendingSuggestions } from "@/components/calendar/PendingSuggestions";
-import { calendarInstanceId, deviceTimeZone } from "@/hooks/calendar";
-import { useCalendarData } from "@/hooks/useCalendarData";
-import { useLayoutTier } from "@/hooks/useLayoutTier";
+import { AgendaView } from "../../components/calendar/AgendaView";
+import { CalendarComposeSeedProvider } from "../../components/calendar/CalendarComposeSeed";
+import { CalendarShell } from "../../components/calendar/CalendarShell";
+import { CalendarWorkspace } from "../../components/calendar/CalendarWorkspace";
+import { PendingSuggestions } from "../../components/calendar/PendingSuggestions";
+import { calendarInstanceId, deviceTimeZone } from "../../hooks/calendar";
+import { useCalendarData } from "../../hooks/useCalendarData";
+import { useLayoutTier } from "../../hooks/useLayoutTier";
 import {
 	readCalendarDensity,
 	writeCalendarDensity,
-} from "@/lib/calendar-density";
+} from "../../lib/calendar-density";
 import {
 	calendarSearchSchema,
 	calendarViewMountsAgenda,
 	canonicalCalendarParams,
 	isoDate,
-} from "@/lib/calendar-route";
+} from "../../lib/calendar-route";
 import {
 	useCalendarAddress,
 	useCalendarNavigation,
 	useIsWritingEvent,
 	useOpenCalendarEvent,
-} from "@/routing";
+} from "../../routing";
 
 export const Route = createFileRoute("/calendar/$view/$date")({
 	validateSearch: calendarSearchSchema,

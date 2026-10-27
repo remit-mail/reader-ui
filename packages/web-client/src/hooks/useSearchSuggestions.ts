@@ -23,19 +23,19 @@ import {
 import type { Suggestion } from "@remit/ui";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
-import { useSearchTokenContext } from "@/hooks/useSearchTokenContext";
-import { useMailContext } from "@/lib/mail-context";
+import { useMailContext } from "../lib/mail-context";
 import {
 	buildSearchSuggestions,
 	contactSuggestionValue,
 	SEARCH_SUGGESTION_LIMIT,
 	searchSuggestionRequest,
-} from "@/lib/search-suggestions";
+} from "../lib/search-suggestions";
 import {
 	buildAccountSuggestionValues,
 	buildMailboxSuggestionValues,
-} from "@/lib/search-token-index";
+} from "../lib/search-token-index";
 import { useDebouncedValue } from "./useDebouncedValue";
+import { useSearchTokenContext } from "./useSearchTokenContext";
 
 /** How long typing settles before the address lookup fires. */
 export const SEARCH_CONTACT_DEBOUNCE_MS = 250;

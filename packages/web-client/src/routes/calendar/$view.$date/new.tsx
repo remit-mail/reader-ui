@@ -7,8 +7,8 @@
  * move `compose` makes over a mail list.
  */
 import { createFileRoute } from "@tanstack/react-router";
-import { WriteCalendarEvent } from "@/components/calendar/WriteCalendarEvent";
-import { useCalendarNavigation } from "@/routing";
+import { WriteCalendarEvent } from "../../../components/calendar/WriteCalendarEvent";
+import { useCalendarNavigation } from "../../../routing";
 
 function CalendarComposeRoute() {
 	const { closeEvent } = useCalendarNavigation();

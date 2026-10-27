@@ -14,13 +14,13 @@ import assert from "node:assert/strict";
 import { afterEach, describe, it } from "node:test";
 import type { RemitImapAddressResponse } from "@remit/api-http-client/types.gen.ts";
 import { createElement } from "react";
-import { createDomHarness, type DomHarness } from "@/test-support/dom";
+import { createDomHarness, type DomHarness } from "../../test-support/dom";
 import {
 	type HttpCall,
 	type HttpMock,
 	httpError,
 	mockFetch,
-} from "@/test-support/http";
+} from "../../test-support/http";
 import { SearchGroupPane } from "./senders";
 
 const ADDRESS_ID = "addr-1";

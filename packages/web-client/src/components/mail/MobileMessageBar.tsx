@@ -6,13 +6,13 @@ import { MobileMessageActionBar, type PopoverMenuItem } from "@remit/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { BadgeCheck, Check, Code } from "lucide-react";
 import { useCallback } from "react";
-import { useDeleteMessages } from "@/hooks/useDeleteMessages";
-import { useMoveMessages } from "@/hooks/useMoveMessages";
-import { useToggleTrusted } from "@/hooks/useToggleTrusted";
+import { useDeleteMessages } from "../../hooks/useDeleteMessages";
+import { useMoveMessages } from "../../hooks/useMoveMessages";
+import { useToggleTrusted } from "../../hooks/useToggleTrusted";
 import {
 	invalidateThreadListQueries,
 	threadListCacheKeys,
-} from "@/lib/thread-list-cache";
+} from "../../lib/thread-list-cache";
 import { MoveToTrigger } from "./MoveToTrigger";
 
 interface MobileMessageBarProps {

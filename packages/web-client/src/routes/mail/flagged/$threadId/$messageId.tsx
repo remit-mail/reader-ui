@@ -12,7 +12,7 @@
  * would collapse and scroll to the top the moment someone pressed Reply.
  */
 import { createFileRoute } from "@tanstack/react-router";
-import { FlaggedPane } from "@/components/mail/FlaggedPane";
+import { FlaggedPane } from "../../../../components/mail/FlaggedPane";
 
 function FlaggedMessagePane() {
 	return <FlaggedPane.Reading />;

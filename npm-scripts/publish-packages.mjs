@@ -243,12 +243,75 @@ const packCheck = (pkgDir) =>
 if (!dryRun)
 	console.log(`\nPublishing with npm ${run("npm", ["--version"]).trim()}\n`);
 
-const packages = [...generated, ...workspacePackages()];
+const DEPENDENCY_FIELDS = ["dependencies", "peerDependencies"];
+
+const siblingsOf = (pkg, names) => {
+	const manifest = readManifest(pkg.dir);
+	return DEPENDENCY_FIELDS.flatMap((field) =>
+		Object.keys(manifest[field] ?? {}).filter((name) => names.has(name)),
+	);
+};
+
+// A package publishes after every sibling it depends on, so the version it
+// names is one the registry already holds.
+const inDependencyOrder = (pkgs) => {
+	const names = new Set(pkgs.map((pkg) => pkg.name));
+	const ordered = [];
+	const placed = new Set();
+	while (ordered.length < pkgs.length) {
+		const ready = pkgs.filter(
+			(pkg) =>
+				!placed.has(pkg.name) &&
+				siblingsOf(pkg, names).every((name) => placed.has(name)),
+		);
+		if (ready.length === 0)
+			throw new Error("the workspace packages depend on each other in a cycle");
+		for (const pkg of ready) {
+			ordered.push(pkg);
+			placed.add(pkg.name);
+		}
+	}
+	return ordered;
+};
+
+// The published manifest names the exact sibling version it was built against,
+// so a change to @remit/ui changes @remit/web-client's content and republishes
+// it. The workspace manifest says "*" again once the run is over.
+const stampSiblings = (pkg, versions) => {
+	const manifestPath = join(repoRoot, pkg.dir, "package.json");
+	const original = readFileSync(manifestPath, "utf8");
+	const manifest = JSON.parse(original);
+	for (const field of DEPENDENCY_FIELDS) {
+		for (const name of Object.keys(manifest[field] ?? {})) {
+			if (versions.has(name)) manifest[field][name] = versions.get(name);
+		}
+	}
+	writeFileSync(manifestPath, `${JSON.stringify(manifest, null, "\t")}\n`);
+	return () => writeFileSync(manifestPath, original);
+};
+
+const packages = [...inDependencyOrder(workspacePackages()), ...generated];
 const summary = [];
 const failures = [];
+const resolved = new Map();
+const restores = [];
+const workspaceNames = new Set(workspacePackages().map((pkg) => pkg.name));
 
 for (const pkg of packages) {
-	if (pkg.kind !== "workspace") {
+	if (pkg.kind === "workspace") {
+		const unresolved = siblingsOf(pkg, workspaceNames).filter(
+			(name) => !resolved.has(name),
+		);
+		if (unresolved.length > 0) {
+			failures.push({
+				name: pkg.name,
+				version: "-",
+				error: `not published: ${unresolved.join(", ")} did not publish`,
+			});
+			continue;
+		}
+		restores.push(stampSiblings(pkg, resolved));
+	} else {
 		if (pkg.build)
 			run(pkg.build[0], pkg.build[1], { cwd: repoRoot, stdio: "inherit" });
 		synthesizeManifest(pkg);
@@ -266,6 +329,7 @@ for (const pkg of packages) {
 		});
 	} else if (publishedContentHash(pkg.name, latest) === fresh) {
 		summary.push({ name: pkg.name, decision: `skip (identical to ${latest})` });
+		resolved.set(pkg.name, latest);
 		continue;
 	} else {
 		target = patchBump(latest);
@@ -277,13 +341,18 @@ for (const pkg of packages) {
 
 	if (dryRun) {
 		packCheck(pkg.dir);
+		resolved.set(pkg.name, target);
 		continue;
 	}
 	setVersion(pkg.dir, target);
 	const { ok, error } = publish(pkg.dir);
-	if (ok) console.log(`published ${pkg.name}@${target}`);
-	else failures.push({ name: pkg.name, version: target, error });
+	if (ok) {
+		console.log(`published ${pkg.name}@${target}`);
+		resolved.set(pkg.name, target);
+	} else failures.push({ name: pkg.name, version: target, error });
 }
+
+if (dryRun) for (const restore of restores) restore();
 
 console.log(`\n${dryRun ? "Dry run" : "Publish"} decisions:`);
 for (const { name, decision } of summary) console.log(`  ${name}: ${decision}`);

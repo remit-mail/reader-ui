@@ -7,7 +7,7 @@ import type { CalendarClash } from "./calendar-types.js";
 
 const dentist: CalendarClash = {
 	id: "evt_dentist",
-	label: "Dentist · 14:30 – 15:15 · Personal (matthijs@)",
+	label: "Dentist · 14:30 – 15:15 · Personal (reader@)",
 };
 
 const planning: CalendarClash = {

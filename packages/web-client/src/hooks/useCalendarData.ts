@@ -19,7 +19,7 @@ import {
 	useCalendarSelection,
 	useDrawnEvents,
 	usePrefetchAdjacentWindows,
-} from "@/hooks/calendar";
+} from "./calendar";
 
 export interface CalendarDataRequest {
 	view: CalendarViewId;

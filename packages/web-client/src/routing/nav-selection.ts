@@ -1,5 +1,5 @@
 import { useLocation, useParams } from "@tanstack/react-router";
-import { locationIsOnList } from "@/lib/mail-route";
+import { locationIsOnList } from "../lib/mail-route";
 
 /**
  * The nav entry the address selects, or `""` where none does.

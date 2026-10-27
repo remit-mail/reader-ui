@@ -1,16 +1,16 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { Server } from "lucide-react";
 import { useState } from "react";
-import { CredentialsStep } from "@/components/onboarding/credential-steps";
-import { StepWelcome } from "@/components/onboarding/OnboardingWizard";
-import { ConfigExportCard } from "@/components/settings/ConfigExportCard";
 import {
 	groupReportSections,
 	pendingFolders,
 	readFailure,
 	sectionResults,
 	writeFailure,
-} from "@/lib/config-import";
+} from "../../lib/config-import";
+import { CredentialsStep } from "../onboarding/credential-steps";
+import { StepWelcome } from "../onboarding/OnboardingWizard";
+import { ConfigExportCard } from "../settings/ConfigExportCard";
 import {
 	accountsAllConnected,
 	accountsAllPending,

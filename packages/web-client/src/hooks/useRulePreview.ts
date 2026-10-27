@@ -5,14 +5,14 @@ import { useEffect, useRef, useState } from "react";
 import {
 	buildOrganizeInput,
 	type OrganizeMatchPredicate,
-} from "@/lib/organize/organize-model";
+} from "../lib/organize/organize-model";
 import {
 	derivePreview,
 	isEvaluablePredicate,
 	PREVIEW_DEBOUNCE_MS,
 	type PreviewState,
 	predicateSignature,
-} from "@/lib/organize/rule-model";
+} from "../lib/organize/rule-model";
 
 /**
  * The live match count for the edited rule (RFC 038 D1). Every predicate change

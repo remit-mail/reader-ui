@@ -5,15 +5,15 @@ import type {
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { HttpResponse, http } from "msw";
 import { expect, userEvent, within } from "storybook/test";
-import { AppStory } from "@/mocks/story-frame/AppStory";
-import { mailHandlers } from "@/mocks/story-frame/mail-handlers";
+import { AppStory } from "../../mocks/story-frame/AppStory";
+import { mailHandlers } from "../../mocks/story-frame/mail-handlers";
 import {
 	MINUTE,
 	mailboxIdFor,
 	mailWorld,
 	NOW,
 	PERSONAL,
-} from "@/mocks/story-frame/mail-world";
+} from "../../mocks/story-frame/mail-world";
 
 const setAside = (
 	id: string,

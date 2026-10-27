@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { createElement } from "react";
 import { renderToString } from "react-dom/server";
-import type { FatalError } from "@/lib/fatal-error";
+import type { FatalError } from "../../lib/fatal-error";
 import { FatalErrorScreen } from "./FatalErrorOverlay";
 
 const recoverableFatal: FatalError = {

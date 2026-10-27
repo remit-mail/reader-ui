@@ -19,9 +19,9 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { JSDOM } from "jsdom";
 import { act, createElement, createRef, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { AuthProviderProvider, noneAuthProvider } from "@/auth/provider";
-import { ErrorBannerProvider } from "@/components/ui/ErrorBannerProvider";
-import { makeAccount, makeConfig } from "@/test-support/fixtures";
+import { AuthProviderProvider, noneAuthProvider } from "../../auth/provider";
+import { makeAccount, makeConfig } from "../../test-support/fixtures";
+import { ErrorBannerProvider } from "../ui/ErrorBannerProvider";
 import type { MessageListCommands } from "./MessageList";
 import { RoleAppointmentPromptProvider } from "./RoleAppointmentPromptProvider";
 import {

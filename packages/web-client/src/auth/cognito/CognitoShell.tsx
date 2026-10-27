@@ -6,7 +6,7 @@ import {
 } from "@aws-amplify/ui-react";
 import { AuthCard, AuthFooter, AuthHero, Banner } from "@remit/ui";
 import type { ReactNode } from "react";
-import { AppShellSkeleton } from "@/components/layout/AppShellSkeleton";
+import { AppShellSkeleton } from "../../components/layout/AppShellSkeleton";
 import { authFooterNote } from "../account-menu-mode";
 import { isCognitoConfigured } from "../amplify-config";
 

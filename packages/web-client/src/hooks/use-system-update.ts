@@ -41,8 +41,8 @@ import {
 	restartExpectedMeta,
 	shouldEscalate,
 	softErrorMeta,
-} from "@/lib/error-classifier";
-import { reportFatalError } from "@/lib/fatal-error";
+} from "../lib/error-classifier";
+import { reportFatalError } from "../lib/fatal-error";
 import {
 	appliesSchemaMigration,
 	type CheckPress,
@@ -56,7 +56,7 @@ import {
 	releaseFromCheck,
 	runInFlight,
 	type UpdateSurface,
-} from "@/lib/self-update-state";
+} from "../lib/self-update-state";
 
 const IDLE_POLL_MS = 30_000;
 const RUN_POLL_MS = 5_000;

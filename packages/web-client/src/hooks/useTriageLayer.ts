@@ -28,8 +28,8 @@
  */
 import { type TriageHandlers, useTriageKeyboard } from "@remit/ui";
 import { type RefObject, useCallback, useRef, useState } from "react";
-import type { MessageListCommands } from "@/components/mail/MessageList";
-import { adjacentMessageId } from "@/lib/adjacent-message";
+import type { MessageListCommands } from "../components/mail/MessageList";
+import { adjacentMessageId } from "../lib/adjacent-message";
 
 export interface TriageContextUpdate {
 	focusedMessageId: string | undefined;

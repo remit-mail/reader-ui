@@ -1,8 +1,8 @@
 import { SettingsShell } from "@remit/ui";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { WarningsPanel } from "@/components/settings/WarningsPanel";
-import { SETTINGS_ID_TO_PATH, SETTINGS_NAV_ITEMS } from "@/routes/settings";
+import { WarningsPanel } from "../../components/settings/WarningsPanel";
+import { SETTINGS_ID_TO_PATH, SETTINGS_NAV_ITEMS } from "../settings";
 import { warningsHelp } from "./-shared/help-copy";
 
 export const Route = createFileRoute("/settings/warnings")({

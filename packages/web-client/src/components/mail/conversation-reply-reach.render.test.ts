@@ -26,10 +26,10 @@ import {
 	RouterProvider,
 } from "@tanstack/react-router";
 import { createElement } from "react";
-import { ComposeProvider } from "@/components/compose/ComposeProvider";
-import { createDomHarness, type DomHarness } from "@/test-support/dom";
-import { makeAccount, makeThreadMessage } from "@/test-support/fixtures";
-import { type HttpMock, mockFetch } from "@/test-support/http";
+import { createDomHarness, type DomHarness } from "../../test-support/dom";
+import { makeAccount, makeThreadMessage } from "../../test-support/fixtures";
+import { type HttpMock, mockFetch } from "../../test-support/http";
+import { ComposeProvider } from "../compose/ComposeProvider";
 import { ConversationView } from "./ConversationView";
 
 const ACCOUNT_ID = "acc-1";

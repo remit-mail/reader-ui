@@ -1,7 +1,7 @@
 import { useLocation, useNavigate } from "@tanstack/react-router";
 import { useCallback, useMemo } from "react";
 import { z } from "zod";
-import { useIsDesktop } from "@/hooks/useMediaQuery";
+import { useIsDesktop } from "../hooks/useMediaQuery";
 
 /**
  * The fragment tier carries panel visibility and nothing else — no identity, no

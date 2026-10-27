@@ -11,7 +11,10 @@
  */
 
 import type { ProviderStatus, SpellcheckOptions } from "@remit/ui/rich-text";
-import { buildBugReportContext, buildGitHubIssueUrl } from "@/lib/bug-report";
+import {
+	buildBugReportContext,
+	buildGitHubIssueUrl,
+} from "../../lib/bug-report";
 import type { PushErrorInput } from "../ui/error-banners.js";
 
 const WHAT_FAILED: Record<"download" | "engine" | "worker", string> = {

@@ -21,12 +21,12 @@ import {
 } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useRef, useState } from "react";
-import { calendarFeedUrl } from "@/lib/calendar-feed-url";
+import { calendarFeedUrl } from "../../lib/calendar-feed-url";
 import {
 	isNotFound,
 	softErrorMeta,
 	softErrorStatuses,
-} from "@/lib/error-classifier";
+} from "../../lib/error-classifier";
 
 export type CalendarFeedState =
 	| { status: "loading" }

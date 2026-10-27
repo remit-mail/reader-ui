@@ -1,5 +1,5 @@
 import { Bug } from "lucide-react";
-import { openBugReport } from "@/lib/bug-report";
+import { openBugReport } from "../../lib/bug-report";
 
 /**
  * The mobile drawer's bug-report row — a full-width labeled control beside

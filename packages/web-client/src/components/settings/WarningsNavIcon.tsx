@@ -1,6 +1,6 @@
 import { AttentionDot } from "@remit/ui";
 import { TriangleAlert } from "lucide-react";
-import { useWarningsAttention } from "@/hooks/useWarningsAttention";
+import { useWarningsAttention } from "../../hooks/useWarningsAttention";
 
 export function WarningsNavIcon() {
 	const attention = useWarningsAttention();

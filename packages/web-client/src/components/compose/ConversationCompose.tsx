@@ -5,12 +5,12 @@ import {
 import type { ComposeInsertion } from "@remit/ui/rich-text";
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useState } from "react";
-import { useMailboxAccount } from "@/hooks/useMailboxAccount";
+import { useMailboxAccount } from "../../hooks/useMailboxAccount";
 import {
 	type ReplyAddress,
 	useAdoptReplyDraft,
 	useCloseReply,
-} from "@/routing";
+} from "../../routing";
 import { ComposeForm } from "./ComposeForm";
 import { useCompose } from "./ComposeProvider";
 

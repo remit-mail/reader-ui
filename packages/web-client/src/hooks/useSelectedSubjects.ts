@@ -5,7 +5,7 @@ import {
 } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
 import { useQueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
-import { isInfiniteThreadData, isThreadItemsPage } from "@/lib/thread-cache";
+import { isInfiniteThreadData, isThreadItemsPage } from "../lib/thread-cache";
 
 /**
  * Subjects of the selected messages, read off the thread rows already in the

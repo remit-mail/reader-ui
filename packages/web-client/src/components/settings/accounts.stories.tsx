@@ -1,11 +1,11 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { HttpResponse, http } from "msw";
 import { expect, userEvent, waitFor, within } from "storybook/test";
-import { AppStory } from "@/mocks/story-frame/AppStory";
-import { mailHandlers } from "@/mocks/story-frame/mail-handlers";
-import { mailWorld, NOW } from "@/mocks/story-frame/mail-world";
-import { signedInAs } from "@/mocks/story-frame/session";
-import { makeAccount } from "@/test-support/fixtures";
+import { AppStory } from "../../mocks/story-frame/AppStory";
+import { mailHandlers } from "../../mocks/story-frame/mail-handlers";
+import { mailWorld, NOW } from "../../mocks/story-frame/mail-world";
+import { signedInAs } from "../../mocks/story-frame/session";
+import { makeAccount } from "../../test-support/fixtures";
 
 const accounts = [
 	makeAccount({

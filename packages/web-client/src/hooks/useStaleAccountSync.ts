@@ -4,14 +4,14 @@ import type { RemitImapAccountResponse } from "@remit/api-http-client/types.gen.
 import { type QueryClient, useQueryClient } from "@tanstack/react-query";
 import pMap from "p-map";
 import { useEffect, useRef } from "react";
-import { shouldEscalate } from "@/lib/error-classifier";
-import { reportFatalError } from "@/lib/fatal-error";
+import { shouldEscalate } from "../lib/error-classifier";
+import { reportFatalError } from "../lib/fatal-error";
 import {
 	HOT_POLL_INTERVAL_MS,
 	isHotSyncWindowActive,
 	subscribeHotSyncWindow,
-} from "@/lib/hot-sync-window";
-import { getRuntimeConfig } from "@/runtime-config";
+} from "../lib/hot-sync-window";
+import { getRuntimeConfig } from "../runtime-config";
 
 /**
  * Mailboxes are considered stale 15 minutes after the last successful sync.

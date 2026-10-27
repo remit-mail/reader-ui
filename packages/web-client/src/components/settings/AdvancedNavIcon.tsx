@@ -7,7 +7,7 @@
  */
 import { AttentionDot } from "@remit/ui";
 import { Wrench } from "lucide-react";
-import { useOptionalSelfUpdate } from "@/hooks/use-system-update";
+import { useOptionalSelfUpdate } from "../../hooks/use-system-update";
 
 export function AdvancedNavIcon() {
 	const selfUpdate = useOptionalSelfUpdate();

@@ -1,14 +1,14 @@
 import { SettingsShell } from "@remit/ui";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { CalendarCreateCard } from "@/components/settings/CalendarCreateCard";
-import { CalendarSettingsPanel } from "@/components/settings/CalendarSettingsPanel";
-import { CalendarSubscribeCard } from "@/components/settings/CalendarSubscribeCard";
-import { CalendarSubscriptionStatus } from "@/components/settings/CalendarSubscriptionStatus";
-import { useCalendarCollectionWrites } from "@/hooks/calendar/useCalendarCollectionWrites";
-import { useCalendarSubscriptions } from "@/hooks/calendar/useCalendarSubscriptions";
-import { useCalendars } from "@/hooks/calendar/useCalendars";
-import { SETTINGS_ID_TO_PATH, SETTINGS_NAV_ITEMS } from "@/routes/settings";
+import { CalendarCreateCard } from "../../components/settings/CalendarCreateCard";
+import { CalendarSettingsPanel } from "../../components/settings/CalendarSettingsPanel";
+import { CalendarSubscribeCard } from "../../components/settings/CalendarSubscribeCard";
+import { CalendarSubscriptionStatus } from "../../components/settings/CalendarSubscriptionStatus";
+import { useCalendarCollectionWrites } from "../../hooks/calendar/useCalendarCollectionWrites";
+import { useCalendarSubscriptions } from "../../hooks/calendar/useCalendarSubscriptions";
+import { useCalendars } from "../../hooks/calendar/useCalendars";
+import { SETTINGS_ID_TO_PATH, SETTINGS_NAV_ITEMS } from "../settings";
 
 export const Route = createFileRoute("/settings/calendars")({
 	component: CalendarsSettings,

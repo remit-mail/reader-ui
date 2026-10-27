@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect, within } from "storybook/test";
-import type { FatalError } from "@/lib/fatal-error";
+import type { FatalError } from "../../lib/fatal-error";
 import { FatalErrorScreen } from "./FatalErrorOverlay";
 
 const meta: Meta<typeof FatalErrorScreen> = {

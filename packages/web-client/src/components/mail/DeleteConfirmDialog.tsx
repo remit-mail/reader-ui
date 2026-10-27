@@ -16,8 +16,8 @@
  * folder is not Trash".
  */
 import { ConfirmDialog } from "@remit/ui";
-import { useAuthProvider } from "@/auth/provider";
-import { type DeleteOutcome, deleteConfirmationCopy } from "@/lib/format";
+import { useAuthProvider } from "../../auth/provider";
+import { type DeleteOutcome, deleteConfirmationCopy } from "../../lib/format";
 import { useRoleAppointmentPrompt } from "./RoleAppointmentPromptProvider";
 
 interface DeleteConfirmDialogProps {

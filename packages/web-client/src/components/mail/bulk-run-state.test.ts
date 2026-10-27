@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import type { BulkRunOutcome } from "@/lib/bulk-actions";
+import type { BulkRunOutcome } from "../../lib/bulk-actions";
 import { bulkRunReport } from "./bulk-run-state";
 
 const ended = (over: Partial<BulkRunOutcome> = {}): BulkRunOutcome => ({

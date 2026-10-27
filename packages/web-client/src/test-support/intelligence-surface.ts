@@ -7,7 +7,7 @@
  * raises the authenticity banner also raises the rail wherever the rail fits.
  */
 
-import type { DomHarness } from "@/test-support/dom";
+import type { DomHarness } from "./dom";
 
 export const THREAD_ID = "thread-1";
 export const MESSAGE_ID = "msg-1";

@@ -10,15 +10,15 @@ import {
 	type AuthProvider,
 	AuthProviderProvider,
 	noneAuthProvider,
-} from "@/auth/provider";
+} from "../../auth/provider";
 import {
 	handleMutationCacheError,
 	handleQueryCacheError,
-} from "@/lib/query-error-handler";
-import { noopTelemetry } from "@/lib/telemetry";
-import { createAppRouter } from "@/router";
-import "@/lib/i18n";
-import "@/lib/client";
+} from "../../lib/query-error-handler";
+import { noopTelemetry } from "../../lib/telemetry";
+import { createAppRouter } from "../../router";
+import "../../lib/i18n";
+import "../../lib/client";
 
 export interface AppStoryProps {
 	url: string;

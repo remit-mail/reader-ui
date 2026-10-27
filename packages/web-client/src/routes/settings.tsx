@@ -19,8 +19,8 @@ import {
 	Tag,
 	Users,
 } from "lucide-react";
-import { AdvancedNavIcon } from "@/components/settings/AdvancedNavIcon";
-import { WarningsNavIcon } from "@/components/settings/WarningsNavIcon";
+import { AdvancedNavIcon } from "../components/settings/AdvancedNavIcon";
+import { WarningsNavIcon } from "../components/settings/WarningsNavIcon";
 
 /* ------------------------------------------------------------------ */
 /* Nav items — single source of truth shared by all settings pages    */

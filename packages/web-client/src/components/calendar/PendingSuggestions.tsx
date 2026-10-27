@@ -5,13 +5,13 @@ import {
 	useCalendarSuggestionAnswers,
 	useCalendars,
 	usePendingCalendarSuggestions,
-} from "@/hooks/calendar";
-import { calendarReportHref } from "@/lib/calendar-report";
+} from "../../hooks/calendar";
+import { calendarReportHref } from "../../lib/calendar-report";
 import {
 	suggestionDate,
 	suggestionWhen,
 	toEventSuggestion,
-} from "@/lib/calendar-suggestion";
+} from "../../lib/calendar-suggestion";
 import { calendarUnavailable, calendarWriteGate } from "./CalendarUnavailable";
 import { CalendarWaiting } from "./CalendarWaiting";
 

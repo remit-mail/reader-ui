@@ -27,8 +27,7 @@ jobs:
   # left standing.
   checkbox:
     if: >-
-      github.event_name == 'pull_request' &&
-      github.event.pull_request.head.repo.full_name == github.repository
+      github.event.repository.visibility == 'public' && (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -53,20 +52,8 @@ jobs:
 
   build:
     if: >-
-      github.event_name == 'workflow_dispatch' ||
-      (github.event.issue.pull_request &&
-      github.event.comment.user.login == 'github-actions[bot]' &&
-      contains(github.event.comment.body, '<!-- storybook-preview -->') &&
-      contains(github.event.comment.body, '- [x] Deploy Storybook preview') &&
-      !contains(github.event.changes.body.from, '- [x] Deploy Storybook preview'))
+      github.event.repository.visibility == 'public' && (github.event_name == 'workflow_dispatch' || (github.event.issue.pull_request && github.event.comment.user.login == 'github-actions[bot]' && contains(github.event.comment.body, '<!-- storybook-preview -->') && contains(github.event.comment.body, '- [x] Deploy Storybook preview') && !contains(github.event.changes.body.from, '- [x] Deploy Storybook preview')))
     runs-on: ubuntu-latest
-    # An optimization, not the correctness guarantee: shared with
-    # storybook-preview-cleanup.yml so closing a pull request usually cancels
-    # a build still running for it, saving the minutes. It is not load-bearing
-    # -- GitHub only holds one running and one pending job per group, so a
-    # third arrival can still bump a pending one silently, and the publish
-    # job below protects the branch itself against that with a leased push.
-    # Both files must spell this group the same way; a test asserts they do.
     concurrency:
       group: storybook-preview-${{ github.event.pull_request.number || github.event.issue.number || github.event.inputs.pr-number }}
       cancel-in-progress: true
@@ -178,15 +165,6 @@ jobs:
     needs: build
     if: needs.build.outputs.eligible == 'true'
     runs-on: ubuntu-latest
-    # An optimization, not the correctness guarantee: shared with
-    # storybook-pages.yml and storybook-preview-cleanup.yml so the three
-    # producers usually serialize instead of piling up. It cannot be relied on
-    # for correctness by itself -- GitHub holds at most one running and one
-    # pending job per group, so a third simultaneous producer can still bump a
-    # pending one. gh-pages-publish.mjs is what actually protects the branch,
-    # via a leased push that is rejected rather than silently overwritten if
-    # it loses a race, and retried against the branch's new tip. All three
-    # files must spell this group the same way; a test asserts they do.
     concurrency:
       group: gh-pages-branch-push
       cancel-in-progress: false

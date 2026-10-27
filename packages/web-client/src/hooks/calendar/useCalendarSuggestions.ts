@@ -33,7 +33,7 @@ import {
 	useQueryClient,
 } from "@tanstack/react-query";
 import { useCallback, useMemo } from "react";
-import { softErrorStatuses } from "@/lib/error-classifier";
+import { softErrorStatuses } from "../../lib/error-classifier";
 
 const SUGGESTION_META = softErrorStatuses(400, 404);
 

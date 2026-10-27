@@ -34,15 +34,15 @@ import {
 	extendRangeStart,
 	rangeAround,
 	weekWindowsOver,
-} from "@/hooks/calendar";
-import { useCalendarData } from "@/hooks/useCalendarData";
-import { useCalendarAddress, useCalendarNavigation } from "@/routing";
-import { createDomHarness, type DomHarness } from "@/test-support/dom";
+} from "../../hooks/calendar";
+import { useCalendarData } from "../../hooks/useCalendarData";
 import {
 	calendarSearchSchema,
 	calendarViewMountsAgenda,
 } from "../../lib/calendar-route";
 import { stringifySearch } from "../../lib/search-params";
+import { useCalendarAddress, useCalendarNavigation } from "../../routing";
+import { createDomHarness, type DomHarness } from "../../test-support/dom";
 import { AgendaView } from "./AgendaView";
 
 const DATE = "2026-06-10";

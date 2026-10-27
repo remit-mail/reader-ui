@@ -1,14 +1,14 @@
 import type { RemitImapOutboxAttachmentResponse } from "@remit/api-http-client/types.gen.ts";
 import type { InlineImagePlacement, InlineImages } from "@remit/ui/rich-text";
 import { useMemo, useRef } from "react";
-import { useAuthProvider } from "@/auth/provider";
+import { useAuthProvider } from "../auth/provider";
+import type { PushErrorInput } from "../components/ui/error-banners";
 import {
 	attachmentFailureContent,
 	extractAttachmentFailureDetail,
 	extractAttachmentFailureReason,
 	fetchAttachment,
-} from "@/lib/attachment-download";
-import type { PushErrorInput } from "../components/ui/error-banners";
+} from "../lib/attachment-download";
 import type { StoredContent } from "../lib/compose-attachment-controller";
 
 interface UseInlineImagesOptions {

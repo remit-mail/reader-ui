@@ -15,18 +15,18 @@ import {
 import type { ConfigOperationsGetConfigResponse } from "@remit/api-http-client/types.gen.ts";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useRef, useState } from "react";
-import { useRoleAppointmentPrompt } from "@/components/mail/RoleAppointmentPromptProvider";
-import { useErrorBanners } from "@/components/ui/ErrorBannerProvider";
-import { formatErrorDetail } from "@/components/ui/error-banners";
+import { useRoleAppointmentPrompt } from "../components/mail/RoleAppointmentPromptProvider";
+import { useErrorBanners } from "../components/ui/ErrorBannerProvider";
+import { formatErrorDetail } from "../components/ui/error-banners";
 import {
 	type FolderRoleRefusal,
 	isFolderRoleRefusal,
-} from "@/components/ui/folder-role-refusal";
-import { softErrorStatuses } from "@/lib/error-classifier";
+} from "../components/ui/folder-role-refusal";
+import { softErrorStatuses } from "../lib/error-classifier";
 import {
 	invalidateThreadListQueries,
 	threadListCacheKeys,
-} from "@/lib/thread-list-cache";
+} from "../lib/thread-list-cache";
 import { useTrashByAccount } from "./useArchiveMailbox";
 
 interface UseEmptyTrashOptions {

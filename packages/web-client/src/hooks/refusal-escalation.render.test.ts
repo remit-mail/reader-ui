@@ -21,19 +21,19 @@ import {
 	QueryClientProvider,
 } from "@tanstack/react-query";
 import { act, createElement } from "react";
-import { RoleAppointmentPromptProvider } from "@/components/mail/RoleAppointmentPromptProvider";
-import { ErrorBannerProvider } from "@/components/ui/ErrorBannerProvider";
-import { __resetFatalError, getCurrentFatalError } from "@/lib/fatal-error";
+import { RoleAppointmentPromptProvider } from "../components/mail/RoleAppointmentPromptProvider";
+import { ErrorBannerProvider } from "../components/ui/ErrorBannerProvider";
+import { __resetFatalError, getCurrentFatalError } from "../lib/fatal-error";
 import {
 	handleMutationCacheError,
 	handleQueryCacheError,
-} from "@/lib/query-error-handler";
+} from "../lib/query-error-handler";
 import { createDomHarness, type DomHarness } from "../test-support/dom";
 import { type HttpMock, mockFetch } from "../test-support/http";
 import { useDeleteMessages } from "./useDeleteMessages";
 import { type EmptyTrashState, useEmptyTrash } from "./useEmptyTrash";
 import { useMoveMessages } from "./useMoveMessages";
-import "@/lib/client";
+import "../lib/client";
 
 const ACCOUNT = "acc-1";
 const INBOX = "mbx-inbox";

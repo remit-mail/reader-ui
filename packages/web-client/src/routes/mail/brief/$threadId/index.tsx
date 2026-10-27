@@ -3,7 +3,7 @@
  * same as for a thread whose row the reader never pointed at.
  */
 import { createFileRoute } from "@tanstack/react-router";
-import { BriefPane } from "@/components/mail/BriefPane";
+import { BriefPane } from "../../../../components/mail/BriefPane";
 
 function BriefThreadPane() {
 	return <BriefPane.Reading />;

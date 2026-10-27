@@ -7,7 +7,6 @@ import {
 	freeStretchesOn,
 } from "@remit/ui";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AgendaStrip } from "@/components/calendar/AgendaStrip";
 import {
 	type AgendaRange,
 	calendarInstanceId,
@@ -28,14 +27,15 @@ import {
 	useDrawnEvents,
 	weekKeyOf,
 	weekWindowsOver,
-} from "@/hooks/calendar";
-import { useDebouncedValue } from "@/hooks/useDebouncedValue";
-import { isoDate } from "@/lib/calendar-route";
+} from "../../hooks/calendar";
+import { useDebouncedValue } from "../../hooks/useDebouncedValue";
+import { isoDate } from "../../lib/calendar-route";
 import {
 	useCalendarAddress,
 	useCalendarNavigation,
 	useOpenCalendarEvent,
-} from "@/routing";
+} from "../../routing";
+import { AgendaStrip } from "./AgendaStrip";
 
 /**
  * The agenda, bound to the address.

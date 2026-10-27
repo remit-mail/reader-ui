@@ -19,8 +19,8 @@ import {
 	type AuthProvider,
 	AuthProviderProvider,
 	noneAuthProvider,
-} from "@/auth/provider";
-import type { DeleteOutcome } from "@/lib/format";
+} from "../../auth/provider";
+import type { DeleteOutcome } from "../../lib/format";
 import { DeleteConfirmDialog } from "./DeleteConfirmDialog";
 import { RoleAppointmentPromptProvider } from "./RoleAppointmentPromptProvider";
 

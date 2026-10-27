@@ -9,10 +9,10 @@
  * nothing here reads a selection out of the query.
  */
 import { createFileRoute, Outlet } from "@tanstack/react-router";
-import { MailShell } from "@/components/layout/MailShell";
-import { MailboxPane } from "@/components/mail/MailboxPane";
-import { mailboxSearchSchema } from "@/lib/mail-search";
-import { useOpenThreadPath, useSearchMirror } from "@/routing";
+import { MailShell } from "../../components/layout/MailShell";
+import { MailboxPane } from "../../components/mail/MailboxPane";
+import { mailboxSearchSchema } from "../../lib/mail-search";
+import { useOpenThreadPath, useSearchMirror } from "../../routing";
 
 function MailboxLayout() {
 	const { mailboxId } = Route.useParams();

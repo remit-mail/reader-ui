@@ -10,7 +10,7 @@
 
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import type { BulkActionTarget, BulkRunOutcome } from "@/lib/bulk-actions";
+import type { BulkActionTarget, BulkRunOutcome } from "../../lib/bulk-actions";
 import {
 	type RetryContext,
 	retryIntent,

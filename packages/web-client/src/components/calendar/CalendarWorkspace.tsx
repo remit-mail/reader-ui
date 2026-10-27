@@ -13,12 +13,12 @@ import {
 } from "@remit/ui";
 import { Loader2 } from "lucide-react";
 import { type ReactNode, useState } from "react";
-import { CalendarViewPlaceholder } from "@/components/calendar/CalendarViewPlaceholder";
-import { NavMenuButton } from "@/components/mail/NavMenuButton";
 import {
 	calendarViewMountsAgenda,
 	calendarViewMountsGrid,
-} from "@/lib/calendar-route";
+} from "../../lib/calendar-route";
+import { NavMenuButton } from "../mail/NavMenuButton";
+import { CalendarViewPlaceholder } from "./CalendarViewPlaceholder";
 
 /**
  * The calendar's own pane: the toolbar that moves it and whatever the current

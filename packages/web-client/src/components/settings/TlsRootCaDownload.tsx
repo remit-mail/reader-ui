@@ -6,7 +6,7 @@
  */
 import { ButtonLink } from "@remit/ui";
 import { ShieldCheck } from "lucide-react";
-import { getRuntimeConfig } from "@/runtime-config";
+import { getRuntimeConfig } from "../../runtime-config";
 
 export function TlsRootCaDownload() {
 	if (getRuntimeConfig().tlsMode !== "internal") return null;

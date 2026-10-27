@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { afterEach, describe, it } from "node:test";
 import { createElement } from "react";
-import { createDomHarness, type DomHarness } from "@/test-support/dom";
+import { createDomHarness, type DomHarness } from "../test-support/dom";
 import { useVisualViewport } from "./useVisualViewport";
 
 let harness: DomHarness | undefined;

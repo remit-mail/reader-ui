@@ -18,12 +18,10 @@ import {
 	Trash2,
 } from "lucide-react";
 import { useCallback } from "react";
-import { useErrorBanners } from "@/components/ui/ErrorBannerProvider";
-import { formatErrorDetail } from "@/components/ui/error-banners";
-import { useDeleteMessages } from "@/hooks/useDeleteMessages";
-import { setReadOnItems } from "@/hooks/useMarkAsRead";
-import { useMoveMessages } from "@/hooks/useMoveMessages";
-import { useToggleTrusted } from "@/hooks/useToggleTrusted";
+import { useDeleteMessages } from "../../hooks/useDeleteMessages";
+import { setReadOnItems } from "../../hooks/useMarkAsRead";
+import { useMoveMessages } from "../../hooks/useMoveMessages";
+import { useToggleTrusted } from "../../hooks/useToggleTrusted";
 import {
 	cancelThreadListQueries,
 	invalidateThreadListQueries,
@@ -33,8 +31,10 @@ import {
 	type ThreadMessagesData,
 	type ThreadMutationContext,
 	threadListCacheKeys,
-} from "@/lib/thread-list-cache";
-import { useCloseThread, useOpenThreadPath } from "@/routing";
+} from "../../lib/thread-list-cache";
+import { useCloseThread, useOpenThreadPath } from "../../routing";
+import { useErrorBanners } from "../ui/ErrorBannerProvider";
+import { formatErrorDetail } from "../ui/error-banners";
 import { MoveToTrigger } from "./MoveToTrigger";
 
 interface MessageActionMenuProps {

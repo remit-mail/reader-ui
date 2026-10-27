@@ -17,10 +17,7 @@
     "verbatimModuleSyntax": true,
     "isolatedModules": true,
     "outDir": "dist",
-    "rootDir": "src",
-    "paths": {
-      "@/*": ["./src/*"]
-    }
+    "rootDir": "src"
   },
   "include": ["src/**/*.ts", "src/**/*.tsx"]
 }

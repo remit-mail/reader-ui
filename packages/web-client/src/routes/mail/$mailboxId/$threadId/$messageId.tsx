@@ -12,7 +12,7 @@
  * would collapse and scroll to the top the moment someone pressed Reply.
  */
 import { createFileRoute } from "@tanstack/react-router";
-import { MailboxPane } from "@/components/mail/MailboxPane";
+import { MailboxPane } from "../../../../components/mail/MailboxPane";
 
 function MailboxMessagePane() {
 	return <MailboxPane.Reading />;

@@ -2,8 +2,9 @@
 
 /* A consumer that imports this sheet scans the components it renders, wherever
    the package is installed. Tests are excluded: they assert on class strings. */
-@source "./**/*.{ts,tsx}";
+@source "./**/*.{js,ts,tsx}";
 @source not "./**/*.test.{ts,tsx}";
+@source not "./**/*.d.ts";
 
 /* Self-hosted variable fonts (no CDN). Swap the active UI font in ONE
    line below: change --font-ui to one of the three @theme aliases. */

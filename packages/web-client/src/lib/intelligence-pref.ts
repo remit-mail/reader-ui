@@ -6,7 +6,7 @@
  * sessions. Storage failures (private mode / quota) fall back to the default
  * (open) rather than crashing.
  */
-import type { PanelFragment } from "@/routing";
+import type { PanelFragment } from "../routing";
 
 export const INTELLIGENCE_PREF_KEY = "remit:intelligence-open";
 

@@ -16,8 +16,8 @@
 import { configOperationsExportConfigOptions } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { exportFileName } from "@/lib/config-import";
-import { useGoToSection } from "@/routing";
+import { exportFileName } from "../../lib/config-import";
+import { useGoToSection } from "../../routing";
 import { ConfigExportCard } from "./ConfigExportCard";
 
 const saveJson = (fileName: string, body: unknown): void => {

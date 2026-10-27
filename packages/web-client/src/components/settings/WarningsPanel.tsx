@@ -20,14 +20,17 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { Bug } from "lucide-react";
 import { type ReactNode, useMemo, useState } from "react";
-import { SignInAgain } from "@/auth/SignInAgain";
-import { useResultFolderIndex } from "@/hooks/useResultFolderIndex";
-import { useWarningsList } from "@/hooks/useWarningsAttention";
-import { buildBugReportContext, buildGitHubIssueUrl } from "@/lib/bug-report";
-import { isUnauthenticated } from "@/lib/error-classifier";
-import { toQuarantineEntry } from "@/lib/quarantine-entries";
-import type { ResultFolderIndex } from "@/lib/result-folder";
-import { toSyncWarningEntry } from "@/lib/sync-warning-entries";
+import { SignInAgain } from "../../auth/SignInAgain";
+import { useResultFolderIndex } from "../../hooks/useResultFolderIndex";
+import { useWarningsList } from "../../hooks/useWarningsAttention";
+import {
+	buildBugReportContext,
+	buildGitHubIssueUrl,
+} from "../../lib/bug-report";
+import { isUnauthenticated } from "../../lib/error-classifier";
+import { toQuarantineEntry } from "../../lib/quarantine-entries";
+import type { ResultFolderIndex } from "../../lib/result-folder";
+import { toSyncWarningEntry } from "../../lib/sync-warning-entries";
 
 const EMPTY_QUARANTINE: readonly RemitImapQuarantineResponse[] = [];
 const EMPTY_WARNINGS: readonly RemitImapSyncWarningResponse[] = [];

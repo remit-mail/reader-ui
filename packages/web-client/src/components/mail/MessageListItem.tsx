@@ -14,9 +14,9 @@ import type {
 	ThreadRowData,
 } from "@remit/ui";
 import { memo } from "react";
-import { toDisplayCategory } from "@/lib/display-category";
-import { formatEmailDate } from "@/lib/format";
-import { rowSettlement } from "@/lib/row-settlement";
+import { toDisplayCategory } from "../../lib/display-category";
+import { formatEmailDate } from "../../lib/format";
+import { rowSettlement } from "../../lib/row-settlement";
 import { MessageRow } from "./MessageRow";
 
 interface MessageListItemProps {

@@ -1,9 +1,9 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback } from "react";
-import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
-import { completeOnboarding } from "@/lib/onboarding-completion";
-import { useTelemetry } from "@/lib/telemetry-context";
+import { OnboardingWizard } from "../components/onboarding/OnboardingWizard";
+import { completeOnboarding } from "../lib/onboarding-completion";
+import { useTelemetry } from "../lib/telemetry-context";
 
 /**
  * /onboarding — full-screen wizard for first-run users (zero accounts).

@@ -9,7 +9,7 @@ import {
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useState } from "react";
 import { expect, within } from "storybook/test";
-import { freeStretchesByDate } from "@/hooks/calendar";
+import { freeStretchesByDate } from "../../hooks/calendar";
 import { AgendaStrip } from "./AgendaStrip";
 
 /**

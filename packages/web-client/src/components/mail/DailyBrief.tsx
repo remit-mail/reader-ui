@@ -98,53 +98,56 @@ import {
 	useMemo,
 	useState,
 } from "react";
-import { useJunkMailbox } from "@/hooks/useArchiveMailbox";
-import { useBriefSearchRows, useBriefSections } from "@/hooks/useBriefSections";
+import { useJunkMailbox } from "../../hooks/useArchiveMailbox";
+import {
+	useBriefSearchRows,
+	useBriefSections,
+} from "../../hooks/useBriefSections";
 import {
 	isSyncingPhase,
 	useInitialSyncProgress,
-} from "@/hooks/useInitialSyncProgress";
-import { useLabelList } from "@/hooks/useLabels";
-import { useLayoutTier } from "@/hooks/useLayoutTier";
-import { useIsDesktop } from "@/hooks/useMediaQuery";
-import { useRefreshControl } from "@/hooks/useRefreshControl";
-import { useSearchTokenContext } from "@/hooks/useSearchTokenContext";
-import { useSpamMatchCounts } from "@/hooks/useSpamMatchCounts";
-import type { TriageContextUpdate } from "@/hooks/useTriageLayer";
-import { sortAccountsByCreatedAt } from "@/lib/account-order";
+} from "../../hooks/useInitialSyncProgress";
+import { useLabelList } from "../../hooks/useLabels";
+import { useLayoutTier } from "../../hooks/useLayoutTier";
+import { useIsDesktop } from "../../hooks/useMediaQuery";
+import { useRefreshControl } from "../../hooks/useRefreshControl";
+import { useSearchTokenContext } from "../../hooks/useSearchTokenContext";
+import { useSpamMatchCounts } from "../../hooks/useSpamMatchCounts";
+import type { TriageContextUpdate } from "../../hooks/useTriageLayer";
+import { sortAccountsByCreatedAt } from "../../lib/account-order";
 import {
 	BRIEF_CATEGORIES,
 	type BriefCategoryResult,
 	briefSections,
 	matchesSearchTokens,
 	toThreadRowData,
-} from "@/lib/brief";
+} from "../../lib/brief";
 import {
 	briefClientOnlyFilters,
 	briefCountsMatchRows,
 	briefCriteria,
-} from "@/lib/brief-criteria";
-import { isServerError } from "@/lib/error-classifier";
-import { junkDestination } from "@/lib/junk-destination";
-import type { ListHeaderChrome } from "@/lib/list-header-chrome";
-import { useMailContext } from "@/lib/mail-context";
-import { useMailFreshness } from "@/lib/mail-freshness";
-import { shouldRequestResultCount } from "@/lib/result-count";
-import { junkMailboxIds } from "@/lib/result-folder";
-import { rowToSearchResult } from "@/lib/search-result";
-import { showInlineSearchResults } from "@/lib/search-surface";
-import { parseSearchTokens } from "@/lib/search-tokens";
-import { resolveSelectionAccountScope } from "@/lib/selection-account-scope";
-import { spamOfferFromCounts } from "@/lib/spam-offer";
-import { dedupeByThread } from "@/lib/starred-rows";
-import { wizardSelectionFrom } from "@/lib/wizard-selection";
+} from "../../lib/brief-criteria";
+import { isServerError } from "../../lib/error-classifier";
+import { junkDestination } from "../../lib/junk-destination";
+import type { ListHeaderChrome } from "../../lib/list-header-chrome";
+import { useMailContext } from "../../lib/mail-context";
+import { useMailFreshness } from "../../lib/mail-freshness";
+import { shouldRequestResultCount } from "../../lib/result-count";
+import { junkMailboxIds } from "../../lib/result-folder";
+import { rowToSearchResult } from "../../lib/search-result";
+import { showInlineSearchResults } from "../../lib/search-surface";
+import { parseSearchTokens } from "../../lib/search-tokens";
+import { resolveSelectionAccountScope } from "../../lib/selection-account-scope";
+import { spamOfferFromCounts } from "../../lib/spam-offer";
+import { dedupeByThread } from "../../lib/starred-rows";
+import { wizardSelectionFrom } from "../../lib/wizard-selection";
 import {
 	type OpenThreadTarget,
 	type SelectionWizardControl,
 	useGoToSection,
 	useScopeSearchToMailbox,
 	useSelectionWizard,
-} from "@/routing";
+} from "../../routing";
 import { LabelApplyTrigger } from "./LabelApplyTrigger";
 import { MailListHeader, type MailListHeaderProps } from "./MailListHeader";
 import type { MessageListCommands } from "./MessageList";

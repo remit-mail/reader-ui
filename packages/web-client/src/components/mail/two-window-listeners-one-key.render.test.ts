@@ -39,13 +39,13 @@ import {
 	RouterProvider,
 } from "@tanstack/react-router";
 import { createElement, useEffect } from "react";
-import { ComposeProvider } from "@/components/compose/ComposeProvider";
-import { useTriageContext, useTriageLayer } from "@/hooks/useTriageLayer";
-import { MailFreshnessProvider } from "@/lib/mail-freshness";
-import { useOpenThreadPath } from "@/routing";
-import { createDomHarness, type DomHarness } from "@/test-support/dom";
-import { makeAccount, makeThreadMessage } from "@/test-support/fixtures";
-import { type HttpMock, mockFetch } from "@/test-support/http";
+import { useTriageContext, useTriageLayer } from "../../hooks/useTriageLayer";
+import { MailFreshnessProvider } from "../../lib/mail-freshness";
+import { useOpenThreadPath } from "../../routing";
+import { createDomHarness, type DomHarness } from "../../test-support/dom";
+import { makeAccount, makeThreadMessage } from "../../test-support/fixtures";
+import { type HttpMock, mockFetch } from "../../test-support/http";
+import { ComposeProvider } from "../compose/ComposeProvider";
 import { BriefPane } from "./BriefPane";
 import { ConversationView } from "./ConversationView";
 import type { MessageListCommands } from "./MessageList";

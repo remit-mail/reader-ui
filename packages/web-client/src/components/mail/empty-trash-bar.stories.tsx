@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { EmptyTrashBar } from "@/components/mail/EmptyTrashBar";
+import { EmptyTrashBar } from "./EmptyTrashBar";
 
 /**
  * Emptying Trash from the mailbox pane, and the three refusals the server can

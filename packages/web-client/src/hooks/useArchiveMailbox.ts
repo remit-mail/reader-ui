@@ -5,7 +5,7 @@ import type {
 } from "@remit/api-http-client/types.gen.ts";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
-import type { TrashResolution } from "@/lib/format";
+import type { TrashResolution } from "../lib/format";
 
 /**
  * RFC 032 exclusive-folder-appointment (#976): every "which mailbox plays

@@ -6,14 +6,14 @@ import {
 import type { RemitImapThreadMessageResponse } from "@remit/api-http-client/types.gen.ts";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
-import { useErrorBanners } from "@/components/ui/ErrorBannerProvider";
-import { formatErrorDetail } from "@/components/ui/error-banners";
+import { useErrorBanners } from "../components/ui/ErrorBannerProvider";
+import { formatErrorDetail } from "../components/ui/error-banners";
 import {
 	isPlacementRefusal,
 	placementRefusalBanner,
-} from "@/components/ui/placement-refusal";
-import { runChunkedMutation } from "@/lib/bulk-actions";
-import { softErrorStatuses } from "@/lib/error-classifier";
+} from "../components/ui/placement-refusal";
+import { runChunkedMutation } from "../lib/bulk-actions";
+import { softErrorStatuses } from "../lib/error-classifier";
 import {
 	cancelThreadListQueries,
 	invalidateThreadListQueries,
@@ -23,7 +23,7 @@ import {
 	type ThreadMessagesData,
 	type ThreadMutationContext,
 	threadListCacheKeys,
-} from "@/lib/thread-list-cache";
+} from "../lib/thread-list-cache";
 
 interface UseMoveMessagesOptions {
 	mailboxId: string;

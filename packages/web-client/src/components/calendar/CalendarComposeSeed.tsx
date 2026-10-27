@@ -10,7 +10,7 @@ import { createContext, type ReactNode, useContext } from "react";
  * somebody else's Tuesday afternoon is not an address worth being able to send.
  * The composer opened without one starts on the day the calendar is showing.
  *
- * It lives in a module reached through the `@/` alias for the same reason
+ * It lives outside the route files for the same reason
  * `CalendarShell`'s context does: the generated route tree imports route files
  * relatively, so a context declared inside one resolves to a second module
  * instance and hands the consumer an empty default.

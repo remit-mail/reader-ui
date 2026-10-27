@@ -10,18 +10,18 @@ import type { RemitImapAccountResponse } from "@remit/api-http-client/types.gen.
 import { RefreshButton, ShellTopBar, shortcutHintForAction } from "@remit/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
-import { AccountMenu } from "@/auth/AccountMenu";
-import { useRefreshControl } from "@/hooks/useRefreshControl";
-import { useSearchScope } from "@/hooks/useSearchScope";
-import { useWarningsAttention } from "@/hooks/useWarningsAttention";
-import { openBugReport } from "@/lib/bug-report";
-import { useMailContext } from "@/lib/mail-context";
-import { useMailFreshness } from "@/lib/mail-freshness";
+import { AccountMenu } from "../../auth/AccountMenu";
+import { useRefreshControl } from "../../hooks/useRefreshControl";
+import { useSearchScope } from "../../hooks/useSearchScope";
+import { useWarningsAttention } from "../../hooks/useWarningsAttention";
+import { openBugReport } from "../../lib/bug-report";
+import { useMailContext } from "../../lib/mail-context";
+import { useMailFreshness } from "../../lib/mail-freshness";
 import {
 	invalidateThreadListQueries,
 	threadListCacheKeys,
-} from "@/lib/thread-list-cache";
-import { useGoToSection, useOpenCompose } from "@/routing";
+} from "../../lib/thread-list-cache";
+import { useGoToSection, useOpenCompose } from "../../routing";
 
 interface MailTopBarProps {
 	accounts: RemitImapAccountResponse[];

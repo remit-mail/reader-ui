@@ -24,11 +24,11 @@ export const AUTH_COMPOSITIONS: Record<
 	AuthComposition
 > = {
 	betterAuth: {
-		specifier: "@/auth/better-auth-provider",
+		specifier: "./src/auth/better-auth-provider",
 		name: "betterAuthProvider",
 	},
 	cognito: {
-		specifier: "@/auth/cognito-provider",
+		specifier: "./src/auth/cognito-provider",
 		name: "cognitoAuthProvider",
 	},
 };
@@ -50,7 +50,6 @@ const externalizeThirdParty = {
 		build.onResolve({ filter: /.*/ }, (args) => {
 			const path = args.path;
 			if (path.startsWith(".") || path.startsWith("/")) return null;
-			if (path === "@" || path.startsWith("@/")) return null;
 			if (path.startsWith("@remit/")) return null;
 			return { path, external: true };
 		});
@@ -64,7 +63,7 @@ export const bundleAppGraph = async (
 	const result = await build({
 		stdin: {
 			contents: [
-				'import { mountApp } from "@/shell";',
+				'import { mountApp } from "./src/shell";',
 				`import { ${auth.name} } from "${auth.specifier}";`,
 				`mountApp({ authProvider: ${auth.name} });`,
 				"",
@@ -87,7 +86,6 @@ export const bundleAppGraph = async (
 		// the app stylesheet's business, not the module graph's.
 		loader: { ".css": "empty", ".png": "empty", ".svg": "empty" },
 		absWorkingDir: packageDir,
-		alias: { "@": srcDir },
 	});
 
 	const inputs = Object.keys(result.metafile.inputs);

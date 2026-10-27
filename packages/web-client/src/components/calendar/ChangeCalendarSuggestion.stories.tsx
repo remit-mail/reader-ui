@@ -1,7 +1,7 @@
 import type { RemitImapCalendarSuggestionResponse } from "@remit/api-http-client/types.gen.ts";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect, userEvent, within } from "storybook/test";
-import { useCalendarNavigation, useChangingSuggestionId } from "@/routing";
+import { useCalendarNavigation, useChangingSuggestionId } from "../../routing";
 import { ChangeCalendarSuggestion } from "./ChangeCalendarSuggestion";
 import { calendars, STORY_WEEK } from "./calendar-story-fixtures";
 import {

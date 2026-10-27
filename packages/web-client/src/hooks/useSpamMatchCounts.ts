@@ -31,9 +31,9 @@ import { unifiedThreadOperationsListAllThreadsQueryKey } from "@remit/api-http-c
 import { unifiedThreadOperationsListAllThreads } from "@remit/api-http-client/sdk.gen.ts";
 import { useQueries } from "@tanstack/react-query";
 import { useMemo } from "react";
-import type { BriefSearchCriteria } from "@/hooks/useBriefSections";
-import { toResultCount } from "@/lib/result-count";
-import type { SpamMailboxCount } from "@/lib/spam-offer";
+import { toResultCount } from "../lib/result-count";
+import type { SpamMailboxCount } from "../lib/spam-offer";
+import type { BriefSearchCriteria } from "./useBriefSections";
 
 /** Half a minute, matching the searched brief's own rows. */
 const SPAM_COUNT_STALE_TIME_MS = 30_000;

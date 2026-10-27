@@ -40,7 +40,7 @@ export const openSpellcheckWorker = async (
 	const tag = dictionaryTagFor(language);
 	if (!tag) return null;
 	const worker = new Worker(
-		new URL("./rich-text-spellcheck-worker.ts", import.meta.url),
+		new URL("./rich-text-spellcheck-worker.js", import.meta.url),
 		{ type: "module" },
 	);
 	return openSpellProvider(

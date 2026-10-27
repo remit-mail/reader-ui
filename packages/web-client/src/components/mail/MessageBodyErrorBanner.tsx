@@ -1,6 +1,6 @@
 import { AlertCircle, X } from "lucide-react";
 import { useState } from "react";
-import { useAuthProvider } from "@/auth/provider";
+import { useAuthProvider } from "../../auth/provider";
 import {
 	contentForReason,
 	extractFallbackDetail,

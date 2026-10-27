@@ -1,5 +1,5 @@
-import { APP_SHA } from "@/lib/app-info";
-import { sessionStore } from "@/lib/session-storage";
+import { APP_SHA } from "./app-info";
+import { sessionStore } from "./session-storage";
 
 export const STALE_BUILD_RELOAD_KEY_PREFIX = "remit.stale-build-reload:";
 

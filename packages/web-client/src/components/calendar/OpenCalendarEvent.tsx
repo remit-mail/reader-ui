@@ -5,12 +5,7 @@ import {
 } from "@remit/ui";
 import { Navigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { SignInAgain } from "@/auth/SignInAgain";
-import { CalendarComposePane } from "@/components/calendar/CalendarComposePane";
-import {
-	type CalendarEventAbsence,
-	CalendarEventPane,
-} from "@/components/calendar/CalendarEventPane";
+import { SignInAgain } from "../../auth/SignInAgain";
 import {
 	type CalendarJumpSearch,
 	type CalendarWriteOutcome,
@@ -33,13 +28,18 @@ import {
 	useCalendars,
 	useCalendarWrites,
 	useDraftClashes,
-} from "@/hooks/calendar";
-import { useCalendarData } from "@/hooks/useCalendarData";
-import { formatEventWhen } from "@/lib/calendar-format";
-import { calendarEventReportHref } from "@/lib/calendar-report";
-import type { CalendarSearch } from "@/lib/calendar-route";
-import { subscriptionReadOnlyNote } from "@/lib/calendar-subscription";
-import { useCalendarAddress, useCalendarNavigation } from "@/routing";
+} from "../../hooks/calendar";
+import { useCalendarData } from "../../hooks/useCalendarData";
+import { formatEventWhen } from "../../lib/calendar-format";
+import { calendarEventReportHref } from "../../lib/calendar-report";
+import type { CalendarSearch } from "../../lib/calendar-route";
+import { subscriptionReadOnlyNote } from "../../lib/calendar-subscription";
+import { useCalendarAddress, useCalendarNavigation } from "../../routing";
+import { CalendarComposePane } from "./CalendarComposePane";
+import {
+	type CalendarEventAbsence,
+	CalendarEventPane,
+} from "./CalendarEventPane";
 
 /**
  * The event the address names, resolved — and everything a reader can do to it.

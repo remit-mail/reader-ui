@@ -8,7 +8,7 @@
  * as draft" is the move from one to the other.
  */
 import { createFileRoute } from "@tanstack/react-router";
-import { FullCompose } from "@/components/compose/FullCompose";
+import { FullCompose } from "../../../components/compose/FullCompose";
 
 export const Route = createFileRoute(
 	"/mail/outbox/compose/{-$outboxMessageId}",

@@ -20,7 +20,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { createElement } from "react";
 import { renderToString } from "react-dom/server";
-import { BodyFetchError } from "@/hooks/useMessageBodyContent";
+import { BodyFetchError } from "../../hooks/useMessageBodyContent";
 import { MessageBodyErrorBanner } from "./MessageBodyErrorBanner";
 
 const renderBanner = (error: unknown, onRetry?: () => void): string =>

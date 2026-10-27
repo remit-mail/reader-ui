@@ -14,7 +14,7 @@ import {
 } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
-import { softErrorStatuses } from "@/lib/error-classifier";
+import { softErrorStatuses } from "../../lib/error-classifier";
 import { useInvalidateCalendarReads } from "./useCalendarWrites";
 
 const SUBSCRIPTION_WRITE_META = softErrorStatuses(400, 404);

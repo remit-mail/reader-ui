@@ -4,7 +4,7 @@ import type { RemitImapFilterResponse } from "@remit/api-http-client/types.gen.t
 import type { LabelOption } from "@remit/ui";
 import React, { createElement } from "react";
 import { renderToString } from "react-dom/server";
-import type { FilterRunStatus } from "@/lib/organize/filter-run";
+import type { FilterRunStatus } from "../../lib/organize/filter-run";
 import { FiltersList } from "./FiltersList";
 
 // The node test loader transpiles remit-ui's `.tsx` with the classic JSX

@@ -6,7 +6,7 @@ import type {
 	SyncOperationsGetSyncStatusResponse,
 } from "@remit/api-http-client/types.gen.ts";
 import { type HttpHandler, HttpResponse, http } from "msw";
-import { makeAccount } from "@/test-support/fixtures";
+import { makeAccount } from "../../test-support/fixtures";
 
 const API = "/api";
 

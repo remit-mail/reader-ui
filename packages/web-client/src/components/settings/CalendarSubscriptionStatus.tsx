@@ -8,8 +8,8 @@
  */
 import { Badge, Banner, Button, formatErrorMessage } from "@remit/ui";
 import { Pause, Play } from "lucide-react";
-import { subscriptionHostOf } from "@/lib/calendar-subscription";
-import { formatDatePreset } from "@/lib/format";
+import { subscriptionHostOf } from "../../lib/calendar-subscription";
+import { formatDatePreset } from "../../lib/format";
 
 export interface CalendarSubscriptionStatusProps {
 	calendarName: string;

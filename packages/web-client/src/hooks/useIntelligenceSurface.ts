@@ -1,7 +1,7 @@
 import { useAppShellLayout } from "@remit/ui";
 import { type RefObject, useCallback, useEffect } from "react";
-import { useIntelligenceDrawer } from "@/hooks/useIntelligenceDrawer";
-import { useMailContext } from "@/lib/mail-context";
+import { useMailContext } from "../lib/mail-context";
+import { useIntelligenceDrawer } from "./useIntelligenceDrawer";
 
 /**
  * Which surface intelligence has for the open thread: the rail from 1280 up,

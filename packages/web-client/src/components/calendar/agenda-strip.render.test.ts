@@ -19,7 +19,7 @@ import {
 } from "@remit/ui";
 import { createElement, type ReactElement } from "react";
 import { renderToString } from "react-dom/server";
-import { freeStretchesByDate, startOfDay } from "@/hooks/calendar";
+import { freeStretchesByDate, startOfDay } from "../../hooks/calendar";
 import { AgendaStrip, type AgendaStripProps } from "./AgendaStrip.js";
 
 const TODAY = "2026-06-10";

@@ -22,8 +22,27 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
 	calendarUnavailable,
 	calendarWriteGate,
-} from "@/components/calendar/CalendarUnavailable";
-import type { ReplyWithText } from "@/components/compose/reply-with-times";
+} from "../components/calendar/CalendarUnavailable";
+import type { ReplyWithText } from "../components/compose/reply-with-times";
+import { formatDayLabel, formatInstantClock } from "../lib/calendar-format";
+import { calendarReportHref } from "../lib/calendar-report";
+import {
+	type CalendarSuggestion,
+	clashesOver,
+	inviteStanding,
+	isFromInvitation,
+	slotOffersOn,
+	slotsAsText,
+	suggestionDate,
+	suggestionWhen,
+	toCalendarInvite,
+	toEventSuggestion,
+} from "../lib/calendar-suggestion";
+import {
+	type OpenThreadTarget,
+	useChangeSuggestionOnCalendar,
+	useOpenEventOnCalendar,
+} from "../routing";
 import {
 	calendarWindowOfDays,
 	deviceTimeZone,
@@ -36,26 +55,7 @@ import {
 	useCalendarSuggestionAnswers,
 	useCalendars,
 	useMessageCalendarSuggestions,
-} from "@/hooks/calendar";
-import { formatDayLabel, formatInstantClock } from "@/lib/calendar-format";
-import { calendarReportHref } from "@/lib/calendar-report";
-import {
-	type CalendarSuggestion,
-	clashesOver,
-	inviteStanding,
-	isFromInvitation,
-	slotOffersOn,
-	slotsAsText,
-	suggestionDate,
-	suggestionWhen,
-	toCalendarInvite,
-	toEventSuggestion,
-} from "@/lib/calendar-suggestion";
-import {
-	type OpenThreadTarget,
-	useChangeSuggestionOnCalendar,
-	useOpenEventOnCalendar,
-} from "@/routing";
+} from "./calendar";
 
 /** What the reader is in the middle of, for one message and no other. */
 interface Working {

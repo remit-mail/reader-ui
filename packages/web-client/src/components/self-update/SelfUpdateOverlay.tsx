@@ -11,7 +11,7 @@ import {
 	SelfUpdateProgressOverlay,
 	SelfUpdateUnreachableScreen,
 } from "@remit/ui";
-import { useSelfUpdate } from "@/hooks/use-system-update";
+import { useSelfUpdate } from "../../hooks/use-system-update";
 
 export function SelfUpdateOverlay() {
 	const { surface, onRetryConnection } = useSelfUpdate();

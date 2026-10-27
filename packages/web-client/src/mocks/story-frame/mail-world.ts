@@ -19,7 +19,7 @@ import {
 	makeAccount,
 	makeMailbox,
 	makeThreadMessage,
-} from "@/test-support/fixtures";
+} from "../../test-support/fixtures";
 
 export interface MailWorld {
 	accounts: RemitImapAccountResponse[];

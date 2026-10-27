@@ -12,16 +12,16 @@ import assert from "node:assert/strict";
 import { afterEach, beforeEach, describe, test } from "node:test";
 import { MutationCache, QueryCache, QueryClient } from "@tanstack/react-query";
 import { act, createElement } from "react";
-import { SelfUpdateOverlay } from "@/components/self-update/SelfUpdateOverlay";
-import { __resetFatalError, getCurrentFatalError } from "@/lib/fatal-error";
+import { SelfUpdateOverlay } from "../components/self-update/SelfUpdateOverlay";
+import { __resetFatalError, getCurrentFatalError } from "../lib/fatal-error";
 import {
 	handleMutationCacheError,
 	handleQueryCacheError,
-} from "@/lib/query-error-handler";
+} from "../lib/query-error-handler";
 import {
 	APPLY_BUDGET_SECONDS,
 	NEVER_CAME_BACK_MARGIN_SECONDS,
-} from "@/lib/self-update-state";
+} from "../lib/self-update-state";
 import { createDomHarness, type DomHarness } from "../test-support/dom";
 import { type HttpMock, httpError, mockFetch } from "../test-support/http";
 import {
@@ -29,7 +29,7 @@ import {
 	SelfUpdateProvider,
 	useSelfUpdate,
 } from "./use-system-update";
-import "@/lib/client";
+import "../lib/client";
 
 const BUDGET_MS =
 	(APPLY_BUDGET_SECONDS + NEVER_CAME_BACK_MARGIN_SECONDS) * 1000;

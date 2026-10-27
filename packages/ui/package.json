@@ -1,10 +1,7 @@
 {
 	"name": "@remit/ui",
-	"version": "0.0.1",
+	"version": "0.0.223",
 	"type": "module",
-	"files": [
-		"src"
-	],
 	"exports": {
 		".": "./src/index.ts",
 		"./mcp-pages": "./src/mcp-pages.ts",
@@ -17,7 +14,9 @@
 		"build-storybook": "storybook build",
 		"test": "npm run test:typecheck && npm run test:run",
 		"test:typecheck": "tsgo --noEmit",
-		"test:run": "node $NODE_TEST_FLAGS --import tsx --import @remit/test-dom/css --experimental-test-coverage --test-coverage-include='src/**' --test-coverage-exclude='src/**/*.test.ts' --test-coverage-exclude='src/**/*.test.tsx' --test-coverage-lines=90 --test 'src/**/*.test.ts'"
+		"test:run": "node $NODE_TEST_FLAGS --import tsx --import @remit/test-dom/css --experimental-test-coverage --test-coverage-include='src/**' --test-coverage-exclude='src/**/*.test.ts' --test-coverage-exclude='src/**/*.test.tsx' --test-coverage-lines=90 --test 'src/**/*.test.ts'",
+		"prepack": "node ../../npm-scripts/pack-dist.mjs prepack",
+		"postpack": "node ../../npm-scripts/pack-dist.mjs postpack"
 	},
 	"dependencies": {
 		"@fontsource-variable/geist": "5.3.0",
@@ -79,5 +78,29 @@
 		"type": "git",
 		"url": "git+https://github.com/remit-mail/reader-ui.git",
 		"directory": "packages/ui"
+	},
+	"packManifest": {
+		"exports": {
+			".": {
+				"types": "./dist/index.d.ts",
+				"default": "./dist/index.js"
+			},
+			"./mcp-pages": {
+				"types": "./dist/mcp-pages.d.ts",
+				"default": "./dist/mcp-pages.js"
+			},
+			"./rich-text": {
+				"types": "./dist/rich-text.d.ts",
+				"default": "./dist/rich-text.js"
+			},
+			"./spellcheck-worker": {
+				"types": "./dist/components/rich-text-spellcheck-worker-provider.d.ts",
+				"default": "./dist/components/rich-text-spellcheck-worker-provider.js"
+			},
+			"./tokens.css": "./dist/tokens.css"
+		},
+		"files": [
+			"dist"
+		]
 	}
 }

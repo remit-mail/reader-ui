@@ -1,4 +1,4 @@
-import { classifyBodyFetchFailure } from "@/hooks/useMessageBodyContent";
+import { classifyBodyFetchFailure } from "../hooks/useMessageBodyContent";
 import { buildBugReportContext, buildGitHubIssueUrl } from "./bug-report";
 import { taggedFetch } from "./network-error";
 

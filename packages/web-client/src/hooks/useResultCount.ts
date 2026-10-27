@@ -3,7 +3,7 @@ import { threadOperationsSearchThreads } from "@remit/api-http-client/sdk.gen.ts
 import type { ThreadOperationsSearchThreadsData } from "@remit/api-http-client/types.gen.ts";
 import type { ResultCount } from "@remit/ui";
 import { useQuery } from "@tanstack/react-query";
-import { toResultCount } from "@/lib/result-count";
+import { toResultCount } from "../lib/result-count";
 
 /**
  * What the list is asking about, with nothing about paging in it. The count is

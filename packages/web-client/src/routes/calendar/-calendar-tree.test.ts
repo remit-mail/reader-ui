@@ -24,8 +24,8 @@ import {
 	calendarSearchSchema,
 	isoDate,
 	stepCalendarDate,
-} from "@/lib/calendar-route";
-import { stringifySearch } from "@/lib/search-params";
+} from "../../lib/calendar-route";
+import { stringifySearch } from "../../lib/search-params";
 import { Route as OccurrenceRoute } from "./$view.$date/$calendarObjectId/$recurrenceId.js";
 import { Route as EventIndexRoute } from "./$view.$date/$calendarObjectId/index.js";
 import { Route as EventRoute } from "./$view.$date/$calendarObjectId.js";

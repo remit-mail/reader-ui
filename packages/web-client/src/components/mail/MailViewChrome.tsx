@@ -25,7 +25,7 @@ import {
 	type SearchResult,
 } from "@remit/ui";
 import type { ReactNode } from "react";
-import { useMailContext } from "@/lib/mail-context";
+import { useMailContext } from "../../lib/mail-context";
 import { MailListHeader } from "./MailListHeader";
 
 interface MailViewChromeProps {

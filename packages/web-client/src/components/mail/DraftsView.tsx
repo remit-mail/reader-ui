@@ -40,8 +40,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FileText, Inbox, Trash2 } from "lucide-react";
 import { useMemo } from "react";
 
-import { groupDraftSections } from "@/lib/drafts";
-import { useComposeDraftId, useEditDraft, useOpenThread } from "@/routing";
+import { groupDraftSections } from "../../lib/drafts";
+import { useComposeDraftId, useEditDraft, useOpenThread } from "../../routing";
 import { NavMenuButton } from "./NavMenuButton";
 
 // ---------------------------------------------------------------------------

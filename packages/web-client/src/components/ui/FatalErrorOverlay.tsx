@@ -6,12 +6,12 @@ import {
 	buildBugReportContext,
 	buildBugReportDetails,
 	buildGitHubIssueUrl,
-} from "@/lib/bug-report";
+} from "../../lib/bug-report";
 import {
 	type FatalError,
 	getCurrentFatalError,
 	subscribeFatalError,
-} from "@/lib/fatal-error";
+} from "../../lib/fatal-error";
 
 /**
  * Safe route to escape a deterministically-crashing page. It names no list, so

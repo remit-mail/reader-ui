@@ -13,23 +13,23 @@ import {
 } from "@remit/ui";
 import { CheckCircle2, Loader2 } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
-import { useCreateMailbox } from "@/hooks/useCreateMailbox";
-import { useCreateLabel } from "@/hooks/useLabels";
-import { useOrganizeJob } from "@/hooks/useOrganizeJob";
-import { useRulePreview } from "@/hooks/useRulePreview";
-import { useUpdateFilter } from "@/hooks/useUpdateFilter";
+import { useCreateMailbox } from "../../hooks/useCreateMailbox";
+import { useCreateLabel } from "../../hooks/useLabels";
+import { useOrganizeJob } from "../../hooks/useOrganizeJob";
+import { useRulePreview } from "../../hooks/useRulePreview";
+import { useUpdateFilter } from "../../hooks/useUpdateFilter";
 import {
 	buildUpdateFilterInput,
 	filterToRule,
 	ruleChangesPredicateOrAction,
 	ruleChangesScopeOrExpiry,
-} from "@/lib/organize/filter-edit-model";
+} from "../../lib/organize/filter-edit-model";
 import {
 	normalizeClauseValue,
 	rulePredicate,
 	ruleToDraft,
 	SUPPORTED_CLAUSE_FIELDS,
-} from "@/lib/organize/rule-model";
+} from "../../lib/organize/rule-model";
 
 interface FilterEditorProps {
 	accountId: string;

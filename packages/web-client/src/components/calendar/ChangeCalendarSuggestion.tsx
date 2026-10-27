@@ -6,7 +6,6 @@ import {
 	EventEditorPane,
 } from "@remit/ui";
 import { useEffect, useState } from "react";
-import { CalendarComposePane } from "@/components/calendar/CalendarComposePane";
 import {
 	acceptEditedInputFromDrafts,
 	anchorZoneFor,
@@ -17,9 +16,10 @@ import {
 	useCalendars,
 	useDraftClashes,
 	usePendingCalendarSuggestion,
-} from "@/hooks/calendar";
-import { calendarReportHref } from "@/lib/calendar-report";
-import { suggestionWhen } from "@/lib/calendar-suggestion";
+} from "../../hooks/calendar";
+import { calendarReportHref } from "../../lib/calendar-report";
+import { suggestionWhen } from "../../lib/calendar-suggestion";
+import { CalendarComposePane } from "./CalendarComposePane";
 
 const TITLE = "Add from mail";
 

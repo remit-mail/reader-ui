@@ -22,9 +22,9 @@ import {
 	RouterProvider,
 } from "@tanstack/react-router";
 import { createElement } from "react";
-import { createDomHarness, type DomHarness } from "@/test-support/dom";
-import { makeThreadMessage } from "@/test-support/fixtures";
-import { type HttpMock, mockFetch } from "@/test-support/http";
+import { createDomHarness, type DomHarness } from "../../test-support/dom";
+import { makeThreadMessage } from "../../test-support/fixtures";
+import { type HttpMock, mockFetch } from "../../test-support/http";
 import { MessageCard } from "./MessageCard";
 
 const MAILBOX_ID = "mbx-inbox";

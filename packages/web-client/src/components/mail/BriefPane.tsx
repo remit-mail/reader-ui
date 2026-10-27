@@ -23,26 +23,22 @@ import {
 	useContext,
 	useMemo,
 } from "react";
-import { useReplyWithText } from "@/components/compose/reply-with-times";
-import { ConversationView } from "@/components/mail/ConversationView";
-import { DailyBrief } from "@/components/mail/DailyBrief";
-import { IntelligenceDrawer } from "@/components/mail/IntelligenceDrawer";
-import { IntelligencePane } from "@/components/mail/IntelligencePane";
-import { MessageToolbar } from "@/components/mail/MessageToolbar";
-import type { OpenMessageOptions } from "@/components/mail/ThreadListInteraction";
-import { useDeleteMessages } from "@/hooks/useDeleteMessages";
-import { useIntelligenceDrawer } from "@/hooks/useIntelligenceDrawer";
-import { useIntelligenceSurface } from "@/hooks/useIntelligenceSurface";
-import { useToggleReadFor } from "@/hooks/useMarkAsRead";
-import { type ThreadActions, useThreadActions } from "@/hooks/useThreadActions";
-import { useThreadRow } from "@/hooks/useThreadRow";
+import { useDeleteMessages } from "../../hooks/useDeleteMessages";
+import { useIntelligenceDrawer } from "../../hooks/useIntelligenceDrawer";
+import { useIntelligenceSurface } from "../../hooks/useIntelligenceSurface";
+import { useToggleReadFor } from "../../hooks/useMarkAsRead";
+import {
+	type ThreadActions,
+	useThreadActions,
+} from "../../hooks/useThreadActions";
+import { useThreadRow } from "../../hooks/useThreadRow";
 import {
 	type TriageContext,
 	useTriageContext,
 	useTriageLayer,
-} from "@/hooks/useTriageLayer";
-import type { ConversationTarget } from "@/lib/conversation-target";
-import { useMailContext } from "@/lib/mail-context";
+} from "../../hooks/useTriageLayer";
+import type { ConversationTarget } from "../../lib/conversation-target";
+import { useMailContext } from "../../lib/mail-context";
 import {
 	type OpenThreadPath,
 	type OpenThreadTarget,
@@ -54,7 +50,14 @@ import {
 	useIsReplying,
 	useOpenReply,
 	useOpenThread,
-} from "@/routing";
+} from "../../routing";
+import { useReplyWithText } from "../compose/reply-with-times";
+import { ConversationView } from "./ConversationView";
+import { DailyBrief } from "./DailyBrief";
+import { IntelligenceDrawer } from "./IntelligenceDrawer";
+import { IntelligencePane } from "./IntelligencePane";
+import { MessageToolbar } from "./MessageToolbar";
+import type { OpenMessageOptions } from "./ThreadListInteraction";
 
 /* ------------------------------------------------------------------ */
 /* Context                                                              */

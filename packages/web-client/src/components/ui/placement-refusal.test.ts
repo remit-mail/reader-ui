@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { wrapHttpFailure } from "@/lib/api";
+import { wrapHttpFailure } from "../../lib/api";
 import {
 	isPlacementRefusal,
 	placementRefusalBanner,

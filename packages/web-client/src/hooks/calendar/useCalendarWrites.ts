@@ -28,7 +28,7 @@ import type { RecurrenceScope } from "@remit/ui";
 import { formatErrorMessage } from "@remit/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo } from "react";
-import { getErrorStatus, softErrorStatuses } from "@/lib/error-classifier";
+import { getErrorStatus, softErrorStatuses } from "../../lib/error-classifier";
 
 /** The refusals a calendar surface renders itself. A 401 is not among them. */
 const CALENDAR_WRITE_META = softErrorStatuses(400, 404, 412);

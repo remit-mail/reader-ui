@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { OutboxPane } from "@/components/mail/OutboxPane";
+import { OutboxPane } from "../../../components/mail/OutboxPane";
 
 function OutboxReadingPane() {
 	return <OutboxPane.Reading />;

@@ -3,13 +3,13 @@ import type { RemitImapMessageAuthenticity } from "@remit/api-http-client/types.
 import { EmptyState, ErrorState, MobileReadingPane } from "@remit/ui";
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ConversationCompose } from "@/components/compose/ConversationCompose";
-import { useKeyboardNavigation } from "@/hooks/useKeyboardNavigation";
-import { useMailboxAccount } from "@/hooks/useMailboxAccount";
-import { useMarkAsRead } from "@/hooks/useMarkAsRead";
-import { useIsDesktop } from "@/hooks/useMediaQuery";
-import { useToggleStar } from "@/hooks/useToggleStar";
-import { type ReplyMode, useOpenReply, useReplySurface } from "@/routing";
+import { useKeyboardNavigation } from "../../hooks/useKeyboardNavigation";
+import { useMailboxAccount } from "../../hooks/useMailboxAccount";
+import { useMarkAsRead } from "../../hooks/useMarkAsRead";
+import { useIsDesktop } from "../../hooks/useMediaQuery";
+import { useToggleStar } from "../../hooks/useToggleStar";
+import { type ReplyMode, useOpenReply, useReplySurface } from "../../routing";
+import { ConversationCompose } from "../compose/ConversationCompose";
 import { AuthenticityBanner } from "./AuthenticityBanner";
 import { MessageCard } from "./MessageCard";
 

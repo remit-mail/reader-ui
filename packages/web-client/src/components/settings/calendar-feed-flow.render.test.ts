@@ -16,13 +16,11 @@ import assert from "node:assert/strict";
 import { afterEach, describe, it } from "node:test";
 import { MutationCache, QueryCache, QueryClient } from "@tanstack/react-query";
 import { createElement, Fragment } from "react";
-import { CalendarFeedPanel } from "@/components/settings/CalendarFeedPanel";
-import { FatalErrorOverlay } from "@/components/ui/FatalErrorOverlay";
-import { __resetFatalError } from "@/lib/fatal-error";
+import { __resetFatalError } from "../../lib/fatal-error";
 import {
 	handleMutationCacheError,
 	handleQueryCacheError,
-} from "@/lib/query-error-handler";
+} from "../../lib/query-error-handler";
 import { createDomHarness, type DomHarness } from "../../test-support/dom";
 import {
 	type HttpCall,
@@ -30,6 +28,8 @@ import {
 	httpError,
 	mockFetch,
 } from "../../test-support/http";
+import { FatalErrorOverlay } from "../ui/FatalErrorOverlay";
+import { CalendarFeedPanel } from "./CalendarFeedPanel";
 
 const WORK = "11111111-1111-4111-8111-111111111111";
 const FEED_PATH = `/calendars/${WORK}/feed`;

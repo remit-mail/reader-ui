@@ -25,9 +25,9 @@ import {
 	RouterProvider,
 } from "@tanstack/react-router";
 import { act, createElement, createRef, useState } from "react";
-import { createDomHarness, type DomHarness } from "@/test-support/dom";
-import { makeAccount, makeThreadMessage } from "@/test-support/fixtures";
-import { type HttpMock, mockFetch } from "@/test-support/http";
+import { createDomHarness, type DomHarness } from "../../test-support/dom";
+import { makeAccount, makeThreadMessage } from "../../test-support/fixtures";
+import { type HttpMock, mockFetch } from "../../test-support/http";
 import { MessageList, type MessageListCommands } from "./MessageList";
 
 const MAILBOX_ID = "mbx-inbox";

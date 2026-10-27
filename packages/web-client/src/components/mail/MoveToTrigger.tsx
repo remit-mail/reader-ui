@@ -19,11 +19,11 @@ import {
 	useState,
 } from "react";
 import { Drawer } from "vaul";
-import { useFolderAppointments } from "@/hooks/useArchiveMailbox";
-import { useCreateMailbox } from "@/hooks/useCreateMailbox";
-import { useFolderLabelTranslator } from "@/hooks/useFolderLabelTranslator";
-import { useIsDesktop } from "@/hooks/useMediaQuery";
-import { buildMoveOptions, folderDelimiter } from "@/lib/move-options";
+import { useFolderAppointments } from "../../hooks/useArchiveMailbox";
+import { useCreateMailbox } from "../../hooks/useCreateMailbox";
+import { useFolderLabelTranslator } from "../../hooks/useFolderLabelTranslator";
+import { useIsDesktop } from "../../hooks/useMediaQuery";
+import { buildMoveOptions, folderDelimiter } from "../../lib/move-options";
 
 interface MoveToTriggerProps {
 	accountId: string;

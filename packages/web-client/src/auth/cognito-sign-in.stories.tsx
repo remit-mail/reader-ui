@@ -1,10 +1,10 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect, userEvent, within } from "storybook/test";
-import { cognitoAuthProvider } from "@/auth/cognito-provider";
-import { AppStory } from "@/mocks/story-frame/AppStory";
-import { mailHandlers } from "@/mocks/story-frame/mail-handlers";
-import { mailWorld } from "@/mocks/story-frame/mail-world";
-import { withRuntimeConfig } from "@/mocks/story-frame/session";
+import { AppStory } from "../mocks/story-frame/AppStory";
+import { mailHandlers } from "../mocks/story-frame/mail-handlers";
+import { mailWorld } from "../mocks/story-frame/mail-world";
+import { withRuntimeConfig } from "../mocks/story-frame/session";
+import { cognitoAuthProvider } from "./cognito-provider";
 
 const userPool = withRuntimeConfig({
 	cognito: {

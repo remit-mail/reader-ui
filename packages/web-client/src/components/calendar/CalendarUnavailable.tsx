@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import type { CalendarsResult } from "@/hooks/calendar";
-import { NavLink } from "@/routing";
+import type { CalendarsResult } from "../../hooks/calendar";
+import { NavLink } from "../../routing";
 
 /**
  * Whether there is a calendar an answer can write to. Declining and muting

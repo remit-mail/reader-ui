@@ -10,8 +10,8 @@ import {
 	readNextUp,
 } from "@remit/ui";
 import { useMemo } from "react";
-import type { FreeLookup } from "@/hooks/calendar";
-import { agendaDensityOf } from "@/lib/calendar-density";
+import type { FreeLookup } from "../../hooks/calendar";
+import { agendaDensityOf } from "../../lib/calendar-density";
 
 /**
  * The agenda, drawn.

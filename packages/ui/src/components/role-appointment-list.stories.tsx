@@ -8,7 +8,7 @@ import {
 } from "./role-appointment-list.js";
 
 /**
- * The user's real Hostnet account (440737+mvhenten@users.noreply.github.com). Every folder is nested
+ * A Hostnet-shaped account. Every folder is nested
  * directly under the personal-namespace root `INBOX/`. The pair that breaks the
  * old per-folder model is here: the server flags `INBOX/Drafts` with `\Drafts`
  * but it is EMPTY — the mail lives in `INBOX/Concepten`. Same story for
@@ -112,7 +112,7 @@ function Harness({
 	return (
 		<div className="max-w-3xl p-8">
 			<RoleAppointmentList
-				accountEmail="440737+mvhenten@users.noreply.github.com"
+				accountEmail="hostnet-user@example.com"
 				folders={folders}
 				appointments={appointments}
 				displayNames={displayNames}

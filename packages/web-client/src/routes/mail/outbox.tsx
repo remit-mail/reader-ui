@@ -6,10 +6,10 @@
  * reads a selection out of the query.
  */
 import { createFileRoute, Outlet } from "@tanstack/react-router";
-import { MailShell } from "@/components/layout/MailShell";
-import { OutboxPane } from "@/components/mail/OutboxPane";
-import { outboxSearchSchema } from "@/lib/mail-search";
-import { useOutboxDraftId, useSearchMirror } from "@/routing";
+import { MailShell } from "../../components/layout/MailShell";
+import { OutboxPane } from "../../components/mail/OutboxPane";
+import { outboxSearchSchema } from "../../lib/mail-search";
+import { useOutboxDraftId, useSearchMirror } from "../../routing";
 
 function OutboxLayout() {
 	const outboxMessageId = useOutboxDraftId();

@@ -5,7 +5,7 @@ import {
 	type FolderTreeNode,
 	type LabelOption,
 } from "@remit/ui";
-import { useIsDesktop } from "@/hooks/useMediaQuery";
+import { useIsDesktop } from "../../hooks/useMediaQuery";
 import { FilterEditor } from "./FilterEditor";
 
 interface FilterEditorSurfaceProps {

@@ -12,12 +12,12 @@ import {
 	useRef,
 	useState,
 } from "react";
-import { useMailContext } from "@/lib/mail-context";
-import type { ResultFolderIndex } from "@/lib/result-folder";
+import { useMailContext } from "./mail-context";
+import type { ResultFolderIndex } from "./result-folder";
 import {
 	invalidateThreadListQueries,
 	threadListCacheKeys,
-} from "@/lib/thread-list-cache";
+} from "./thread-list-cache";
 
 /**
  * How often the background poll re-reads each open account's sync status.

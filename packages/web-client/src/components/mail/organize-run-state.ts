@@ -1,5 +1,5 @@
 import type { RunState } from "@remit/ui";
-import type { OrganizeJobFailure } from "@/hooks/useOrganizeJob";
+import type { OrganizeJobFailure } from "../../hooks/useOrganizeJob";
 
 /** What the run screen knows about a back-apply job it is reporting on. */
 export interface OrganizeJobReading {

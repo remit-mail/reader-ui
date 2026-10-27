@@ -3,7 +3,7 @@ import { BottomSheet, type FolderTreeNode, type LabelOption } from "@remit/ui";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
-import { ErrorBannerProvider } from "@/components/ui/ErrorBannerProvider";
+import { ErrorBannerProvider } from "../ui/ErrorBannerProvider";
 import { FilterEditor } from "./FilterEditor";
 
 /**

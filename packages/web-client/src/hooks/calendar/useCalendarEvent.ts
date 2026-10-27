@@ -10,7 +10,7 @@
 import { calendarEventDetailOperationsGetCalendarEventOptions } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
 import type { RemitImapCalendarEventResponse } from "@remit/api-http-client/types.gen.ts";
 import { useQuery } from "@tanstack/react-query";
-import { softErrorStatuses } from "@/lib/error-classifier";
+import { softErrorStatuses } from "../../lib/error-classifier";
 
 /** A resource the address names that is no longer there is an empty pane. */
 const RESOURCE_META = softErrorStatuses(404);

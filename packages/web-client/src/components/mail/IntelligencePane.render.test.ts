@@ -16,9 +16,9 @@ import { afterEach, describe, it } from "node:test";
 import type { IntelligenceData } from "@remit/ui";
 import { IntelligencePanel } from "@remit/ui";
 import { createElement } from "react";
-import { useReportSpam } from "@/hooks/useReportSpam";
-import { createDomHarness, type DomHarness } from "@/test-support/dom";
-import { type HttpMock, mockFetch } from "@/test-support/http";
+import { useReportSpam } from "../../hooks/useReportSpam";
+import { createDomHarness, type DomHarness } from "../../test-support/dom";
+import { type HttpMock, mockFetch } from "../../test-support/http";
 
 const baseData: IntelligenceData = {
 	sender: {

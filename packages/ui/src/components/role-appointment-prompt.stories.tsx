@@ -95,7 +95,7 @@ export const None: Story = {
 		reason: "none",
 		action: { kind: "delete", count: 12 },
 		phase: choosing,
-		accountEmail: "440737+mvhenten@users.noreply.github.com",
+		accountEmail: "hostnet-user@example.com",
 	},
 };
 

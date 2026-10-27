@@ -4,9 +4,9 @@ import type {
 } from "@remit/api-http-client/types.gen.ts";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect, userEvent, within } from "storybook/test";
-import { AppStory } from "@/mocks/story-frame/AppStory";
-import { mailHandlers } from "@/mocks/story-frame/mail-handlers";
-import { mailWorld, NOW } from "@/mocks/story-frame/mail-world";
+import { AppStory } from "../../mocks/story-frame/AppStory";
+import { mailHandlers } from "../../mocks/story-frame/mail-handlers";
+import { mailWorld, NOW } from "../../mocks/story-frame/mail-world";
 
 const suggestion = (
 	addressId: string,

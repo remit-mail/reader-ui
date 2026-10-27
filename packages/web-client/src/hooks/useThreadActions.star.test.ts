@@ -16,11 +16,11 @@ import { afterEach, describe, it } from "node:test";
 import { threadDetailOperationsListThreadMessagesQueryKey } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
 import type { RemitImapThreadMessageResponse } from "@remit/api-http-client/types.gen.ts";
 import { createElement } from "react";
-import { MessageToolbar } from "@/components/mail/MessageToolbar";
-import { useThreadActions } from "@/hooks/useThreadActions";
+import { MessageToolbar } from "../components/mail/MessageToolbar";
 import { createDomHarness, type DomHarness } from "../test-support/dom";
 import { makeConfig, makeThreadMessage } from "../test-support/fixtures";
 import { type HttpMock, mockFetch } from "../test-support/http";
+import { useThreadActions } from "./useThreadActions";
 
 const MESSAGE_ID = "msg-1";
 const THREAD_ID = "thread-1";

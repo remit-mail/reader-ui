@@ -17,10 +17,10 @@ import {
 } from "@remit/ui";
 import { Plus } from "lucide-react";
 import { useId, useState } from "react";
-import type { CalendarDetails } from "@/components/settings/CalendarDetailsForm";
-import { TimeZoneSelect } from "@/components/settings/TimeZoneSelect";
-import { UNZONED_CALENDAR } from "@/hooks/calendar";
-import { calendarUrlSegmentFor } from "@/lib/calendar-collection-copy";
+import { UNZONED_CALENDAR } from "../../hooks/calendar";
+import { calendarUrlSegmentFor } from "../../lib/calendar-collection-copy";
+import type { CalendarDetails } from "./CalendarDetailsForm";
+import { TimeZoneSelect } from "./TimeZoneSelect";
 
 export interface NewCalendar extends CalendarDetails {
 	urlSegment: string;

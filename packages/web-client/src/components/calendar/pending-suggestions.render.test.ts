@@ -12,13 +12,13 @@ import type {
 	RemitImapCalendarSuggestionResponse,
 } from "@remit/api-http-client/types.gen.ts";
 import { createElement } from "react";
-import { createDomHarness, type DomHarness } from "@/test-support/dom";
+import { createDomHarness, type DomHarness } from "../../test-support/dom";
 import {
 	type HttpCall,
 	type HttpMock,
 	httpError,
 	mockFetch,
-} from "@/test-support/http";
+} from "../../test-support/http";
 import { PendingSuggestions } from "./PendingSuggestions";
 
 const CALENDAR = "11111111-1111-4111-8111-111111111111";

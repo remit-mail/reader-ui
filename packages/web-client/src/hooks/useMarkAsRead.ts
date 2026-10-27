@@ -6,10 +6,10 @@ import {
 import type { RemitImapThreadMessageResponse } from "@remit/api-http-client/types.gen.ts";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef } from "react";
-import { useErrorBanners } from "@/components/ui/ErrorBannerProvider";
-import { formatErrorDetail } from "@/components/ui/error-banners";
-import { runChunkedMutation } from "@/lib/bulk-actions";
-import { softErrorMeta } from "@/lib/error-classifier";
+import { useErrorBanners } from "../components/ui/ErrorBannerProvider";
+import { formatErrorDetail } from "../components/ui/error-banners";
+import { runChunkedMutation } from "../lib/bulk-actions";
+import { softErrorMeta } from "../lib/error-classifier";
 import {
 	cancelThreadListQueries,
 	invalidateThreadListQueries,
@@ -19,7 +19,7 @@ import {
 	type ThreadMessagesData,
 	type ThreadMutationContext,
 	threadListCacheKeys,
-} from "@/lib/thread-list-cache";
+} from "../lib/thread-list-cache";
 
 interface UseMarkAsReadOptions {
 	messages: RemitImapThreadMessageResponse[];
