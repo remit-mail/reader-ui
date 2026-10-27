@@ -19,7 +19,7 @@ env:
   npm_config_audit: "false"
   npm_config_fund: "false"
   npm_config_loglevel: error
-  PAGES_BASE_URL: https://remit-mail.github.io/reader
+  PAGES_BASE_URL: https://remit-mail.github.io/reader-ui
 
 jobs:
   # Also fires on `synchronize` (a new push to the branch), so a stale
@@ -90,7 +90,6 @@ jobs:
           sparse-checkout: |
             npm-scripts
             .nvmrc
-            .github/actions
           sparse-checkout-cone-mode: false
 
       - uses: actions/setup-node@v4
@@ -123,7 +122,7 @@ jobs:
           --pr "$PR_NUMBER" --state building --sha "$HEAD_SHA" --run-url "$RUN_URL"
 
       # Everything from here down runs the pull request's own lifecycle
-      # scripts (npm ci, make, the Storybook build) with the branch's own
+      # scripts (npm ci, the Storybook build) with the branch's own
       # code. None of it may see a token: `persist-credentials: false` keeps
       # GITHUB_TOKEN out of pr-source/.git/config, and no step below sets
       # GH_TOKEN in its env, so nothing here can call the GitHub API as this
@@ -147,21 +146,6 @@ jobs:
         if: steps.guard.outputs.eligible == 'true'
         working-directory: pr-source
         run: npm ci --no-audit --no-fund --loglevel=error
-
-      - name: Codegen (generated @remit/* packages)
-        if: steps.guard.outputs.eligible == 'true'
-        working-directory: pr-source
-        run: make
-
-      # The spellcheck stories drive the real engine, which the Storybook vite
-      # config stages the same way the app build does. The action itself comes
-      # from the sparse checkout at the workspace root, like every other script
-      # this job runs; only the recipe it reads is the branch's.
-      - name: Spellchecker engine
-        if: steps.guard.outputs.eligible == 'true'
-        uses: ./.github/actions/hunspell
-        with:
-          source-dir: pr-source
 
       # Storybook renders the ui, web-client and workbench packages and
       # nothing else in the workspace, and only its own output is published.
