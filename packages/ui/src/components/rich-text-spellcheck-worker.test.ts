@@ -1,11 +1,11 @@
 /**
  * The worker against real dictionaries. What runs here is the code that ships
- * inside the worker, over the Hunspell build in `build/hunspell/` and the
+ * inside the worker, over the Hunspell build in `@remit/spellcheck-engine` and the
  * upstream `.aff`/`.dic` pairs the image stages — so a language that passes
  * here is a language a writer is actually checked in.
  *
  * The engine and the dictionaries are fetched at runtime, so the fetch is where
- * this stands in: file URLs into `build/` and `node_modules/`, byte for byte
+ * this stands in: file URLs into `node_modules/`, byte for byte
  * what the server would hand a browser.
  */
 import assert from "node:assert/strict";
@@ -20,10 +20,10 @@ import type {
 } from "./rich-text-spellcheck.js";
 
 const require = createRequire(import.meta.url);
-const engineDir = fileURLToPath(
-	new URL("../../../../build/hunspell/", import.meta.url),
+const engineDir = dirname(
+	require.resolve("@remit/spellcheck-engine/package.json"),
 );
-const BASE = pathToFileURL(engineDir).href;
+const BASE = `${pathToFileURL(engineDir).href}/`;
 
 const dictionaryDir = (tag: string): string =>
 	dirname(require.resolve(`dictionary-${tag.toLowerCase()}`));

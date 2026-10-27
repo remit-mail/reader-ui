@@ -1,9 +1,6 @@
 {
 	"$schema": "https://biomejs.dev/schemas/2.5.4/schema.json",
-	"plugins": [
-		"./plugins/no-logger-info.grit",
-		"./plugins/no-silent-catch.grit"
-	],
+	"plugins": ["./plugins/no-silent-catch.grit"],
 	"vcs": {
 		"enabled": true,
 		"clientKind": "git",
@@ -268,9 +265,7 @@
 				"**/*.test.tsx",
 				"**/*.test.mjs",
 				"**/*.spec.ts",
-				"**/*.browser-test.ts",
-				"packages/e2e/src/**/*.ts",
-				"packages/e2e/unit/**/*.ts"
+				"**/*.browser-test.ts"
 			],
 			"plugins": ["./plugins/no-gated-tests.grit"]
 		},

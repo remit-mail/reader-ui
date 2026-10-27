@@ -8,38 +8,40 @@
  * language set is fixed at build time at all — so a tag nobody can ship, or a
  * dictionary whose licence file is missing, fails the build by name.
  *
- * Two audiences build this package: this repo, where `npm run build:hunspell`
- * leaves an engine in `build/hunspell/`, and a distributor building from the
- * published tarball, which carries neither an engine nor a dictionary. Every
- * failure below therefore names the file it wanted and both ways past it —
- * `REMIT_SPELLCHECK_ENGINE_DIR` for an engine built elsewhere, and an empty
- * `REMIT_SPELLCHECK_LANGUAGES` for a build with no spellchecker at all.
+ * The engine comes from `@remit/spellcheck-engine`, which reader builds from
+ * its Hunspell recipe and publishes. Every failure below names the file it
+ * wanted and both ways past it — `REMIT_SPELLCHECK_ENGINE_DIR` for an engine
+ * built elsewhere, and an empty `REMIT_SPELLCHECK_LANGUAGES` for a build with
+ * no spellchecker at all.
  */
 
 import { createHash } from "node:crypto";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
 import type { Plugin } from "vite";
 import type { DictionarySource } from "./languages.ts";
 import { resolveLanguages } from "./languages.ts";
 
 const require = createRequire(import.meta.url);
-const here = dirname(fileURLToPath(import.meta.url));
-// The repo root when this file is a checkout, and `node_modules` when it is an
-// installed package — which holds neither the engine nor the pins. Nothing is
-// read from here without a fallback and an error that names the alternative.
-const repoRoot = join(here, "..", "..", "..");
-// Where `npm run build:hunspell` leaves the engine. A distributor building the
-// web client from the published package has no such tree, so the location is
-// theirs to name.
-const engineDir =
-	process.env.REMIT_SPELLCHECK_ENGINE_DIR ??
-	join(repoRoot, "build", "hunspell");
+const engineDir = (): string => {
+	const configured = process.env.REMIT_SPELLCHECK_ENGINE_DIR;
+	if (configured !== undefined) return configured;
+	const manifest = "@remit/spellcheck-engine/package.json";
+	if (
+		require.resolve
+			.paths(manifest)
+			?.some((dir) => existsSync(join(dir, manifest)))
+	) {
+		return dirname(require.resolve(manifest));
+	}
+	throw new Error(
+		`@remit/spellcheck-engine is not installed, so this build has no spellchecking engine to serve.\n${WAYS_OUT}`,
+	);
+};
 
 const WAYS_OUT = [
-	"Set REMIT_SPELLCHECK_ENGINE_DIR to a directory holding hunspell.wasm, hunspell.mjs, LICENSE, license.hunspell and pin.env — in this repo `npm run build:hunspell` writes one into build/hunspell/.",
+	"Set REMIT_SPELLCHECK_ENGINE_DIR to a directory holding hunspell.wasm, hunspell.mjs, LICENSE, license.hunspell and pin.env, or install @remit/spellcheck-engine, which holds all five.",
 	"Or set REMIT_SPELLCHECK_LANGUAGES= (empty) to build a web client with no spellchecker at all; the browser's own checker stays on either way.",
 ].join("\n");
 
@@ -65,18 +67,14 @@ interface StagedLanguage extends DictionarySource {
 }
 
 /**
- * The pins describe the engine, so they are read from beside it: an engine dir
- * a distributor points at carries the `pin.env` its own build used, and the
- * checksum in NOTICE.txt is then the checksum of the bytes being served rather
- * than of whatever this checkout happens to pin.
+ * The pins describe the engine, so they are read from beside it, and the
+ * checksum in NOTICE.txt is the checksum of the bytes being served.
  */
 const pinFile = (): string => {
-	const beside = join(engineDir, "pin.env");
+	const beside = join(engineDir(), "pin.env");
 	if (existsSync(beside)) return beside;
-	const inRepo = join(repoRoot, "docker", "hunspell", "pin.env");
-	if (existsSync(inRepo)) return inRepo;
 	throw new Error(
-		`The engine at ${engineDir} carries no pin.env, and neither does ${inRepo}, so nothing here can say which Hunspell release is being served and NOTICE.txt would have to guess.\n${WAYS_OUT}`,
+		`The engine at ${engineDir()} carries no pin.env, so nothing here can say which Hunspell release is being served and NOTICE.txt would have to guess.\n${WAYS_OUT}`,
 	);
 };
 
@@ -111,7 +109,7 @@ const licenceIn = (directory: string): string => {
 
 const stageEngine = (): StagedFile[] =>
 	ENGINE_FILES.map((name) => {
-		const path = join(engineDir, name);
+		const path = join(engineDir(), name);
 		if (!existsSync(path)) {
 			throw new Error(
 				`${path} is missing, so this build has no spellchecking engine to serve.\n${WAYS_OUT}`,
@@ -194,7 +192,7 @@ const noticeFor = (
 		`  sha256: ${readPin("HUNSPELL_SHA256")}`,
 		"  Licence: MPL-1.1 (the option taken from Hunspell's MPL-1.1/GPL-2.0/LGPL-2.1 triple)",
 		"  Licence text: LICENSE, beside this file",
-		"  Build recipe: docker/hunspell/build.sh",
+		"  Build recipe: https://github.com/remit-mail/reader/blob/main/docker/hunspell/build.sh",
 		"",
 		"Dictionaries",
 		"",
@@ -249,7 +247,7 @@ const documentRooted = (viteBase: string | undefined): boolean =>
 /**
  * An absolute base names where the app is mounted, and the staged directory
  * hangs off it. A relative one — Storybook's, always `./` — belongs to a build
- * published under a path it cannot know here (`/reader/pr/<n>/<sha>/`), so it
+ * published under a path it cannot know here (`/reader-ui/pr/<n>/<sha>/`), so it
  * gets the directory alone and the document resolves it at run time. An unset
  * base is vite's own default of `/`, not a relative one.
  */
@@ -289,7 +287,8 @@ export const stageSpellcheck = (
 			version: engineVersion,
 			licence: "MPL-1.1",
 			source: "https://github.com/hunspell/hunspell",
-			recipe: "docker/hunspell/build.sh",
+			recipe:
+				"https://github.com/remit-mail/reader/blob/main/docker/hunspell/build.sh",
 			bytes: wasmBytes,
 		},
 		languages: languages.map((language) => ({

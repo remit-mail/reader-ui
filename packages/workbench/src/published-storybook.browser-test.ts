@@ -1,6 +1,6 @@
 /**
  * The published Storybook, exercised where it is actually published: under a
- * path prefix. GitHub Pages serves this build from `/reader/` and its pull
+ * path prefix. GitHub Pages serves this build from `/reader-ui/` and its pull
  * request previews from deeper still, and a URL the preview writes from the
  * document root resolves off that prefix and 404s. MSW is the one that bites —
  * its service worker fails to register, the loader rejects, and every story in
@@ -25,7 +25,7 @@ const output = join(workbench, "storybook-static");
 
 // Deep enough to catch a URL that is right only one segment up, which is the
 // shape a pull request preview is published under.
-const prefix = "/reader/pr/1234";
+const prefix = "/reader-ui/pr/1234";
 
 const mimeTypes: Record<string, string> = {
 	".css": "text/css",

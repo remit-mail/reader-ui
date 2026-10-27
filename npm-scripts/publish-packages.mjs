@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-// Registry-gated publishing for every publishable @remit/* package: the
-// workspace services under packages/ and the TypeSpec-generated packages under
-// build/. The public registry is the single source of truth for versions —
+// Registry-gated publishing for every publishable @remit/* package in this
+// repo: the workspace packages under packages/ and the built web client. The
+// public registry is the single source of truth for versions —
 // there are no changeset files and no committed version bumps.
 //
 // Per package each run: build a deterministic content hash of the freshly packed
@@ -12,7 +12,6 @@
 // republish; `*` inter-package ranges keep an upstream bump from cascading into a
 // dependent's content. Idempotent and safe on every run.
 //
-// Generated packages publish before the workspace set that depends on them.
 // Version bumps are written into the working-tree manifest only when actually
 // publishing (never in dry-run) and are never committed — CI runs on an ephemeral
 // checkout.
@@ -32,7 +31,6 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
-import { GENERATED_PACKAGES } from "./lib/generated-packages.mjs";
 import {
 	isMissingPackage,
 	withVersionPropagation,
@@ -41,25 +39,9 @@ import {
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 const dryRun = process.argv.includes("--dry-run");
 
-const repositoryUrl = "git+https://github.com/remit-mail/reader.git";
+const repositoryUrl = "git+https://github.com/remit-mail/reader-ui.git";
 
-// The TypeSpec-generated packages (dir/name mapping shared with
-// check-consumer-typecheck.mjs via lib/generated-packages.mjs), in dependency
-// order (all are leaves), plus the built web client as a data package.
-// `peerDependencies` names the runtime libraries the built output imports but
-// expects the consumer to supply — merged onto whatever the emitter declared so
-// a standalone install resolves them.
-const generatedPeerDependencies = {
-	"@remit/electrodb-entities": { electrodb: ">=3.0.0" },
-	"@remit/api-http-client": { "@tanstack/react-query": "^5.0.0" },
-	"@remit/api-openapi-spec": { ajv: "^8.0.0" },
-};
 const generated = [
-	...GENERATED_PACKAGES.map(({ dir, name }) => ({
-		dir,
-		name,
-		peerDependencies: generatedPeerDependencies[name] ?? {},
-	})),
 	// The built web client as a static-asset data package: index.html, the
 	// hashed asset bundle, locales, and the default runtime config.js
 	// (better-auth self-host). A deployment installs it and replaces config.js
@@ -243,13 +225,7 @@ const stampGeneratedMetadata = ({ dir, peerDependencies }) => {
 const publish = (pkgDir) => {
 	const { error, status, signal } = spawnSync(
 		"npm",
-		[
-			"publish",
-			"--access",
-			"public",
-			...(process.env.GITHUB_ACTIONS === "true" ? ["--provenance"] : []),
-			"--loglevel=verbose",
-		],
+		["publish", "--access", "public", "--loglevel=verbose"],
 		{ cwd: join(repoRoot, pkgDir), stdio: "inherit" },
 	);
 	if (error) return { ok: false, error: error.message };
@@ -263,29 +239,6 @@ const packCheck = (pkgDir) =>
 		cwd: join(repoRoot, pkgDir),
 		stdio: "inherit",
 	});
-
-console.log("Checking publish closure...\n");
-run("node", ["npm-scripts/check-publish-closure.mjs"], {
-	cwd: repoRoot,
-	stdio: "inherit",
-});
-
-// The dry run is the pre-publish gate every pull request passes. Verify the
-// closure guard's own logic, then compile a clean-install consumer against the
-// heaviest package so a missing @types — which the static scan cannot see —
-// fails here rather than in a downstream build.
-if (dryRun) {
-	console.log("\nVerifying publish-closure guard...\n");
-	run("node", ["--test", "npm-scripts/lib/publish-closure.test.mjs"], {
-		cwd: repoRoot,
-		stdio: "inherit",
-	});
-	console.log("\nConsumer typecheck acceptance...\n");
-	run("node", ["npm-scripts/check-consumer-typecheck.mjs"], {
-		cwd: repoRoot,
-		stdio: "inherit",
-	});
-}
 
 if (!dryRun)
 	console.log(`\nPublishing with npm ${run("npm", ["--version"]).trim()}\n`);
