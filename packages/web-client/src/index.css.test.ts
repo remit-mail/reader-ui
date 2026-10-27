@@ -16,19 +16,22 @@ import { fileURLToPath } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const cssPath = resolve(here, "index.css");
-const css = readFileSync(cssPath, "utf8");
+const uiTokensPath = resolve(here, "../../ui/src/tokens.css");
 
 /** Globs Tailwind scans, and globs it is told to skip. */
-const globs = (kind: "include" | "exclude"): string[] =>
-	[...css.matchAll(/@source\s+(not\s+)?"([^"]+)"/g)]
+const globs = (
+	kind: "include" | "exclude",
+	sheet: string = cssPath,
+): string[] =>
+	[...readFileSync(sheet, "utf8").matchAll(/@source\s+(not\s+)?"([^"]+)"/g)]
 		.filter(([, negated]) => (kind === "exclude") === Boolean(negated))
 		.map(([, , glob]) => glob);
 
 /** The directory an `@source` glob starts scanning from. */
-const sourceRoots = (): string[] =>
-	globs("include").map((glob) => {
+const sourceRoots = (sheet: string = cssPath): string[] =>
+	globs("include", sheet).map((glob) => {
 		const literal = glob.split("*")[0] ?? glob;
-		return resolve(dirname(cssPath), literal);
+		return resolve(dirname(sheet), literal);
 	});
 
 /** Every directory below `root` that holds a component file. */
@@ -70,9 +73,14 @@ describe("tailwind source coverage (#57)", () => {
 		);
 	});
 
-	it("covers the linked design system package", () => {
-		const ui = resolve(here, "../../ui/src");
-		const uncovered = componentDirs(ui).filter((d) => !isCovered(d, roots));
+	it("imports the design system sheet that names its own components", () => {
+		assert.match(
+			readFileSync(cssPath, "utf8"),
+			/@import "@remit\/ui\/tokens\.css";/,
+		);
+		const ui = dirname(uiTokensPath);
+		const uiRoots = sourceRoots(uiTokensPath);
+		const uncovered = componentDirs(ui).filter((d) => !isCovered(d, uiRoots));
 		assert.deepEqual(
 			uncovered.map((d) => relative(ui, d)),
 			[],
