@@ -190,7 +190,8 @@ export function readCalendarIds(value: unknown): string[] {
  */
 export const calendarSearchSchema = z.object({
 	calendarId: z
-		.preprocess(readCalendarIds, z.array(calendarIdSchema))
+		.unknown()
+		.transform(readCalendarIds)
 		.transform((ids) => (ids.length === 0 ? undefined : ids))
 		.optional(),
 });

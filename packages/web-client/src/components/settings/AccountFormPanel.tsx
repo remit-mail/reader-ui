@@ -65,7 +65,7 @@ export const deriveUseDifferentSmtpCreds = (
 };
 
 const accountFormSchema = z.object({
-	email: z.email().min(1, "Email is required"),
+	email: z.email(),
 	displayName: z.string().optional(),
 	username: z.string().optional(),
 	password: z.string().optional(),
