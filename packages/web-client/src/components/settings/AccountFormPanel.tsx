@@ -65,16 +65,16 @@ export const deriveUseDifferentSmtpCreds = (
 };
 
 const accountFormSchema = z.object({
-	email: z.string().email().min(1, "Email is required"),
+	email: z.email(),
 	displayName: z.string().optional(),
 	username: z.string().optional(),
 	password: z.string().optional(),
 	imapHost: z.string().min(1, "IMAP host is required"),
-	imapPort: z.coerce.number().int().min(1).max(65535),
+	imapPort: z.coerce.number<number>().int().min(1).max(65535),
 	imapTls: z.boolean(),
 	imapStartTls: z.boolean(),
 	smtpHost: z.string().optional(),
-	smtpPort: z.coerce.number().int().min(1).max(65535).optional(),
+	smtpPort: z.coerce.number<number>().int().min(1).max(65535).optional(),
 	smtpTls: z.boolean().optional(),
 	smtpStartTls: z.boolean().optional(),
 	smtpUsername: z.string().optional(),

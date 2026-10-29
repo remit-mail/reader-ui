@@ -86,8 +86,6 @@ export {
 	useWizardStepValue,
 	type WizardEntry,
 	type WizardStepNavigation,
-	wizardEntryFromParam,
 	wizardEntryValue,
-	wizardStepFromParam,
 	wizardStepValue,
 } from "./wizard-history";

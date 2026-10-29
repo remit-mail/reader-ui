@@ -12,9 +12,7 @@ import {
 } from "@remit/ui";
 import {
 	ownedHistoryEntries,
-	wizardEntryFromParam,
 	wizardEntryValue,
-	wizardStepFromParam,
 	wizardStepValue,
 } from "./wizard-history.js";
 
@@ -55,14 +53,8 @@ describe("the wizard step in the URL", () => {
 	it("round-trips every step the wizard can reach", () => {
 		for (const answers of answerSets()) {
 			for (const step of stepsFor(answers)) {
-				assert.equal(wizardStepFromParam(step), step);
+				assert.equal(wizardStepValue.parse(step), step);
 			}
-		}
-	});
-
-	it("reads a value the wizard cannot be on as no step", () => {
-		for (const value of [undefined, "", "Match", "step-1", 2, null, {}]) {
-			assert.equal(wizardStepFromParam(value), undefined);
 		}
 	});
 
@@ -77,13 +69,6 @@ describe("the wizard step in the URL", () => {
 });
 
 describe("which affordance opened the wizard", () => {
-	it("reads the search entry, and everything else as the selection bar", () => {
-		assert.equal(wizardEntryFromParam("search"), "search");
-		for (const value of [undefined, "", "Search", "bar", 1, null, {}]) {
-			assert.equal(wizardEntryFromParam(value), undefined);
-		}
-	});
-
 	it("never fails validation, so a mistyped link still lands on the mail", () => {
 		for (const value of ["nope", "SEARCH", 7, [], null, undefined]) {
 			const parsed = wizardEntryValue.safeParse(value);

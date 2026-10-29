@@ -31,7 +31,7 @@
 	"devDependencies": {
 		"@biomejs/biome": "2.5.4",
 		"@remit/api-http-client": "0.0.78",
-		"@remit/data-ports": "0.0.89",
+		"@remit/data-ports": "0.0.93",
 		"@remit/domain-enums": "0.0.29",
 		"@remit/mail-oauth-service": "0.0.9",
 		"@remit/spellcheck-engine": "0.0.1",
@@ -42,9 +42,6 @@
 		"typescript": "5.9.3"
 	},
 	"overrides": {
-		"@modelcontextprotocol/sdk": {
-			"zod": "^4.6.7"
-		},
 		"@vitest/mocker": "^4.1.12",
 		"@xmldom/xmldom": "^0.8.15",
 		"adm-zip": "^0.6.0",

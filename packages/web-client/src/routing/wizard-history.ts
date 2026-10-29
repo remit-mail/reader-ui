@@ -32,11 +32,6 @@ const stepId = z.enum([
 	"run",
 ]);
 
-export const wizardStepFromParam = (value: unknown): StepId | undefined => {
-	const parsed = stepId.safeParse(value);
-	return parsed.success ? parsed.data : undefined;
-};
-
 /**
  * Which affordance opened the wizard. Absent is the selection bar; `search` is
  * the make-filter affordance in the search results header, whose clauses come
@@ -52,14 +47,7 @@ const wizardEntry = z.literal("search");
 
 export type WizardEntry = z.infer<typeof wizardEntry>;
 
-export const wizardEntryFromParam = (
-	value: unknown,
-): WizardEntry | undefined => {
-	const parsed = wizardEntry.safeParse(value);
-	return parsed.success ? parsed.data : undefined;
-};
-
-export const wizardEntryValue = z.unknown().transform(wizardEntryFromParam);
+export const wizardEntryValue = wizardEntry.optional().catch(undefined);
 
 export const useWizardEntryValue = (): WizardEntry | undefined =>
 	useSearch({ from: "/mail", select: (search) => search.wizardFrom });
@@ -69,7 +57,7 @@ export const useWizardEntryValue = (): WizardEntry | undefined =>
  * rather than as a validation failure, so a truncated or hand-typed link lands
  * on the mail list instead of the router's error screen.
  */
-export const wizardStepValue = z.unknown().transform(wizardStepFromParam);
+export const wizardStepValue = stepId.optional().catch(undefined);
 
 export const ownedHistoryEntries = (
 	steps: readonly StepId[],
