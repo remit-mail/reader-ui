@@ -417,12 +417,6 @@ function MailboxPaneProvider({
 		useMailboxAccount(mailboxId);
 	const mailboxName = useCurrentMailboxName({ accounts });
 
-	// The server answered the active predicate, so these rows are the list: the
-	// dedupe spans pages and does not change when another page loads.
-	// Residual tokens are the exception — the request could not carry them, so
-	// they are applied here over what came back. That thins a page rather than
-	// answering over the whole mailbox, which is why the empty state stops
-	// claiming the folder was read and the escalation predicate is withheld.
 	const threads = applyResidualTokens(
 		dedupeThreadMessages(
 			threadsData?.pages.flatMap((page) => page.items ?? []) ?? [],
