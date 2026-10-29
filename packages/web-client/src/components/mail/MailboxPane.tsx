@@ -57,10 +57,7 @@ import {
 	useCurrentMailboxName,
 	useCurrentMailboxUnseenCount,
 } from "../../hooks/useCurrentMailboxName";
-import {
-	dropDeletedThreads,
-	useDeleteMessages,
-} from "../../hooks/useDeleteMessages";
+import { useDeleteMessages } from "../../hooks/useDeleteMessages";
 import { useEmptyTrash } from "../../hooks/useEmptyTrash";
 import type { EscalationSearchQuery } from "../../hooks/useEscalatedActions";
 import { useIntelligenceData } from "../../hooks/useIntelligenceData";
@@ -420,18 +417,9 @@ function MailboxPaneProvider({
 		useMailboxAccount(mailboxId);
 	const mailboxName = useCurrentMailboxName({ accounts });
 
-	// The server answered the active predicate, so these rows are the list: the
-	// dedupe spans pages and the deleted drop repeats the server's own
-	// `excludeDeleted`, and neither result changes when another page loads.
-	// Residual tokens are the exception — the request could not carry them, so
-	// they are applied here over what came back. That thins a page rather than
-	// answering over the whole mailbox, which is why the empty state stops
-	// claiming the folder was read and the escalation predicate is withheld.
 	const threads = applyResidualTokens(
-		dropDeletedThreads(
-			dedupeThreadMessages(
-				threadsData?.pages.flatMap((page) => page.items ?? []) ?? [],
-			),
+		dedupeThreadMessages(
+			threadsData?.pages.flatMap((page) => page.items ?? []) ?? [],
 		),
 		residualTokens,
 		mailboxAccountId,

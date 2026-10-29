@@ -66,7 +66,6 @@ const collectMovableIds = async (
 			throwOnError: true,
 		});
 		for (const item of data.items) {
-			if (item.isDeleted) continue;
 			if (alreadyMoved.has(item.messageId)) continue;
 			if (ids.includes(item.messageId)) continue;
 			ids.push(item.messageId);
@@ -97,10 +96,7 @@ const liveMessageCount = async (
 			query: { order: "desc", continuationToken },
 			throwOnError: true,
 		});
-		for (const item of data.items) {
-			if (item.isDeleted) continue;
-			count += 1;
-		}
+		count += data.items.length;
 		if (!data.continuationToken) break;
 		continuationToken = data.continuationToken;
 	}
