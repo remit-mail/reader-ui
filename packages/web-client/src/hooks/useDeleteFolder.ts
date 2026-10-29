@@ -96,9 +96,7 @@ const liveMessageCount = async (
 			query: { order: "desc", continuationToken },
 			throwOnError: true,
 		});
-		for (const item of data.items) {
-			count += 1;
-		}
+		count += data.items.length;
 		if (!data.continuationToken) break;
 		continuationToken = data.continuationToken;
 	}
