@@ -8,6 +8,7 @@
  * is one place for it to be right.
  */
 import { z } from "zod";
+import { wizardEntryValue, wizardStepValue } from "../routing/wizard-history";
 
 /** What every list carries, whatever else it carries. */
 const listSearch = z.object({ q: z.string().optional() });
@@ -42,6 +43,17 @@ export const mailboxSearchSchema = listSearch.extend({});
  * accepts and hands it straight on.
  */
 export const mailIndexSearchSchema = briefSearchSchema;
+
+/**
+ * The `/mail` layout's own search: the query, plus the selection wizard's step
+ * (#477 clause 1.6) and the affordance that opened it, so a reload lands back on
+ * the walk it was in. The router owns history, so the step is a validated
+ * search param rather than a raw pushState entry.
+ */
+export const mailSearchSchema = listSearch.extend({
+	wizard: wizardStepValue,
+	wizardFrom: wizardEntryValue,
+});
 
 /** Every list's schema, by the path it validates. */
 export const mailListSearchSchemas = {

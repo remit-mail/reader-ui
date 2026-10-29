@@ -59,7 +59,10 @@ export const wizardEntryFromParam = (
 	return parsed.success ? parsed.data : undefined;
 };
 
-export const wizardEntryValue = z.unknown().transform(wizardEntryFromParam);
+export const wizardEntryValue = z
+	.unknown()
+	.transform(wizardEntryFromParam)
+	.optional();
 
 export const useWizardEntryValue = (): WizardEntry | undefined =>
 	useSearch({ from: "/mail", select: (search) => search.wizardFrom });
@@ -69,7 +72,10 @@ export const useWizardEntryValue = (): WizardEntry | undefined =>
  * rather than as a validation failure, so a truncated or hand-typed link lands
  * on the mail list instead of the router's error screen.
  */
-export const wizardStepValue = z.unknown().transform(wizardStepFromParam);
+export const wizardStepValue = z
+	.unknown()
+	.transform(wizardStepFromParam)
+	.optional();
 
 export const ownedHistoryEntries = (
 	steps: readonly StepId[],

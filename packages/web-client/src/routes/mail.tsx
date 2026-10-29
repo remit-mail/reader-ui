@@ -15,7 +15,6 @@ import {
 	useRouterState,
 } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo } from "react";
-import { z } from "zod";
 import { ComposeFab } from "../components/layout/ComposeFab";
 import { MailShellProvider } from "../components/layout/MailShell";
 import { MailTopBar } from "../components/layout/MailTopBar";
@@ -29,14 +28,9 @@ import { useStaleAccountSync } from "../hooks/useStaleAccountSync";
 import { MailContext } from "../lib/mail-context";
 import { MailFreshnessProvider } from "../lib/mail-freshness";
 import { mailListRoute } from "../lib/mail-route";
+import { mailSearchSchema } from "../lib/mail-search";
 import { buildAccountNameIndex } from "../lib/search-token-index";
-import {
-	useIsComposing,
-	useOpenCompose,
-	useSearchField,
-	wizardEntryValue,
-	wizardStepValue,
-} from "../routing";
+import { useIsComposing, useOpenCompose, useSearchField } from "../routing";
 import "../lib/client";
 
 // `MailContext` / `useMailContext` live in `@/lib/mail-context` so the provider
@@ -44,15 +38,6 @@ import "../lib/client";
 // that file for why the alias-vs-relative route-tree import split otherwise
 // breaks context.
 export { useMailContext } from "../lib/mail-context";
-
-const mailSearchSchema = z.object({
-	q: z.string().optional(),
-	// The selection wizard's step (#477 clause 1.6). The router owns history, so
-	// the step is a validated search param rather than a raw pushState entry.
-	wizard: wizardStepValue,
-	// Which affordance opened it, so a reload lands back on the walk it was in.
-	wizardFrom: wizardEntryValue,
-});
 
 export const Route = createFileRoute("/mail")({
 	// Kick off config and the cross-account thread list together, without
