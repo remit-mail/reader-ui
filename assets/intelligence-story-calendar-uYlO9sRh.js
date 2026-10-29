@@ -1,0 +1,1 @@
+const o={data:{suggestions:[],day:[],dayLabel:""},actions:{onAddInvite:()=>{},onDeclineInvite:()=>{},onOfferOtherTimes:()=>{},onToggleSlot:()=>{},onAddSuggestion:()=>{},onDismissSuggestion:()=>{},onSelectEvent:()=>{}}};export{o as q};

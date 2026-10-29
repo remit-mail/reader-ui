@@ -1,0 +1,1 @@
+const c=t=>typeof t=="string"&&t.length>0?"rich":"plain",i=(t,e)=>e.length>0,o={plain:"Couldn't switch to plain text",rich:"Couldn't switch to rich text"},s=(t,e,n)=>e.trim()===""||n.trim()!==""?{outcome:"switch"}:{outcome:"blocked",title:o[t],detail:"The conversion came back empty, so your message is unchanged."};export{s as c,c as m,i as s};

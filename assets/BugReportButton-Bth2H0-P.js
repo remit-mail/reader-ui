@@ -1,0 +1,3 @@
+import{j as e}from"./iframe-Dz9ev7_1.js";import{o as t}from"./bug-report-vYCUKYUD.js";import{B as o}from"./bug-3Zk-gqgz.js";function r(){return e.jsxs("button",{type:"button",onClick:t,className:"flex w-full items-center gap-2 rounded-md px-2 py-1 text-sm text-fg-muted transition-colors hover:bg-surface hover:text-fg",children:[e.jsx(o,{className:"size-4 shrink-0"}),e.jsx("span",{className:"flex-1 truncate text-left",children:"Report a bug"})]})}r.__docgenInfo={description:`The mobile drawer's bug-report row — a full-width labeled control beside
+Settings, where an icon-only button would be unreachable and ambiguous
+(#685). Above the drawer, the shell's top bar carries this action.`,methods:[],displayName:"BugReportButton"};export{r as B};

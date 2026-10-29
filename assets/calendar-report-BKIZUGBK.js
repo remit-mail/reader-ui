@@ -1,0 +1,1 @@
+import{b as r,a as t}from"./bug-report-vYCUKYUD.js";function n(e){return r(t({title:`Calendar invitation: ${e}`,errorMessage:e}))}function o(e){return r(t({title:`Calendar event: ${e}`,errorMessage:e}))}export{o as a,n as c};

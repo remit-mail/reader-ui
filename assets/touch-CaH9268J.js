@@ -1,0 +1,1 @@
+const e=(t,n)=>{const{left:o,top:i}=t.getBoundingClientRect();t.dispatchEvent(new PointerEvent(n,{bubbles:!0,buttons:n==="pointerup"?0:1,pointerType:"touch",pointerId:1,isPrimary:!0,clientX:o+20,clientY:i+10}))},s=async t=>{e(t,"pointerdown"),await new Promise(n=>setTimeout(n,700)),e(t,"pointerup")};export{s as l};

@@ -1,0 +1,56 @@
+import{C as d}from"./CalendarSubscribeCard-RTt7QYI5.js";import"./iframe-Dz9ev7_1.js";import"./preload-helper-PPVm8Dsz.js";import"./category-presentation-BDbE0cN-.js";import"./account-menu-BfhSF2wW.js";import"./avatar-BqhrHOCc.js";import"./cn-d2XQ1MEC.js";import"./popover-menu-Du3fo3Fn.js";import"./index-BBFLC7WR.js";import"./index-CdNcOAZG.js";import"./overlay-scope-D24dfPkM.js";import"./keymap-dispatch-DTaqnLKC.js";import"./button-CLbVgqC1.js";import"./createLucideIcon-RYwrBmYZ.js";import"./account-service-change-dialog-BuRwkXC8.js";import"./confirm-dialog-Dk55anR8.js";import"./use-modal-focus-WDgdsyy8.js";import"./dialog-backdrop-hoQFjglb.js";import"./account-service-choice-C2zik8EN.js";import"./banner-CcGBhVUA.js";import"./x-snW7h3us.js";import"./checkbox-CRAJJObE.js";import"./check-D-jt1aUx.js";import"./minus-rkSVdKQS.js";import"./account-service-status-B8MISXtN.js";import"./badge-Dsqh0My3.js";import"./account-service-toggles-BQ6nRWzA.js";import"./address-display-Cs1V51L2.js";import"./chevron-down-COHbBXpp.js";import"./chevron-right-BgpxkwQ0.js";import"./address-tag-3gDxhbge.js";import"./agenda-flow-CqLrBNCf.js";import"./agenda-time-8h7r-cSj.js";import"./calendar-color-CqvBY603.js";import"./calendar-event-chip-Bu1FQGzL.js";import"./calendar-event-chip-content-KO-kByPh.js";import"./repeat-B8K_6wia.js";import"./mail-lJ4T2vNk.js";import"./globe-CNSgJ-Ca.js";import"./map-pin-DOlYB1cA.js";import"./agenda-panels-BKVZC0L9.js";import"./clock-QCzNkE3J.js";import"./app-password-hint-zv3RP415.js";import"./shell-top-bar-DEBMzcNl.js";import"./app-top-bar-BIo1tiXa.js";import"./attention-dot-B1yjjn_a.js";import"./app-shell-types-C5CLdvMm.js";import"./dialog-CClY1ZXZ.js";import"./menu-Cq__KQR7.js";import"./search-bar-DZkFD619.js";import"./search-chip-input-BdOc8EBq.js";import"./search-token-chip-DPL30lLY.js";import"./search-qhk-8fnj.js";import"./bug-3Zk-gqgz.js";import"./attachment-list-C-PWWXsq.js";import"./attachment-file-lxgUGUUR.js";import"./paperclip-CCYkVloo.js";import"./circle-alert-CcoNAO8C.js";import"./loader-circle-C6jTFX4E.js";import"./download-CVFC-Ko8.js";import"./attendee-row-BpO4eGMH.js";import"./auth-card-CrNpbzlu.js";import"./auth-footer-C0E7tWb6.js";import"./auth-hero-BS6SdZ6q.js";import"./auto-moved-badge-hUwkt_9v.js";import"./undo-2-DD8cdeP4.js";import"./blocked-reason-CuncjwVb.js";import"./bottom-sheet-BLkFUTR7.js";import"./brief-empty-Cg8ucWP7.js";import"./sparkles-8ddE6svA.js";import"./brief-section-qCfSJv5W.js";import"./brief-sections-8u1_dDMR.js";import"./brief-filters-CING_Fn4.js";import"./roving-focus-D6bxHDLq.js";import"./filter-sheet-CeQiR8S1.js";import"./row-keyboard-4SpR8O0u.js";import"./calendar-clash-strip-ymGKT68d.js";import"./triangle-alert-BzExaAbk.js";import"./calendar-invite-card-Bi78psgk.js";import"./calendar-parse-badge-Vv98PZcJ.js";import"./file-text-DPRQ2ITA.js";import"./trash-2-0YleYOuI.js";import"./bell-off-D5wXg9F3.js";import"./calendar-grid-BV-8ZltA.js";import"./calendar-list-BUyx44dP.js";import"./calendar-slot-offers-BgIOwhdm.js";import"./calendar-suggestion-deck-DQ3Yfjun.js";import"./calendar-toolbar-04iTW4sF.js";import"./security-select-DIQfYm0Z.js";import"./select-adBjnrbk.js";import"./category-badge-BW7csvyg.js";import"./compose-action-bar-DbY_HrS7.js";import"./send-Drm6iBwR.js";import"./compose-address-field-CkKQkfmF.js";import"./suggest-list-DoVkY54B.js";import"./compose-attachments-BTL_brLt.js";import"./compose-body-skeleton-D2GlgCjj.js";import"./compose-fab-CJrdodJo.js";import"./pencil-BNdFrw8L.js";import"./settings-screen-1OfUBJkp.js";import"./ErrorBanner-BDGblKOq.js";import"./info-BXj270ki.js";import"./message-list-pane-BULXpbcz.js";import"./kbd-AyBW4Ydv.js";import"./message-list-state-Biv67GYX.js";import"./message-row-DihY8YqP.js";import"./label-chip-BhjI_09Q.js";import"./message-settlement-DjEMPELc.js";import"./cloud-off-CSr7LjQx.js";import"./shield-alert-D0TTzBU-.js";import"./star-CgN1A-T5.js";import"./touch-list-C5peh5-U.js";import"./swipeable-row-WgN4ywGY.js";import"./use-gesture-react.esm-CxGbg7hY.js";import"./mail-open-BrtXgs5p.js";import"./refresh-cw-CVxCxhHu.js";import"./rescue-from-spam-flow-DEUix6-8.js";import"./folder-tree-picker-Xci-OtZE.js";import"./folder-tree-ZE9Jqoy_.js";import"./folder-row-BVjFYu7r.js";import"./folder-BFMlMtyd.js";import"./input-Dno_Kr9T.js";import"./new-folder-action-CK5s8xfF.js";import"./new-folder-form-DbboqlK-.js";import"./field-label-AfH6c15u.js";import"./rescue-candidate-row-BLBBL62D.js";import"./sender-trust-indicator-CcecSEPL.js";import"./shield-check-D0ywmRdg.js";import"./circle-check-BDce0YBc.js";import"./compose-subject-field-DQupFFoV.js";import"./compose-language-setting-CbYYIn5B.js";import"./compose-language-B7Es9PpH.js";import"./compose-smtp-missing-banner-Fos38FKK.js";import"./arrow-right-BXy6DHsY.js";import"./sender-group-switch-C0_uAugw.js";import"./event-detail-CQ5nsApS.js";import"./event-editor-p_keK-Qv.js";import"./event-suggestion-card-BODkqQQL.js";import"./plus-BjlLK1hC.js";import"./filter-clause-chip-BqGUM5m4.js";import"./filter-rule-editor-Do3fwNAY.js";import"./segmented-control-tDDqEOk4.js";import"./selection-wizard-CTocighD.js";import"./arrow-left-4NvhbwRF.js";import"./progress-bar-CrBPkLi3.js";import"./search-conversion-notice-DV8oEfAJ.js";import"./search-conversion-CKvDqwbt.js";import"./folder-input-D2DV_-7p.js";import"./folder-manage-actions-BfUXGkW0.js";import"./folder-manager-DK32M-QK.js";import"./folder-mutation-dialog-Tr6nObsD.js";import"./folder-rename-dialog-BfEwziiR.js";import"./folder-role-BD2LqoZH.js";import"./inbox-CCAVz_Kv.js";import"./mails-hwwal05r.js";import"./octagon-alert-D9xVGo9b.js";import"./folder-sync-state-DEgAfFLn.js";import"./intelligence-panel-DR2KAgTy.js";import"./calendar-days-D4PAqIok.js";import"./reply-CnC3lsA8.js";import"./reading-pane-DycvJiLA.js";import"./mail-action-toolbar-DxRAdRgZ.js";import"./reply-all-DKaWS7mu.js";import"./purify.es-BGCr_sdL.js";import"./isolated-email-frame--dYGCWFy.js";import"./list-result-header-CWNNDj9N.js";import"./mail-header-DdRif8HS.js";import"./message-report-dialog-QM6OkSWO.js";import"./external-link-DKEvVWRd.js";import"./mobile-message-action-bar-BFritDF3.js";import"./mobile-reading-pane-D96iSmfc.js";import"./mobile-search-view-DiUL2DB3.js";import"./search-results-BVRf6CWX.js";import"./spam-results-offer-BgfUpCDD.js";import"./nav-link-surface-Ia81dO-a.js";import"./nav-sidebar-BBqBkcoT.js";import"./outbox-row-Yfr8y9Ys.js";import"./circle-check-big-CTNKdZr7.js";import"./row-actions-gdmVxdNU.js";import"./rotate-ccw-BTi4O_Fk.js";import"./pane-header-D9nk5cp3.js";import"./password-input-Bg2_Hgld.js";import"./eye-off-CU3aUrjl.js";import"./pull-to-refresh-BCxGgMbY.js";import"./use-match-media-C4-QpI38.js";import"./quarantine-section-BH22uiPf.js";import"./quoted-text-D1pi3cSD.js";import"./recurrence-scope-prompt-D9mi1Wvw.js";import"./refresh-button-BKFLj66X.js";import"./rescue-banner-CyO--twE.js";import"./role-appointment-list-CBpj47Jo.js";import"./role-appointment-prompt-DCYiq-Jj.js";import"./selection-top-bar-B9NREb6e.js";import"./self-update-section-B_IA822B.js";import"./self-update-sRZdiOBg.js";import"./self-update-progress-overlay-aOwDgKBc.js";import"./slide-panel-fgxDYFrz.js";import"./sync-warning-section-Bnqy97RJ.js";import"./wizard-DyoozRrv.js";const{expect:m,fn:l,userEvent:s,within:c}=__STORYBOOK_MODULE_TEST__,Xo={title:"Playground/Shipped/Settings/Calendars/Subscribe to a calendar",component:d,parameters:{layout:"padded",docs:{description:{component:`Settings › Calendars: subscribing to another calendar's read-only iCal
+address (#1261). The server reads the feed before creating anything, so a
+refusal means nothing was added.`}}},args:{isBusy:!1,error:void 0,onSubscribe:l()}},o={play:async({canvasElement:r})=>{const t=c(r);await m(t.getByRole("button",{name:"Subscribe"})).toBeDisabled()}},e={play:async({canvasElement:r,args:t})=>{const n=c(r);await s.type(n.getByLabelText("Calendar name"),"Harbour rota"),await s.type(n.getByLabelText("Calendar address"),"webcal://calendar.example/harbour/basic.ics"),await s.click(n.getByRole("button",{name:"Subscribe"})),await m(t.onSubscribe).toHaveBeenCalledWith({displayName:"Harbour rota",url:"webcal://calendar.example/harbour/basic.ics"},m.any(Function))}},i={args:{isBusy:!0}},a={args:{error:{code:"subscription_unreachable",message:"the calendar was not created: the feed answered HTTP 404"}},play:async({canvasElement:r})=>{const t=c(r);await m(t.getByRole("alert")).toHaveTextContent("The calendar was not added.")}},p={name:"Refused (dark)",parameters:{theme:"dark"},args:{error:{code:"subscription_unreachable",message:"the calendar was not created: the feed could not be reached (ENOTFOUND)"}}};o.parameters={...o.parameters,docs:{...o.parameters?.docs,source:{originalSource:`{
+  play: async ({
+    canvasElement
+  }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByRole("button", {
+      name: "Subscribe"
+    })).toBeDisabled();
+  }
+}`,...o.parameters?.docs?.source},description:{story:"Empty: the button waits for a name and an address.",...o.parameters?.docs?.description}}};e.parameters={...e.parameters,docs:{...e.parameters?.docs,source:{originalSource:`{
+  play: async ({
+    canvasElement,
+    args
+  }) => {
+    const canvas = within(canvasElement);
+    await userEvent.type(canvas.getByLabelText("Calendar name"), "Harbour rota");
+    await userEvent.type(canvas.getByLabelText("Calendar address"), "webcal://calendar.example/harbour/basic.ics");
+    await userEvent.click(canvas.getByRole("button", {
+      name: "Subscribe"
+    }));
+    await expect(args.onSubscribe).toHaveBeenCalledWith({
+      displayName: "Harbour rota",
+      url: "webcal://calendar.example/harbour/basic.ics"
+    }, expect.any(Function));
+  }
+}`,...e.parameters?.docs?.source},description:{story:"Filled in and sent.",...e.parameters?.docs?.description}}};i.parameters={...i.parameters,docs:{...i.parameters?.docs,source:{originalSource:`{
+  args: {
+    isBusy: true
+  }
+}`,...i.parameters?.docs?.source},description:{story:"The feed is being read.",...i.parameters?.docs?.description}}};a.parameters={...a.parameters,docs:{...a.parameters?.docs,source:{originalSource:`{
+  args: {
+    error: {
+      code: "subscription_unreachable",
+      message: "the calendar was not created: the feed answered HTTP 404"
+    }
+  },
+  play: async ({
+    canvasElement
+  }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByRole("alert")).toHaveTextContent("The calendar was not added.");
+  }
+}`,...a.parameters?.docs?.source},description:{story:"The feed could not be read, so no calendar was made.",...a.parameters?.docs?.description}}};p.parameters={...p.parameters,docs:{...p.parameters?.docs,source:{originalSource:`{
+  name: "Refused (dark)",
+  parameters: {
+    theme: "dark"
+  },
+  args: {
+    error: {
+      code: "subscription_unreachable",
+      message: "the calendar was not created: the feed could not be reached (ENOTFOUND)"
+    }
+  }
+}`,...p.parameters?.docs?.source},description:{story:"Refused, on the dark theme.",...p.parameters?.docs?.description}}};const Zo=["Empty","Filled","Subscribing","Refused","RefusedDark"];export{o as Empty,e as Filled,a as Refused,p as RefusedDark,i as Subscribing,Zo as __namedExportsOrder,Xo as default};

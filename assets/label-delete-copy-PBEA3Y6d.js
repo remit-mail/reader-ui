@@ -1,0 +1,1 @@
+const i=(t,e)=>{if(e===0)return{title:`Delete the "${t}" label?`};const l=e===1?"filter":"filters";return{title:`Delete the "${t}" label?`,description:`This also deletes ${e} ${l} that ${e===1?"applies":"apply"} it — they can't be recovered.`}};export{i as d};
