@@ -31,11 +31,7 @@ import {
 	mockFetch,
 } from "../../test-support/http";
 import { useCalendarData } from "../useCalendarData";
-import {
-	type CalendarWriteOutcome,
-	type CalendarWrites,
-	useCalendarWrites,
-} from "./useCalendarWrites";
+import { type CalendarWrites, useCalendarWrites } from "./useCalendarWrites";
 
 const WORK = "11111111-1111-4111-8111-111111111111";
 const OBJECT = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
@@ -114,12 +110,12 @@ const settle = async () => {
 };
 
 /** The writes the probe is holding, driven inside `act` the way a click is. */
-const write = async (
-	run: (writes: CalendarWrites) => Promise<CalendarWriteOutcome>,
-): Promise<CalendarWriteOutcome> => {
+const write = async <Outcome>(
+	run: (writes: CalendarWrites) => Promise<Outcome>,
+): Promise<Outcome> => {
 	const held = writes;
 	if (!held) throw new Error("the writes are not mounted");
-	let outcome: CalendarWriteOutcome | undefined;
+	let outcome: Outcome | undefined;
 	await act(async () => {
 		outcome = await run(held);
 	});
@@ -157,7 +153,7 @@ describe("creating an event", () => {
 			}),
 		);
 
-		assert.deepEqual(outcome, { kind: "written" });
+		assert.equal(outcome.kind, "created");
 		const posted = (http?.to("/calendar-events") ?? []).filter(
 			(call) => call.method === "POST",
 		);

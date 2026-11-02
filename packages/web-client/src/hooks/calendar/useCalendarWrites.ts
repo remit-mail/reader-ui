@@ -47,6 +47,12 @@ export type CalendarWriteOutcome =
 
 const WRITTEN: CalendarWriteOutcome = { kind: "written" };
 
+/** A create that lands names the resource it made, so the grid can focus it. */
+export type CalendarCreateOutcome =
+	| { kind: "created"; calendarObjectId: string }
+	| { kind: "conflict" }
+	| { kind: "refused"; message: string };
+
 const outcomeFor = (error: unknown): CalendarWriteOutcome =>
 	getErrorStatus(error) === 412
 		? { kind: "conflict" }
@@ -72,7 +78,7 @@ export interface ScopedWrite {
 export interface CalendarWrites {
 	createEvent: (
 		input: RemitImapCreateCalendarEventInput,
-	) => Promise<CalendarWriteOutcome>;
+	) => Promise<CalendarCreateOutcome>;
 	updateEvent: (
 		write: ScopedWrite,
 		patch: RemitImapUpdateCalendarEventInput,
@@ -126,8 +132,18 @@ export function useCalendarWrites(): CalendarWrites {
 		(input: RemitImapCreateCalendarEventInput) =>
 			create
 				.mutateAsync({ body: input })
-				.then(() => WRITTEN)
-				.catch(outcomeFor),
+				.then(
+					(created): CalendarCreateOutcome => ({
+						kind: "created",
+						calendarObjectId: created.calendarObjectId,
+					}),
+				)
+				.catch(
+					(error: unknown): CalendarCreateOutcome =>
+						getErrorStatus(error) === 412
+							? { kind: "conflict" }
+							: { kind: "refused", message: formatErrorMessage(error) },
+				),
 		[create],
 	);
 

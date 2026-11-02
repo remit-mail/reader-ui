@@ -73,7 +73,7 @@ export function WriteCalendarEvent({ onClose }: WriteCalendarEventProps) {
 			return;
 		}
 		void createEvent(built.input).then((outcome) => {
-			if (outcome.kind === "written") {
+			if (outcome.kind === "created") {
 				setProblem("");
 				onClose();
 				return;

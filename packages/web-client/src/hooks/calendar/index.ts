@@ -103,6 +103,7 @@ export {
 } from "./useCalendarSuggestions";
 export { type CalendarsResult, useCalendars } from "./useCalendars";
 export {
+	type CalendarCreateOutcome,
 	type CalendarWriteOutcome,
 	type CalendarWrites,
 	type ScopedWrite,

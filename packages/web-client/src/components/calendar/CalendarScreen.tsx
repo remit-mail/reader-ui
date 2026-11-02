@@ -4,11 +4,13 @@ import {
 	type CalendarSlotPick,
 	CalendarTimeGrid,
 	calendarRangeTitle,
+	clickRange,
 	type Density,
 	Dialog,
 	datesFrom,
 	type GridDraft,
 	type GridGesture,
+	initialFocus,
 	isoWeek,
 	NewEventSquare,
 	Segmented,
@@ -37,7 +39,7 @@ import {
 	readCalendarDensity,
 	writeCalendarDensity,
 } from "../../lib/calendar-density";
-import { calendarViewMountsAgenda } from "../../lib/calendar-route";
+import { calendarViewMountsAgenda, isoDate } from "../../lib/calendar-route";
 import {
 	useCalendarAddress,
 	useCalendarNavigation,
@@ -48,6 +50,7 @@ import { AgendaView } from "./AgendaView";
 import { CalendarComposeSeedProvider } from "./CalendarComposeSeed";
 import { CalendarLoadFailed } from "./CalendarLoadFailed";
 import { CALENDAR_SIDE_PANE_ID, CalendarNavPane } from "./CalendarNavPane";
+import { CalendarQuickCreate } from "./CalendarQuickCreate";
 import { PendingSuggestions } from "./PendingSuggestions";
 
 /** Presses the grid answers itself, and the popups they open. */
@@ -134,6 +137,15 @@ export function CalendarScreen({ isPhone, detail }: CalendarScreenProps) {
 				gesture.type === "drag-end" ||
 				gesture.type === "keyboard";
 			if (settles && layersRef.current.eventPopup) closeEvent();
+			if (
+				(gesture.type === "click" || gesture.type === "keyboard") &&
+				sessionRef.current.mode === "idle"
+			)
+				originRef.current = gesture.origin;
+			if (gesture.type === "drag-end" && sessionRef.current.mode === "idle")
+				originRef.current = document.querySelector<HTMLElement>(
+					"[role='grid'][aria-label='Time grid']",
+				);
 			dispatch({ type: "gesture", gesture, layers: layersRef.current });
 		},
 		[closeEvent],
@@ -163,12 +175,36 @@ export function CalendarScreen({ isPhone, detail }: CalendarScreenProps) {
 		window.addEventListener("keydown", onKeyDown);
 		return () => window.removeEventListener("keydown", onKeyDown);
 	}, [closeEvent]);
+	const originRef = useRef<HTMLElement | null>(null);
+	const savedRef = useRef(false);
+	const [focusAfterSave, setFocusAfterSave] = useState("");
+	const wasQuick = useRef(false);
 	useEffect(() => {
-		if (session.mode !== "quick") return;
-		setPick(session.draft.range);
+		const isQuick = session.mode === "quick";
+		if (wasQuick.current && session.mode === "idle" && !savedRef.current)
+			originRef.current?.focus();
+		if (isQuick) savedRef.current = false;
+		wasQuick.current = isQuick;
+	}, [session.mode]);
+	useEffect(() => {
+		if (focusAfterSave === "" || events.length === 0) return;
+		const chip = document.querySelector<HTMLElement>(
+			`[data-event-id^="${CSS.escape(focusAfterSave)}"]`,
+		);
+		if (!chip) return;
+		chip.focus();
+		setFocusAfterSave("");
+	}, [focusAfterSave, events]);
+	const moreOptions = useCallback(() => {
+		if (sessionRef.current.mode !== "quick") return;
+		setPick(sessionRef.current.draft.range);
 		dispatch({ type: "expand" });
 		openComposer();
-	}, [session, openComposer]);
+	}, [openComposer]);
+	const saved = useCallback((calendarObjectId: string) => {
+		savedRef.current = true;
+		setFocusAfterSave(calendarObjectId);
+	}, []);
 	useEffect(() => {
 		if (!isWriting) dispatch({ type: "sidebar-closed" });
 	}, [isWriting]);
@@ -181,6 +217,7 @@ export function CalendarScreen({ isPhone, detail }: CalendarScreenProps) {
 					session.mode === "sidebar" && !session.dragging
 						? "draft"
 						: "selection",
+				warning: session.mode === "quick" && session.status === "failed",
 			}
 		: undefined;
 	const now = new Date().toISOString();
@@ -199,9 +236,17 @@ export function CalendarScreen({ isPhone, detail }: CalendarScreenProps) {
 	const sidePane = useCalendarSidePane(isPhone);
 	const newEventRef = useRef<HTMLButtonElement>(null);
 	const newEvent = useCallback(() => {
-		setPick(undefined);
-		openComposer();
-	}, [openComposer]);
+		const today = isoDate(new Date());
+		const minutes = new Date().getHours() * 60;
+		const days = timeGridDays ?? [date];
+		const slot = initialFocus(days, today, minutes);
+		originRef.current =
+			document.activeElement instanceof HTMLElement
+				? document.activeElement
+				: newEventRef.current;
+		if (layersRef.current.eventPopup) closeEvent();
+		dispatch({ type: "new-event", range: clickRange(slot.date, slot.minute) });
+	}, [timeGridDays, date, closeEvent]);
 	const weekNumber =
 		view === "week" || view === "day"
 			? isoWeek(view === "week" ? weekStart(date) : date)
@@ -316,6 +361,14 @@ export function CalendarScreen({ isPhone, detail }: CalendarScreenProps) {
 						</>
 					)}
 					{!hasDetail && detail}
+					{session.mode === "quick" && (
+						<CalendarQuickCreate
+							session={session}
+							dispatch={dispatch}
+							onMoreOptions={moreOptions}
+							onSaved={saved}
+						/>
+					)}
 					{hasDetail && (
 						<aside
 							aria-label="Event"
