@@ -15,6 +15,13 @@ import {
 import { useRetainOpenPanels } from "./fragment";
 
 const VIEW_ROUTE = "/calendar/$view/$date" as const;
+
+declare module "@tanstack/react-router" {
+	interface HistoryState {
+		/** This entry is an event popup opened from the grid, so Back closes it. */
+		calendarPopup?: boolean;
+	}
+}
 const SUGGESTION_ROUTE =
 	"/calendar/$view/$date/suggestion/$suggestionId" as const;
 
@@ -135,6 +142,8 @@ export function useCalendarNavigation(): CalendarNavigation {
 	const router = useRouter();
 	const retainPanels = useRetainOpenPanels();
 	const { view, date } = useCalendarAddress();
+	const openedEvent = useOpenCalendarEvent();
+	const popupOpen = openedEvent !== undefined;
 
 	const goTo = useCallback(
 		(params: { view: CalendarViewId; date: string }) => {
@@ -194,14 +203,30 @@ export function useCalendarNavigation(): CalendarNavigation {
 							params: { view, date, calendarObjectId },
 							search: true,
 							hash: retainPanels,
+							replace: popupOpen,
+							state: { calendarPopup: true },
 						})
 					: navigate({
 							to: "/calendar/$view/$date/$calendarObjectId/$recurrenceId",
 							params: { view, date, calendarObjectId, recurrenceId },
 							search: true,
 							hash: retainPanels,
+							replace: popupOpen,
+							state: { calendarPopup: true },
 						}),
-			closeEvent: () => goTo({ view, date }),
+			closeEvent: () => {
+				if (router.state.location.state.calendarPopup === true) {
+					router.history.back();
+					return;
+				}
+				navigate({
+					to: VIEW_ROUTE,
+					params: { view, date },
+					search: true,
+					hash: retainPanels,
+					replace: true,
+				});
+			},
 			openComposer: () =>
 				navigate({
 					to: "/calendar/$view/$date/new",
@@ -217,7 +242,7 @@ export function useCalendarNavigation(): CalendarNavigation {
 					hash: retainPanels,
 				}),
 		}),
-		[goTo, navigate, dayHref, retainPanels, view, date],
+		[goTo, navigate, dayHref, retainPanels, view, date, router, popupOpen],
 	);
 }
 

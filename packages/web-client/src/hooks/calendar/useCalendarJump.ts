@@ -13,14 +13,13 @@ export type CalendarJumpSearch =
 	| { kind: "Found"; jump: CalendarJump }
 	| { kind: "Deleted" }
 	| { kind: "NoOccurrenceFound" }
-	| { kind: "SignedOut" }
 	| { kind: "Failed"; reason: string };
 
 const WINDOW_MS = 365 * 24 * 60 * 60_000;
 const DAY_MS = 24 * 60 * 60_000;
 
-const LISTING_META = softErrorStatuses(401);
-const RESOURCE_META = softErrorStatuses(401, 404);
+const LISTING_META = softErrorStatuses();
+const RESOURCE_META = softErrorStatuses(404);
 
 const instant = (ms: number): string =>
 	new Date(ms).toISOString().replace(/\.\d{3}Z$/, "+00:00");
@@ -102,9 +101,7 @@ export function useCalendarJump(
 		first.error,
 	].find((error) => error !== null);
 	if (failure !== undefined) {
-		return getErrorStatus(failure) === 401
-			? { kind: "SignedOut" }
-			: { kind: "Failed", reason: reasonOf(failure) };
+		return { kind: "Failed", reason: reasonOf(failure) };
 	}
 	if (deleted) return { kind: "Deleted" };
 	if (unreadableStart)

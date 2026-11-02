@@ -11,6 +11,7 @@ import { EventDetail } from "./event-detail.js";
  */
 const meta: Meta<typeof EventDetail> = {
 	title: "Design System/Calendar/Event detail",
+	tags: ["proposed"],
 	component: EventDetail,
 	parameters: { layout: "fullscreen" },
 	decorators: [

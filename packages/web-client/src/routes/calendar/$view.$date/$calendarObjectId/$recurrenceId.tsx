@@ -7,12 +7,12 @@
  * series stays matched behind the occurrence, so the address names both.
  */
 import { createFileRoute } from "@tanstack/react-router";
-import { OpenCalendarEvent } from "../../../../components/calendar/OpenCalendarEvent";
+import { CalendarEventPopup } from "../../../../components/calendar/CalendarEventPopup";
 
 function CalendarOccurrenceRoute() {
 	const { calendarObjectId, recurrenceId } = Route.useParams();
 	return (
-		<OpenCalendarEvent
+		<CalendarEventPopup
 			calendarObjectId={calendarObjectId}
 			recurrenceId={recurrenceId}
 		/>

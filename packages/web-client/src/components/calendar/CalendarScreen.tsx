@@ -28,6 +28,7 @@ import { calendarInstanceId, deviceTimeZone } from "../../hooks/calendar";
 import {
 	draftSessionReducer,
 	drawnRange,
+	escapeTarget,
 	IDLE,
 } from "../../hooks/calendar/draft-session";
 import { useCalendarData } from "../../hooks/useCalendarData";
@@ -48,6 +49,10 @@ import { CalendarComposeSeedProvider } from "./CalendarComposeSeed";
 import { CalendarLoadFailed } from "./CalendarLoadFailed";
 import { CALENDAR_SIDE_PANE_ID, CalendarNavPane } from "./CalendarNavPane";
 import { PendingSuggestions } from "./PendingSuggestions";
+
+/** Presses the grid answers itself, and the popups they open. */
+const GRID_OWNED =
+	"[data-calendar-popover], [data-event-id], [data-time-columns], [data-all-day-row], [role='dialog']";
 
 const DENSITY_OPTIONS: SegmentOption<Density>[] = [
 	{ value: "comfortable", label: "Detail", shortLabel: "Detail" },
@@ -83,6 +88,7 @@ export function CalendarScreen({ isPhone, detail }: CalendarScreenProps) {
 		step,
 		openEvent,
 		openComposer,
+		closeEvent,
 		changeSuggestionFirst,
 		zoomToDay,
 		dayHref,
@@ -112,7 +118,7 @@ export function CalendarScreen({ isPhone, detail }: CalendarScreenProps) {
 		[openComposer],
 	);
 
-	const hasDetail = openedEvent !== undefined || isWriting;
+	const hasDetail = isWriting;
 	const [session, dispatch] = useReducer(draftSessionReducer, IDLE);
 	const layers = {
 		eventPopup: openedEvent !== undefined,
@@ -121,9 +127,42 @@ export function CalendarScreen({ isPhone, detail }: CalendarScreenProps) {
 	};
 	const layersRef = useRef(layers);
 	layersRef.current = layers;
-	const takeGesture = useCallback((gesture: GridGesture) => {
-		dispatch({ type: "gesture", gesture, layers: layersRef.current });
-	}, []);
+	const takeGesture = useCallback(
+		(gesture: GridGesture) => {
+			const settles =
+				gesture.type === "click" ||
+				gesture.type === "drag-end" ||
+				gesture.type === "keyboard";
+			if (settles && layersRef.current.eventPopup) closeEvent();
+			dispatch({ type: "gesture", gesture, layers: layersRef.current });
+		},
+		[closeEvent],
+	);
+	const sessionRef = useRef(session);
+	sessionRef.current = session;
+	useEffect(() => {
+		const onPointerDown = (event: PointerEvent) => {
+			if (!(event.target instanceof Element)) return;
+			if (event.target.closest(GRID_OWNED)) return;
+			if (layersRef.current.eventPopup) closeEvent();
+			dispatch({ type: "outside" });
+		};
+		document.addEventListener("pointerdown", onPointerDown, true);
+		return () =>
+			document.removeEventListener("pointerdown", onPointerDown, true);
+	}, [closeEvent]);
+	useEffect(() => {
+		const onKeyDown = (event: KeyboardEvent) => {
+			if (event.key !== "Escape" || event.defaultPrevented) return;
+			const target = escapeTarget(sessionRef.current, layersRef.current);
+			if (target === null || target === "drag") return;
+			event.preventDefault();
+			if (target === "event-popup") closeEvent();
+			else dispatch({ type: "escape", layers: layersRef.current });
+		};
+		window.addEventListener("keydown", onKeyDown);
+		return () => window.removeEventListener("keydown", onKeyDown);
+	}, [closeEvent]);
 	useEffect(() => {
 		if (session.mode !== "quick") return;
 		setPick(session.draft.range);
@@ -276,6 +315,7 @@ export function CalendarScreen({ isPhone, detail }: CalendarScreenProps) {
 							</div>
 						</>
 					)}
+					{!hasDetail && detail}
 					{hasDetail && (
 						<aside
 							aria-label="Event"

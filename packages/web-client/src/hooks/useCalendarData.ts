@@ -11,8 +11,10 @@ import type {
 	CalendarEventData,
 	CalendarViewId,
 } from "@remit/ui";
+import { useMemo } from "react";
 import {
 	type CalendarInstanceRef,
+	calendarInstanceId,
 	calendarWindow,
 	readCalendarInstanceId,
 	useCalendarEventWindow,
@@ -48,6 +50,8 @@ export interface CalendarData {
 	retry: () => void;
 	/** The resource and occurrence behind an event the grid selected. */
 	instanceOf: (eventId: string) => CalendarInstanceRef;
+	/** The events that leave their time free rather than busy. */
+	freeIds: ReadonlySet<string>;
 }
 
 export function useCalendarData({
@@ -81,6 +85,21 @@ export function useCalendarData({
 		shown,
 	);
 
+	const freeIds = useMemo(
+		() =>
+			new Set(
+				events.instances
+					.filter((instance) => instance.transparency === "Transparent")
+					.map((instance) =>
+						calendarInstanceId(
+							instance.calendarObjectId,
+							instance.recurrenceId,
+						),
+					),
+			),
+		[events.instances],
+	);
+
 	return {
 		calendars,
 		events: eventData,
@@ -90,5 +109,6 @@ export function useCalendarData({
 		error: events.error,
 		retry: events.refetch,
 		instanceOf: readCalendarInstanceId,
+		freeIds,
 	};
 }
