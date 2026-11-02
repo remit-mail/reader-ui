@@ -2,9 +2,13 @@ import {
 	CalendarGrid,
 	CalendarScreenToolbar,
 	type CalendarSlotPick,
+	CalendarTimeGrid,
 	calendarRangeTitle,
 	type Density,
 	Dialog,
+	datesFrom,
+	type GridDraft,
+	type GridGesture,
 	isoWeek,
 	NewEventSquare,
 	Segmented,
@@ -12,8 +16,20 @@ import {
 	weekStart,
 } from "@remit/ui";
 import { Loader2 } from "lucide-react";
-import { type ReactNode, useCallback, useRef, useState } from "react";
+import {
+	type ReactNode,
+	useCallback,
+	useEffect,
+	useReducer,
+	useRef,
+	useState,
+} from "react";
 import { calendarInstanceId, deviceTimeZone } from "../../hooks/calendar";
+import {
+	draftSessionReducer,
+	drawnRange,
+	IDLE,
+} from "../../hooks/calendar/draft-session";
 import { useCalendarData } from "../../hooks/useCalendarData";
 import { useCalendarSidePane } from "../../hooks/useCalendarSidePane";
 import {
@@ -97,6 +113,50 @@ export function CalendarScreen({ isPhone, detail }: CalendarScreenProps) {
 	);
 
 	const hasDetail = openedEvent !== undefined || isWriting;
+	const [session, dispatch] = useReducer(draftSessionReducer, IDLE);
+	const layers = {
+		eventPopup: openedEvent !== undefined,
+		sidebar: isWriting,
+		nav: false,
+	};
+	const layersRef = useRef(layers);
+	layersRef.current = layers;
+	const takeGesture = useCallback((gesture: GridGesture) => {
+		dispatch({ type: "gesture", gesture, layers: layersRef.current });
+	}, []);
+	useEffect(() => {
+		if (session.mode !== "quick") return;
+		setPick(session.draft.range);
+		dispatch({ type: "expand" });
+		openComposer();
+	}, [session, openComposer]);
+	useEffect(() => {
+		if (!isWriting) dispatch({ type: "sidebar-closed" });
+	}, [isWriting]);
+	const drawn = drawnRange(session);
+	const gridDraft: GridDraft | undefined = drawn
+		? {
+				range: drawn,
+				title: session.mode === "idle" ? "" : session.draft.title,
+				tone:
+					session.mode === "sidebar" && !session.dragging
+						? "draft"
+						: "selection",
+			}
+		: undefined;
+	const now = new Date().toISOString();
+	const timeGridDays =
+		view === "day" || (isPhone && view === "week")
+			? [date]
+			: view === "week"
+				? datesFrom(weekStart(date), 7)
+				: undefined;
+	const selectedEventId = openedEvent
+		? calendarInstanceId(
+				openedEvent.calendarObjectId,
+				openedEvent.recurrenceId ?? "",
+			)
+		: "";
 	const sidePane = useCalendarSidePane(isPhone);
 	const newEventRef = useRef<HTMLButtonElement>(null);
 	const newEvent = useCallback(() => {
@@ -124,6 +184,21 @@ export function CalendarScreen({ isPhone, detail }: CalendarScreenProps) {
 		>
 			<Loader2 className="size-6 animate-spin text-fg-subtle" />
 		</div>
+	) : timeGridDays ? (
+		<CalendarTimeGrid
+			days={timeGridDays}
+			events={events}
+			colorByCalendarId={colorByCalendarId}
+			density={density}
+			timeZone={deviceTimeZone()}
+			now={now}
+			selectedEventId={selectedEventId}
+			draft={gridDraft}
+			onGesture={takeGesture}
+			onSelectEvent={selectEvent}
+			onOpenDay={zoomToDay}
+			touch={isPhone}
+		/>
 	) : (
 		<CalendarGrid
 			view={view}
