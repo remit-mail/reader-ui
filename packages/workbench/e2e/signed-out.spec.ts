@@ -2,6 +2,8 @@ import { expect, test } from "playwright/test";
 import { RACK_USER, weekDay } from "./rack";
 
 /**
+ * Its own session, so signing it out leaves the suite's session alone.
+ *
  * A tab holding a bearer token the server no longer accepts: the session
  * cookie still opens the app, and every API call answers 401.
  */
@@ -11,8 +13,16 @@ const REVOKED_TOKEN = JSON.stringify({
 });
 
 test("a 401 shows the signed-out notice, and signing in returns to the same screen", async ({
-	page,
+	browser,
+	baseURL,
 }) => {
+	const context = await browser.newContext({ storageState: undefined });
+	const signIn = await context.request.post("/api/auth/sign-in/email", {
+		data: RACK_USER,
+		headers: { origin: baseURL ?? "" },
+	});
+	expect(signIn.ok()).toBe(true);
+	const page = await context.newPage();
 	await page.addInitScript((token) => {
 		if (sessionStorage.getItem("e2e-revoked") !== null) return;
 		sessionStorage.setItem("e2e-revoked", "1");
@@ -36,4 +46,5 @@ test("a 401 shows the signed-out notice, and signing in returns to the same scre
 	await expect(page).toHaveURL(new RegExp(`${address}$`));
 	await expect(page.getByRole("toolbar", { name: "Calendar" })).toBeVisible();
 	await expect(notice).toHaveCount(0);
+	await context.close();
 });
