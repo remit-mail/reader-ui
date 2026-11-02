@@ -233,6 +233,10 @@ export {
 	type CalendarScreenToolbarProps,
 } from "./components/calendar-screen-toolbar.js";
 export {
+	CalendarSheet,
+	type CalendarSheetProps,
+} from "./components/calendar-sheet.js";
+export {
 	CalendarSidePane,
 	type CalendarSidePaneProps,
 	NewEventSquare,

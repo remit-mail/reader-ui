@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { CalendarQuickCreateCard } from "./calendar-quick-create.js";
+import { CalendarSheet } from "./calendar-sheet.js";
 
 const meta = {
 	title: "Design System/Calendar/Quick-create",
@@ -66,3 +67,14 @@ export const SaveFailed: Story = {
 };
 
 export const NoWritableCalendar: Story = { args: { calendars: [] } };
+
+export const PhoneSheet: Story = {
+	args: { touch: true },
+	globals: { viewport: { value: "mobile" } },
+	decorators: [],
+	render: (args) => (
+		<CalendarSheet labelledBy="quick-create" onDismiss={() => {}}>
+			<CalendarQuickCreateCard {...args} />
+		</CalendarSheet>
+	),
+};

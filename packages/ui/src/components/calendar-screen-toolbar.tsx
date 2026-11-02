@@ -117,7 +117,7 @@ export function CalendarScreenToolbar({
 				</span>
 			)}
 			<div className="min-w-0 flex-1" />
-			{trailing}
+			{!touch && trailing}
 			<Select
 				aria-label="View"
 				value={view}
@@ -125,7 +125,7 @@ export function CalendarScreenToolbar({
 					const picked = views.find((option) => option === event.target.value);
 					if (picked) onChangeView(picked);
 				}}
-				className={cn("w-28 shrink-0", touch && "h-11")}
+				className={cn("shrink-0", touch ? "h-11 w-24" : "w-28")}
 			>
 				{views.map((option) => (
 					<option key={option} value={option}>

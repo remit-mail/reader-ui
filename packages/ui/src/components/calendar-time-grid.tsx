@@ -418,11 +418,19 @@ export function CalendarTimeGrid({
 		}
 		if (current.kind === "touch") {
 			const range = current.range;
+			const tapped = press.current?.phase === "pending";
 			endGesture();
 			if (range) {
 				announce(range);
 				onGesture({ type: "drag-end", range });
+				return;
 			}
+			if (tapped)
+				onGesture({
+					type: "click",
+					range: clickRange(current.date, current.anchorMinute),
+					origin: current.origin,
+				});
 			return;
 		}
 		endGesture();
