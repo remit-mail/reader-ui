@@ -1,0 +1,195 @@
+import {
+	CalendarGrid,
+	CalendarScreenToolbar,
+	type CalendarSlotPick,
+	calendarRangeTitle,
+	type Density,
+	isoWeek,
+	Segmented,
+	type SegmentOption,
+	weekStart,
+} from "@remit/ui";
+import { Loader2 } from "lucide-react";
+import { type ReactNode, useCallback, useState } from "react";
+import { calendarInstanceId, deviceTimeZone } from "../../hooks/calendar";
+import { useCalendarData } from "../../hooks/useCalendarData";
+import {
+	readCalendarDensity,
+	writeCalendarDensity,
+} from "../../lib/calendar-density";
+import { calendarViewMountsAgenda } from "../../lib/calendar-route";
+import {
+	useCalendarAddress,
+	useCalendarNavigation,
+	useIsWritingEvent,
+	useOpenCalendarEvent,
+} from "../../routing";
+import { AgendaView } from "./AgendaView";
+import { CalendarComposeSeedProvider } from "./CalendarComposeSeed";
+import { CalendarLoadFailed } from "./CalendarLoadFailed";
+import { PendingSuggestions } from "./PendingSuggestions";
+
+const DENSITY_OPTIONS: SegmentOption<Density>[] = [
+	{ value: "comfortable", label: "Detail", shortLabel: "Detail" },
+	{ value: "compact", label: "Glance", shortLabel: "Glance" },
+];
+
+const FAILED_TITLE = {
+	year: "Couldn't load this year",
+	month: "Couldn't load this month",
+	week: "Couldn't load this week",
+	day: "Couldn't load this day",
+	agenda: "Couldn't load these days",
+} as const;
+
+export interface CalendarScreenProps {
+	isPhone: boolean;
+	/** What the route below the view has open: an event, the editor. */
+	detail: ReactNode;
+}
+
+/**
+ * The calendar's own screen: the toolbar across the top and the view under it,
+ * with the grid taking the whole width the panes leave.
+ */
+export function CalendarScreen({ isPhone, detail }: CalendarScreenProps) {
+	const { view, date, calendarIds } = useCalendarAddress();
+	const drawsGrid = !calendarViewMountsAgenda(view);
+	const { events, colorByCalendarId, isLoading, error, retry, instanceOf } =
+		useCalendarData({ view, date, calendarIds, enabled: drawsGrid });
+	const {
+		goToView,
+		goToToday,
+		step,
+		openEvent,
+		openComposer,
+		changeSuggestionFirst,
+		zoomToDay,
+		dayHref,
+	} = useCalendarNavigation();
+	const openedEvent = useOpenCalendarEvent();
+	const isWriting = useIsWritingEvent();
+	const [density, setDensity] = useState(readCalendarDensity);
+	const changeDensity = useCallback((next: Density) => {
+		writeCalendarDensity(next);
+		setDensity(next);
+	}, []);
+	const [pick, setPick] = useState<CalendarSlotPick | undefined>(undefined);
+
+	const selectEvent = useCallback(
+		(eventId: string) => {
+			const instance = instanceOf(eventId);
+			openEvent(instance.calendarObjectId, instance.recurrenceId);
+		},
+		[instanceOf, openEvent],
+	);
+
+	const pickSlot = useCallback(
+		(slot: CalendarSlotPick) => {
+			setPick(slot);
+			openComposer();
+		},
+		[openComposer],
+	);
+
+	const hasDetail = openedEvent !== undefined || isWriting;
+	const weekNumber =
+		view === "week" || view === "day"
+			? isoWeek(view === "week" ? weekStart(date) : date)
+			: undefined;
+
+	const body = calendarViewMountsAgenda(view) ? (
+		<AgendaView density={density} onPickSlot={pickSlot} />
+	) : error !== undefined && error !== null ? (
+		<CalendarLoadFailed
+			title={FAILED_TITLE[view]}
+			error={error}
+			onRetry={retry}
+		/>
+	) : isLoading ? (
+		<div
+			role="status"
+			aria-label="Loading the calendar"
+			className="flex h-full items-center justify-center bg-surface"
+		>
+			<Loader2 className="size-6 animate-spin text-fg-subtle" />
+		</div>
+	) : (
+		<CalendarGrid
+			view={view}
+			date={date}
+			events={events}
+			colorByCalendarId={colorByCalendarId}
+			density={density}
+			selectedEventId={
+				openedEvent
+					? calendarInstanceId(
+							openedEvent.calendarObjectId,
+							openedEvent.recurrenceId ?? "",
+						)
+					: ""
+			}
+			timeZone={deviceTimeZone()}
+			now={new Date().toISOString()}
+			onSelectEvent={selectEvent}
+			onPickSlot={pickSlot}
+			dayHref={dayHref}
+			onZoomDay={zoomToDay}
+			onRangeChange={() => {}}
+		/>
+	);
+
+	return (
+		<CalendarComposeSeedProvider pick={pick}>
+			<div className="flex h-full min-h-0 flex-col bg-surface text-fg">
+				<CalendarScreenToolbar
+					view={view}
+					title={calendarRangeTitle(view, date)}
+					weekNumber={weekNumber}
+					onChangeView={goToView}
+					onPrev={() => step(-1)}
+					onNext={() => step(1)}
+					onToday={goToToday}
+					touch={isPhone}
+					trailing={
+						view === "week" || view === "day" ? (
+							<Segmented
+								ariaLabel="Calendar density"
+								options={DENSITY_OPTIONS}
+								value={density}
+								onChange={changeDensity}
+								touch={isPhone}
+								className="shrink-0"
+							/>
+						) : undefined
+					}
+				/>
+				<div className="relative flex min-h-0 flex-1">
+					{!(isPhone && hasDetail) && (
+						<>
+							<PendingSuggestions onChangeFirst={changeSuggestionFirst} />
+							<div
+								data-calendar-body=""
+								className="flex min-h-0 min-w-0 flex-1 flex-col"
+							>
+								{body}
+							</div>
+						</>
+					)}
+					{hasDetail && (
+						<aside
+							aria-label="Event"
+							className={
+								isPhone
+									? "min-h-0 min-w-0 flex-1"
+									: "w-[26rem] shrink-0 border-l border-line"
+							}
+						>
+							{detail}
+						</aside>
+					)}
+				</div>
+			</div>
+		</CalendarComposeSeedProvider>
+	);
+}
