@@ -290,6 +290,10 @@ export {
 	type ZoneOptions,
 } from "./components/calendar-types.js";
 export {
+	CalendarYear,
+	type CalendarYearProps,
+} from "./components/calendar-year.js";
+export {
 	Card,
 	CardBody,
 	CardHeader,
