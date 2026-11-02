@@ -30,10 +30,11 @@ export interface CalendarsResult {
 	isLoading: boolean;
 	/** Why the listing could not be read; null when it was. */
 	error: unknown;
+	retry: () => void;
 }
 
 export function useCalendars(): CalendarsResult {
-	const { data, isLoading, error } = useQuery(
+	const { data, isLoading, error, refetch } = useQuery(
 		calendarOperationsListCalendarsOptions(),
 	);
 
@@ -54,6 +55,9 @@ export function useCalendars(): CalendarsResult {
 					?.calendarId ?? "",
 			isLoading,
 			error: error ?? null,
+			retry: () => {
+				void refetch();
+			},
 		};
-	}, [data, isLoading, error]);
+	}, [data, isLoading, error, refetch]);
 }

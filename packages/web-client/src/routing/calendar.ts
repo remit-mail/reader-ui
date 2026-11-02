@@ -7,6 +7,7 @@ import {
 } from "@tanstack/react-router";
 import { useCallback, useMemo } from "react";
 import {
+	type CalendarSearch,
 	canonicalCalendarParams,
 	isoDate,
 	stepCalendarDate,
@@ -98,6 +99,10 @@ export interface CalendarNavigation {
 	step: (direction: -1 | 1) => void;
 	/** Home, from every view and every distance away. */
 	goToToday: () => void;
+	/** The same view on another day. */
+	goToDate: (date: string) => void;
+	/** The calendars to draw; every one of them clears the query. */
+	setCalendarIds: (calendarIds: readonly string[]) => void;
 	/**
 	 * The day the strip has scrolled to, written by `replace`. Scrolling is not
 	 * somewhere the reader went — Back belongs to the screen they arrived from,
@@ -160,6 +165,18 @@ export function useCalendarNavigation(): CalendarNavigation {
 			step: (direction: -1 | 1) =>
 				goTo({ view, date: stepCalendarDate(date, view, direction) }),
 			goToToday: () => goTo({ view, date: isoDate(new Date()) }),
+			goToDate: (next: string) => goTo({ view, date: next }),
+			setCalendarIds: (calendarIds: readonly string[]) =>
+				navigate({
+					to: VIEW_ROUTE,
+					params: { view, date },
+					search: (previous: CalendarSearch) => ({
+						...previous,
+						calendarId: calendarIds.length === 0 ? undefined : [...calendarIds],
+					}),
+					hash: true,
+					replace: true,
+				}),
 			setAnchorDate: (next: string) =>
 				navigate({
 					to: VIEW_ROUTE,

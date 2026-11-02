@@ -4,15 +4,18 @@ import {
 	type CalendarSlotPick,
 	calendarRangeTitle,
 	type Density,
+	Dialog,
 	isoWeek,
+	NewEventSquare,
 	Segmented,
 	type SegmentOption,
 	weekStart,
 } from "@remit/ui";
 import { Loader2 } from "lucide-react";
-import { type ReactNode, useCallback, useState } from "react";
+import { type ReactNode, useCallback, useRef, useState } from "react";
 import { calendarInstanceId, deviceTimeZone } from "../../hooks/calendar";
 import { useCalendarData } from "../../hooks/useCalendarData";
+import { useCalendarSidePane } from "../../hooks/useCalendarSidePane";
 import {
 	readCalendarDensity,
 	writeCalendarDensity,
@@ -27,6 +30,7 @@ import {
 import { AgendaView } from "./AgendaView";
 import { CalendarComposeSeedProvider } from "./CalendarComposeSeed";
 import { CalendarLoadFailed } from "./CalendarLoadFailed";
+import { CALENDAR_SIDE_PANE_ID, CalendarNavPane } from "./CalendarNavPane";
 import { PendingSuggestions } from "./PendingSuggestions";
 
 const DENSITY_OPTIONS: SegmentOption<Density>[] = [
@@ -93,6 +97,12 @@ export function CalendarScreen({ isPhone, detail }: CalendarScreenProps) {
 	);
 
 	const hasDetail = openedEvent !== undefined || isWriting;
+	const sidePane = useCalendarSidePane(isPhone);
+	const newEventRef = useRef<HTMLButtonElement>(null);
+	const newEvent = useCallback(() => {
+		setPick(undefined);
+		openComposer();
+	}, [openComposer]);
 	const weekNumber =
 		view === "week" || view === "day"
 			? isoWeek(view === "week" ? weekStart(date) : date)
@@ -151,6 +161,11 @@ export function CalendarScreen({ isPhone, detail }: CalendarScreenProps) {
 					onNext={() => step(1)}
 					onToday={goToToday}
 					touch={isPhone}
+					sidePane={{
+						open: isPhone ? sidePane.navOpen : sidePane.open,
+						controls: CALENDAR_SIDE_PANE_ID,
+						onToggle: sidePane.toggle,
+					}}
 					trailing={
 						view === "week" || view === "day" ? (
 							<Segmented
@@ -165,8 +180,18 @@ export function CalendarScreen({ isPhone, detail }: CalendarScreenProps) {
 					}
 				/>
 				<div className="relative flex min-h-0 flex-1">
+					{sidePane.open && (
+						<CalendarNavPane onNewEvent={newEvent} newEventRef={newEventRef} />
+					)}
 					{!(isPhone && hasDetail) && (
 						<>
+							{!sidePane.open && !isPhone && (
+								<NewEventSquare
+									onNewEvent={newEvent}
+									newEventRef={newEventRef}
+									className="absolute top-2 left-2 z-20"
+								/>
+							)}
 							<PendingSuggestions onChangeFirst={changeSuggestionFirst} />
 							<div
 								data-calendar-body=""
@@ -190,6 +215,20 @@ export function CalendarScreen({ isPhone, detail }: CalendarScreenProps) {
 					)}
 				</div>
 			</div>
+			{isPhone && (
+				<Dialog
+					open={sidePane.navOpen}
+					onClose={() => sidePane.setNavOpen(false)}
+					title="Calendars"
+					anchor="left"
+				>
+					<CalendarNavPane
+						onNewEvent={newEvent}
+						onPicked={() => sidePane.setNavOpen(false)}
+						className="w-full"
+					/>
+				</Dialog>
+			)}
 		</CalendarComposeSeedProvider>
 	);
 }

@@ -66,6 +66,7 @@ export function resolveRailOpen({
 	openMessage,
 }: RailVisibility): boolean {
 	if (raisedFor !== null && raisedFor === openMessage) return true;
-	if (panels.length > 0) return panels.includes("intelligence");
+	const named = panels.filter((panel) => panel !== "sidebar");
+	if (named.length > 0) return named.includes("intelligence");
 	return isDesktop && hasThread && prefersOpen;
 }

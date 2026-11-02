@@ -1,16 +1,12 @@
 /**
- * The fragment across the mail↔calendar switch.
- *
- * The calendar is a sibling of mail in the shell, not a different app, so the
- * chrome a reader has up travels with them: the rail is a pane they keep, the
- * slide-over and the sheet are overlays that going somewhere dismisses. The
- * calendar owns no panel of its own — nothing calendar-specific joins the union
- * (R3) — so the only thing it does to the fragment is carry it.
+ * The fragment across the mail↔calendar switch, and the calendar's side pane.
  */
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { resolveSidePaneOpen } from "../lib/calendar-side-pane-pref.js";
 import {
 	formatOpenPanels,
+	isOverlayPanel,
 	panelFragments,
 	panelsWithOverlay,
 	parseOpenPanels,
@@ -20,9 +16,36 @@ import {
 const retainOnDesktop = retainOpenPanelsAtTier(true);
 const retainOnPhone = retainOpenPanelsAtTier(false);
 
-describe("the calendar names no panel of its own", () => {
-	it("leaves the union exactly as mail wrote it", () => {
-		assert.deepEqual(panelFragments, ["intelligence", "nav", "shortcuts"]);
+describe("the side pane", () => {
+	it("joins the union as a pane, ahead of the overlays", () => {
+		assert.deepEqual(panelFragments, [
+			"intelligence",
+			"sidebar",
+			"nav",
+			"shortcuts",
+		]);
+		assert.equal(isOverlayPanel("sidebar"), false);
+	});
+
+	it("travels with the reader on a wide tier", () => {
+		assert.equal(retainOnDesktop("sidebar,nav"), "sidebar");
+	});
+
+	it("is up when the address names it, whatever this device chose", () => {
+		assert.equal(resolveSidePaneOpen(["sidebar"], false), true);
+	});
+
+	it("follows this device's last choice when the fragment is empty", () => {
+		assert.equal(resolveSidePaneOpen([], true), true);
+		assert.equal(resolveSidePaneOpen([], false), false);
+	});
+
+	it("treats an address naming only the rail as silent about the pane", () => {
+		assert.equal(resolveSidePaneOpen(["intelligence"], true), true);
+	});
+
+	it("is down when the address names other panels and not this one", () => {
+		assert.equal(resolveSidePaneOpen(["intelligence", "nav"], true), false);
 	});
 });
 
