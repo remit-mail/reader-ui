@@ -1,3 +1,4 @@
+export { type AppSwitch, useAppSwitch } from "./app-switch";
 export {
 	type BrowsedList,
 	useBrowsedList,

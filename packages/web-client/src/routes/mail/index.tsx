@@ -8,7 +8,12 @@ import { mailIndexSearchSchema } from "../../lib/mail-search";
 
 export const Route = createFileRoute("/mail/")({
 	validateSearch: mailIndexSearchSchema,
-	beforeLoad: ({ search }) => {
-		throw redirect({ to: "/mail/brief", search, replace: true });
+	beforeLoad: ({ search, location }) => {
+		throw redirect({
+			to: "/mail/brief",
+			search,
+			hash: location.hash,
+			replace: true,
+		});
 	},
 });

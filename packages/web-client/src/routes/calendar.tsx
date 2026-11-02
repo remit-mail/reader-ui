@@ -17,6 +17,7 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect } from "react";
 import { CalendarShellProvider } from "../components/calendar/CalendarShell";
+import { AppFrame } from "../components/layout/AppFrame";
 import { MailNav } from "../components/mail/MailNav";
 import { isSinglePaneTier, useLayoutTier } from "../hooks/useLayoutTier";
 import { panelsWithOverlay, useOpenPanels, useSetOpenPanels } from "../routing";
@@ -81,19 +82,24 @@ function CalendarLayout() {
 	}
 
 	return (
-		<CalendarShellProvider
-			chrome={{
-				isSinglePane,
-				isLoading: isLoading || hasNoAccounts,
-				nav: (
-					<MailNav accounts={accounts} onMailboxSelect={() => showNav(false)} />
-				),
-				navOpen,
-				onOpenNav: () => showNav(true),
-				onCloseNav: () => showNav(false),
-			}}
-		>
-			<Outlet />
-		</CalendarShellProvider>
+		<AppFrame>
+			<CalendarShellProvider
+				chrome={{
+					isSinglePane,
+					isLoading: isLoading || hasNoAccounts,
+					nav: (
+						<MailNav
+							accounts={accounts}
+							onMailboxSelect={() => showNav(false)}
+						/>
+					),
+					navOpen,
+					onOpenNav: () => showNav(true),
+					onCloseNav: () => showNav(false),
+				}}
+			>
+				<Outlet />
+			</CalendarShellProvider>
+		</AppFrame>
 	);
 }

@@ -26,7 +26,9 @@
 		"check:web-client-consumer": "node npm-scripts/check-web-client-consumer.mjs",
 		"release": "node npm-scripts/publish-packages.mjs",
 		"release:dry-run": "node npm-scripts/publish-packages.mjs --dry-run",
-		"ci": "npm run check && npm run test:scripts && npm run typecheck && npm run test && npm run test:stories && npm run release:dry-run && npm run check:web-client-consumer"
+		"ci": "npm run check && npm run test:scripts && npm run typecheck && npm run test && npm run test:stories && npm run release:dry-run && npm run check:web-client-consumer",
+		"rack": "sh npm-scripts/rack.sh",
+		"test:e2e": "bash npm-scripts/e2e-install.sh && npm run test:e2e -w @remit/workbench --"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.5.4",
