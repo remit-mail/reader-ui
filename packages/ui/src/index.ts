@@ -213,6 +213,12 @@ export {
 	type CalendarScreenToolbarProps,
 } from "./components/calendar-screen-toolbar.js";
 export {
+	CalendarSidePane,
+	type CalendarSidePaneProps,
+	NewEventSquare,
+	type NewEventSquareProps,
+} from "./components/calendar-side-pane.js";
+export {
 	CalendarSlotOffers,
 	type CalendarSlotOffersProps,
 } from "./components/calendar-slot-offers.js";
@@ -591,6 +597,7 @@ export {
 	messageSettlementCopy,
 	type RowSettlement,
 } from "./components/message-settlement.js";
+export { MiniMonth, type MiniMonthProps } from "./components/mini-month.js";
 export {
 	type MobileMessageAction,
 	MobileMessageActionBar,
@@ -1115,6 +1122,7 @@ export {
 	DESKTOP_MEDIA_QUERY,
 	DESKTOP_MIN_WIDTH,
 } from "./lib/layout-breakpoints.js";
+export { miniMonthWeeks, shiftMonth } from "./lib/mini-month.js";
 export {
 	type OverlayAnswers,
 	type OverlayScopeOptions,
