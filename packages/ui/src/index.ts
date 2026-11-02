@@ -187,6 +187,13 @@ export {
 	type CalendarEventChipContentProps,
 } from "./components/calendar-event-chip-content.js";
 export {
+	CalendarEventGone,
+	CalendarEventPopupCard,
+	type CalendarEventPopupCardProps,
+	type CalendarFailure,
+	CalendarFailureBlock,
+} from "./components/calendar-event-popup.js";
+export {
 	CalendarFailureNote,
 	type CalendarFailureNoteProps,
 } from "./components/calendar-failure-note.js";
@@ -208,6 +215,10 @@ export {
 	calendarParseLabel,
 	calendarParseNote,
 } from "./components/calendar-parse-badge.js";
+export {
+	CalendarPopover,
+	type CalendarPopoverProps,
+} from "./components/calendar-popover.js";
 export {
 	CalendarScreenToolbar,
 	type CalendarScreenToolbarProps,
@@ -1147,6 +1158,7 @@ export {
 	resolveAgainstOverlays,
 	useOverlayScope,
 } from "./lib/overlay-scope.js";
+export { placePopup } from "./lib/popup-placement.js";
 export {
 	derivePropertyClauses,
 	normalizeSubject,
