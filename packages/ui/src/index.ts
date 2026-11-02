@@ -220,6 +220,11 @@ export {
 	type CalendarPopoverProps,
 } from "./components/calendar-popover.js";
 export {
+	CalendarQuickCreateCard,
+	type CalendarQuickCreateCardProps,
+	type QuickCreateFields,
+} from "./components/calendar-quick-create.js";
+export {
 	CalendarScreenToolbar,
 	type CalendarScreenToolbarProps,
 } from "./components/calendar-screen-toolbar.js";
