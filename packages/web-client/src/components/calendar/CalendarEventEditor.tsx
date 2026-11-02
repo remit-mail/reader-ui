@@ -135,14 +135,18 @@ function useSidebarClose(touched: boolean) {
 			onCancel={() => setConfirming(false)}
 		/>
 	);
-	return { close, confirm };
+	const leave = () => {
+		discarding.current = true;
+		closeEditor();
+	};
+	return { close, confirm, leave };
 }
 
 export function CalendarNewEventSidebar() {
 	const { session, dispatch, focusSaved } = useCalendarSession();
 	const { date } = useCalendarAddress();
 	const bounds = useNewEventBounds();
-	const { setNewEventBounds, closeEditor } = useCalendarNavigation();
+	const { setNewEventBounds } = useCalendarNavigation();
 	const {
 		calendars: all,
 		defaultCalendarId,
@@ -204,7 +208,7 @@ export function CalendarNewEventSidebar() {
 			!extras.busy ||
 			draft.title !== (initial?.title ?? "") ||
 			draft.location !== (initial?.location ?? ""));
-	const { close, confirm } = useSidebarClose(touched);
+	const { close, confirm, leave } = useSidebarClose(touched);
 
 	if (!draft) return null;
 	const eventDraft: EventDraft = {
@@ -237,7 +241,7 @@ export function CalendarNewEventSidebar() {
 			if (outcome.kind === "created") {
 				dispatch({ type: "saved" });
 				focusSaved(outcome.calendarObjectId);
-				closeEditor();
+				leave();
 				return;
 			}
 			const text =
@@ -392,7 +396,7 @@ export function CalendarEditEventSidebar({
 		after !== undefined &&
 		(JSON.stringify(before.draft) !== JSON.stringify(after) ||
 			busy !== before.busy);
-	const { close, confirm } = useSidebarClose(touched);
+	const { close, confirm, leave } = useSidebarClose(touched);
 
 	const gone = !isLoading && event === undefined;
 	if (gone)
@@ -440,7 +444,7 @@ export function CalendarEditEventSidebar({
 			if (outcome.kind === "written") {
 				dispatch({ type: "saved" });
 				focusSaved(calendarObjectId);
-				closeEditor();
+				leave();
 				return;
 			}
 			const text =

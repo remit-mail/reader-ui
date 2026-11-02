@@ -19,6 +19,7 @@ export default defineConfig({
 		timezoneId: "Europe/Amsterdam",
 		locale: "en-GB",
 		trace: "retain-on-failure",
+		screenshot: "only-on-failure",
 	},
 	outputDir: join(here, "../../../.tmp/e2e-results"),
 	projects: [

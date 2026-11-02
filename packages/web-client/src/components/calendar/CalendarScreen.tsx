@@ -59,6 +59,7 @@ import { CalendarLoadFailed } from "./CalendarLoadFailed";
 import { CALENDAR_SIDE_PANE_ID, CalendarNavPane } from "./CalendarNavPane";
 import { CalendarQuickCreate } from "./CalendarQuickCreate";
 import { CalendarSessionContext } from "./CalendarSession";
+import { useEventMoves } from "./EventMoves";
 import { PendingSuggestions } from "./PendingSuggestions";
 
 /** Presses the grid answers itself, and the popups they open. */
@@ -93,8 +94,23 @@ export interface CalendarScreenProps {
 export function CalendarScreen({ isPhone, detail }: CalendarScreenProps) {
 	const { view, date, calendarIds } = useCalendarAddress();
 	const drawsGrid = !calendarViewMountsAgenda(view);
-	const { events, colorByCalendarId, isLoading, error, retry, instanceOf } =
-		useCalendarData({ view, date, calendarIds, enabled: drawsGrid });
+	const {
+		events: storedEvents,
+		calendars,
+		timeZoneByCalendarId,
+		colorByCalendarId,
+		isLoading,
+		error,
+		retry,
+		instanceOf,
+	} = useCalendarData({ view, date, calendarIds, enabled: drawsGrid });
+	const moves = useEventMoves(
+		storedEvents,
+		calendars,
+		timeZoneByCalendarId,
+		retry,
+	);
+	const events = moves.events;
 	const {
 		goToView,
 		goToToday,
@@ -322,6 +338,8 @@ export function CalendarScreen({ isPhone, detail }: CalendarScreenProps) {
 			onSelectEvent={selectEvent}
 			onOpenDay={zoomToDay}
 			touch={isPhone}
+			canMove={moves.canMove}
+			onMoveEvent={moves.onMoveEvent}
 		/>
 	) : (
 		<CalendarGrid
@@ -344,6 +362,8 @@ export function CalendarScreen({ isPhone, detail }: CalendarScreenProps) {
 			onPickSlot={pickSlot}
 			dayHref={dayHref}
 			onZoomDay={zoomToDay}
+			canMove={moves.canMove}
+			onMoveEvent={moves.onMoveEvent}
 			onRangeChange={() => {}}
 		/>
 	);
@@ -413,6 +433,7 @@ export function CalendarScreen({ isPhone, detail }: CalendarScreenProps) {
 								data-calendar-body=""
 								className="flex min-h-0 min-w-0 flex-1 flex-col"
 							>
+								{moves.banner}
 								{body}
 							</div>
 						</>
@@ -441,6 +462,7 @@ export function CalendarScreen({ isPhone, detail }: CalendarScreenProps) {
 					)}
 				</div>
 			</div>
+			{moves.prompt}
 			{isPhone && (
 				<Dialog
 					open={sidePane.navOpen}

@@ -111,6 +111,7 @@ export {
 	useInvalidateCalendarReads,
 } from "./useCalendarWrites";
 export { useDraftClashes } from "./useDraftClashes";
+export { type MoveEvent, useMoveEvent } from "./useMoveEvent";
 export {
 	addDays,
 	type CalendarWindow,
