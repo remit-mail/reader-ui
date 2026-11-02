@@ -80,8 +80,14 @@ export const standup = at("Standup", "10", "09:15", "09:30", {
 export const fortnight: RemitImapCalendarEventInstance[] = [
 	standup,
 	roadmap,
-	at("Dentist", "11", "11:00", "12:00", { icalUid: "uid-dentist" }),
-	at("Retro", "18", "16:00", "17:00", { icalUid: "uid-retro" }),
+	at("Dentist", "11", "11:00", "12:00", {
+		icalUid: "uid-dentist",
+		calendarObjectId: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+	}),
+	at("Retro", "18", "16:00", "17:00", {
+		icalUid: "uid-retro",
+		calendarObjectId: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+	}),
 ];
 
 export const roadmapResource = {

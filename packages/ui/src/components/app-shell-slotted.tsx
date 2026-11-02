@@ -291,7 +291,7 @@ export function AppShellSlotted({
 		<AppShellLayoutCtx.Provider value={layoutCtx}>
 			<div
 				ref={containerRef}
-				className="safe-area-frame @container flex h-dvh w-full flex-col overflow-hidden bg-canvas font-sans text-fg"
+				className="safe-area-frame @container flex h-full w-full flex-col overflow-hidden bg-canvas font-sans text-fg"
 			>
 				{isLoading && skeleton ? (
 					skeleton

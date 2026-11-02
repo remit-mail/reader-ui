@@ -4,6 +4,7 @@ import { CalendarSheet } from "./calendar-sheet.js";
 
 const meta = {
 	title: "Design System/Calendar/Quick-create",
+	tags: ["proposed"],
 	component: CalendarQuickCreateCard,
 	parameters: { layout: "padded" },
 	decorators: [

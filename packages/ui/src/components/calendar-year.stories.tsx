@@ -3,6 +3,7 @@ import { CalendarYear } from "./calendar-year.js";
 
 const meta = {
 	title: "Design System/Calendar/Year",
+	tags: ["proposed"],
 	component: CalendarYear,
 	parameters: { layout: "fullscreen" },
 	args: {

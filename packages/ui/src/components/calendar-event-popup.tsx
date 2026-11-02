@@ -8,6 +8,8 @@ export interface CalendarFailure {
 	text: string;
 	reportHref: string;
 	onRetry: () => void;
+	/** "Try again" unless the way forward is something else. */
+	retryLabel?: string;
 }
 
 /** A failure stated where it happened, with Try again and a prefilled report. */
@@ -32,7 +34,7 @@ export function CalendarFailureBlock({
 					onClick={failure.onRetry}
 					className="rounded-md border border-line bg-surface px-3 py-1 text-sm font-medium hover:bg-surface-sunken focus-visible:ring-2 focus-visible:ring-ring"
 				>
-					Try again
+					{failure.retryLabel ?? "Try again"}
 				</button>
 				<a
 					href={failure.reportHref}

@@ -30,6 +30,8 @@ export interface CalendarEventSidebarProps {
 	onSave: () => void;
 	onCancel: () => void;
 	saving?: boolean;
+	/** The save button, "Save" unless the form adds something. */
+	saveLabel?: string;
 	/** Why the draft cannot be saved yet. */
 	problem?: string;
 	failure?: CalendarFailure;
@@ -60,6 +62,7 @@ export function CalendarEventSidebar({
 	onSave,
 	onCancel,
 	saving = false,
+	saveLabel = "Save",
 	problem = "",
 	failure,
 	failureRef,
@@ -182,7 +185,7 @@ export function CalendarEventSidebar({
 			</div>
 			<div className="flex shrink-0 flex-col gap-2 border-t border-line px-4 py-3">
 				{problem !== "" && (
-					<p role="status" className="text-sm text-danger">
+					<p role="alert" className="text-sm text-danger">
 						{problem}
 					</p>
 				)}
@@ -208,7 +211,7 @@ export function CalendarEventSidebar({
 							touch ? "min-h-11" : "h-9",
 						)}
 					>
-						{saving ? "Saving…" : "Save"}
+						{saving ? "Saving…" : saveLabel}
 					</button>
 				</div>
 			</div>

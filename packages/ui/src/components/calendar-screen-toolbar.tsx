@@ -27,7 +27,7 @@ export interface CalendarScreenToolbarProps {
 	onNext: () => void;
 	onToday: () => void;
 	/** The side pane the hamburger shows and hides. */
-	sidePane: { open: boolean; controls: string; onToggle: () => void };
+	sidePane?: { open: boolean; controls: string; onToggle: () => void };
 	/** Controls the view owns, before the view dropdown. */
 	trailing?: ReactNode;
 	touch?: boolean;
@@ -67,16 +67,18 @@ export function CalendarScreenToolbar({
 				className,
 			)}
 		>
-			<button
-				type="button"
-				aria-label="Side pane"
-				aria-expanded={sidePane.open}
-				aria-controls={sidePane.controls}
-				onClick={sidePane.onToggle}
-				className={iconButton}
-			>
-				<Menu className="size-5" />
-			</button>
+			{sidePane && (
+				<button
+					type="button"
+					aria-label="Side pane"
+					aria-expanded={sidePane.open}
+					aria-controls={sidePane.controls}
+					onClick={sidePane.onToggle}
+					className={iconButton}
+				>
+					<Menu className="size-5" />
+				</button>
+			)}
 			<button
 				type="button"
 				onClick={onToday}

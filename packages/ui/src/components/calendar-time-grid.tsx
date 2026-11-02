@@ -465,7 +465,7 @@ export function CalendarTimeGrid({
 		const date = columnAt(event.clientX);
 		if (!date) return;
 		const origin = event.currentTarget;
-		origin.setPointerCapture(event.pointerId);
+		capturePointer(origin, event.pointerId);
 		const anchorMinute = minuteOf(event.clientY);
 		if (touch && event.pointerType === "touch") {
 			press.current = pressStart(event.clientX, event.clientY, Date.now());
@@ -509,7 +509,7 @@ export function CalendarTimeGrid({
 		if (event.button !== 0 || (touch && event.pointerType === "touch")) return;
 		const date = columnAt(event.clientX);
 		if (!date) return;
-		event.currentTarget.setPointerCapture(event.pointerId);
+		capturePointer(event.currentTarget, event.pointerId);
 		gesture.current = {
 			kind: "all-day",
 			pointerId: event.pointerId,
@@ -529,7 +529,7 @@ export function CalendarTimeGrid({
 	) => {
 		if (!draft) return;
 		event.stopPropagation();
-		event.currentTarget.setPointerCapture(event.pointerId);
+		capturePointer(event.currentTarget, event.pointerId);
 		gesture.current = {
 			kind: edge === "start" ? "handle-start" : "handle-end",
 			pointerId: event.pointerId,
@@ -643,6 +643,7 @@ export function CalendarTimeGrid({
 
 	const onKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
 		if (event.target !== event.currentTarget) return;
+		setHasFocus(true);
 		const slot = focusSlot ?? initialFocus(days, today.date, today.minute);
 		if (event.key === "Enter") {
 			event.preventDefault();
@@ -1015,7 +1016,11 @@ export function CalendarTimeGrid({
 				tabIndex={0}
 				onKeyDown={onKeyDown}
 				onFocus={(event) => {
-					if (event.target === event.currentTarget) setHasFocus(true);
+					if (
+						event.target === event.currentTarget &&
+						event.currentTarget.matches(":focus-visible")
+					)
+						setHasFocus(true);
 				}}
 				onBlur={() => setHasFocus(false)}
 				className="relative min-h-0 flex-1 overflow-y-auto outline-none"
@@ -1159,6 +1164,19 @@ export function CalendarTimeGrid({
 			</div>
 		</div>
 	);
+}
+
+/**
+ * Keeps the pointer on the element that took the press. A pointer the browser
+ * no longer tracks — a synthetic one, or one already released — cannot be
+ * captured, and the gesture carries on without it.
+ */
+function capturePointer(element: HTMLElement, pointerId: number): void {
+	try {
+		element.setPointerCapture(pointerId);
+	} catch {
+		// Not a live pointer: nothing to capture.
+	}
 }
 
 function lastDayOf(event: CalendarEventData): string {

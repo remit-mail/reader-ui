@@ -390,6 +390,10 @@ export type {
 	EmailFrameVariant,
 } from "./components/email-frame-css.js";
 export {
+	EventDetail,
+	type EventDetailProps,
+} from "./components/event-detail.js";
+export {
 	EventEditor,
 	type EventEditorLayout,
 	type EventEditorProps,

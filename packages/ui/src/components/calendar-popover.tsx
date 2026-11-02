@@ -11,8 +11,11 @@ import { cn } from "../lib/cn.js";
 import { type Placement, placePopup } from "../lib/popup-placement.js";
 
 export interface CalendarPopoverProps {
-	/** What the popover sits beside; null or out of view centres it. */
-	anchor: HTMLElement | null;
+	/**
+	 * What the popover sits beside, or a selector for it read after each render;
+	 * null or out of view centres it.
+	 */
+	anchor: HTMLElement | string | null;
 	/** Changes whenever the anchor moves, so the popover follows it. */
 	anchorKey: string;
 	labelledBy: string;
@@ -53,7 +56,11 @@ export function CalendarPopover({
 		const panel = ownRef.current;
 		if (!panel || anchorKey === "") return;
 		const place = () => {
-			const rect = anchor?.getBoundingClientRect();
+			const element =
+				typeof anchor === "string"
+					? document.querySelector<HTMLElement>(anchor)
+					: anchor;
+			const rect = element?.getBoundingClientRect();
 			setPlacement(
 				placePopup(
 					rect
@@ -128,7 +135,7 @@ export function CalendarPopover({
 			onKeyDown={onKeyDown}
 			className={cn(
 				"fixed z-40 w-[26rem] max-w-[calc(100vw-1rem)] rounded-xl border border-line bg-surface-raised text-fg shadow-xl shadow-black/20",
-				placement === null && "invisible",
+				placement === null && "opacity-0",
 				className,
 			)}
 			style={{

@@ -6,6 +6,7 @@ import {
 
 const meta = {
 	title: "Design System/Calendar/Event popup",
+	tags: ["proposed"],
 	component: CalendarEventPopupCard,
 	parameters: { layout: "padded" },
 	decorators: [
