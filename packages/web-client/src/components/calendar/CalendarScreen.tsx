@@ -4,6 +4,7 @@ import {
 	type CalendarSlotPick,
 	CalendarTimeGrid,
 	type CalendarViewId,
+	CalendarYear,
 	calendarRangeTitle,
 	clickRange,
 	type Density,
@@ -17,6 +18,7 @@ import {
 	Segmented,
 	type SegmentOption,
 	weekStart,
+	zonedMoment,
 } from "@remit/ui";
 import { Loader2 } from "lucide-react";
 import {
@@ -274,6 +276,18 @@ export function CalendarScreen({ isPhone, detail }: CalendarScreenProps) {
 			}
 		: undefined;
 	const now = new Date().toISOString();
+	const yearCounts = useMemo(() => {
+		const counts: Record<string, number> = {};
+		if (view !== "year") return counts;
+		const zone = deviceTimeZone();
+		for (const event of events) {
+			const day = event.allDay
+				? event.start.slice(0, 10)
+				: zonedMoment(event.start, zone).date;
+			counts[day] = (counts[day] ?? 0) + 1;
+		}
+		return counts;
+	}, [events, view]);
 	const timeGridDays =
 		view === "day" || (isPhone && view === "week")
 			? [date]
@@ -324,6 +338,13 @@ export function CalendarScreen({ isPhone, detail }: CalendarScreenProps) {
 		>
 			<Loader2 className="size-6 animate-spin text-fg-subtle" />
 		</div>
+	) : view === "year" && !isPhone ? (
+		<CalendarYear
+			date={date}
+			today={isoDate(new Date())}
+			counts={yearCounts}
+			onPickDay={zoomToDay}
+		/>
 	) : timeGridDays ? (
 		<CalendarTimeGrid
 			days={timeGridDays}
@@ -343,7 +364,7 @@ export function CalendarScreen({ isPhone, detail }: CalendarScreenProps) {
 		/>
 	) : (
 		<CalendarGrid
-			view={view}
+			view={view === "year" ? "month" : view}
 			date={date}
 			events={events}
 			colorByCalendarId={colorByCalendarId}
@@ -372,7 +393,7 @@ export function CalendarScreen({ isPhone, detail }: CalendarScreenProps) {
 		<CalendarSessionContext.Provider value={sessionValue}>
 			<div className="flex h-full min-h-0 flex-col bg-surface text-fg">
 				<CalendarScreenToolbar
-					view={phoneDay ? "day" : view}
+					view={phoneDay ? "day" : isPhone && view === "year" ? "month" : view}
 					views={isPhone ? PHONE_VIEWS : undefined}
 					title={
 						isPhone && timeGridDays?.length === 1

@@ -77,3 +77,19 @@ test("an expired session reaches the global signed-out handling", async ({
 	await expect(page.getByRole("toolbar", { name: "Calendar" })).toBeVisible();
 	await context.close();
 });
+
+test("Glance halves the hour, survives a reload and leaves the URL alone", async ({
+	page,
+}) => {
+	await page.goto(`/calendar/week/${weekDay(0)}`);
+	const columns = page.locator("[data-time-columns]");
+	const detail = (await columns.boundingBox())?.height ?? 0;
+	await page.getByRole("radio", { name: "Glance" }).check({ force: true });
+	await expect
+		.poll(async () => (await columns.boundingBox())?.height ?? 0)
+		.toBeCloseTo(detail / 2, 0);
+	await expect(page).toHaveURL(new RegExp(`/calendar/week/${weekDay(0)}$`));
+	await page.reload();
+	await expect(page.getByRole("radio", { name: "Glance" })).toBeChecked();
+	await page.getByRole("radio", { name: "Detail" }).check({ force: true });
+});

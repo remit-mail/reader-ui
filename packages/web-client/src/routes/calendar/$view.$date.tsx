@@ -6,12 +6,7 @@
  * the day is where the screen opened (R4). An unreadable segment is rewritten
  * rather than refused, keeping the half that was readable.
  */
-import {
-	createFileRoute,
-	Navigate,
-	Outlet,
-	redirect,
-} from "@tanstack/react-router";
+import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { CalendarScreen } from "../../components/calendar/CalendarScreen";
 import { useLayoutTier } from "../../hooks/useLayoutTier";
 import {
@@ -19,7 +14,6 @@ import {
 	canonicalCalendarParams,
 	isoDate,
 } from "../../lib/calendar-route";
-import { useCalendarAddress } from "../../routing";
 
 export const Route = createFileRoute("/calendar/$view/$date")({
 	validateSearch: calendarSearchSchema,
@@ -39,16 +33,6 @@ export const Route = createFileRoute("/calendar/$view/$date")({
 });
 
 function CalendarViewLayout() {
-	const { view, date } = useCalendarAddress();
 	const isPhone = useLayoutTier() === "phone";
-	if (isPhone && view === "year")
-		return (
-			<Navigate
-				to="/calendar/$view/$date"
-				params={{ view: "month", date }}
-				search={true}
-				replace
-			/>
-		);
 	return <CalendarScreen isPhone={isPhone} detail={<Outlet />} />;
 }

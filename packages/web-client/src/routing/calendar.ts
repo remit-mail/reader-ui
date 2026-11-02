@@ -231,14 +231,18 @@ export function useCalendarNavigation(): CalendarNavigation {
 					hash: true,
 					replace: true,
 				}),
-			setAnchorDate: (next: string) =>
+			setAnchorDate: (next: string) => {
+				// An open popup is a child of the view; rewriting the day under
+				// it would close it, so the strip waits until it is gone.
+				if (popupOpen) return;
 				navigate({
 					to: VIEW_ROUTE,
 					params: { view, date: next },
 					search: true,
 					hash: retainPanels,
 					replace: true,
-				}),
+				});
+			},
 			zoomToDay: (next: string) => navigate({ href: dayHref(next) }),
 			dayHref,
 			openEvent: (calendarObjectId: string, recurrenceId?: string) =>
