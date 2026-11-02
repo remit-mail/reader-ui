@@ -23,6 +23,13 @@ import {
 } from "../lib/calendar-slot-pick.js";
 import { cn } from "../lib/cn.js";
 import {
+	moveDays,
+	moveTimed,
+	resizeDays,
+	resizeTimed,
+	snappedMinutes,
+} from "../lib/event-drag.js";
+import {
 	type GridSlot,
 	initialFocus,
 	moveFocus,
@@ -39,6 +46,7 @@ import {
 import {
 	layoutAllDay,
 	layoutDay,
+	type ZonedMoment,
 	zonedMoment,
 } from "../lib/time-grid-layout.js";
 import type { Density } from "./app-shell-types.js";
@@ -87,6 +95,10 @@ export interface CalendarTimeGridProps {
 	onOpenDay?: (date: string) => void;
 	/** A finger selects by holding still, so a scroll never selects. */
 	touch?: boolean;
+	/** Whether an event may be dragged to a new time; its calendar takes writes. */
+	canMove?: (eventId: string) => boolean;
+	/** A stored event dropped at a new time or with a new end. */
+	onMoveEvent?: (eventId: string, range: CalendarSlotPick) => void;
 	className?: string;
 }
 
@@ -128,6 +140,24 @@ function zoneLabel(timeZone: string, now: string): string {
 	return part?.value ?? "";
 }
 
+interface LiftGesture {
+	id: string;
+	kind: "move" | "resize";
+	allDay: boolean;
+	pointerId: number;
+	x: number;
+	y: number;
+	startColumn: string;
+	start: ZonedMoment;
+	end: ZonedMoment;
+	first: string;
+	last: string;
+	dragging: boolean;
+	press: Press | null;
+	range: CalendarSlotPick | null;
+	invalid: boolean;
+}
+
 interface PointerGesture {
 	kind: "timed" | "all-day" | "handle-start" | "handle-end" | "touch";
 	pointerId: number;
@@ -159,6 +189,8 @@ export function CalendarTimeGrid({
 	onSelectEvent,
 	onOpenDay,
 	touch = false,
+	canMove = () => false,
+	onMoveEvent,
 	className,
 }: CalendarTimeGridProps) {
 	const hourHeight = HOUR_HEIGHT[density];
@@ -225,6 +257,24 @@ export function CalendarTimeGrid({
 		scroller.scrollTop = (firstScrollRef.current / 60) * hourHeight;
 	}, [rangeKey, hourHeight]);
 
+	const rootRef = useRef<HTMLDivElement>(null);
+	const lift = useRef<LiftGesture | null>(null);
+	const liftTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
+		undefined,
+	);
+	const suppressClick = useRef(false);
+	const [lifted, setLifted] = useState<{
+		id: string;
+		range: CalendarSlotPick;
+		invalid: boolean;
+	} | null>(null);
+
+	const endLift = useCallback(() => {
+		lift.current = null;
+		clearTimeout(liftTimer.current);
+		setLifted(null);
+	}, []);
+
 	const endGesture = useCallback(() => {
 		gesture.current = null;
 		press.current = null;
@@ -233,7 +283,15 @@ export function CalendarTimeGrid({
 
 	useEffect(() => {
 		const onKey = (event: KeyboardEvent) => {
-			if (event.key !== "Escape" || !gesture.current) return;
+			if (event.key !== "Escape") return;
+			if (lift.current?.dragging) {
+				event.preventDefault();
+				event.stopImmediatePropagation();
+				suppressClick.current = true;
+				endLift();
+				return;
+			}
+			if (!gesture.current) return;
 			event.preventDefault();
 			event.stopImmediatePropagation();
 			endGesture();
@@ -241,13 +299,17 @@ export function CalendarTimeGrid({
 		};
 		window.addEventListener("keydown", onKey, true);
 		return () => window.removeEventListener("keydown", onKey, true);
-	}, [endGesture, onGesture]);
+	}, [endGesture, endLift, onGesture]);
 
 	useEffect(() => {
 		const scroller = scrollRef.current;
 		if (!scroller) return;
 		const holdScroll = (event: TouchEvent) => {
-			if (press.current?.phase === "held" || gesture.current?.dragging)
+			if (
+				press.current?.phase === "held" ||
+				gesture.current?.dragging ||
+				lift.current?.dragging
+			)
 				event.preventDefault();
 		};
 		scroller.addEventListener("touchmove", holdScroll, { passive: false });
@@ -272,6 +334,131 @@ export function CalendarTimeGrid({
 	};
 
 	const announce = (range: CalendarSlotPick) => setLive(describeRange(range));
+
+	const startLift = (
+		event: ReactPointerEvent<HTMLElement>,
+		data: CalendarEventData,
+		kind: "move" | "resize",
+	) => {
+		event.stopPropagation();
+		if (event.button !== 0 || !canMove(data.id) || !onMoveEvent) return;
+		const column = columnAt(event.clientX);
+		if (!column) return;
+		capturePointer(event.currentTarget, event.pointerId);
+		const byFinger = touch && event.pointerType === "touch";
+		lift.current = {
+			id: data.id,
+			kind,
+			allDay: data.allDay,
+			pointerId: event.pointerId,
+			x: event.clientX,
+			y: event.clientY,
+			startColumn: column,
+			start: zonedMoment(data.start, timeZone),
+			end: zonedMoment(data.end, timeZone),
+			first: data.start.slice(0, 10),
+			last: lastDayOf(data),
+			dragging: false,
+			press: byFinger
+				? pressStart(event.clientX, event.clientY, Date.now())
+				: null,
+			range: null,
+			invalid: false,
+		};
+		if (!byFinger) return;
+		liftTimer.current = setTimeout(() => {
+			const current = lift.current;
+			if (!current?.press) return;
+			current.press = pressTick(current.press, Date.now() + 1);
+			if (current.press.phase !== "held") return;
+			current.dragging = true;
+			navigator.vibrate?.(10);
+			placeLift(current, current.x, current.y);
+		}, HOLD_MS);
+	};
+
+	const placeLift = (
+		current: LiftGesture,
+		clientX: number,
+		clientY: number,
+	) => {
+		const dayDelta =
+			days.indexOf(columnAt(clientX) ?? current.startColumn) -
+			days.indexOf(current.startColumn);
+		const minutes = snappedMinutes(clientY - current.y, hourHeight);
+		let range: CalendarSlotPick;
+		if (current.allDay) {
+			const moved =
+				current.kind === "move"
+					? moveDays(current.first, current.last, dayDelta)
+					: {
+							first: current.first,
+							last: resizeDays(current.first, current.last, dayDelta),
+						};
+			range = {
+				date: moved.first,
+				endDate: moved.last,
+				startTime: "",
+				endTime: "",
+				allDay: true,
+			};
+		} else {
+			const moved =
+				current.kind === "move"
+					? moveTimed(current.start, current.end, dayDelta, minutes)
+					: {
+							start: current.start,
+							end: resizeTimed(current.start, current.end, minutes),
+						};
+			range = {
+				date: moved.start.date,
+				endDate: moved.end.date,
+				startTime: clock(moved.start.minute),
+				endTime: clock(moved.end.minute),
+				allDay: false,
+			};
+		}
+		const box = rootRef.current?.getBoundingClientRect();
+		const invalid =
+			box !== undefined &&
+			(clientX < box.left ||
+				clientX > box.right ||
+				clientY < box.top ||
+				clientY > box.bottom);
+		current.range = range;
+		current.invalid = invalid;
+		setLifted({ id: current.id, range, invalid });
+	};
+
+	const moveLift = (event: ReactPointerEvent<HTMLElement>) => {
+		const current = lift.current;
+		if (!current || current.pointerId !== event.pointerId) return;
+		if (current.press) {
+			current.press = pressMove(current.press, event.clientX, event.clientY);
+			if (current.press.phase === "scrolled") {
+				endLift();
+				return;
+			}
+			if (current.press.phase !== "held") return;
+		} else if (
+			!current.dragging &&
+			!isDrag(event.clientX - current.x, event.clientY - current.y)
+		)
+			return;
+		current.dragging = true;
+		placeLift(current, event.clientX, event.clientY);
+	};
+
+	const dropLift = (event: ReactPointerEvent<HTMLElement>) => {
+		const current = lift.current;
+		if (!current || current.pointerId !== event.pointerId) return;
+		if (current.dragging) suppressClick.current = true;
+		const { range, invalid, dragging, id } = current;
+		endLift();
+		if (!dragging || !range || invalid) return;
+		announce(range);
+		onMoveEvent?.(id, range);
+	};
 
 	const startTimed = (event: ReactPointerEvent<HTMLDivElement>) => {
 		if (event.button !== 0) return;
@@ -518,38 +705,88 @@ export function CalendarTimeGrid({
 			event.allDay || (density === "compact" && !tall)
 				? ""
 				: clock(zonedMoment(event.start, timeZone).minute);
+		const movable = onMoveEvent !== undefined && canMove(event.id);
 		return (
-			<button
-				type="button"
-				data-event-id={event.id}
-				onPointerDown={(press) => press.stopPropagation()}
-				onClick={(click) => onSelectEvent(event.id, click.currentTarget)}
-				aria-label={`${event.title}, ${describeEvent(event, timeZone)}`}
-				className={cn(
-					calendarEventBodyClasses({
-						color,
-						layout,
-						density: "compact",
-						rsvp: event.myRsvp,
-						status: event.status,
-						selected: event.id === selectedEventId,
-						stacked: false,
-					}),
-					"h-full w-full cursor-pointer text-left outline-none focus-visible:ring-2 focus-visible:ring-ring",
+			<>
+				<button
+					type="button"
+					data-event-id={event.id}
+					onPointerDown={(press) => startLift(press, event, "move")}
+					onPointerMove={moveLift}
+					onPointerUp={dropLift}
+					onPointerCancel={endLift}
+					onClick={(click) => {
+						if (suppressClick.current) {
+							suppressClick.current = false;
+							return;
+						}
+						onSelectEvent(event.id, click.currentTarget);
+					}}
+					aria-label={`${event.title}, ${describeEvent(event, timeZone)}`}
+					className={cn(
+						calendarEventBodyClasses({
+							color,
+							layout,
+							density: "compact",
+							rsvp: event.myRsvp,
+							status: event.status,
+							selected: event.id === selectedEventId,
+							stacked: false,
+						}),
+						"h-full w-full cursor-pointer text-left outline-none focus-visible:ring-2 focus-visible:ring-ring",
+						touch && "touch-pan-y",
+						lifted?.id === event.id && "opacity-40",
+					)}
+				>
+					<CalendarEventChipContent
+						title={event.title === "" ? "(No title)" : event.title}
+						timeText={timeText}
+						layout={layout}
+						rsvp={event.myRsvp}
+						hasThread={event.threadId !== ""}
+						isRecurring={event.recurrenceRule !== ""}
+						zoneCertainty={event.zoneCertainty}
+					/>
+				</button>
+				{movable && (
+					<span
+						aria-hidden="true"
+						data-resize-handle=""
+						onPointerDown={(press) => startLift(press, event, "resize")}
+						onPointerMove={moveLift}
+						onPointerUp={dropLift}
+						onPointerCancel={endLift}
+						className={cn(
+							"absolute",
+							layout === "column"
+								? "inset-x-0 bottom-0 h-1.5 cursor-ns-resize"
+								: "inset-y-0 right-0 w-1.5 cursor-ew-resize",
+						)}
+						style={{ touchAction: "none" }}
+					/>
 				)}
-			>
-				<CalendarEventChipContent
-					title={event.title === "" ? "(No title)" : event.title}
-					timeText={timeText}
-					layout={layout}
-					rsvp={event.myRsvp}
-					hasThread={event.threadId !== ""}
-					isRecurring={event.recurrenceRule !== ""}
-					zoneCertainty={event.zoneCertainty}
-				/>
-			</button>
+			</>
 		);
 	};
+
+	const ghostLabel = (range: CalendarSlotPick): string =>
+		range.allDay
+			? dayLabel(range.date, { weekday: "short", day: "numeric" })
+			: `${dayLabel(range.date, { weekday: "short", day: "numeric" })} · ${range.startTime} – ${range.endTime}`;
+
+	const ghost = (range: CalendarSlotPick, invalid: boolean) => (
+		<div
+			data-lifted-event=""
+			className={cn(
+				"pointer-events-none absolute inset-0 z-30 flex flex-col overflow-hidden rounded-sm border-2 border-accent bg-accent-soft px-1.5 py-0.5 text-xs text-fg shadow-lg",
+				invalid && "border-dashed opacity-60",
+			)}
+		>
+			<span className="truncate font-medium tabular-nums">
+				{ghostLabel(range)}
+			</span>
+		</div>
+	);
 
 	const draftBlock = (body: ReactNode, extra: string) => {
 		if (!draft) return null;
@@ -627,6 +864,7 @@ export function CalendarTimeGrid({
 
 	return (
 		<div
+			ref={rootRef}
 			data-testid="calendar-grid"
 			className={cn(
 				"flex h-full min-h-0 flex-col bg-surface text-fg select-none",
@@ -725,6 +963,30 @@ export function CalendarTimeGrid({
 							</div>
 						);
 					})}
+					{lifted?.range.allDay &&
+						(() => {
+							const bar = layoutAllDay(days, [
+								{
+									id: "lifted",
+									first: lifted.range.date,
+									last: lifted.range.endDate,
+								},
+							])[0];
+							if (!bar) return null;
+							return (
+								<div
+									className="absolute px-0.5"
+									style={{
+										left: `${(bar.startIndex / days.length) * 100}%`,
+										width: `${(bar.span / days.length) * 100}%`,
+										top: 2,
+										height: ALL_DAY_LANE - 2,
+									}}
+								>
+									{ghost(lifted.range, lifted.invalid)}
+								</div>
+							);
+						})()}
 					{draftBar && (
 						<div
 							className="absolute px-0.5"
@@ -854,6 +1116,26 @@ export function CalendarTimeGrid({
 											/>
 										</div>
 									)}
+									{lifted &&
+										!lifted.range.allDay &&
+										lifted.range.date === date &&
+										(() => {
+											const minutes = rangeMinutes(lifted.range);
+											return (
+												<div
+													className="absolute right-1 left-0"
+													style={{
+														top: (minutes.start / 60) * hourHeight,
+														height: Math.max(
+															((minutes.end - minutes.start) / 60) * hourHeight,
+															12,
+														),
+													}}
+												>
+													{ghost(lifted.range, lifted.invalid)}
+												</div>
+											);
+										})()}
 									{draftHere && (
 										<div
 											className="absolute right-1 left-0"
