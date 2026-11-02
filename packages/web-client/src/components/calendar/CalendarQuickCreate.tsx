@@ -1,12 +1,12 @@
 import {
 	CalendarPopover,
 	CalendarQuickCreateCard,
+	CalendarSheet,
 	type EventDraft,
 } from "@remit/ui";
 import {
 	type Dispatch,
 	type PointerEvent,
-	type ReactNode,
 	useEffect,
 	useId,
 	useRef,
@@ -26,6 +26,7 @@ import type {
 	SessionDraft,
 } from "../../hooks/calendar/draft-session";
 import { calendarEventReportHref } from "../../lib/calendar-report";
+import { useBackCloses } from "../../routing";
 
 export const SETTINGS_HREF = "/settings/calendars";
 
@@ -52,8 +53,7 @@ export interface CalendarQuickCreateProps {
 	/** Carries the label of the field that had focus, so the sidebar can keep it. */
 	onMoreOptions: (focusedLabel: string) => void;
 	onSaved: (calendarObjectId: string) => void;
-	/** The sheet on a phone wraps the card itself. */
-	render?: (card: ReactNode) => ReactNode;
+	/** On a phone the card sits in a sheet along the bottom. */
 	touch?: boolean;
 }
 
@@ -66,7 +66,6 @@ export function CalendarQuickCreate({
 	dispatch,
 	onMoreOptions,
 	onSaved,
-	render,
 	touch = false,
 }: CalendarQuickCreateProps) {
 	const headingId = useId();
@@ -103,6 +102,26 @@ export function CalendarQuickCreate({
 	}, [session.status]);
 
 	const lastFocused = useRef<HTMLElement | null>(null);
+	const sheetRef = useRef<HTMLDivElement>(null);
+	useBackCloses(touch, () => {
+		dispatch({ type: "outside" });
+		return true;
+	});
+	const rangeKey = `${draft.range.date}T${draft.range.startTime}/${draft.range.endDate}T${draft.range.endTime}`;
+	useEffect(() => {
+		const sheet = sheetRef.current;
+		if (rangeKey === "") return;
+		const block = document.querySelector<HTMLElement>("[data-draft-block]");
+		const grid = document.querySelector<HTMLElement>(
+			"[role='grid'][aria-label='Time grid']",
+		);
+		if (!sheet || !block || !grid) return;
+		const overlap =
+			block.getBoundingClientRect().bottom -
+			sheet.getBoundingClientRect().top +
+			16;
+		if (overlap > 0) grid.scrollTop += overlap;
+	}, [rangeKey]);
 	const cardRef = useRef<HTMLDivElement>(null);
 	useEffect(() => {
 		const card = cardRef.current;
@@ -117,7 +136,6 @@ export function CalendarQuickCreate({
 		card.addEventListener("focusin", remember);
 		return () => card.removeEventListener("focusin", remember);
 	}, []);
-	const rangeKey = `${draft.range.date}T${draft.range.startTime}/${draft.range.endDate}T${draft.range.endTime}`;
 	useEffect(() => {
 		const field = lastFocused.current;
 		if (rangeKey === "" || !field || document.activeElement === field) return;
@@ -188,7 +206,16 @@ export function CalendarQuickCreate({
 		</div>
 	);
 
-	if (render) return <>{render(card())}</>;
+	if (touch)
+		return (
+			<CalendarSheet
+				labelledBy={headingId}
+				onDismiss={() => dispatch({ type: "outside" })}
+				sheetRef={sheetRef}
+			>
+				{card()}
+			</CalendarSheet>
+		);
 
 	return (
 		<CalendarPopover

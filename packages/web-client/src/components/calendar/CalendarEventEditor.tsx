@@ -33,6 +33,7 @@ import { formatEventWhen } from "../../lib/calendar-format";
 import { calendarEventReportHref } from "../../lib/calendar-report";
 import { rangeFromSearch, searchFromRange } from "../../lib/new-event-range";
 import {
+	useBackCloses,
 	useCalendarAddress,
 	useCalendarNavigation,
 	useNewEventBounds,
@@ -97,6 +98,12 @@ function useSidebarClose(touched: boolean) {
 	const { requestClose } = useCalendarSession();
 	const { closeEditor } = useCalendarNavigation();
 	const [confirming, setConfirming] = useState(false);
+	const discarding = useRef(false);
+	useBackCloses(touched && !confirming, () => {
+		if (discarding.current) return false;
+		setConfirming(true);
+		return true;
+	});
 	const close = () => {
 		if (touched) {
 			setConfirming(true);
@@ -121,6 +128,7 @@ function useSidebarClose(touched: boolean) {
 			cancelLabel="Keep editing"
 			destructive
 			onConfirm={() => {
+				discarding.current = true;
 				setConfirming(false);
 				closeEditor();
 			}}

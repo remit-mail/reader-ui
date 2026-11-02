@@ -8,6 +8,7 @@ export {
 	type CalendarAddress,
 	type CalendarNavigation,
 	type OpenCalendarEvent,
+	useBackCloses,
 	useCalendarAddress,
 	useCalendarNavigation,
 	useChangeSuggestionOnCalendar,

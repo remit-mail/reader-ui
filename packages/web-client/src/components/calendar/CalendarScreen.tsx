@@ -3,6 +3,7 @@ import {
 	CalendarScreenToolbar,
 	type CalendarSlotPick,
 	CalendarTimeGrid,
+	type CalendarViewId,
 	calendarRangeTitle,
 	clickRange,
 	type Density,
@@ -27,7 +28,11 @@ import {
 	useRef,
 	useState,
 } from "react";
-import { calendarInstanceId, deviceTimeZone } from "../../hooks/calendar";
+import {
+	addDays,
+	calendarInstanceId,
+	deviceTimeZone,
+} from "../../hooks/calendar";
 import {
 	draftSessionReducer,
 	drawnRange,
@@ -60,6 +65,8 @@ import { PendingSuggestions } from "./PendingSuggestions";
 const GRID_OWNED =
 	"[data-calendar-popover], [data-event-id], [data-time-columns], [data-all-day-row], [role='dialog']";
 
+const PHONE_VIEWS: CalendarViewId[] = ["day", "month", "agenda"];
+
 const DENSITY_OPTIONS: SegmentOption<Density>[] = [
 	{ value: "comfortable", label: "Detail", shortLabel: "Detail" },
 	{ value: "compact", label: "Glance", shortLabel: "Glance" },
@@ -91,6 +98,7 @@ export function CalendarScreen({ isPhone, detail }: CalendarScreenProps) {
 	const {
 		goToView,
 		goToToday,
+		goToDate,
 		step,
 		openEvent,
 		openNewEvent,
@@ -136,6 +144,13 @@ export function CalendarScreen({ isPhone, detail }: CalendarScreenProps) {
 				gesture.type === "click" ||
 				gesture.type === "drag-end" ||
 				gesture.type === "keyboard";
+			if (
+				isPhone &&
+				gesture.type === "click" &&
+				sessionRef.current.mode === "idle" &&
+				!layersRef.current.eventPopup
+			)
+				return;
 			if (settles && layersRef.current.eventPopup) closeEvent();
 			if (
 				(gesture.type === "click" || gesture.type === "keyboard") &&
@@ -148,7 +163,7 @@ export function CalendarScreen({ isPhone, detail }: CalendarScreenProps) {
 				);
 			dispatch({ type: "gesture", gesture, layers: layersRef.current });
 		},
-		[closeEvent],
+		[closeEvent, isPhone],
 	);
 	const sessionRef = useRef(session);
 	sessionRef.current = session;
@@ -256,6 +271,7 @@ export function CalendarScreen({ isPhone, detail }: CalendarScreenProps) {
 			)
 		: "";
 	const sidePane = useCalendarSidePane(isPhone);
+	const phoneDay = isPhone && view === "week";
 	const sidePaneRef = useRef(sidePane);
 	sidePaneRef.current = sidePane;
 	const newEventRef = useRef<HTMLButtonElement>(null);
@@ -336,12 +352,22 @@ export function CalendarScreen({ isPhone, detail }: CalendarScreenProps) {
 		<CalendarSessionContext.Provider value={sessionValue}>
 			<div className="flex h-full min-h-0 flex-col bg-surface text-fg">
 				<CalendarScreenToolbar
-					view={view}
-					title={calendarRangeTitle(view, date)}
+					view={phoneDay ? "day" : view}
+					views={isPhone ? PHONE_VIEWS : undefined}
+					title={
+						isPhone && timeGridDays?.length === 1
+							? new Intl.DateTimeFormat(undefined, {
+									weekday: "short",
+									day: "numeric",
+									month: "short",
+									timeZone: "UTC",
+								}).format(new Date(`${date}T00:00:00Z`))
+							: calendarRangeTitle(view, date)
+					}
 					weekNumber={weekNumber}
 					onChangeView={goToView}
-					onPrev={() => step(-1)}
-					onNext={() => step(1)}
+					onPrev={() => (phoneDay ? goToDate(addDays(date, -1)) : step(-1))}
+					onNext={() => (phoneDay ? goToDate(addDays(date, 1)) : step(1))}
 					onToday={goToToday}
 					touch={isPhone}
 					sidePane={{
@@ -368,6 +394,13 @@ export function CalendarScreen({ isPhone, detail }: CalendarScreenProps) {
 					)}
 					{!(isPhone && hasDetail) && (
 						<>
+							{isPhone && session.mode === "idle" && (
+								<NewEventSquare
+									onNewEvent={newEvent}
+									newEventRef={newEventRef}
+									className="fixed right-4 bottom-[calc(var(--app-tab-bar,0px)+1rem)] z-30 size-14 rounded-full"
+								/>
+							)}
 							{!sidePane.open && !isPhone && (
 								<NewEventSquare
 									onNewEvent={newEvent}
@@ -391,6 +424,7 @@ export function CalendarScreen({ isPhone, detail }: CalendarScreenProps) {
 							dispatch={dispatch}
 							onMoreOptions={moreOptions}
 							onSaved={saved}
+							touch={isPhone}
 						/>
 					)}
 					{hasDetail && (

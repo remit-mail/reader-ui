@@ -115,3 +115,19 @@ export const CalendarListFailed: Story = {
 		).toBeVisible();
 	},
 };
+
+export const PhoneDay: Story = {
+	name: "Phone day",
+	globals: { viewport: { value: "mobile", isRotated: false } },
+	play: async () => {
+		await expect(
+			(await page().findAllByText("Roadmap review"))[0],
+		).toBeVisible();
+		await expect(
+			page().getByRole("navigation", { name: "Apps" }),
+		).toBeVisible();
+		await expect(
+			page().getByRole("button", { name: "New event" }),
+		).toBeVisible();
+	},
+};

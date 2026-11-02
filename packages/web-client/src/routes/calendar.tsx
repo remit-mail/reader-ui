@@ -13,6 +13,7 @@ import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { AppFrame } from "../components/layout/AppFrame";
 import { AppShellSkeleton } from "../components/layout/AppShellSkeleton";
+import { useIsWritingEvent } from "../routing";
 import "../lib/client";
 
 export const Route = createFileRoute("/calendar")({
@@ -24,6 +25,7 @@ export const Route = createFileRoute("/calendar")({
 
 function CalendarLayout() {
 	const navigate = useNavigate();
+	const isWriting = useIsWritingEvent();
 	const {
 		data: config,
 		isLoading,
@@ -56,7 +58,7 @@ function CalendarLayout() {
 	}
 
 	return (
-		<AppFrame>
+		<AppFrame hideTabBar={isWriting}>
 			{isLoading || hasNoAccounts ? <AppShellSkeleton /> : <Outlet />}
 		</AppFrame>
 	);

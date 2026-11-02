@@ -1,11 +1,12 @@
 import type { CalendarViewId } from "@remit/ui";
 import {
+	useBlocker,
 	useNavigate,
 	useParams,
 	useRouter,
 	useSearch,
 } from "@tanstack/react-router";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import {
 	type CalendarSearch,
 	canonicalCalendarParams,
@@ -386,4 +387,23 @@ export function useChangeSuggestionOnCalendar(): (
 		},
 		[navigate],
 	);
+}
+
+/**
+ * Back answered by a layer that holds no address of its own: the phone's
+ * quick-create sheet, or an editor that asks before a touched draft goes.
+ * Only Back is caught, and only while `onBack` says it answered it; a
+ * navigation the app starts is never blocked.
+ */
+export function useBackCloses(active: boolean, onBack: () => boolean): void {
+	const latest = useRef(onBack);
+	latest.current = onBack;
+	useBlocker({
+		shouldBlockFn: ({ action }) => {
+			if (action !== "BACK") return false;
+			return latest.current();
+		},
+		enableBeforeUnload: false,
+		disabled: !active,
+	});
 }

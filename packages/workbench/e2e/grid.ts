@@ -54,3 +54,32 @@ export async function clickSlot(
 	const point = await slotPoint(page, dayIndex, minute, days);
 	await page.mouse.click(point.x, point.y);
 }
+
+/** A finger held still on a point, then dragged and lifted, through CDP touch events. */
+export async function holdAndDrag(
+	page: Page,
+	from: { x: number; y: number },
+	to: { x: number; y: number },
+	holdMs: number,
+): Promise<void> {
+	const cdp = await page.context().newCDPSession(page);
+	const touch = (
+		type: "touchStart" | "touchMove" | "touchEnd",
+		point: { x: number; y: number },
+	) =>
+		cdp.send("Input.dispatchTouchEvent", {
+			type,
+			touchPoints: type === "touchEnd" ? [] : [{ x: point.x, y: point.y }],
+		});
+	await touch("touchStart", from);
+	await page.waitForTimeout(holdMs);
+	const steps = 6;
+	for (let step = 1; step <= steps; step += 1) {
+		await touch("touchMove", {
+			x: from.x + ((to.x - from.x) * step) / steps,
+			y: from.y + ((to.y - from.y) * step) / steps,
+		});
+	}
+	await touch("touchEnd", to);
+	await cdp.detach();
+}
