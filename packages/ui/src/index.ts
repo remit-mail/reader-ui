@@ -194,6 +194,10 @@ export {
 	CalendarFailureBlock,
 } from "./components/calendar-event-popup.js";
 export {
+	CalendarEventSidebar,
+	type CalendarEventSidebarProps,
+} from "./components/calendar-event-sidebar.js";
+export {
 	CalendarFailureNote,
 	type CalendarFailureNoteProps,
 } from "./components/calendar-failure-note.js";
