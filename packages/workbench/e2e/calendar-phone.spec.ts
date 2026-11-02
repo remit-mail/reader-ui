@@ -1,6 +1,13 @@
 import { expect, type Page, test } from "playwright/test";
 import { holdAndDrag, slotPoint } from "./grid";
-import { amsterdam, deleteRackEvents, isoDate, weekDay } from "./rack";
+import {
+	amsterdam,
+	createRackEvent,
+	deleteRackEvents,
+	isoDate,
+	rackCalendar,
+	weekDay,
+} from "./rack";
 
 const PREFIX = "e2e phone";
 const apps = (page: Page) => page.getByRole("navigation", { name: "Apps" });
@@ -172,4 +179,31 @@ test("Back on a touched draft in the editor asks first", async ({ page }) => {
 	await confirm.getByRole("button", { name: "Discard" }).click();
 	await expect(editor).toHaveCount(0);
 	await expect(page).toHaveURL(new RegExp(`${day}$`));
+});
+
+test("a hold on an event lifts it, and a drag moves it", async ({ page }) => {
+	await createRackEvent({
+		calendarId: await rackCalendar("work"),
+		summary: `${PREFIX} held`,
+		start: amsterdam(weekDay(2), "06:00"),
+		end: amsterdam(weekDay(2), "07:00"),
+		timeZone: "Europe/Amsterdam",
+	});
+	await page.goto(day);
+	await slotPoint(page, 0, 6 * 60, 1);
+	const chip = page.locator("[data-event-id]", { hasText: `${PREFIX} held` });
+	const box = await chip.boundingBox();
+	if (!box) throw new Error("no chip");
+	const from = { x: box.x + box.width / 2, y: box.y + 8 };
+	const saved = page.waitForResponse(
+		(response) => response.request().method() === "PATCH",
+	);
+	await holdAndDrag(page, from, { x: from.x, y: from.y + 96 }, 650);
+	await saved;
+	await page.reload();
+	await slotPoint(page, 0, 8 * 60, 1);
+	await page.locator("[data-event-id]", { hasText: `${PREFIX} held` }).click();
+	await expect(
+		page.getByRole("dialog", { name: `${PREFIX} held` }),
+	).toContainText("08:00");
 });
