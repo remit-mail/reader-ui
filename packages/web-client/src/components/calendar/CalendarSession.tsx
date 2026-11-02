@@ -33,3 +33,8 @@ export function useCalendarSession(): CalendarSessionValue {
 	if (!value) throw new Error("the calendar session is not mounted");
 	return value;
 }
+
+/** The session where a calendar screen holds one; a surface mounted alone has none. */
+export function useOptionalCalendarSession(): CalendarSessionValue | null {
+	return useContext(CalendarSessionContext);
+}

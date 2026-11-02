@@ -449,7 +449,9 @@ export function CalendarScreen({ isPhone, detail }: CalendarScreenProps) {
 									className="absolute top-2 left-2 z-20"
 								/>
 							)}
-							<PendingSuggestions onChangeFirst={changeSuggestionFirst} />
+							{!isWriting && (
+								<PendingSuggestions onChangeFirst={changeSuggestionFirst} />
+							)}
 							<div
 								data-calendar-body=""
 								className="flex min-h-0 min-w-0 flex-1 flex-col"
