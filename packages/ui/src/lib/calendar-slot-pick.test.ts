@@ -1,9 +1,15 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+	allDayRange,
+	clickRange,
+	isDrag,
 	isDraggedSelection,
+	minuteAt,
 	pointPick,
+	rangeMinutes,
 	rangePick,
+	timedRange,
 } from "./calendar-slot-pick.js";
 
 describe("pointPick", () => {
@@ -156,5 +162,62 @@ describe("isDraggedSelection", () => {
 			),
 			false,
 		);
+	});
+});
+
+describe("dragging a range", () => {
+	it("calls a press that moved less than 4 pixels a click", () => {
+		assert.equal(isDrag(3, 0), false);
+		assert.equal(isDrag(2, 2), false);
+		assert.equal(isDrag(0, 4), true);
+	});
+
+	it("snaps to the quarter hour the pointer is over", () => {
+		assert.equal(minuteAt(0, 48), 0);
+		assert.equal(minuteAt(47, 48), 45);
+		assert.equal(minuteAt(48 * 9 + 13, 48), 9 * 60 + 15);
+		assert.equal(minuteAt(48 * 30, 48), 1425);
+		assert.equal(minuteAt(-5, 48), 0);
+	});
+
+	it("keeps a timed range in the column it started in, either way up", () => {
+		assert.deepEqual(timedRange("2026-11-04", 8 * 60, 9 * 60 + 30), {
+			date: "2026-11-04",
+			endDate: "2026-11-04",
+			startTime: "08:00",
+			endTime: "09:45",
+			allDay: false,
+		});
+		assert.deepEqual(
+			timedRange("2026-11-04", 9 * 60 + 30, 8 * 60),
+			timedRange("2026-11-04", 8 * 60, 9 * 60 + 30),
+		);
+	});
+
+	it("ends a drag to the bottom at the next midnight", () => {
+		const late = timedRange("2026-11-04", 23 * 60, 23 * 60 + 45);
+		assert.equal(late.endDate, "2026-11-05");
+		assert.equal(late.endTime, "00:00");
+		assert.deepEqual(rangeMinutes(late), { start: 23 * 60, end: 1440 });
+	});
+
+	it("selects an hour from the quarter a click lands on", () => {
+		assert.deepEqual(clickRange("2026-11-04", 14 * 60 + 15), {
+			date: "2026-11-04",
+			endDate: "2026-11-04",
+			startTime: "14:15",
+			endTime: "15:15",
+			allDay: false,
+		});
+	});
+
+	it("spans days in the all-day row, in either direction", () => {
+		assert.deepEqual(allDayRange("2026-11-06", "2026-11-03"), {
+			date: "2026-11-03",
+			endDate: "2026-11-06",
+			startTime: "",
+			endTime: "",
+			allDay: true,
+		});
 	});
 });

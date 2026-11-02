@@ -23,9 +23,8 @@ export function CalendarSidePane({
 	className,
 }: CalendarSidePaneProps) {
 	return (
-		<div
+		<section
 			id={id}
-			role="region"
 			aria-label="Calendar side pane"
 			className={cn(
 				"flex w-64 shrink-0 flex-col gap-4 overflow-y-auto bg-surface px-3 py-3",
@@ -46,7 +45,7 @@ export function CalendarSidePane({
 				<h2 className="px-1 text-sm font-medium text-fg">My calendars</h2>
 				{calendars}
 			</section>
-		</div>
+		</section>
 	);
 }
 

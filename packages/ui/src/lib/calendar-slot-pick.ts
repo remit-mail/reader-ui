@@ -73,3 +73,96 @@ export function isDraggedSelection(
 	if (allDay) return Math.round(span / MS_PER_DAY) > 1;
 	return span / MS_PER_MINUTE > slotMinutes;
 }
+
+/** Every range on the grid snaps to a quarter hour, as in Google Calendar. */
+export const SNAP_MINUTES = 15;
+
+/** A press that travels less than this is a click, not a drag. */
+export const CLICK_THRESHOLD_PX = 4;
+
+const MINUTES_PER_DAY = 1440;
+
+/** Whether a press moved far enough to be a drag. */
+export function isDrag(dx: number, dy: number): boolean {
+	return Math.hypot(dx, dy) >= CLICK_THRESHOLD_PX;
+}
+
+/** The quarter hour a vertical offset falls in, from midnight. */
+export function minuteAt(offsetY: number, hourHeight: number): number {
+	const minutes = (offsetY / hourHeight) * 60;
+	const snapped = Math.floor(minutes / SNAP_MINUTES) * SNAP_MINUTES;
+	return Math.min(Math.max(snapped, 0), MINUTES_PER_DAY - SNAP_MINUTES);
+}
+
+const pad = (value: number): string => String(value).padStart(2, "0");
+
+/** `HH:MM` for minutes from midnight. */
+export function clockAt(minutes: number): string {
+	return `${pad(Math.floor(minutes / 60))}:${pad(minutes % 60)}`;
+}
+
+/** Minutes from midnight for `HH:MM`. */
+export function minutesOf(clock: string): number {
+	const [hours, minutes] = clock.split(":").map(Number);
+	return hours * 60 + minutes;
+}
+
+/**
+ * A timed range dragged in one column, from the slot pressed to the slot the
+ * pointer is over, inclusive of both. A drag that runs to the bottom ends at
+ * midnight, which is the next day's `00:00`.
+ */
+export function timedRange(
+	date: string,
+	anchorMinute: number,
+	currentMinute: number,
+): CalendarSlotPick {
+	const start = Math.min(anchorMinute, currentMinute);
+	const end = Math.max(anchorMinute, currentMinute) + SNAP_MINUTES;
+	return slotRange(date, start, end);
+}
+
+/** A range on one day from minutes, rolling an end at midnight onto the next day. */
+export function slotRange(
+	date: string,
+	startMinute: number,
+	endMinute: number,
+): CalendarSlotPick {
+	const atMidnight = endMinute >= MINUTES_PER_DAY;
+	return {
+		date,
+		endDate: atMidnight ? addDays(date, 1) : date,
+		startTime: clockAt(startMinute),
+		endTime: atMidnight ? "00:00" : clockAt(endMinute),
+		allDay: false,
+	};
+}
+
+/** The hour a click lands on: from the quarter pressed, an hour long. */
+export function clickRange(date: string, minute: number): CalendarSlotPick {
+	return slotRange(date, minute, minute + DRAFT_MINUTES);
+}
+
+/** An all-day range across whichever days the drag covered, in either direction. */
+export function allDayRange(anchor: string, current: string): CalendarSlotPick {
+	const [first, last] =
+		anchor <= current ? [anchor, current] : [current, anchor];
+	return {
+		date: first,
+		endDate: last,
+		startTime: "",
+		endTime: "",
+		allDay: true,
+	};
+}
+
+/** Minutes the range covers on its first day, end exclusive. */
+export function rangeMinutes(range: CalendarSlotPick): {
+	start: number;
+	end: number;
+} {
+	const start = minutesOf(range.startTime);
+	const end =
+		range.endDate > range.date ? MINUTES_PER_DAY : minutesOf(range.endTime);
+	return { start, end };
+}

@@ -227,6 +227,13 @@ export {
 	type CalendarSuggestionDeckProps,
 } from "./components/calendar-suggestion-deck.js";
 export {
+	CalendarTimeGrid,
+	type CalendarTimeGridProps,
+	describeRange,
+	type GridDraft,
+	type GridGesture,
+} from "./components/calendar-time-grid.js";
+export {
 	CalendarDateNav,
 	type CalendarDateNavProps,
 	CalendarViewSwitch,
@@ -1030,10 +1037,19 @@ export {
 	weekStart,
 } from "./lib/calendar-range.js";
 export {
+	allDayRange,
+	CLICK_THRESHOLD_PX,
+	clickRange,
+	clockAt,
 	DRAFT_MINUTES,
 	isDraggedSelection,
+	minutesOf,
 	pointPick,
+	rangeMinutes,
 	rangePick,
+	SNAP_MINUTES,
+	slotRange,
+	timedRange,
 } from "./lib/calendar-slot-pick.js";
 export {
 	buildCidResolver,
@@ -1089,6 +1105,7 @@ export {
 	isFocusable,
 	isSelectable,
 } from "./lib/folder-tree-focus.js";
+export { type GridSlot, initialFocus } from "./lib/grid-keyboard.js";
 export { isoWeek } from "./lib/iso-week.js";
 export {
 	defaultKeyboardHints,
@@ -1185,6 +1202,7 @@ export {
 	type SuggestKeyState,
 	suggestKeyAction,
 } from "./lib/suggest-keys.js";
+export { zonedMoment } from "./lib/time-grid-layout.js";
 export { type ListCursor, useListCursor } from "./lib/use-list-cursor.js";
 export {
 	type ListKeyboard,
