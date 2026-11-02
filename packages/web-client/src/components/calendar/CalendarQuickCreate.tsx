@@ -49,7 +49,8 @@ export function eventDraftOf(draft: SessionDraft): EventDraft {
 export interface CalendarQuickCreateProps {
 	session: Extract<DraftSession, { mode: "quick" }>;
 	dispatch: Dispatch<SessionAction>;
-	onMoreOptions: () => void;
+	/** Carries the label of the field that had focus, so the sidebar can keep it. */
+	onMoreOptions: (focusedLabel: string) => void;
 	onSaved: (calendarObjectId: string) => void;
 	/** The sheet on a phone wraps the card itself. */
 	render?: (card: ReactNode) => ReactNode;
@@ -107,7 +108,10 @@ export function CalendarQuickCreate({
 		const card = cardRef.current;
 		if (!card) return;
 		const remember = (event: FocusEvent) => {
-			if (event.target instanceof HTMLElement)
+			if (
+				event.target instanceof HTMLInputElement ||
+				event.target instanceof HTMLSelectElement
+			)
 				lastFocused.current = event.target;
 		};
 		card.addEventListener("focusin", remember);
@@ -160,7 +164,9 @@ export function CalendarQuickCreate({
 				calendars={calendars}
 				onChange={(fields) => dispatch({ type: "change", draft: fields })}
 				onSave={save}
-				onMoreOptions={onMoreOptions}
+				onMoreOptions={() =>
+					onMoreOptions(lastFocused.current?.getAttribute("aria-label") ?? "")
+				}
 				onClose={() => dispatch({ type: "outside" })}
 				saving={session.status === "saving"}
 				problem={problem}

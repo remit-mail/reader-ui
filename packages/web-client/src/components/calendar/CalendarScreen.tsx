@@ -22,6 +22,7 @@ import {
 	type ReactNode,
 	useCallback,
 	useEffect,
+	useMemo,
 	useReducer,
 	useRef,
 	useState,
@@ -40,17 +41,19 @@ import {
 	writeCalendarDensity,
 } from "../../lib/calendar-density";
 import { calendarViewMountsAgenda, isoDate } from "../../lib/calendar-route";
+import { searchFromRange } from "../../lib/new-event-range";
 import {
 	useCalendarAddress,
 	useCalendarNavigation,
+	useEditingEvent,
 	useIsWritingEvent,
 	useOpenCalendarEvent,
 } from "../../routing";
 import { AgendaView } from "./AgendaView";
-import { CalendarComposeSeedProvider } from "./CalendarComposeSeed";
 import { CalendarLoadFailed } from "./CalendarLoadFailed";
 import { CALENDAR_SIDE_PANE_ID, CalendarNavPane } from "./CalendarNavPane";
 import { CalendarQuickCreate } from "./CalendarQuickCreate";
+import { CalendarSessionContext } from "./CalendarSession";
 import { PendingSuggestions } from "./PendingSuggestions";
 
 /** Presses the grid answers itself, and the popups they open. */
@@ -90,20 +93,21 @@ export function CalendarScreen({ isPhone, detail }: CalendarScreenProps) {
 		goToToday,
 		step,
 		openEvent,
-		openComposer,
+		openNewEvent,
 		closeEvent,
 		changeSuggestionFirst,
 		zoomToDay,
 		dayHref,
 	} = useCalendarNavigation();
-	const openedEvent = useOpenCalendarEvent();
+	const editingEvent = useEditingEvent();
+	const routedEvent = useOpenCalendarEvent();
+	const openedEvent = editingEvent ? undefined : routedEvent;
 	const isWriting = useIsWritingEvent();
 	const [density, setDensity] = useState(readCalendarDensity);
 	const changeDensity = useCallback((next: Density) => {
 		writeCalendarDensity(next);
 		setDensity(next);
 	}, []);
-	const [pick, setPick] = useState<CalendarSlotPick | undefined>(undefined);
 
 	const selectEvent = useCallback(
 		(eventId: string) => {
@@ -113,13 +117,9 @@ export function CalendarScreen({ isPhone, detail }: CalendarScreenProps) {
 		[instanceOf, openEvent],
 	);
 
-	const pickSlot = useCallback(
-		(slot: CalendarSlotPick) => {
-			setPick(slot);
-			openComposer();
-		},
-		[openComposer],
-	);
+	const pickSlot = useCallback((slot: CalendarSlotPick) => {
+		dispatch({ type: "new-event", range: slot });
+	}, []);
 
 	const hasDetail = isWriting;
 	const [session, dispatch] = useReducer(draftSessionReducer, IDLE);
@@ -170,6 +170,8 @@ export function CalendarScreen({ isPhone, detail }: CalendarScreenProps) {
 			if (target === null || target === "drag") return;
 			event.preventDefault();
 			if (target === "event-popup") closeEvent();
+			else if (target === "sidebar") requestClose.current?.();
+			else if (target === "nav") sidePaneRef.current?.setNavOpen(false);
 			else dispatch({ type: "escape", layers: layersRef.current });
 		};
 		window.addEventListener("keydown", onKeyDown);
@@ -195,16 +197,35 @@ export function CalendarScreen({ isPhone, detail }: CalendarScreenProps) {
 		chip.focus();
 		setFocusAfterSave("");
 	}, [focusAfterSave, events]);
-	const moreOptions = useCallback(() => {
-		if (sessionRef.current.mode !== "quick") return;
-		setPick(sessionRef.current.draft.range);
-		dispatch({ type: "expand" });
-		openComposer();
-	}, [openComposer]);
+	const requestClose = useRef<(() => void) | null>(null);
+	const carriedFocus = useRef("");
+	const moreOptions = useCallback(
+		(focusedLabel: string) => {
+			if (sessionRef.current.mode !== "quick") return;
+			carriedFocus.current = focusedLabel;
+			const bounds = searchFromRange(
+				sessionRef.current.draft.range,
+				deviceTimeZone(),
+			);
+			dispatch({ type: "expand" });
+			openNewEvent(bounds);
+		},
+		[openNewEvent],
+	);
 	const saved = useCallback((calendarObjectId: string) => {
 		savedRef.current = true;
 		setFocusAfterSave(calendarObjectId);
 	}, []);
+	const sessionValue = useMemo(
+		() => ({
+			session,
+			dispatch,
+			requestClose,
+			carriedFocus,
+			focusSaved: saved,
+		}),
+		[session, saved],
+	);
 	useEffect(() => {
 		if (!isWriting) dispatch({ type: "sidebar-closed" });
 	}, [isWriting]);
@@ -218,6 +239,7 @@ export function CalendarScreen({ isPhone, detail }: CalendarScreenProps) {
 						? "draft"
 						: "selection",
 				warning: session.mode === "quick" && session.status === "failed",
+				handles: session.mode === "sidebar",
 			}
 		: undefined;
 	const now = new Date().toISOString();
@@ -234,6 +256,8 @@ export function CalendarScreen({ isPhone, detail }: CalendarScreenProps) {
 			)
 		: "";
 	const sidePane = useCalendarSidePane(isPhone);
+	const sidePaneRef = useRef(sidePane);
+	sidePaneRef.current = sidePane;
 	const newEventRef = useRef<HTMLButtonElement>(null);
 	const newEvent = useCallback(() => {
 		const today = isoDate(new Date());
@@ -309,7 +333,7 @@ export function CalendarScreen({ isPhone, detail }: CalendarScreenProps) {
 	);
 
 	return (
-		<CalendarComposeSeedProvider pick={pick}>
+		<CalendarSessionContext.Provider value={sessionValue}>
 			<div className="flex h-full min-h-0 flex-col bg-surface text-fg">
 				<CalendarScreenToolbar
 					view={view}
@@ -397,6 +421,6 @@ export function CalendarScreen({ isPhone, detail }: CalendarScreenProps) {
 					/>
 				</Dialog>
 			)}
-		</CalendarComposeSeedProvider>
+		</CalendarSessionContext.Provider>
 	);
 }

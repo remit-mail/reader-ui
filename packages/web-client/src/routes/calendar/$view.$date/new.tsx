@@ -1,20 +1,15 @@
 /**
- * /calendar/{view}/{date}/new — writing an event.
+ * /calendar/{view}/{date}/new — the advanced sidebar on a new event.
  *
- * A sibling of the event route, so navigating here unmatches whatever the
- * calendar had open in the same transition: nothing has to be closed first, and
- * a composer over an open event is unrepresentable. The address is exactly the
- * move `compose` makes over a mail list.
+ * `start` and `end` hold the draft's range (R2): changing them mounts nothing
+ * new, and a reload comes back on the same range. The typed fields travel in
+ * memory and do not survive a reload.
  */
 import { createFileRoute } from "@tanstack/react-router";
-import { WriteCalendarEvent } from "../../../components/calendar/WriteCalendarEvent";
-import { useCalendarNavigation } from "../../../routing";
-
-function CalendarComposeRoute() {
-	const { closeEvent } = useCalendarNavigation();
-	return <WriteCalendarEvent onClose={closeEvent} />;
-}
+import { CalendarNewEventSidebar } from "../../../components/calendar/CalendarEventEditor";
+import { newEventSearchSchema } from "../../../lib/new-event-range";
 
 export const Route = createFileRoute("/calendar/$view/$date/new")({
-	component: CalendarComposeRoute,
+	validateSearch: newEventSearchSchema,
+	component: CalendarNewEventSidebar,
 });

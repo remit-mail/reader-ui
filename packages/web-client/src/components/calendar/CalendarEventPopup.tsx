@@ -55,7 +55,7 @@ export function CalendarEventPopup({
 		calendarIds,
 	});
 	const { calendars } = useCalendars();
-	const { closeEvent } = useCalendarNavigation();
+	const { closeEvent, openEditor } = useCalendarNavigation();
 	const { deleteEvent, isWriting } = useCalendarWrites();
 	const headingId = useId();
 	const headingRef = useRef<HTMLHeadingElement>(null);
@@ -251,6 +251,11 @@ export function CalendarEventPopup({
 				location={stored?.location ?? ""}
 				calendarName={calendar?.name ?? ""}
 				availability={freeIds.has(event.id) ? "Free" : "Busy"}
+				onEdit={
+					writable
+						? () => openEditor(calendarObjectId, recurrenceId)
+						: undefined
+				}
 				onDelete={
 					writable
 						? () => (repeats ? setAsking(true) : remove(undefined))

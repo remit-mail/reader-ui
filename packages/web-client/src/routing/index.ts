@@ -12,7 +12,9 @@ export {
 	useCalendarNavigation,
 	useChangeSuggestionOnCalendar,
 	useChangingSuggestionId,
+	useEditingEvent,
 	useIsWritingEvent,
+	useNewEventBounds,
 	useOpenCalendarEvent,
 	useOpenEventOnCalendar,
 } from "./calendar";

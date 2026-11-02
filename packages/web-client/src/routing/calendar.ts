@@ -87,7 +87,41 @@ export function useChangingSuggestionId(): string | undefined {
 		?.suggestionId;
 }
 
+/** The stored event the sidebar is editing, if the address has one open. */
+export function useEditingEvent(): OpenCalendarEvent | undefined {
+	const series = useParams({
+		from: "/calendar/$view/$date/$calendarObjectId/edit",
+		shouldThrow: false,
+	});
+	const occurrence = useParams({
+		from: "/calendar/$view/$date/$calendarObjectId/$recurrenceId/edit",
+		shouldThrow: false,
+	});
+	const calendarObjectId =
+		series?.calendarObjectId ?? occurrence?.calendarObjectId;
+	const recurrenceId = occurrence?.recurrenceId;
+	return useMemo(
+		() => (calendarObjectId ? { calendarObjectId, recurrenceId } : undefined),
+		[calendarObjectId, recurrenceId],
+	);
+}
+
+/** The range `/new` names in its query, unread until a sidebar reads it. */
+export function useNewEventBounds():
+	| { start: string | undefined; end: string | undefined }
+	| undefined {
+	const search = useSearch({
+		from: "/calendar/$view/$date/new",
+		shouldThrow: false,
+	});
+	const start = search?.start;
+	const end = search?.end;
+	const open = search !== undefined;
+	return useMemo(() => (open ? { start, end } : undefined), [open, start, end]);
+}
+
 export function useIsWritingEvent(): boolean {
+	const editing = useEditingEvent();
 	const composer = useParams({
 		from: "/calendar/$view/$date/new",
 		shouldThrow: false,
@@ -96,7 +130,9 @@ export function useIsWritingEvent(): boolean {
 		from: SUGGESTION_ROUTE,
 		shouldThrow: false,
 	});
-	return composer !== undefined || changing !== undefined;
+	return (
+		composer !== undefined || changing !== undefined || editing !== undefined
+	);
 }
 
 export interface CalendarNavigation {
@@ -126,6 +162,14 @@ export interface CalendarNavigation {
 	openEvent: (calendarObjectId: string, recurrenceId?: string) => void;
 	closeEvent: () => void;
 	openComposer: () => void;
+	/** The advanced sidebar on a new event over a range, as `start` and `end`. */
+	openNewEvent: (bounds: { start: string; end: string }) => void;
+	/** A new range for the open sidebar, by replace. */
+	setNewEventBounds: (bounds: { start: string; end: string }) => void;
+	/** The advanced sidebar on a stored event. */
+	openEditor: (calendarObjectId: string, recurrenceId?: string) => void;
+	/** Back to the calendar from the sidebar. */
+	closeEditor: () => void;
 	changeSuggestionFirst: (suggestionId: string, date: string) => void;
 }
 
@@ -223,6 +267,59 @@ export function useCalendarNavigation(): CalendarNavigation {
 					to: VIEW_ROUTE,
 					params: { view, date },
 					search: true,
+					hash: retainPanels,
+					replace: true,
+				});
+			},
+			openNewEvent: (bounds: { start: string; end: string }) =>
+				navigate({
+					to: "/calendar/$view/$date/new",
+					params: { view, date },
+					search: (previous: CalendarSearch) => ({ ...previous, ...bounds }),
+					hash: retainPanels,
+					replace: popupOpen,
+					state: { calendarPopup: true },
+				}),
+			setNewEventBounds: (bounds: { start: string; end: string }) =>
+				navigate({
+					to: "/calendar/$view/$date/new",
+					params: { view, date },
+					search: (previous: CalendarSearch) => ({ ...previous, ...bounds }),
+					hash: true,
+					replace: true,
+					state: (previous) => previous,
+				}),
+			openEditor: (calendarObjectId: string, recurrenceId?: string) =>
+				recurrenceId === undefined || recurrenceId === ""
+					? navigate({
+							to: "/calendar/$view/$date/$calendarObjectId/edit",
+							params: { view, date, calendarObjectId },
+							search: true,
+							hash: retainPanels,
+							replace: popupOpen,
+							state: { calendarPopup: true },
+						})
+					: navigate({
+							to: "/calendar/$view/$date/$calendarObjectId/$recurrenceId/edit",
+							params: { view, date, calendarObjectId, recurrenceId },
+							search: true,
+							hash: retainPanels,
+							replace: popupOpen,
+							state: { calendarPopup: true },
+						}),
+			closeEditor: () => {
+				if (router.state.location.state.calendarPopup === true) {
+					router.history.back();
+					return;
+				}
+				navigate({
+					to: VIEW_ROUTE,
+					params: { view, date },
+					search: (
+						previous: CalendarSearch & { start?: string; end?: string },
+					) => ({
+						calendarId: previous.calendarId,
+					}),
 					hash: retainPanels,
 					replace: true,
 				});
