@@ -23,6 +23,7 @@ import {
 	handleMutationCacheError,
 	handleQueryCacheError,
 } from "../../lib/query-error-handler";
+import { isSignedOut, resetSignedOut } from "../../lib/signed-out";
 import { createDomHarness, type DomHarness } from "../../test-support/dom";
 import {
 	type HttpCall,
@@ -47,6 +48,7 @@ afterEach(() => {
 	http = undefined;
 	writes = undefined;
 	__resetFatalError();
+	resetSignedOut();
 });
 
 const calendars: RemitImapCalendarResponse[] = [
@@ -281,12 +283,12 @@ describe("a session that has lapsed", () => {
 			{ escalating: true, calendarsRespond: false },
 		);
 		assert.ok(
-			harness?.query('[data-testid="fatal-error-overlay"]'),
+			isSignedOut(),
 			"a refused read must not be drawn as a week with nothing in it",
 		);
 	});
 
-	it("escalates a refused calendar list rather than showing no calendars", async () => {
+	it("takes a refused calendar list to the signed-out notice rather than showing no calendars", async () => {
 		await mount(
 			(call) =>
 				call.path.endsWith("/calendars")
@@ -294,7 +296,7 @@ describe("a session that has lapsed", () => {
 					: { items: [] },
 			{ escalating: true, calendarsRespond: false },
 		);
-		assert.ok(harness?.query('[data-testid="fatal-error-overlay"]'));
+		assert.ok(isSignedOut());
 	});
 
 	it("takes the reader to the page that signs them back in", async () => {
@@ -314,9 +316,7 @@ describe("a session that has lapsed", () => {
 			}),
 		);
 
-		assert.ok(
-			harness?.query('[data-testid="fatal-error-overlay"]'),
-			"no banner on a calendar signs anybody back in",
-		);
+		assert.ok(isSignedOut(), "the write's 401 reaches the signed-out notice");
+		assert.equal(harness?.query('[data-testid="fatal-error-overlay"]'), null);
 	});
 });

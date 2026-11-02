@@ -1,6 +1,7 @@
 import type { Mutation, Query } from "@tanstack/react-query";
 import { shouldEscalate } from "./error-classifier";
 import { reportFatalError } from "./fatal-error";
+import { isSignedOutError, reportSignedOut } from "./signed-out";
 
 /**
  * Global React Query error sink. Every query and mutation error flows through
@@ -24,6 +25,10 @@ export const handleQueryCacheError = (
 	error: Error,
 	query: Query<unknown, unknown, unknown>,
 ): void => {
+	if (isSignedOutError(error)) {
+		reportSignedOut();
+		return;
+	}
 	if (shouldEscalate(error, query.meta, "nobody")) {
 		reportFatalError(error);
 	}
@@ -35,6 +40,10 @@ export const handleMutationCacheError = (
 	_onMutateResult: unknown,
 	mutation: Mutation<unknown, unknown, unknown>,
 ): void => {
+	if (isSignedOutError(error)) {
+		reportSignedOut();
+		return;
+	}
 	if (shouldEscalate(error, mutation.meta, "user")) {
 		reportFatalError(error);
 	}

@@ -15,13 +15,19 @@ import {
 	FatalErrorOverlay,
 	FatalErrorScreen,
 } from "../components/ui/FatalErrorOverlay";
+import { SignedOutOverlay } from "../components/ui/SignedOutOverlay";
 import { SelfUpdateProvider } from "../hooks/use-system-update";
 import { isServerError } from "../lib/error-classifier";
 import { reportFatalError } from "../lib/fatal-error";
+import { isSignedOutError, reportSignedOut } from "../lib/signed-out";
 import type { RouterContext } from "../router";
 import { getRuntimeConfig } from "../runtime-config";
 
 const RootErrorComponent = ({ error, reset, info }: ErrorComponentProps) => {
+	if (isSignedOutError(error)) {
+		reportSignedOut();
+		return <SignedOutOverlay />;
+	}
 	// Everything that bubbles to the route boundary escalates to the loud
 	// full-screen fatal page — never the soft grey "Something went wrong" that
 	// implied recovery. A bubbled 5xx is transient (Retry re-runs the loader via
@@ -87,6 +93,7 @@ function RootLayout() {
 				</BulkRunProvider>
 			</RoleAppointmentPromptProvider>
 			<FatalErrorOverlay />
+			<SignedOutOverlay />
 		</ErrorBannerProvider>
 	);
 }

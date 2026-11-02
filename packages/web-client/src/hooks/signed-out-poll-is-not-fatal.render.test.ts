@@ -28,6 +28,7 @@ import {
 	handleMutationCacheError,
 	handleQueryCacheError,
 } from "../lib/query-error-handler";
+import { isSignedOut, resetSignedOut } from "../lib/signed-out";
 import { createDomHarness, type DomHarness } from "../test-support/dom";
 import { type HttpMock, httpError, mockFetch } from "../test-support/http";
 import { SelfUpdateProvider } from "./use-system-update";
@@ -41,6 +42,7 @@ afterEach(() => {
 	http?.restore();
 	http = undefined;
 	__resetFatalError();
+	resetSignedOut();
 });
 
 const escalatingClient = (): QueryClient =>
@@ -72,7 +74,7 @@ const SoftWrite = () => {
 };
 
 describe("a 401 and who was waiting on it", () => {
-	it("leaves the app standing when the root update poll is signed out", async () => {
+	it("shows the signed-out notice, not the fatal page, when the root update poll is signed out", async () => {
 		http = mockFetch((call) => {
 			if (call.path.endsWith("/system/update")) {
 				return httpError(401, "session expired");
@@ -102,9 +104,10 @@ describe("a 401 and who was waiting on it", () => {
 			null,
 			"a background poll's 401 must not take the whole app down",
 		);
+		assert.ok(isSignedOut(), "the 401 says the session is gone");
 	});
 
-	it("still escalates a soft write's 401 — no banner signs anyone back in", async () => {
+	it("takes a soft write's 401 to the signed-out notice", async () => {
 		harness = createDomHarness({ queryClient: escalatingClient() });
 		harness.renderApp(
 			createElement(
@@ -118,9 +121,7 @@ describe("a 401 and who was waiting on it", () => {
 		await harness.wait(50);
 		await harness.flush();
 
-		assert.ok(
-			fatalOverlay(),
-			"a signed-out session must reach the page that signs back in",
-		);
+		assert.ok(isSignedOut(), "a signed-out session must reach the notice");
+		assert.equal(fatalOverlay(), null);
 	});
 });
