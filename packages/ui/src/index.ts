@@ -96,6 +96,13 @@ export {
 	type TouchSeed,
 	useContainerWidth,
 } from "./components/app-shell-types.js";
+export {
+	AppBar,
+	type AppId,
+	type AppSwitcherProps,
+	type AppSwitchItem,
+	AppTabBar,
+} from "./components/app-switcher.js";
 export { AppTopBar, type AppTopBarProps } from "./components/app-top-bar.js";
 export {
 	type AttachmentDownloadState,
