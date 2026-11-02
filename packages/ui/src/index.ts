@@ -209,6 +209,10 @@ export {
 	calendarParseNote,
 } from "./components/calendar-parse-badge.js";
 export {
+	CalendarScreenToolbar,
+	type CalendarScreenToolbarProps,
+} from "./components/calendar-screen-toolbar.js";
+export {
 	CalendarSlotOffers,
 	type CalendarSlotOffersProps,
 } from "./components/calendar-slot-offers.js";
@@ -1014,6 +1018,11 @@ export {
 	calendarEventBodyClasses,
 } from "./lib/calendar-event-shell.js";
 export {
+	calendarRangeTitle,
+	datesFrom,
+	weekStart,
+} from "./lib/calendar-range.js";
+export {
 	DRAFT_MINUTES,
 	isDraggedSelection,
 	pointPick,
@@ -1073,6 +1082,7 @@ export {
 	isFocusable,
 	isSelectable,
 } from "./lib/folder-tree-focus.js";
+export { isoWeek } from "./lib/iso-week.js";
 export {
 	defaultKeyboardHints,
 	KEY_HINT_GROUPS,
