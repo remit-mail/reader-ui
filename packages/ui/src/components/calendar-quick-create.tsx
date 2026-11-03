@@ -137,30 +137,31 @@ export function CalendarQuickCreateCard({
 						"border-b-2 border-line bg-transparent pb-1 text-xl text-fg outline-none placeholder:text-fg-subtle focus:border-accent",
 					)}
 				/>
-				<div
-					role="radiogroup"
-					aria-label="Kind"
-					className="flex gap-1 self-start rounded-md bg-surface-sunken p-0.5 text-sm"
-				>
+				<fieldset className="flex gap-1 self-start rounded-md bg-surface-sunken p-0.5 text-sm">
+					<legend className="sr-only">Kind</legend>
 					{(["event", "task"] as const).map((kind) => (
-						<button
+						<label
 							key={kind}
-							type="button"
-							role="radio"
-							aria-checked={fields.kind === kind}
-							onClick={() => switchKind(kind)}
 							className={cn(
-								"rounded px-3 py-1 font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring",
+								"cursor-pointer rounded px-3 py-1 font-medium has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring",
 								fields.kind === kind
 									? "bg-surface text-fg shadow-sm"
 									: "text-fg-muted",
 								touch && "min-h-11",
 							)}
 						>
+							<input
+								type="radio"
+								name={`${headingId}-kind`}
+								value={kind}
+								checked={fields.kind === kind}
+								onChange={() => switchKind(kind)}
+								className="sr-only"
+							/>
 							{kind === "event" ? "Event" : "Task"}
-						</button>
+						</label>
 					))}
-				</div>
+				</fieldset>
 				{isTask ? (
 					<div className="flex flex-wrap items-center gap-2 text-sm">
 						<span className="text-fg-muted">Due</span>

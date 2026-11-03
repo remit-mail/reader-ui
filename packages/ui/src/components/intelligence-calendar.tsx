@@ -17,9 +17,7 @@ import type {
 	EventSuggestion,
 	RsvpState,
 } from "./calendar-types.js";
-import {
-	EventSuggestionCard,
-} from "./event-suggestion-card.js";
+import { EventSuggestionCard } from "./event-suggestion-card.js";
 import { IntelligenceSection } from "./intelligence-section.js";
 
 /**

@@ -48,7 +48,9 @@ export function useCalendarSenders(): CalendarSenders {
 	const { data: settings } = useQuery(
 		userSettingsOperationsGetUserSettingsOptions(),
 	);
-	const update = useMutation(userSettingsOperationsUpdateUserSettingsMutation());
+	const update = useMutation(
+		userSettingsOperationsUpdateUserSettingsMutation(),
+	);
 	const senders = useMemo(
 		() =>
 			(data?.accounts ?? [])

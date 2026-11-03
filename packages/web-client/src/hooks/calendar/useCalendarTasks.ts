@@ -90,6 +90,14 @@ export type TaskWriteOutcome =
 
 const TASK_LIST_ID = "calendarTaskOperationsListCalendarTasks";
 
+const refused = (error: unknown): TaskWriteOutcome => ({
+	kind: "refused",
+	message:
+		getErrorStatus(error) === 412
+			? "This task changed while you were looking at it. Close it and open it again."
+			: formatErrorMessage(error),
+});
+
 export function useCalendarTaskWrites() {
 	const queryClient = useQueryClient();
 	const invalidate = useCallback(() => {
@@ -118,13 +126,6 @@ export function useCalendarTaskWrites() {
 		...calendarTaskDetailOperationsDeleteCalendarTaskMutation(),
 		meta: TASK_META,
 		onSuccess: invalidate,
-	});
-	const refused = (error: unknown): TaskWriteOutcome => ({
-		kind: "refused",
-		message:
-			getErrorStatus(error) === 412
-				? "This task changed while you were looking at it. Close it and open it again."
-				: formatErrorMessage(error),
 	});
 
 	const createTask = useCallback(

@@ -1,7 +1,7 @@
 import {
 	CalendarFailureNote,
-	CalendarSuggestionList,
 	type CalendarSuggestionIntel,
+	CalendarSuggestionList,
 	EventSuggestionCard,
 } from "@remit/ui";
 import { Sparkles } from "lucide-react";

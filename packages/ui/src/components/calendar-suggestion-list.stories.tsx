@@ -65,7 +65,6 @@ const stated: EventSuggestion = {
 	zoneOptions: undefined,
 };
 
-
 const queue: EventSuggestion[] = [
 	flight,
 	stated,

@@ -18,9 +18,9 @@ export interface ErrorBannerContextValue {
 	clearAll: () => void;
 }
 
-export const ErrorBannerContext = createContext<ErrorBannerContextValue | undefined>(
-	undefined,
-);
+export const ErrorBannerContext = createContext<
+	ErrorBannerContextValue | undefined
+>(undefined);
 
 /**
  * A way out of every failure banner. A soft failure is still a failure the

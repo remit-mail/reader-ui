@@ -1,22 +1,14 @@
 import { type ErrorBannerEntry, ErrorBannerStack } from "@remit/ui";
-import {
-	type ReactNode,
-	useCallback,
-	useMemo,
-	useState,
-} from "react";
+import { type ReactNode, useCallback, useMemo, useState } from "react";
 import { isAlwaysFatal } from "../../lib/error-classifier";
 import { reportFatalError } from "../../lib/fatal-error";
+import { bannerWayOut, ErrorBannerContext } from "./error-banner-context";
 import {
 	appendBanner,
 	buildEntry,
 	dismissBanner,
 	type PushErrorInput,
 } from "./error-banners.js";
-import { bannerWayOut, ErrorBannerContext } from "./error-banner-context";
-
-
-
 
 const generateId = (): string => {
 	if (
@@ -77,4 +69,3 @@ export const ErrorBannerProvider = ({ children }: { children: ReactNode }) => {
 		</ErrorBannerContext.Provider>
 	);
 };
-
