@@ -32,7 +32,7 @@ import { useCallback, useMemo } from "react";
 import { getErrorStatus, softErrorStatuses } from "../../lib/error-classifier";
 
 /** The refusals a calendar surface renders itself. A 401 is not among them. */
-const CALENDAR_WRITE_META = softErrorStatuses(400, 404, 412);
+export const CALENDAR_WRITE_META = softErrorStatuses(400, 404, 412);
 
 /** Every read whose answer a write can change. */
 const CALENDAR_QUERY_IDS = new Set([

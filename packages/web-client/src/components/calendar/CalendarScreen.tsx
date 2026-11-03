@@ -111,7 +111,8 @@ export function CalendarScreen({ isPhone, detail }: CalendarScreenProps) {
 			const task = storedTasks.find(
 				(candidate) => candidate.calendarTaskId === calendarTaskId,
 			);
-			if (!task) return;
+			if (!task)
+				throw new Error(`task ${calendarTaskId} is drawn but was not read`);
 			setTaskFailure(undefined);
 			void updateTask(task, { completed: !task.completed }).then((outcome) => {
 				if (outcome.kind === "written") return;

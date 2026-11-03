@@ -33,7 +33,7 @@ import type {
 } from "../../hooks/calendar/draft-session";
 import { calendarEventReportHref } from "../../lib/calendar-report";
 import { useBackCloses } from "../../routing";
-import { useOptionalCalendarSession } from "./CalendarSession";
+import { useCalendarSession } from "./CalendarSession";
 
 export const SETTINGS_HREF = "/settings/calendars";
 
@@ -91,7 +91,7 @@ export function CalendarQuickCreate({
 	const { defaultSenderId } = useCalendarSenders();
 	const [guestQuery, setGuestQuery] = useState("");
 	const guestSuggestions = useGuestSuggestions(guestQuery);
-	const calendarSession = useOptionalCalendarSession();
+	const calendarSession = useCalendarSession();
 	const { draft } = session;
 	const [mode, setMode] = useState<QuickCreateMode>("event");
 	const [taskFields, setTaskFields] = useState<QuickTaskFields>({
@@ -244,7 +244,7 @@ export function CalendarQuickCreate({
 		void createEvent(built.input).then((outcome) => {
 			if (outcome.kind === "created") {
 				dispatch({ type: "saved" });
-				calendarSession?.trackSends(outcome.sends);
+				calendarSession.trackSends(outcome.sends);
 				onSaved(outcome.calendarObjectId);
 				return;
 			}

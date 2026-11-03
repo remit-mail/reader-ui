@@ -34,7 +34,7 @@ import { formatEventWhen } from "../../lib/calendar-format";
 import { calendarEventReportHref } from "../../lib/calendar-report";
 import type { CalendarSearch } from "../../lib/calendar-route";
 import { useCalendarAddress, useCalendarNavigation } from "../../routing";
-import { useOptionalCalendarSession } from "./CalendarSession";
+import { useCalendarSession } from "./CalendarSession";
 
 const ATTENDEE_RSVP: Record<
 	RemitImapCalendarAttendee["status"],
@@ -91,7 +91,7 @@ export function CalendarEventPopup({
 	const { calendars } = useCalendars();
 	const { closeToView, openEditor } = useCalendarNavigation();
 	const { deleteEvent, updateEvent, isWriting } = useCalendarWrites();
-	const calendarSession = useOptionalCalendarSession();
+	const calendarSession = useCalendarSession();
 	const [answering, setAnswering] = useState<CalendarAnswer | undefined>();
 	const [replyFailure, setReplyFailure] = useState<
 		CalendarFailure | undefined
@@ -194,7 +194,7 @@ export function CalendarEventPopup({
 		setAsking(false);
 		void deleteEvent(write(scope)).then((outcome) => {
 			if (outcome.kind === "written") {
-				calendarSession?.trackSends(outcome.sends);
+				calendarSession.trackSends(outcome.sends);
 				closeToView();
 				return;
 			}
@@ -216,7 +216,7 @@ export function CalendarEventPopup({
 		void updateEvent(write(scope), { answer: ANSWER_OF[answer] }).then(
 			(outcome) => {
 				if (outcome.kind === "written") {
-					calendarSession?.trackSends(outcome.sends);
+					calendarSession.trackSends(outcome.sends);
 					return;
 				}
 				const text =

@@ -167,7 +167,7 @@ const guestKey = (draft: Pick<EventDraft, "guests">): string =>
 export function createInputFromDraft(
 	draft: EventDraft,
 	zones: DraftZones,
-	organizerAccountId?: string,
+	organizerAccountId: string,
 ): CreateInput {
 	const problem = refuse(draft, true);
 	if (problem !== "") return { ok: false, problem };
@@ -186,9 +186,7 @@ export function createInputFromDraft(
 			...(zones.anchor === "" ? {} : { timeZone: zones.anchor }),
 			recurrenceRule: storedRule(draft, start, zones),
 			attendees,
-			...(organizerAccountId === undefined || attendees.length === 0
-				? {}
-				: { organizerAccountId }),
+			...(attendees.length === 0 ? {} : { organizerAccountId }),
 		},
 	};
 }
