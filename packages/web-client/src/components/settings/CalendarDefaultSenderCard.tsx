@@ -23,7 +23,7 @@ export function CalendarDefaultSenderCard() {
 			<CalendarSenderField
 				label="Default sender"
 				senders={senders}
-				value={defaultSenderId}
+				value={defaultSenderId ?? ""}
 				onChange={(accountId) => {
 					setProblem("");
 					void setDefaultSender(accountId).catch((error: unknown) =>

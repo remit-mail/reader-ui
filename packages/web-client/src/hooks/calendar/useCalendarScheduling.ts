@@ -31,11 +31,10 @@ import { useDebouncedValue } from "../useDebouncedValue";
 export interface CalendarSenders {
 	senders: CalendarSender[];
 	/**
-	 * The account the editor starts on: the default sender setting, or where
-	 * none is set, the account the event is on. A new event is on the account
-	 * config, whose first sending account is that account.
+	 * The account the editor starts on: the default sender in effect, as the
+	 * settings API answers it. Absent while it loads, or when no account sends mail.
 	 */
-	defaultSenderId: string;
+	defaultSenderId: string | undefined;
 	setDefaultSender: (accountId: string) => Promise<void>;
 }
 
@@ -60,11 +59,7 @@ export function useCalendarSenders(): CalendarSenders {
 				})),
 		[data?.accounts],
 	);
-	const setting = settings?.defaultInvitationSenderAccountId ?? "";
-	const defaultSenderId =
-		senders.find((sender) => sender.accountId === setting)?.accountId ??
-		senders[0]?.accountId ??
-		"";
+	const defaultSenderId = settings?.defaultInvitationSenderAccountId;
 	const setDefaultSender = useCallback(
 		async (accountId: string) => {
 			await update.mutateAsync({

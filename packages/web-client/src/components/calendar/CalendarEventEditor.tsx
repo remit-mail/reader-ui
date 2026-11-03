@@ -159,8 +159,8 @@ export function CalendarNewEventSidebar() {
 	const calendars = all.filter((calendar) => !calendar.readOnly);
 	const { createEvent, isWriting } = useCalendarWrites();
 	const { senders, defaultSenderId } = useCalendarSenders();
-	const [pickedSender, setPickedSender] = useState("");
-	const senderId = pickedSender || defaultSenderId;
+	const [pickedSender, setPickedSender] = useState<string | undefined>();
+	const senderId = pickedSender ?? defaultSenderId;
 	const [guestQuery, setGuestQuery] = useState("");
 	const guestSuggestions = useGuestSuggestions(guestQuery);
 	const { trackSends } = useCalendarSession();
@@ -310,7 +310,7 @@ export function CalendarNewEventSidebar() {
 					suggestions: guestSuggestions,
 					onQuery: setGuestQuery,
 					senders,
-					sender: senderId,
+					sender: senderId ?? "",
 					onSender: setPickedSender,
 					senderEditable: true,
 				}}
@@ -347,7 +347,7 @@ export function CalendarEditEventSidebar({
 	const { closeToView } = useCalendarNavigation();
 	const { updateEvent, isWriting } = useCalendarWrites();
 	const { senders, defaultSenderId } = useCalendarSenders();
-	const [pickedSender, setPickedSender] = useState("");
+	const [pickedSender, setPickedSender] = useState<string | undefined>();
 	const [guestQuery, setGuestQuery] = useState("");
 	const guestSuggestions = useGuestSuggestions(guestQuery);
 	const { trackSends } = useCalendarSession();
@@ -462,9 +462,10 @@ export function CalendarEditEventSidebar({
 		resource !== undefined &&
 		(resource.participation === "Organizer" ||
 			(resource.participation === "Unscheduled" && organizer === ""));
-	const organizerSender =
-		senders.find((sender) => sender.email === organizer)?.accountId ?? "";
-	const senderId = organizerSender || pickedSender || defaultSenderId;
+	const organizerSender = senders.find(
+		(sender) => sender.email === organizer,
+	)?.accountId;
+	const senderId = organizerSender ?? pickedSender ?? defaultSenderId;
 
 	const save = (scope: RecurrenceScope | undefined) => {
 		setAsking(false);
@@ -483,7 +484,7 @@ export function CalendarEditEventSidebar({
 				? { ...patch.patch, transparency: transparencyOf(busy) }
 				: patch.patch;
 		const body =
-			withBusy.attendees !== undefined && organizer === ""
+			withBusy.attendees !== undefined && organizer === "" && senderId
 				? { ...withBusy, organizerAccountId: senderId }
 				: withBusy;
 		void updateEvent(
@@ -538,7 +539,7 @@ export function CalendarEditEventSidebar({
 								suggestions: guestSuggestions,
 								onQuery: setGuestQuery,
 								senders,
-								sender: senderId,
+								sender: senderId ?? "",
 								onSender: setPickedSender,
 								senderEditable: organizer === "",
 							}

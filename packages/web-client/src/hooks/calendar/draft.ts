@@ -159,7 +159,7 @@ export const attendeesOfDraft = (draft: Pick<EventDraft, "guests">) =>
 export function createInputFromDraft(
 	draft: EventDraft,
 	zones: DraftZones,
-	organizerAccountId = "",
+	organizerAccountId?: string,
 ): CreateInput {
 	const problem = refuse(draft, true);
 	if (problem !== "") return { ok: false, problem };
@@ -177,7 +177,7 @@ export function createInputFromDraft(
 			...(zones.anchor === "" ? {} : { timeZone: zones.anchor }),
 			recurrenceRule: storedRule(draft, start, zones),
 			attendees: attendeesOfDraft(draft),
-			organizerAccountId,
+			...(organizerAccountId === undefined ? {} : { organizerAccountId }),
 		},
 	};
 }
