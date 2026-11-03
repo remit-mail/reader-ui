@@ -13,7 +13,13 @@ import type {
 	RemitImapCreateCalendarEventInput,
 	RemitImapUpdateCalendarEventInput,
 } from "@remit/api-http-client/types.gen.ts";
-import { type CalendarEventData, type EventDraft, lastDayOf } from "@remit/ui";
+import {
+	type CalendarEventData,
+	type EventDraft,
+	invalidGuest,
+	lastDayOf,
+	parseGuestList,
+} from "@remit/ui";
 import { moveRule, rruleFromText } from "./recurrence-rule";
 import { addDays, isoAtInZone, isoOnClock } from "./window";
 
@@ -63,7 +69,7 @@ export function emptyDraft(date: string, calendarId: string): EventDraft {
  */
 export function draftFromEvent(
 	event: CalendarEventData,
-	stored: { repeat: string; location: string; notes: string },
+	stored: { repeat: string; location: string; notes: string; guests?: string },
 ): EventDraft {
 	return {
 		title: event.title,
@@ -74,7 +80,7 @@ export function draftFromEvent(
 		allDay: event.allDay,
 		calendarId: event.calendarId,
 		location: stored.location,
-		guests: "",
+		guests: stored.guests ?? "",
 		notes: stored.notes,
 		repeat: stored.repeat,
 	};
@@ -136,14 +142,24 @@ function refuse(draft: EventDraft, checkRepeat: boolean): string {
 		`${draft.endDate}T${draft.endTime}` <= `${draft.date}T${draft.startTime}`
 	)
 		return "The end is not after the start. Move one of them.";
+	const badGuest = invalidGuest(draft.guests);
+	if (badGuest)
+		return `${badGuest.text} is not an email address. Fix or remove it to save.`;
 	if (checkRepeat && rruleFromText(draft.repeat) === undefined)
 		return "This calendar can't store that repeat rule. Pick one of the offered rules, or turn the repeat off.";
 	return "";
 }
 
+/** The guest list as the API takes it: every entry an address, named or not. */
+export const attendeesOfDraft = (draft: Pick<EventDraft, "guests">) =>
+	parseGuestList(draft.guests)
+		.filter((guest) => guest.valid)
+		.map((guest) => ({ email: guest.email, displayName: guest.displayName }));
+
 export function createInputFromDraft(
 	draft: EventDraft,
 	zones: DraftZones,
+	organizerAccountId = "",
 ): CreateInput {
 	const problem = refuse(draft, true);
 	if (problem !== "") return { ok: false, problem };
@@ -160,6 +176,8 @@ export function createInputFromDraft(
 			allDay: draft.allDay,
 			...(zones.anchor === "" ? {} : { timeZone: zones.anchor }),
 			recurrenceRule: storedRule(draft, start, zones),
+			attendees: attendeesOfDraft(draft),
+			organizerAccountId,
 		},
 	};
 }
@@ -199,6 +217,7 @@ export function patchFromDrafts(
 	}
 
 	if (repeatChanged) patch.recurrenceRule = storedRule(after, start, zones);
+	if (after.guests !== before.guests) patch.attendees = attendeesOfDraft(after);
 
 	return { ok: true, patch };
 }

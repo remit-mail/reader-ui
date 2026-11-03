@@ -1,5 +1,7 @@
+import type { RemitImapCalendarSchedulingSend } from "@remit/api-http-client/types.gen.ts";
 import {
 	CalendarGrid,
+	CalendarInvitationsNotSent,
 	CalendarScreenToolbar,
 	type CalendarSlotPick,
 	CalendarTimeGrid,
@@ -21,7 +23,13 @@ import {
 } from "@remit/ui";
 import { Loader2 } from "lucide-react";
 import { type ReactNode, useCallback, useMemo, useRef, useState } from "react";
-import { calendarInstanceId, deviceTimeZone } from "../../hooks/calendar";
+import {
+	calendarInstanceId,
+	calendarTaskIdOf,
+	deviceTimeZone,
+	useCalendarTaskWrites,
+	useSendsFollowUp,
+} from "../../hooks/calendar";
 import { drawnRange } from "../../hooks/calendar/draft-session";
 import { useDraftSession } from "../../hooks/calendar/useDraftSession";
 import { useCalendarData } from "../../hooks/useCalendarData";
@@ -30,6 +38,7 @@ import {
 	readCalendarDensity,
 	writeCalendarDensity,
 } from "../../lib/calendar-density";
+import { calendarEventReportHref } from "../../lib/calendar-report";
 import {
 	calendarViewMountsAgenda,
 	isoDate,
@@ -89,7 +98,25 @@ export function CalendarScreen({ isPhone, detail }: CalendarScreenProps) {
 		error,
 		retry,
 		instanceOf,
+		tasks,
 	} = useCalendarData({ view, date, calendarIds, enabled: drawsGrid });
+	const { updateTask } = useCalendarTaskWrites();
+	const toggleTask = useCallback(
+		(eventId: string) => {
+			const task = tasks.find(
+				(candidate) => candidate.calendarTaskId === calendarTaskIdOf(eventId),
+			);
+			if (!task) return;
+			void updateTask(task, { completed: !task.completed });
+		},
+		[tasks, updateTask],
+	);
+	const [sends, setSends] = useState<RemitImapCalendarSchedulingSend[]>([]);
+	const trackSends = useCallback(
+		(next: readonly RemitImapCalendarSchedulingSend[]) => setSends([...next]),
+		[],
+	);
+	const followUp = useSendsFollowUp(sends);
 	const moves = useEventMoves(
 		storedEvents,
 		calendars,
@@ -157,8 +184,15 @@ export function CalendarScreen({ isPhone, detail }: CalendarScreenProps) {
 		[session, carriedFocus, dispatch, openNewEvent],
 	);
 	const sessionValue = useMemo(
-		() => ({ session, dispatch, requestClose, carriedFocus, focusSaved }),
-		[session, dispatch, requestClose, carriedFocus, focusSaved],
+		() => ({
+			session,
+			dispatch,
+			requestClose,
+			carriedFocus,
+			focusSaved,
+			trackSends,
+		}),
+		[session, dispatch, requestClose, carriedFocus, focusSaved, trackSends],
 	);
 	const drawn = drawnRange(session);
 	const gridDraft: GridDraft | undefined = drawn
@@ -257,8 +291,9 @@ export function CalendarScreen({ isPhone, detail }: CalendarScreenProps) {
 			onSelectEvent={selectEvent}
 			onOpenDay={zoomToDay}
 			touch={isPhone}
-			canMove={moves.canMove}
+			canMove={(id) => calendarTaskIdOf(id) === undefined && moves.canMove(id)}
 			onMoveEvent={moves.onMoveEvent}
+			onToggleTask={toggleTask}
 		/>
 	) : (
 		<CalendarGrid
@@ -273,7 +308,7 @@ export function CalendarScreen({ isPhone, detail }: CalendarScreenProps) {
 			onPickSlot={pickSlot}
 			dayHref={dayHref}
 			onZoomDay={zoomToDay}
-			canMove={moves.canMove}
+			canMove={(id) => calendarTaskIdOf(id) === undefined && moves.canMove(id)}
 			onMoveEvent={moves.onMoveEvent}
 		/>
 	);
@@ -346,6 +381,18 @@ export function CalendarScreen({ isPhone, detail }: CalendarScreenProps) {
 								className="flex min-h-0 min-w-0 flex-1 flex-col"
 							>
 								{moves.banner}
+								{followUp.missed.length > 0 && (
+									<div className="p-2">
+										<CalendarInvitationsNotSent
+											missed={followUp.missed}
+											onRetry={() => void followUp.retry()}
+											reportHref={calendarEventReportHref(
+												`Invitations not sent to ${followUp.missed.join(", ")}`,
+											)}
+											onDismiss={() => setSends([])}
+										/>
+									</div>
+								)}
 								{body}
 							</div>
 						</>

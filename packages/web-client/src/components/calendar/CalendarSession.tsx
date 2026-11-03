@@ -1,3 +1,4 @@
+import type { RemitImapCalendarSchedulingSend } from "@remit/api-http-client/types.gen.ts";
 import {
 	createContext,
 	type Dispatch,
@@ -23,6 +24,8 @@ export interface CalendarSessionValue {
 	carriedFocus: MutableRefObject<string>;
 	/** Focus the saved event once the grid draws it. */
 	focusSaved: (calendarObjectId: string) => void;
+	/** Follow the scheduling messages a save queued, and say which guests they missed. */
+	trackSends: (sends: readonly RemitImapCalendarSchedulingSend[]) => void;
 }
 
 export const CalendarSessionContext =

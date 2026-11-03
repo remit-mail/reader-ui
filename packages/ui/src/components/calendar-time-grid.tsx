@@ -99,6 +99,8 @@ export interface CalendarTimeGridProps {
 	canMove?: (eventId: string) => boolean;
 	/** A stored event dropped at a new time or with a new end. */
 	onMoveEvent?: (eventId: string, range: CalendarSlotPick) => void;
+	/** Ticks or unticks a task drawn on the grid. */
+	onToggleTask?: (eventId: string) => void;
 	className?: string;
 }
 
@@ -191,6 +193,7 @@ export function CalendarTimeGrid({
 	touch = false,
 	canMove = () => false,
 	onMoveEvent,
+	onToggleTask,
 	className,
 }: CalendarTimeGridProps) {
 	const hourHeight = HOUR_HEIGHT[density];
@@ -723,7 +726,7 @@ export function CalendarTimeGrid({
 						}
 						onSelectEvent(event.id, click.currentTarget);
 					}}
-					aria-label={`${event.title}, ${describeEvent(event, timeZone)}`}
+					aria-label={`${event.task ? "Task: " : ""}${event.title}, ${describeEvent(event, timeZone)}`}
 					className={cn(
 						calendarEventBodyClasses({
 							color,
@@ -737,6 +740,8 @@ export function CalendarTimeGrid({
 						"h-full w-full cursor-pointer text-left outline-none focus-visible:ring-2 focus-visible:ring-ring",
 						touch && "touch-pan-y",
 						lifted?.id === event.id && "opacity-40",
+						event.task && "pl-5",
+						event.task?.completed && "line-through opacity-60",
 					)}
 				>
 					<CalendarEventChipContent
@@ -749,6 +754,17 @@ export function CalendarTimeGrid({
 						zoneCertainty={event.zoneCertainty}
 					/>
 				</button>
+				{event.task && (
+					<input
+						type="checkbox"
+						aria-label={event.title === "" ? "(No title)" : event.title}
+						checked={event.task.completed}
+						onPointerDown={(press) => press.stopPropagation()}
+						onClick={(click) => click.stopPropagation()}
+						onChange={() => onToggleTask?.(event.id)}
+						className="absolute top-1 left-1 z-10 size-3.5 accent-current"
+					/>
+				)}
 				{movable && (
 					<span
 						aria-hidden="true"

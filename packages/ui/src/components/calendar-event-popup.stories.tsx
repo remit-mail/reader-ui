@@ -3,6 +3,24 @@ import {
 	CalendarEventGone,
 	CalendarEventPopupCard,
 } from "./calendar-event-popup.js";
+import { CalendarEventGuests, CalendarReplyRow } from "./calendar-guests.js";
+import type { CalendarAttendee } from "./calendar-types.js";
+
+const guests: CalendarAttendee[] = [
+	{
+		name: "Sender name",
+		email: "sender@example.com",
+		rsvp: "accepted",
+		role: "organizer",
+	},
+	{
+		name: "Guest one",
+		email: "one@example.com",
+		rsvp: "tentative",
+		role: "attendee",
+	},
+	{ name: "", email: "two@example.com", rsvp: "noReply", role: "attendee" },
+];
 
 const meta = {
 	title: "Design System/Calendar/Event popup",
@@ -46,4 +64,38 @@ export const DeleteFailed: Story = {
 
 export const Gone: Story = {
 	render: () => <CalendarEventGone headingId="gone" onClose={() => {}} />,
+};
+
+export const WithGuests: Story = {
+	args: { children: <CalendarEventGuests attendees={guests} /> },
+};
+
+export const Reply: Story = {
+	args: {
+		children: (
+			<>
+				<CalendarEventGuests attendees={guests} />
+				<CalendarReplyRow current="tentative" onAnswer={() => {}} />
+			</>
+		),
+	},
+};
+
+export const ReplyFailed: Story = {
+	args: {
+		children: (
+			<>
+				<CalendarEventGuests attendees={guests} />
+				<CalendarReplyRow
+					current="accepted"
+					onAnswer={() => {}}
+					failure={{
+						text: "Couldn't send your reply: the server didn't answer.",
+						reportHref: "#",
+						onRetry: () => {},
+					}}
+				/>
+			</>
+		),
+	},
 };

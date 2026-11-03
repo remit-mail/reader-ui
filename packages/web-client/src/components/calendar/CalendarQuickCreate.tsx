@@ -16,9 +16,13 @@ import {
 	anchorZoneFor,
 	createInputFromDraft,
 	deviceTimeZone,
+	isoAtInZone,
 	UNZONED_CALENDAR,
+	useCalendarSenders,
 	useCalendars,
+	useCalendarTaskWrites,
 	useCalendarWrites,
+	useGuestSuggestions,
 } from "../../hooks/calendar";
 import type {
 	DraftSession,
@@ -27,6 +31,7 @@ import type {
 } from "../../hooks/calendar/draft-session";
 import { calendarEventReportHref } from "../../lib/calendar-report";
 import { useBackCloses } from "../../routing";
+import { useOptionalCalendarSession } from "./CalendarSession";
 
 export const SETTINGS_HREF = "/settings/calendars";
 
@@ -41,8 +46,8 @@ export function eventDraftOf(draft: SessionDraft): EventDraft {
 		allDay: draft.range.allDay,
 		calendarId: draft.calendarId,
 		location: draft.location,
-		guests: "",
-		notes: "",
+		guests: draft.guests,
+		notes: draft.notes,
 		repeat: "",
 	};
 }
@@ -74,16 +79,24 @@ export function CalendarQuickCreate({
 	const [problem, setProblem] = useState("");
 	const {
 		calendars: all,
+		taskLists,
 		defaultCalendarId,
 		timeZoneByCalendarId,
 	} = useCalendars();
 	const calendars = all.filter((calendar) => !calendar.readOnly);
 	const { createEvent } = useCalendarWrites();
+	const { createTask } = useCalendarTaskWrites();
+	const { defaultSenderId } = useCalendarSenders();
+	const [guestQuery, setGuestQuery] = useState("");
+	const guestSuggestions = useGuestSuggestions(guestQuery);
+	const calendarSession = useOptionalCalendarSession();
 	const { draft } = session;
 	const fallbackCalendar =
-		calendars.find((calendar) => calendar.id === defaultCalendarId)?.id ??
-		calendars[0]?.id ??
-		"";
+		draft.kind === "task"
+			? (taskLists[0]?.id ?? "")
+			: (calendars.find((calendar) => calendar.id === defaultCalendarId)?.id ??
+				calendars[0]?.id ??
+				"");
 
 	useEffect(() => {
 		titleRef.current?.focus();
@@ -142,13 +155,53 @@ export function CalendarQuickCreate({
 		field.focus();
 	}, [rangeKey]);
 
-	const save = () => {
-		const built = createInputFromDraft(eventDraftOf(draft), {
-			clock: deviceTimeZone(),
-			anchor: anchorZoneFor(
-				timeZoneByCalendarId[draft.calendarId] ?? UNZONED_CALENDAR,
-			),
+	const saveTask = () => {
+		if (draft.title.trim() === "") {
+			setProblem("Give the task a title before saving it.");
+			titleRef.current?.focus();
+			return;
+		}
+		setProblem("");
+		dispatch({ type: "save" });
+		const clock = deviceTimeZone();
+		void createTask({
+			calendarId: draft.calendarId,
+			summary: draft.title.trim(),
+			description: draft.notes,
+			allDay: draft.range.allDay,
+			due: draft.range.allDay
+				? draft.range.date
+				: isoAtInZone(draft.range.date, draft.range.startTime, clock),
+			...(draft.range.allDay
+				? {}
+				: { timeZone: anchorZoneFor(UNZONED_CALENDAR) }),
+		}).then((outcome) => {
+			if (outcome.kind === "written") {
+				dispatch({ type: "saved" });
+				return;
+			}
+			dispatch({
+				type: "save-failed",
+				problem: `Couldn't save the task: ${outcome.message}`,
+			});
 		});
+	};
+
+	const save = () => {
+		if (draft.kind === "task") {
+			saveTask();
+			return;
+		}
+		const built = createInputFromDraft(
+			eventDraftOf(draft),
+			{
+				clock: deviceTimeZone(),
+				anchor: anchorZoneFor(
+					timeZoneByCalendarId[draft.calendarId] ?? UNZONED_CALENDAR,
+				),
+			},
+			defaultSenderId,
+		);
 		if (!built.ok) {
 			setProblem(built.problem);
 			titleRef.current?.focus();
@@ -159,6 +212,7 @@ export function CalendarQuickCreate({
 		void createEvent(built.input).then((outcome) => {
 			if (outcome.kind === "created") {
 				dispatch({ type: "saved" });
+				calendarSession?.trackSends(outcome.sends);
 				onSaved(outcome.calendarObjectId);
 				return;
 			}
@@ -180,6 +234,9 @@ export function CalendarQuickCreate({
 				headingId={headingId}
 				fields={draft}
 				calendars={calendars}
+				taskLists={taskLists}
+				guestSuggestions={guestSuggestions}
+				onGuestQuery={setGuestQuery}
 				onChange={(fields) => dispatch({ type: "change", draft: fields })}
 				onSave={save}
 				onMoreOptions={() =>

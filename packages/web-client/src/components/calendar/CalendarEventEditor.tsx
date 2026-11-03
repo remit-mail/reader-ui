@@ -5,6 +5,8 @@ import {
 	type CalendarFailure,
 	ConfirmDialog,
 	type EventDraft,
+	formatGuestList,
+	parseGuest,
 	type RecurrenceScope,
 	RecurrenceScopePrompt,
 } from "@remit/ui";
@@ -24,8 +26,10 @@ import {
 	textFromRrule,
 	UNZONED_CALENDAR,
 	useCalendarEvent,
+	useCalendarSenders,
 	useCalendars,
 	useCalendarWrites,
+	useGuestSuggestions,
 } from "../../hooks/calendar";
 import type { SessionDraft } from "../../hooks/calendar/draft-session";
 import { useCalendarData } from "../../hooks/useCalendarData";
@@ -154,6 +158,12 @@ export function CalendarNewEventSidebar() {
 	} = useCalendars();
 	const calendars = all.filter((calendar) => !calendar.readOnly);
 	const { createEvent, isWriting } = useCalendarWrites();
+	const { senders, defaultSenderId } = useCalendarSenders();
+	const [pickedSender, setPickedSender] = useState("");
+	const senderId = pickedSender || defaultSenderId;
+	const [guestQuery, setGuestQuery] = useState("");
+	const guestSuggestions = useGuestSuggestions(guestQuery);
+	const { trackSends } = useCalendarSession();
 	const titleRef = useRef<HTMLInputElement>(null);
 	const failureRef = useRef<HTMLDivElement>(null);
 	const clock = deviceTimeZone();
@@ -207,7 +217,8 @@ export function CalendarNewEventSidebar() {
 			extras.repeat !== "" ||
 			!extras.busy ||
 			draft.title !== (initial?.title ?? "") ||
-			draft.location !== (initial?.location ?? ""));
+			draft.location !== (initial?.location ?? "") ||
+			draft.guests !== (initial?.guests ?? ""));
 	const { close, confirm, leave } = useSidebarClose(touched);
 
 	if (!draft) return null;
@@ -219,15 +230,19 @@ export function CalendarNewEventSidebar() {
 
 	const save = () => {
 		const zone = extras.timeZone;
-		const built = createInputFromDraft(eventDraft, {
-			clock: zone,
-			anchor:
-				zone !== clock
-					? zone
-					: anchorZoneFor(
-							timeZoneByCalendarId[draft.calendarId] ?? UNZONED_CALENDAR,
-						),
-		});
+		const built = createInputFromDraft(
+			eventDraft,
+			{
+				clock: zone,
+				anchor:
+					zone !== clock
+						? zone
+						: anchorZoneFor(
+								timeZoneByCalendarId[draft.calendarId] ?? UNZONED_CALENDAR,
+							),
+			},
+			senderId,
+		);
 		if (!built.ok) {
 			setProblem(built.problem);
 			return;
@@ -240,6 +255,7 @@ export function CalendarNewEventSidebar() {
 		}).then((outcome) => {
 			if (outcome.kind === "created") {
 				dispatch({ type: "saved" });
+				trackSends(outcome.sends);
 				focusSaved(outcome.calendarObjectId);
 				leave();
 				return;
@@ -269,6 +285,9 @@ export function CalendarNewEventSidebar() {
 							title: next.title,
 							location: next.location,
 							calendarId: next.calendarId,
+							guests: next.guests,
+							kind: "event",
+							notes: next.notes,
 						},
 					});
 					setExtras((current) => ({
@@ -287,6 +306,14 @@ export function CalendarNewEventSidebar() {
 				}
 				busy={extras.busy}
 				onBusy={(busy) => setExtras((current) => ({ ...current, busy }))}
+				guests={{
+					suggestions: guestSuggestions,
+					onQuery: setGuestQuery,
+					senders,
+					sender: senderId,
+					onSender: setPickedSender,
+					senderEditable: true,
+				}}
 				onSave={save}
 				onCancel={close}
 				saving={isWriting}
@@ -319,6 +346,11 @@ export function CalendarEditEventSidebar({
 	const { calendars, timeZoneByCalendarId } = useCalendars();
 	const { closeToView } = useCalendarNavigation();
 	const { updateEvent, isWriting } = useCalendarWrites();
+	const { senders, defaultSenderId } = useCalendarSenders();
+	const [pickedSender, setPickedSender] = useState("");
+	const [guestQuery, setGuestQuery] = useState("");
+	const guestSuggestions = useGuestSuggestions(guestQuery);
+	const { trackSends } = useCalendarSession();
 	const titleRef = useRef<HTMLInputElement>(null);
 	const failureRef = useRef<HTMLDivElement>(null);
 	const goneId = useId();
@@ -359,6 +391,17 @@ export function CalendarEditEventSidebar({
 				rrule === "" ? "" : (textFromRrule(shownRule, startTime) ?? "Repeats"),
 			location: stored.location,
 			notes: stored.description,
+			guests: formatGuestList(
+				resource.attendees
+					.filter((attendee) => attendee.role === "Guest")
+					.map((attendee) =>
+						parseGuest(
+							attendee.displayName === ""
+								? attendee.email
+								: `${attendee.displayName} <${attendee.email}>`,
+						),
+					),
+			),
 		});
 		const isBusy = !freeIds.has(event.id);
 		setBefore({ draft, busy: isBusy, anchor });
@@ -414,6 +457,14 @@ export function CalendarEditEventSidebar({
 		(candidate) => candidate.id === event.calendarId,
 	);
 	const repeats = event.seriesId !== "" && recurrenceId !== undefined;
+	const organizer = resource?.organizer ?? "";
+	const guestsEditable =
+		resource !== undefined &&
+		(resource.participation === "Organizer" ||
+			(resource.participation === "Unscheduled" && organizer === ""));
+	const organizerSender =
+		senders.find((sender) => sender.email === organizer)?.accountId ?? "";
+	const senderId = organizerSender || pickedSender || defaultSenderId;
 
 	const save = (scope: RecurrenceScope | undefined) => {
 		setAsking(false);
@@ -427,10 +478,14 @@ export function CalendarEditEventSidebar({
 		}
 		setProblem("");
 		setFailure(undefined);
-		const body =
+		const withBusy =
 			busy !== before.busy
 				? { ...patch.patch, transparency: transparencyOf(busy) }
 				: patch.patch;
+		const body =
+			withBusy.attendees !== undefined && organizer === ""
+				? { ...withBusy, organizerAccountId: senderId }
+				: withBusy;
 		void updateEvent(
 			{
 				calendarObjectId,
@@ -443,6 +498,7 @@ export function CalendarEditEventSidebar({
 		).then((outcome) => {
 			if (outcome.kind === "written") {
 				dispatch({ type: "saved" });
+				trackSends(outcome.sends);
 				focusSaved(calendarObjectId);
 				leave();
 				return;
@@ -476,6 +532,18 @@ export function CalendarEditEventSidebar({
 				onTimeZone={setTimeZone}
 				busy={busy}
 				onBusy={setBusy}
+				guests={
+					guestsEditable
+						? {
+								suggestions: guestSuggestions,
+								onQuery: setGuestQuery,
+								senders,
+								sender: senderId,
+								onSender: setPickedSender,
+								senderEditable: organizer === "",
+							}
+						: undefined
+				}
 				onSave={() => (repeats ? setAsking(true) : save(undefined))}
 				onCancel={close}
 				saving={isWriting}

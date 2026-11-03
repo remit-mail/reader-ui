@@ -16,6 +16,8 @@ import { toCalendarDescriptor } from "./instance";
 
 export interface CalendarsResult {
 	calendars: CalendarDescriptor[];
+	/** The task lists: collections that hold tasks and no events, left out of `calendars`. */
+	taskLists: CalendarDescriptor[];
 	/** The collections as the API returned them, for a surface that manages them. */
 	collections: RemitImapCalendarResponse[];
 	colorByCalendarId: Record<string, CalendarColorId>;
@@ -39,16 +41,21 @@ export function useCalendars(): CalendarsResult {
 	);
 
 	return useMemo(() => {
-		const items = data?.items ?? [];
+		const all = data?.items ?? [];
+		const items = all.filter((item) => item.componentSet !== "VtodoOnly");
 		const calendars = items.map(toCalendarDescriptor);
+		const taskLists = all
+			.filter((item) => item.componentSet === "VtodoOnly")
+			.map(toCalendarDescriptor);
 		return {
 			calendars,
-			collections: items,
+			taskLists,
+			collections: all,
 			colorByCalendarId: Object.fromEntries(
 				calendars.map((calendar) => [calendar.id, calendar.color]),
 			),
 			timeZoneByCalendarId: Object.fromEntries(
-				items.map((item) => [item.calendarId, item.timezone]),
+				all.map((item) => [item.calendarId, item.timezone]),
 			),
 			defaultCalendarId:
 				(items.find((item) => item.source === "Default") ?? items[0])

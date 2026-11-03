@@ -206,6 +206,20 @@ export {
 	type CalendarGridProps,
 } from "./components/calendar-grid.js";
 export {
+	type CalendarAnswer,
+	CalendarEventGuests,
+	CalendarGuestsField,
+	type CalendarGuestsFieldProps,
+	CalendarInvitationsNotSent,
+	type CalendarInvitationsNotSentProps,
+	CalendarReplyRow,
+	type CalendarReplyRowProps,
+	type CalendarSender,
+	CalendarSenderField,
+	type GuestSuggestion,
+	guestTally,
+} from "./components/calendar-guests.js";
+export {
 	CalendarInviteCard,
 	type CalendarInviteCardProps,
 } from "./components/calendar-invite-card.js";
@@ -250,6 +264,11 @@ export {
 	CalendarSuggestionDeck,
 	type CalendarSuggestionDeckProps,
 } from "./components/calendar-suggestion-deck.js";
+export {
+	type CalendarTaskFields,
+	CalendarTaskPopupCard,
+	type CalendarTaskPopupCardProps,
+} from "./components/calendar-task-popup.js";
 export {
 	CalendarTimeGrid,
 	type CalendarTimeGridProps,
@@ -1126,6 +1145,13 @@ export {
 	isSelectable,
 } from "./lib/folder-tree-focus.js";
 export { type GridSlot, initialFocus } from "./lib/grid-keyboard.js";
+export {
+	formatGuestList,
+	type GuestEntry,
+	invalidGuest,
+	parseGuest,
+	parseGuestList,
+} from "./lib/guest-list.js";
 export { isoWeek } from "./lib/iso-week.js";
 export {
 	defaultKeyboardHints,

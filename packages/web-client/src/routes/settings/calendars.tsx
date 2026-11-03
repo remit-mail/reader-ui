@@ -2,6 +2,7 @@ import { SettingsShell } from "@remit/ui";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { CalendarCreateCard } from "../../components/settings/CalendarCreateCard";
+import { CalendarDefaultSenderCard } from "../../components/settings/CalendarDefaultSenderCard";
 import { CalendarSettingsPanel } from "../../components/settings/CalendarSettingsPanel";
 import { CalendarSubscribeCard } from "../../components/settings/CalendarSubscribeCard";
 import { CalendarSubscriptionStatus } from "../../components/settings/CalendarSubscriptionStatus";
@@ -77,6 +78,7 @@ function CalendarsSettings() {
 				/>
 			) : (
 				<div className="space-y-4">
+					<CalendarDefaultSenderCard />
 					{calendars.map((calendar) => {
 						const collection = collections.find(
 							(candidate) => candidate.calendarId === calendar.id,

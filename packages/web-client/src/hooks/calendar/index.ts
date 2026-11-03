@@ -27,6 +27,7 @@ export {
 	weekWindowsOver,
 } from "./agenda-window";
 export {
+	attendeesOfDraft,
 	type CreateInput,
 	createInputFromDraft,
 	type DraftRefusal,
@@ -45,6 +46,7 @@ export {
 	deviceTimeZone,
 	isDrawnInstance,
 	readCalendarInstanceId,
+	rsvpOfParticipation,
 	seriesOccurrenceOf,
 	toCalendarDescriptor,
 	toCalendarEventData,
@@ -92,6 +94,13 @@ export {
 } from "./useCalendarFreeBusy";
 export { type CalendarJumpSearch, useCalendarJump } from "./useCalendarJump";
 export {
+	type CalendarSenders,
+	type SendsFollowUp,
+	useCalendarSenders,
+	useGuestSuggestions,
+	useSendsFollowUp,
+} from "./useCalendarScheduling";
+export {
 	type CalendarSuggestionAnswers,
 	type CalendarSuggestionsResult,
 	type PendingCalendarSuggestionResult,
@@ -102,6 +111,14 @@ export {
 	usePendingCalendarSuggestions,
 } from "./useCalendarSuggestions";
 export { type CalendarsResult, useCalendars } from "./useCalendars";
+export {
+	calendarTaskEventId,
+	calendarTaskIdOf,
+	type TaskWriteOutcome,
+	toTaskEventData,
+	useCalendarTasks,
+	useCalendarTaskWrites,
+} from "./useCalendarTasks";
 export {
 	type CalendarCreateOutcome,
 	type CalendarWriteOutcome,

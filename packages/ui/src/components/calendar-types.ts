@@ -91,6 +91,8 @@ export interface CalendarEventData {
 	 */
 	seriesException: boolean;
 	status: "confirmed" | "tentative";
+	/** Present on a task: what is drawn is a to-do on its due day, with a checkbox. */
+	task?: { completed: boolean };
 }
 
 /**

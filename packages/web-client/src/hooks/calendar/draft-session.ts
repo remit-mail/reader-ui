@@ -14,6 +14,11 @@ export interface SessionDraft {
 	title: string;
 	location: string;
 	calendarId: string;
+	/** Guests, comma separated. */
+	guests: string;
+	/** A task swaps the range for a due date with an optional time. */
+	kind: "event" | "task";
+	notes: string;
 }
 
 export type DraftStatus = "editing" | "saving" | "failed";
@@ -71,6 +76,9 @@ const blank = (range: CalendarSlotPick): SessionDraft => ({
 	title: "",
 	location: "",
 	calendarId: "",
+	guests: "",
+	kind: "event",
+	notes: "",
 });
 
 /** Which layer Esc closes: only the top one, a drag first. */

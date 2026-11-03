@@ -22,6 +22,8 @@ import {
 	useDrawnEvents,
 	usePrefetchAdjacentWindows,
 } from "./calendar";
+import { deviceTimeZone } from "./calendar/instance";
+import { toTaskEventData, useCalendarTasks } from "./calendar/useCalendarTasks";
 
 export interface CalendarDataRequest {
 	view: CalendarViewId;
@@ -48,6 +50,8 @@ export interface CalendarData {
 	/** A refusal the calendar renders itself. Null when the read succeeded. */
 	error: unknown;
 	retry: () => void;
+	/** The tasks due in the window, as the API returned them. */
+	tasks: ReturnType<typeof useCalendarTasks>["tasks"];
 	/** The resource and occurrence behind an event the grid selected. */
 	instanceOf: (eventId: string) => CalendarInstanceRef;
 	/** The events that leave their time free rather than busy. */
@@ -79,11 +83,19 @@ export function useCalendarData({
 	});
 	usePrefetchAdjacentWindows(view, date, narrowed, active);
 
-	const eventData = useDrawnEvents(
+	const drawnEvents = useDrawnEvents(
 		events.instances,
 		timeZoneByCalendarId,
 		shown,
 	);
+	const { tasks } = useCalendarTasks(window, active);
+	const eventData = useMemo(() => {
+		const clock = deviceTimeZone();
+		return [
+			...drawnEvents,
+			...tasks.map((task) => toTaskEventData(task, clock)),
+		];
+	}, [drawnEvents, tasks]);
 
 	const freeIds = useMemo(
 		() =>
@@ -108,6 +120,7 @@ export function useCalendarData({
 		isLoading: isLoading || events.isLoading,
 		error: events.error,
 		retry: events.refetch,
+		tasks,
 		instanceOf: readCalendarInstanceId,
 		freeIds,
 	};
