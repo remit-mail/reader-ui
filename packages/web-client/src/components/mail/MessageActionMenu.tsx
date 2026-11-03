@@ -33,7 +33,7 @@ import {
 	threadListCacheKeys,
 } from "../../lib/thread-list-cache";
 import { useCloseThread, useOpenThreadPath } from "../../routing";
-import { useErrorBanners } from "../ui/ErrorBannerProvider";
+import { useErrorBanners } from "../ui/error-banner-context";
 import { formatErrorDetail } from "../ui/error-banners";
 import { MoveToTrigger } from "./MoveToTrigger";
 

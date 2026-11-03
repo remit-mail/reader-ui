@@ -261,9 +261,10 @@ export {
 	type CalendarSlotOffersProps,
 } from "./components/calendar-slot-offers.js";
 export {
-	CalendarSuggestionDeck,
-	type CalendarSuggestionDeckProps,
-} from "./components/calendar-suggestion-deck.js";
+	CalendarSuggestionList,
+	type CalendarSuggestionListItem,
+	type CalendarSuggestionListProps,
+} from "./components/calendar-suggestion-list.js";
 export {
 	type CalendarTaskFields,
 	CalendarTaskPopupCard,

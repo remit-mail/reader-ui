@@ -12,7 +12,7 @@ import { after, before, describe, it } from "node:test";
 import type { ComposeBody as ComposeBodyType } from "@remit/ui/rich-text";
 import { createElement, useMemo } from "react";
 import { createDomHarness, type DomHarness } from "../../test-support/dom";
-import { useErrorBanners } from "../ui/ErrorBannerProvider";
+import { useErrorBanners } from "../ui/error-banner-context";
 import { composeSpellcheck } from "./compose-spellcheck.js";
 
 let harness: DomHarness | undefined;

@@ -11,7 +11,7 @@ import {
 	type BulkRunSource,
 	useBulkRun,
 } from "../components/mail/BulkRunProvider";
-import { useErrorBanners } from "../components/ui/ErrorBannerProvider";
+import { useErrorBanners } from "../components/ui/error-banner-context";
 import { buildMutationErrorBanner } from "../components/ui/error-banners";
 import type {
 	ApplyBatch,

@@ -32,7 +32,7 @@ import {
 	invalidateThreadListQueries,
 	threadListCacheKeys,
 } from "../../lib/thread-list-cache";
-import { useErrorBanners } from "../ui/ErrorBannerProvider";
+import { useErrorBanners } from "../ui/error-banner-context";
 import { buildMutationErrorBanner } from "../ui/error-banners";
 import { isFolderRoleRefusal } from "../ui/folder-role-refusal";
 import { useRoleAppointmentPrompt } from "./RoleAppointmentPromptProvider";
