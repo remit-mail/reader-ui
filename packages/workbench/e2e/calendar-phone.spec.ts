@@ -1,13 +1,13 @@
 import { expect, type Page, test } from "playwright/test";
-import { holdAndDrag, slotPoint } from "./grid";
 import {
 	amsterdam,
-	createRackEvent,
-	deleteRackEvents,
+	calendarIdOf,
+	createEvent,
+	deleteEvents,
 	isoDate,
-	rackCalendar,
 	weekDay,
-} from "./rack";
+} from "./backend";
+import { holdAndDrag, slotPoint } from "./grid";
 
 const PREFIX = "e2e phone";
 const apps = (page: Page) => page.getByRole("navigation", { name: "Apps" });
@@ -16,7 +16,7 @@ const block = (page: Page) => page.locator("[data-draft-block]");
 const day = `/calendar/week/${weekDay(2)}`;
 
 const cleanUp = () =>
-	deleteRackEvents(
+	deleteEvents(
 		PREFIX,
 		amsterdam(weekDay(-1), "00:00"),
 		amsterdam(weekDay(30), "00:00"),
@@ -182,8 +182,8 @@ test("Back on a touched draft in the editor asks first", async ({ page }) => {
 });
 
 test("a hold on an event lifts it, and a drag moves it", async ({ page }) => {
-	await createRackEvent({
-		calendarId: await rackCalendar("work"),
+	await createEvent({
+		calendarId: await calendarIdOf("work"),
 		summary: `${PREFIX} held`,
 		start: amsterdam(weekDay(2), "06:00"),
 		end: amsterdam(weekDay(2), "07:00"),

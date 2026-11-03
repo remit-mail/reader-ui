@@ -33,7 +33,8 @@ The remit reader user interface: `@remit/ui` (components), `@remit/web-client` (
 | `npm run test`                      | Unit suites with their coverage floors                                        |
 | `npm run test:web-client`           | The web-client suite in four shards at once, merged against its 86% floor     |
 | `npm run test:scripts`              | The `npm-scripts/**/*.test.mjs` suites                                        |
-| `npm run test:e2e`                  | Playwright against the running rack (`npm run rack -- start`)                 |
+| `npm run e2e:seed`                  | Seed the e2e account, calendars and events through the API (`E2E_*` env)      |
+| `npm run test:e2e`                  | Playwright against a running web client and backend (`E2E_*` env)             |
 | `npm run test:stories`              | Every story in Chromium, then the published Storybook behind a path prefix    |
 | `npm run storybook`                 | Storybook on port 6007, bound to `0.0.0.0`                                    |
 | `npm run build-storybook`           | Static Storybook into `packages/workbench/storybook-static`                   |

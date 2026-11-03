@@ -1,12 +1,12 @@
 import { expect, type Page, test } from "playwright/test";
-import { slotPoint } from "./grid";
 import {
 	amsterdam,
-	createRackEvent,
-	deleteRackEvents,
-	rackCalendar,
+	calendarIdOf,
+	createEvent,
+	deleteEvents,
 	weekDay,
-} from "./rack";
+} from "./backend";
+import { slotPoint } from "./grid";
 
 const PREFIX = "e2e drag";
 const week = `/calendar/week/${weekDay(0)}`;
@@ -14,7 +14,7 @@ const chip = (page: Page, name: string) =>
 	page.locator("[data-event-id]", { hasText: name }).first();
 
 const cleanUp = () =>
-	deleteRackEvents(
+	deleteEvents(
 		PREFIX,
 		amsterdam(weekDay(-1), "00:00"),
 		amsterdam(weekDay(40), "00:00"),
@@ -22,15 +22,15 @@ const cleanUp = () =>
 
 test.beforeEach(async () => {
 	await cleanUp();
-	const work = await rackCalendar("work");
-	await createRackEvent({
+	const work = await calendarIdOf("work");
+	await createEvent({
 		calendarId: work,
 		summary: `${PREFIX} meeting`,
 		start: amsterdam(weekDay(1), "06:00"),
 		end: amsterdam(weekDay(1), "07:00"),
 		timeZone: "Europe/Amsterdam",
 	});
-	await createRackEvent({
+	await createEvent({
 		calendarId: work,
 		summary: `${PREFIX} weekly`,
 		start: amsterdam(weekDay(2), "06:00"),
@@ -38,7 +38,7 @@ test.beforeEach(async () => {
 		timeZone: "Europe/Amsterdam",
 		recurrenceRule: "FREQ=WEEKLY;COUNT=3",
 	});
-	await createRackEvent({
+	await createEvent({
 		calendarId: work,
 		summary: `${PREFIX} trip`,
 		start: weekDay(3),

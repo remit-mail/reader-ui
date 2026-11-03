@@ -1,6 +1,6 @@
 import { expect, type Page, test } from "playwright/test";
+import { amsterdam, deleteEvents, weekDay } from "./backend";
 import { clickSlot, dragRange } from "./grid";
-import { amsterdam, deleteRackEvents, weekDay } from "./rack";
 
 const PREFIX = "e2e quick";
 const week = `/calendar/week/${weekDay(0)}`;
@@ -9,7 +9,7 @@ const block = (page: Page) => page.locator("[data-draft-block]");
 const title = (page: Page) => quick(page).getByLabel("Title");
 
 const cleanUp = () =>
-	deleteRackEvents(
+	deleteEvents(
 		PREFIX,
 		amsterdam(weekDay(-1), "00:00"),
 		amsterdam(weekDay(30), "00:00"),

@@ -60,7 +60,6 @@ function Sidebar({ conflict }: { conflict: boolean }) {
 
 const meta = {
 	title: "Design System/Calendar/Event sidebar",
-	tags: ["proposed"],
 	component: Sidebar,
 	parameters: { layout: "fullscreen" },
 } satisfies Meta<typeof Sidebar>;

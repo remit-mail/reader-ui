@@ -11,13 +11,20 @@ import {
 } from "@remit/api-http-client";
 import { client } from "@remit/api-http-client/client.gen.ts";
 
-export const RACK_USER = {
-	email: "demo@rack.remit.local",
-	password: "rack-demo-password",
+const required = (name: string): string => {
+	const value = process.env[name];
+	if (!value) throw new Error(`set ${name} to run the e2e suite`);
+	return value;
 };
 
-const backend = process.env.RACK_BACKEND_URL ?? "http://localhost:4224";
-const origin = process.env.RACK_WEB_URL ?? "http://localhost:4223";
+/** The account the suite signs in as, seeded by `npm run e2e:seed`. */
+export const E2E_USER = {
+	email: required("E2E_EMAIL"),
+	password: required("E2E_PASSWORD"),
+};
+
+const backend = required("E2E_BACKEND_URL");
+const origin = required("E2E_WEB_URL");
 
 let configured: Promise<void> | undefined;
 
@@ -43,9 +50,9 @@ const signedInCookie = async (): Promise<string> => {
 	const signIn = await fetch(`${backend}/api/auth/sign-in/email`, {
 		method: "POST",
 		headers: { "content-type": "application/json", origin },
-		body: JSON.stringify(RACK_USER),
+		body: JSON.stringify(E2E_USER),
 	});
-	if (!signIn.ok) throw new Error(`rack sign-in failed: ${signIn.status}`);
+	if (!signIn.ok) throw new Error(`e2e sign-in failed: ${signIn.status}`);
 	return signIn.headers
 		.getSetCookie()
 		.map((line) => line.split(";")[0])
@@ -59,7 +66,7 @@ const configure = async (): Promise<void> => {
 	});
 	const body = (await token.json()) as { token?: string };
 	if (!body.token)
-		throw new Error(`rack token exchange failed: ${token.status}`);
+		throw new Error(`e2e token exchange failed: ${token.status}`);
 	client.setConfig({
 		baseUrl: backend,
 		headers: { authorization: `Bearer ${body.token}` },
@@ -71,7 +78,7 @@ const ready = (): Promise<void> => {
 	return configured;
 };
 
-export async function rackCalendars(): Promise<RemitImapCalendarResponse[]> {
+export async function listCalendars(): Promise<RemitImapCalendarResponse[]> {
 	await ready();
 	const { data } = await calendarOperationsListCalendars({
 		throwOnError: true,
@@ -79,16 +86,16 @@ export async function rackCalendars(): Promise<RemitImapCalendarResponse[]> {
 	return data.items;
 }
 
-export async function rackCalendar(urlSegment: string): Promise<string> {
-	const found = (await rackCalendars()).find(
+export async function calendarIdOf(urlSegment: string): Promise<string> {
+	const found = (await listCalendars()).find(
 		(calendar) => calendar.urlSegment === urlSegment,
 	);
 	if (!found)
-		throw new Error(`no rack calendar ${urlSegment}; run npm run rack -- seed`);
+		throw new Error(`no calendar ${urlSegment}; run npm run e2e:seed`);
 	return found.calendarId;
 }
 
-export async function createRackEvent(
+export async function createEvent(
 	input: RemitImapCreateCalendarEventInput,
 ): Promise<void> {
 	await ready();
@@ -99,7 +106,7 @@ export async function createRackEvent(
 }
 
 /** Removes every event whose title starts with the prefix, in the window. */
-export async function deleteRackEvents(
+export async function deleteEvents(
 	prefix: string,
 	from: string,
 	to: string,

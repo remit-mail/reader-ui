@@ -2,7 +2,7 @@ import { existsSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { request } from "playwright/test";
-import { RACK_USER } from "./rack";
+import { E2E_USER } from "./backend";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const statePath = join(here, ".auth/state.json");
@@ -21,16 +21,16 @@ async function sessionStillValid(baseURL: string): Promise<boolean> {
 }
 
 export default async function globalSetup(): Promise<void> {
-	const baseURL = process.env.RACK_WEB_URL ?? "http://localhost:4223";
+	const baseURL = process.env.E2E_WEB_URL ?? "";
 	if (await sessionStillValid(baseURL)) return;
 	const context = await request.newContext({ baseURL });
 	const response = await context.post("/api/auth/sign-in/email", {
-		data: RACK_USER,
+		data: E2E_USER,
 		headers: { origin: baseURL },
 	});
 	if (!response.ok()) {
 		throw new Error(
-			`rack sign-in failed: ${response.status()} ${await response.text()}; run npm run rack -- seed`,
+			`e2e sign-in failed: ${response.status()} ${await response.text()}; run npm run e2e:seed`,
 		);
 	}
 	mkdirSync(dirname(statePath), { recursive: true });

@@ -1,12 +1,12 @@
 import { expect, type Page, test } from "playwright/test";
-import { clickSlot, dragRange, slotPoint } from "./grid";
 import {
 	amsterdam,
-	createRackEvent,
-	deleteRackEvents,
-	rackCalendar,
+	calendarIdOf,
+	createEvent,
+	deleteEvents,
 	weekDay,
-} from "./rack";
+} from "./backend";
+import { clickSlot, dragRange, slotPoint } from "./grid";
 
 const PREFIX = "e2e sidebar";
 const week = `/calendar/week/${weekDay(0)}`;
@@ -18,7 +18,7 @@ const chip = (page: Page, name: string) =>
 	page.locator("[data-event-id]", { hasText: name }).first();
 
 const cleanUp = () =>
-	deleteRackEvents(
+	deleteEvents(
 		PREFIX,
 		amsterdam(weekDay(-1), "00:00"),
 		amsterdam(weekDay(30), "00:00"),
@@ -26,8 +26,8 @@ const cleanUp = () =>
 
 test.beforeAll(async () => {
 	await cleanUp();
-	const work = await rackCalendar("work");
-	await createRackEvent({
+	const work = await calendarIdOf("work");
+	await createEvent({
 		calendarId: work,
 		summary: `${PREFIX} stored`,
 		start: amsterdam(weekDay(1), "16:00"),
@@ -35,7 +35,7 @@ test.beforeAll(async () => {
 		timeZone: "Europe/Amsterdam",
 		location: "Room 7",
 	});
-	await createRackEvent({
+	await createEvent({
 		calendarId: work,
 		summary: `${PREFIX} series`,
 		start: amsterdam(weekDay(2), "17:00"),

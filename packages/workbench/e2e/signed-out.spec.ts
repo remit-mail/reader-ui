@@ -1,5 +1,5 @@
 import { expect, test } from "playwright/test";
-import { RACK_USER, weekDay } from "./rack";
+import { E2E_USER, weekDay } from "./backend";
 
 /**
  * Its own session, so signing it out leaves the suite's session alone.
@@ -18,7 +18,7 @@ test("a 401 shows the signed-out notice, and signing in returns to the same scre
 }) => {
 	const context = await browser.newContext({ storageState: undefined });
 	const signIn = await context.request.post("/api/auth/sign-in/email", {
-		data: RACK_USER,
+		data: E2E_USER,
 		headers: { origin: baseURL ?? "" },
 	});
 	expect(signIn.ok()).toBe(true);
@@ -39,8 +39,8 @@ test("a 401 shows the signed-out notice, and signing in returns to the same scre
 
 	await notice.getByRole("button", { name: "Sign in" }).click();
 	const submit = page.getByRole("button", { name: "Sign in" }).last();
-	await page.getByLabel(/email/i).fill(RACK_USER.email);
-	await page.getByLabel("Password", { exact: true }).fill(RACK_USER.password);
+	await page.getByLabel(/email/i).fill(E2E_USER.email);
+	await page.getByLabel("Password", { exact: true }).fill(E2E_USER.password);
 	await submit.click();
 
 	await expect(page).toHaveURL(new RegExp(`${address}$`));

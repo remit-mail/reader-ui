@@ -1,12 +1,12 @@
 import { expect, type Page, test } from "playwright/test";
-import { clickSlot } from "./grid";
 import {
 	amsterdam,
-	createRackEvent,
-	deleteRackEvents,
-	rackCalendar,
+	calendarIdOf,
+	createEvent,
+	deleteEvents,
 	weekDay,
-} from "./rack";
+} from "./backend";
+import { clickSlot } from "./grid";
 
 const PREFIX = "e2e popup";
 const week = `/calendar/week/${weekDay(0)}`;
@@ -16,13 +16,13 @@ const chip = (page: Page, name: string) =>
 	page.locator("[data-event-id]", { hasText: name }).first();
 
 test.beforeAll(async () => {
-	await deleteRackEvents(
+	await deleteEvents(
 		PREFIX,
 		amsterdam(weekDay(-1), "00:00"),
 		amsterdam(weekDay(30), "00:00"),
 	);
-	const work = await rackCalendar("work");
-	await createRackEvent({
+	const work = await calendarIdOf("work");
+	await createEvent({
 		calendarId: work,
 		summary: `${PREFIX} one-off`,
 		start: amsterdam(weekDay(2), "16:00"),
@@ -30,7 +30,7 @@ test.beforeAll(async () => {
 		timeZone: "Europe/Amsterdam",
 		location: "Room 5",
 	});
-	await createRackEvent({
+	await createEvent({
 		calendarId: work,
 		summary: `${PREFIX} weekly`,
 		start: amsterdam(weekDay(3), "16:00"),
@@ -41,7 +41,7 @@ test.beforeAll(async () => {
 });
 
 test.afterAll(async () => {
-	await deleteRackEvents(
+	await deleteEvents(
 		PREFIX,
 		amsterdam(weekDay(-1), "00:00"),
 		amsterdam(weekDay(30), "00:00"),
@@ -102,8 +102,8 @@ test("an outside click, Esc and Back close it and start no range", async ({
 test("a URL for an event deleted elsewhere says it was deleted or moved", async ({
 	page,
 }) => {
-	const work = await rackCalendar("work");
-	await createRackEvent({
+	const work = await calendarIdOf("work");
+	await createEvent({
 		calendarId: work,
 		summary: `${PREFIX} doomed`,
 		start: amsterdam(weekDay(4), "16:00"),
@@ -114,7 +114,7 @@ test("a URL for an event deleted elsewhere says it was deleted or moved", async 
 	await chip(page, `${PREFIX} doomed`).click();
 	await expect(popup(page, `${PREFIX} doomed`)).toBeVisible();
 	const address = page.url();
-	await deleteRackEvents(
+	await deleteEvents(
 		`${PREFIX} doomed`,
 		amsterdam(weekDay(-1), "00:00"),
 		amsterdam(weekDay(30), "00:00"),

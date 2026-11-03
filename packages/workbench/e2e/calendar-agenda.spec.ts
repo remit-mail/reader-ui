@@ -1,5 +1,5 @@
 import { expect, test } from "playwright/test";
-import { weekDay } from "./rack";
+import { weekDay } from "./backend";
 
 const agenda = `/calendar/agenda/${weekDay(0)}`;
 

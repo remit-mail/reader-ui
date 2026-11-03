@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { defineConfig, devices } from "playwright/test";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const baseURL = process.env.RACK_WEB_URL ?? "http://localhost:4223";
+const baseURL = process.env.E2E_WEB_URL;
 
 export default defineConfig({
 	testDir: here,

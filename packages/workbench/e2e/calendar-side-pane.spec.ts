@@ -1,5 +1,5 @@
 import { expect, type Page, test } from "playwright/test";
-import { weekDay } from "./rack";
+import { weekDay } from "./backend";
 
 const hamburger = (page: Page) =>
 	page

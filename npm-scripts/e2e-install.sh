@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# The browser the rack e2e suite drives: Playwright's headless shell.
+# The browser the e2e suite drives: Playwright's headless shell.
 set -euo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
