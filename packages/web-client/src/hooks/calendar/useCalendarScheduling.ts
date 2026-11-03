@@ -7,11 +7,12 @@
  * reading the outbox row until the send worker settles it.
  */
 import {
-	accountDetailOperationsUpdateAccountMutation,
 	addressOperationsSearchAddressesOptions,
 	configOperationsGetConfigOptions,
 	outboxDetailOperationsGetOutboxMessageOptions,
 	outboxDetailOperationsSendOutboxMessageMutation,
+	userSettingsOperationsGetUserSettingsOptions,
+	userSettingsOperationsUpdateUserSettingsMutation,
 } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
 import type {
 	RemitImapCalendarSchedulingSend,
@@ -29,7 +30,11 @@ import { useDebouncedValue } from "../useDebouncedValue";
 
 export interface CalendarSenders {
 	senders: CalendarSender[];
-	/** The account the editor starts on: the default setting, else the first. */
+	/**
+	 * The account the editor starts on: the default sender setting, or where
+	 * none is set, the account the event is on. A new event is on the account
+	 * config, whose first sending account is that account.
+	 */
 	defaultSenderId: string;
 	setDefaultSender: (accountId: string) => Promise<void>;
 }
@@ -41,7 +46,10 @@ export function useCalendarSenders(): CalendarSenders {
 		...configOperationsGetConfigOptions(),
 		staleTime: 60_000,
 	});
-	const update = useMutation(accountDetailOperationsUpdateAccountMutation());
+	const { data: settings } = useQuery(
+		userSettingsOperationsGetUserSettingsOptions(),
+	);
+	const update = useMutation(userSettingsOperationsUpdateUserSettingsMutation());
 	const senders = useMemo(
 		() =>
 			(data?.accounts ?? [])
@@ -52,7 +60,7 @@ export function useCalendarSenders(): CalendarSenders {
 				})),
 		[data?.accounts],
 	);
-	const setting = data?.calendarDefaultOrganizerAccountId ?? "";
+	const setting = settings?.defaultInvitationSenderAccountId ?? "";
 	const defaultSenderId =
 		senders.find((sender) => sender.accountId === setting)?.accountId ??
 		senders[0]?.accountId ??
@@ -60,11 +68,10 @@ export function useCalendarSenders(): CalendarSenders {
 	const setDefaultSender = useCallback(
 		async (accountId: string) => {
 			await update.mutateAsync({
-				path: { accountId },
-				body: { calendarDefaultOrganizer: true },
+				body: { defaultInvitationSenderAccountId: accountId },
 			});
 			await queryClient.invalidateQueries({
-				queryKey: configOperationsGetConfigOptions().queryKey,
+				queryKey: userSettingsOperationsGetUserSettingsOptions().queryKey,
 			});
 		},
 		[update, queryClient],

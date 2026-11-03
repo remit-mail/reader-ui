@@ -105,6 +105,5 @@ export const makeConfig = (
 	},
 	accounts,
 	buildCommit: "dev",
-	calendarDefaultOrganizerAccountId: "",
 	...overrides,
 });
