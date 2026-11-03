@@ -106,6 +106,10 @@ export interface CalendarGridProps {
 	onRangeChange: (title: string) => void;
 	dayHref: (date: string) => string;
 	onZoomDay: (date: string) => void;
+	/** Whether an event may be dragged to other days; its calendar takes writes. */
+	canMove?: (eventId: string) => boolean;
+	/** A stored event dropped on other days, or stretched across more. */
+	onMoveEvent?: (eventId: string, range: CalendarSlotPick) => void;
 	className?: string;
 }
 
@@ -172,6 +176,8 @@ export function CalendarGrid({
 	onRangeChange,
 	dayHref,
 	onZoomDay,
+	canMove = () => false,
+	onMoveEvent,
 	className,
 }: CalendarGridProps) {
 	const calendarRef = useRef<CalendarRef>(null);
@@ -184,7 +190,29 @@ export function CalendarGrid({
 		calendarRef.current?.getApi().gotoDate(date);
 	}, [date]);
 
-	const eventInputs = useMemo(() => events.map(toInput), [events]);
+	const eventInputs = useMemo(
+		() =>
+			events.map((event) => ({
+				...toInput(event),
+				editable: onMoveEvent !== undefined && canMove(event.id),
+			})),
+		[events, canMove, onMoveEvent],
+	);
+
+	const dropped = (info: {
+		event: { id: string; startStr: string; endStr: string; allDay: boolean };
+		revert: () => void;
+	}) => {
+		info.revert();
+		onMoveEvent?.(
+			info.event.id,
+			rangePick(
+				info.event.startStr,
+				info.event.endStr === "" ? info.event.startStr : info.event.endStr,
+				info.event.allDay,
+			),
+		);
+	};
 
 	const byId = useMemo(
 		() =>
@@ -318,6 +346,11 @@ export function CalendarGrid({
 				dayHeaderFormat={DAY_HEADER_FORMAT[view]}
 				events={eventInputs}
 				eventClick={(info) => onSelectEvent(info.event.id)}
+				eventDrop={dropped}
+				eventResize={dropped}
+				eventDidMount={(info) => {
+					info.el.setAttribute("data-event-id", info.event.id);
+				}}
 				/* One gesture, two readings, and each owns a shape the other cannot
 				   reach. A point is `dateClick`'s: a finger has to hold a full second
 				   before the library will call it a selection, and a selection cancels

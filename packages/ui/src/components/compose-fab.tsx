@@ -11,7 +11,10 @@ export function ComposeFab({ onCompose }: ComposeFabProps) {
 			onClick={onCompose}
 			aria-label="Compose new message"
 			className="lg:hidden fixed right-4 z-30 h-14 w-14 rounded-full bg-accent text-accent-fg shadow-lg flex items-center justify-center hover:opacity-90 active:scale-95 transition-all"
-			style={{ bottom: "calc(env(safe-area-inset-bottom, 0) + 1rem)" }}
+			style={{
+				bottom:
+					"calc(var(--app-tab-bar, 0px) + env(safe-area-inset-bottom, 0px) + 1rem)",
+			}}
 		>
 			<Pencil className="size-6" />
 		</button>

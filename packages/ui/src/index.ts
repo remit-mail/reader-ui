@@ -96,6 +96,13 @@ export {
 	type TouchSeed,
 	useContainerWidth,
 } from "./components/app-shell-types.js";
+export {
+	AppBar,
+	type AppId,
+	type AppSwitcherProps,
+	type AppSwitchItem,
+	AppTabBar,
+} from "./components/app-switcher.js";
 export { AppTopBar, type AppTopBarProps } from "./components/app-top-bar.js";
 export {
 	type AttachmentDownloadState,
@@ -180,6 +187,17 @@ export {
 	type CalendarEventChipContentProps,
 } from "./components/calendar-event-chip-content.js";
 export {
+	CalendarEventGone,
+	CalendarEventPopupCard,
+	type CalendarEventPopupCardProps,
+	type CalendarFailure,
+	CalendarFailureBlock,
+} from "./components/calendar-event-popup.js";
+export {
+	CalendarEventSidebar,
+	type CalendarEventSidebarProps,
+} from "./components/calendar-event-sidebar.js";
+export {
 	CalendarFailureNote,
 	type CalendarFailureNoteProps,
 } from "./components/calendar-failure-note.js";
@@ -202,6 +220,29 @@ export {
 	calendarParseNote,
 } from "./components/calendar-parse-badge.js";
 export {
+	CalendarPopover,
+	type CalendarPopoverProps,
+} from "./components/calendar-popover.js";
+export {
+	CalendarQuickCreateCard,
+	type CalendarQuickCreateCardProps,
+	type QuickCreateFields,
+} from "./components/calendar-quick-create.js";
+export {
+	CalendarScreenToolbar,
+	type CalendarScreenToolbarProps,
+} from "./components/calendar-screen-toolbar.js";
+export {
+	CalendarSheet,
+	type CalendarSheetProps,
+} from "./components/calendar-sheet.js";
+export {
+	CalendarSidePane,
+	type CalendarSidePaneProps,
+	NewEventSquare,
+	type NewEventSquareProps,
+} from "./components/calendar-side-pane.js";
+export {
 	CalendarSlotOffers,
 	type CalendarSlotOffersProps,
 } from "./components/calendar-slot-offers.js";
@@ -209,6 +250,13 @@ export {
 	CalendarSuggestionDeck,
 	type CalendarSuggestionDeckProps,
 } from "./components/calendar-suggestion-deck.js";
+export {
+	CalendarTimeGrid,
+	type CalendarTimeGridProps,
+	describeRange,
+	type GridDraft,
+	type GridGesture,
+} from "./components/calendar-time-grid.js";
 export {
 	CalendarDateNav,
 	type CalendarDateNavProps,
@@ -241,6 +289,10 @@ export {
 	type ZoneOption,
 	type ZoneOptions,
 } from "./components/calendar-types.js";
+export {
+	CalendarYear,
+	type CalendarYearProps,
+} from "./components/calendar-year.js";
 export {
 	Card,
 	CardBody,
@@ -580,6 +632,7 @@ export {
 	messageSettlementCopy,
 	type RowSettlement,
 } from "./components/message-settlement.js";
+export { MiniMonth, type MiniMonthProps } from "./components/mini-month.js";
 export {
 	type MobileMessageAction,
 	MobileMessageActionBar,
@@ -1007,10 +1060,24 @@ export {
 	calendarEventBodyClasses,
 } from "./lib/calendar-event-shell.js";
 export {
+	calendarRangeTitle,
+	datesFrom,
+	weekStart,
+} from "./lib/calendar-range.js";
+export {
+	allDayRange,
+	CLICK_THRESHOLD_PX,
+	clickRange,
+	clockAt,
 	DRAFT_MINUTES,
 	isDraggedSelection,
+	minutesOf,
 	pointPick,
+	rangeMinutes,
 	rangePick,
+	SNAP_MINUTES,
+	slotRange,
+	timedRange,
 } from "./lib/calendar-slot-pick.js";
 export {
 	buildCidResolver,
@@ -1066,6 +1133,8 @@ export {
 	isFocusable,
 	isSelectable,
 } from "./lib/folder-tree-focus.js";
+export { type GridSlot, initialFocus } from "./lib/grid-keyboard.js";
+export { isoWeek } from "./lib/iso-week.js";
 export {
 	defaultKeyboardHints,
 	KEY_HINT_GROUPS,
@@ -1098,6 +1167,7 @@ export {
 	DESKTOP_MEDIA_QUERY,
 	DESKTOP_MIN_WIDTH,
 } from "./lib/layout-breakpoints.js";
+export { miniMonthWeeks, shiftMonth } from "./lib/mini-month.js";
 export {
 	type OverlayAnswers,
 	type OverlayScopeOptions,
@@ -1105,6 +1175,7 @@ export {
 	resolveAgainstOverlays,
 	useOverlayScope,
 } from "./lib/overlay-scope.js";
+export { placePopup } from "./lib/popup-placement.js";
 export {
 	derivePropertyClauses,
 	normalizeSubject,
@@ -1160,6 +1231,7 @@ export {
 	type SuggestKeyState,
 	suggestKeyAction,
 } from "./lib/suggest-keys.js";
+export { zonedMoment } from "./lib/time-grid-layout.js";
 export { type ListCursor, useListCursor } from "./lib/use-list-cursor.js";
 export {
 	type ListKeyboard,
