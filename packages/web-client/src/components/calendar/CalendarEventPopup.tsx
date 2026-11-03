@@ -11,6 +11,7 @@ import {
 	type CalendarFailure,
 	CalendarPopover,
 	CalendarReplyRow,
+	ConfirmDialog,
 	type RecurrenceScope,
 	RecurrenceScopePrompt,
 } from "@remit/ui";
@@ -34,7 +35,6 @@ import { calendarEventReportHref } from "../../lib/calendar-report";
 import type { CalendarSearch } from "../../lib/calendar-route";
 import { useCalendarAddress, useCalendarNavigation } from "../../routing";
 import { useOptionalCalendarSession } from "./CalendarSession";
-import { CalendarTaskPopup } from "./CalendarTaskPopup";
 
 const ATTENDEE_RSVP: Record<
 	RemitImapCalendarAttendee["status"],
@@ -78,13 +78,7 @@ const failureText = (outcome: CalendarWriteOutcome): string =>
  * The event the address names, in a popup beside its chip. It is a
  * navigation, so Back closes it; Esc, Close and a click outside go back too.
  */
-export function CalendarEventPopup(props: CalendarEventPopupProps) {
-	if (props.calendarObjectId.startsWith("task:"))
-		return <CalendarTaskPopup eventId={props.calendarObjectId} />;
-	return <CalendarStoredEventPopup {...props} />;
-}
-
-function CalendarStoredEventPopup({
+export function CalendarEventPopup({
 	calendarObjectId,
 	recurrenceId,
 }: CalendarEventPopupProps) {
@@ -107,6 +101,7 @@ function CalendarStoredEventPopup({
 	const closeRef = useRef<HTMLButtonElement>(null);
 	const failureRef = useRef<HTMLDivElement>(null);
 	const [asking, setAsking] = useState(false);
+	const [confirmingDelete, setConfirmingDelete] = useState(false);
 	const [failure, setFailure] = useState<CalendarFailure | undefined>(
 		undefined,
 	);
@@ -169,6 +164,31 @@ function CalendarStoredEventPopup({
 		scope,
 		etag: resource?.etag ?? "",
 	});
+
+	const guestNames = (resource?.attendees ?? [])
+		.filter((attendee) => attendee.role === "Guest")
+		.map((attendee) =>
+			attendee.displayName === "" ? attendee.email : attendee.displayName,
+		);
+	const askDelete = () => {
+		if (guestNames.length > 0) {
+			setConfirmingDelete(true);
+			return;
+		}
+		if (repeats) {
+			setAsking(true);
+			return;
+		}
+		remove(undefined);
+	};
+	const confirmDelete = () => {
+		setConfirmingDelete(false);
+		if (repeats) {
+			setAsking(true);
+			return;
+		}
+		remove(undefined);
+	};
 
 	const remove = (scope: RecurrenceScope | undefined) => {
 		setAsking(false);
@@ -313,68 +333,79 @@ function CalendarStoredEventPopup({
 	if (!event) return null;
 
 	return (
-		<CalendarPopover
-			anchor={anchor}
-			anchorKey={`${instanceId}:${anchor ? "chip" : "none"}`}
-			labelledBy={headingId}
-		>
-			<CalendarEventPopupCard
-				headingId={headingId}
-				headingRef={headingRef}
-				title={event.title}
-				color={calendar?.color ?? "cal-1"}
-				when={formatEventWhen(event).replace(", ", " · ")}
-				location={stored?.location ?? ""}
-				calendarName={calendar?.name ?? ""}
-				availability={freeIds.has(event.id) ? "Free" : "Busy"}
-				onEdit={
-					writable
-						? () => openEditor(calendarObjectId, recurrenceId)
-						: undefined
-				}
-				onDelete={
-					writable
-						? () => (repeats ? setAsking(true) : remove(undefined))
-						: undefined
-				}
-				deleting={isWriting}
-				onClose={closeToView}
-				failure={failure}
-				failureRef={failureRef}
+		<>
+			<CalendarPopover
+				anchor={anchor}
+				anchorKey={`${instanceId}:${anchor ? "chip" : "none"}`}
+				labelledBy={headingId}
 			>
-				{resource && (
-					<CalendarEventGuests attendees={resource.attendees.map(toAttendee)} />
-				)}
-				{isGuest && participation && (
-					<CalendarReplyRow
-						current={rsvpOfParticipation(participation)}
-						onAnswer={(answer) =>
-							repeats ? setAnswering(answer) : reply(answer, undefined)
-						}
-						sending={isWriting}
-						failure={replyFailure}
-					/>
-				)}
-				{answering && (
-					<RecurrenceScopePrompt
-						title={event.title}
-						ruleText="It repeats"
-						instanceText={formatEventWhen(event)}
-						scopes={["this", "all"]}
-						onChoose={(scope) => reply(answering, scope)}
-						onCancel={() => setAnswering(undefined)}
-					/>
-				)}
-				{asking && (
-					<RecurrenceScopePrompt
-						title={event.title}
-						ruleText="It repeats"
-						instanceText={formatEventWhen(event)}
-						onChoose={remove}
-						onCancel={() => setAsking(false)}
-					/>
-				)}
-			</CalendarEventPopupCard>
-		</CalendarPopover>
+				<CalendarEventPopupCard
+					headingId={headingId}
+					headingRef={headingRef}
+					title={event.title}
+					color={calendar?.color ?? "cal-1"}
+					when={formatEventWhen(event).replace(", ", " · ")}
+					location={stored?.location ?? ""}
+					calendarName={calendar?.name ?? ""}
+					availability={freeIds.has(event.id) ? "Free" : "Busy"}
+					onEdit={
+						writable
+							? () => openEditor(calendarObjectId, recurrenceId)
+							: undefined
+					}
+					onDelete={writable ? askDelete : undefined}
+					deleting={isWriting}
+					onClose={closeToView}
+					failure={failure}
+					failureRef={failureRef}
+				>
+					{resource && (
+						<CalendarEventGuests
+							attendees={resource.attendees.map(toAttendee)}
+							counts={resource.attendeeCounts}
+						/>
+					)}
+					{isGuest && participation && (
+						<CalendarReplyRow
+							current={rsvpOfParticipation(participation)}
+							onAnswer={(answer) =>
+								repeats ? setAnswering(answer) : reply(answer, undefined)
+							}
+							sending={isWriting}
+							failure={replyFailure}
+						/>
+					)}
+					{answering && (
+						<RecurrenceScopePrompt
+							title={event.title}
+							ruleText="It repeats"
+							instanceText={formatEventWhen(event)}
+							scopes={["this", "all"]}
+							onChoose={(scope) => reply(answering, scope)}
+							onCancel={() => setAnswering(undefined)}
+						/>
+					)}
+					{asking && (
+						<RecurrenceScopePrompt
+							title={event.title}
+							ruleText="It repeats"
+							instanceText={formatEventWhen(event)}
+							onChoose={remove}
+							onCancel={() => setAsking(false)}
+						/>
+					)}
+				</CalendarEventPopupCard>
+			</CalendarPopover>
+			<ConfirmDialog
+				isOpen={confirmingDelete}
+				title="Delete and tell the guests?"
+				description={`${guestNames.join(", ")} will get a cancellation.`}
+				confirmLabel="Delete and send"
+				cancelLabel="Keep event"
+				destructive
+				onConfirm={confirmDelete}
+				onCancel={() => setConfirmingDelete(false)}
+			/>
+		</>
 	);
 }

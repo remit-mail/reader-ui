@@ -5,6 +5,7 @@
  */
 import {
 	calendarTaskDetailOperationsDeleteCalendarTaskMutation,
+	calendarTaskDetailOperationsGetCalendarTaskOptions,
 	calendarTaskDetailOperationsUpdateCalendarTaskMutation,
 	calendarTaskOperationsCreateCalendarTaskMutation,
 	calendarTaskOperationsListCalendarTasksOptions,
@@ -14,66 +15,30 @@ import type {
 	RemitImapCreateCalendarTaskInput,
 	RemitImapUpdateCalendarTaskInput,
 } from "@remit/api-http-client/types.gen.ts";
-import type { CalendarEventData } from "@remit/ui";
+import type { CalendarTaskData } from "@remit/ui";
 import { formatErrorMessage } from "@remit/ui";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useCallback, useMemo } from "react";
 import { getErrorStatus, softErrorStatuses } from "../../lib/error-classifier";
+import { useInvalidateCalendarReads } from "./useCalendarWrites";
 import type { CalendarWindow } from "./window";
-import { addDays, isoOnClock } from "./window";
 
-const TASK_PREFIX = "task:";
-
-/** The grid's id for a task, kept apart from every event id. */
-export const calendarTaskEventId = (calendarTaskId: string): string =>
-	`${TASK_PREFIX}${calendarTaskId}`;
-
-/** The task an id names, or `undefined` for an event. */
-export const calendarTaskIdOf = (eventId: string): string | undefined =>
-	eventId.startsWith(TASK_PREFIX)
-		? eventId.slice(TASK_PREFIX.length)
-		: undefined;
-
-/** A task as the grid draws it: an all-day entry on its day, or a short block at its time. */
-export function toTaskEventData(
+/** A task as the grid draws it, on its due day. */
+export const toTaskData = (
 	task: RemitImapCalendarTaskResponse,
-	clockZone: string,
-): CalendarEventData {
-	const date = task.due.slice(0, 10);
-	const start = task.allDay ? date : isoOnClock(task.due, clockZone);
-	const end = task.allDay
-		? addDays(date, 1)
-		: isoOnClock(
-				new Date(Date.parse(task.dueAt) + 30 * 60_000).toISOString(),
-				clockZone,
-			);
-	return {
-		id: calendarTaskEventId(task.calendarTaskId),
-		calendarId: task.calendarId,
-		title: task.summary,
-		start,
-		end,
-		allDay: task.allDay,
-		location: "",
-		notes: task.description,
-		attendees: [],
-		myRsvp: "accepted",
-		threadId: "",
-		threadSubject: "",
-		timeZone: "",
-		zoneCertainty: "explicit",
-		recurrenceRule: "",
-		seriesId: "",
-		seriesException: false,
-		status: "confirmed",
-		task: { completed: task.completed },
-	};
-}
+): CalendarTaskData => ({
+	calendarTaskId: task.calendarTaskId,
+	calendarId: task.calendarId,
+	title: task.summary,
+	due: task.allDay ? task.due.slice(0, 10) : task.dueAt,
+	allDay: task.allDay,
+	completed: task.completed,
+});
 
 const TASK_META = softErrorStatuses(400, 404, 412);
 
 export function useCalendarTasks(window: CalendarWindow, enabled = true) {
-	const { data, error } = useQuery({
+	const { data, error, refetch } = useQuery({
 		...calendarTaskOperationsListCalendarTasksOptions({
 			query: { from: window.from, to: window.to },
 		}),
@@ -81,14 +46,39 @@ export function useCalendarTasks(window: CalendarWindow, enabled = true) {
 		enabled,
 	});
 	const tasks = useMemo(() => data?.items ?? [], [data?.items]);
-	return { tasks, error };
+	return { tasks, error, refetch };
+}
+
+export type CalendarTaskRead =
+	| { kind: "loading" }
+	| { kind: "found"; task: RemitImapCalendarTaskResponse }
+	| { kind: "gone" }
+	| { kind: "failed"; error: unknown; retry: () => void };
+
+/** One task by its id, the way the popup opens it from the address. */
+export function useCalendarTask(calendarTaskId: string): CalendarTaskRead {
+	const { data, error, refetch } = useQuery({
+		...calendarTaskDetailOperationsGetCalendarTaskOptions({
+			path: { calendarTaskId },
+		}),
+		meta: softErrorStatuses(404),
+		retry: false,
+	});
+	if (data) return { kind: "found", task: data };
+	if (error === null) return { kind: "loading" };
+	if (getErrorStatus(error) === 404) return { kind: "gone" };
+	return {
+		kind: "failed",
+		error,
+		retry: () => {
+			void refetch();
+		},
+	};
 }
 
 export type TaskWriteOutcome =
 	| { kind: "written" }
 	| { kind: "refused"; message: string };
-
-const TASK_LIST_ID = "calendarTaskOperationsListCalendarTasks";
 
 const refused = (error: unknown): TaskWriteOutcome => ({
 	kind: "refused",
@@ -98,20 +88,13 @@ const refused = (error: unknown): TaskWriteOutcome => ({
 			: formatErrorMessage(error),
 });
 
+type TaskRef = Pick<
+	RemitImapCalendarTaskResponse,
+	"calendarTaskId" | "calendarId" | "etag"
+>;
+
 export function useCalendarTaskWrites() {
-	const queryClient = useQueryClient();
-	const invalidate = useCallback(() => {
-		void queryClient.invalidateQueries({
-			predicate: (query) => {
-				const head = query.queryKey[0];
-				return (
-					typeof head === "object" &&
-					head !== null &&
-					(head as { _id?: unknown })._id === TASK_LIST_ID
-				);
-			},
-		});
-	}, [queryClient]);
+	const invalidate = useInvalidateCalendarReads();
 	const create = useMutation({
 		...calendarTaskOperationsCreateCalendarTaskMutation(),
 		meta: TASK_META,
@@ -137,13 +120,7 @@ export function useCalendarTaskWrites() {
 		[create],
 	);
 	const updateTask = useCallback(
-		(
-			task: Pick<
-				RemitImapCalendarTaskResponse,
-				"calendarTaskId" | "calendarId" | "etag"
-			>,
-			patch: RemitImapUpdateCalendarTaskInput,
-		) =>
+		(task: TaskRef, patch: RemitImapUpdateCalendarTaskInput) =>
 			update
 				.mutateAsync({
 					path: { calendarTaskId: task.calendarTaskId },
@@ -156,12 +133,7 @@ export function useCalendarTaskWrites() {
 		[update],
 	);
 	const deleteTask = useCallback(
-		(
-			task: Pick<
-				RemitImapCalendarTaskResponse,
-				"calendarTaskId" | "calendarId" | "etag"
-			>,
-		) =>
+		(task: TaskRef) =>
 			remove
 				.mutateAsync({
 					path: { calendarTaskId: task.calendarTaskId },

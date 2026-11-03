@@ -3,6 +3,8 @@ import {
 	CalendarQuickCreateCard,
 	CalendarSheet,
 	type EventDraft,
+	type QuickCreateMode,
+	type QuickTaskFields,
 } from "@remit/ui";
 import {
 	type Dispatch,
@@ -47,7 +49,7 @@ export function eventDraftOf(draft: SessionDraft): EventDraft {
 		calendarId: draft.calendarId,
 		location: draft.location,
 		guests: draft.guests,
-		notes: draft.notes,
+		notes: "",
 		repeat: "",
 	};
 }
@@ -91,12 +93,43 @@ export function CalendarQuickCreate({
 	const guestSuggestions = useGuestSuggestions(guestQuery);
 	const calendarSession = useOptionalCalendarSession();
 	const { draft } = session;
+	const [mode, setMode] = useState<QuickCreateMode>("event");
+	const [taskFields, setTaskFields] = useState<QuickTaskFields>({
+		title: "",
+		dueDate: "",
+		dueTime: "",
+		description: "",
+		calendarId: "",
+	});
+	const switchMode = (next: QuickCreateMode) => {
+		if (next === mode) return;
+		setMode(next);
+		if (next === "event") {
+			dispatch({
+				type: "change",
+				draft: { ...draft, title: taskFields.title },
+			});
+			return;
+		}
+		setTaskFields((current) => ({
+			...current,
+			title: draft.title,
+			dueDate: draft.range.date,
+			dueTime: draft.range.allDay ? "" : draft.range.startTime,
+			calendarId:
+				current.calendarId === ""
+					? (taskLists[0]?.id ?? "")
+					: current.calendarId,
+		}));
+	};
 	const fallbackCalendar =
-		draft.kind === "task"
-			? (taskLists[0]?.id ?? "")
-			: (calendars.find((calendar) => calendar.id === defaultCalendarId)?.id ??
-				calendars[0]?.id ??
-				"");
+		calendars.find((calendar) => calendar.id === defaultCalendarId)?.id ??
+		calendars[0]?.id ??
+		"";
+	const organizerAccountId =
+		defaultSenderId ??
+		calendars.find((calendar) => calendar.id === draft.calendarId)?.accountId ??
+		"";
 
 	useEffect(() => {
 		titleRef.current?.focus();
@@ -156,7 +189,7 @@ export function CalendarQuickCreate({
 	}, [rangeKey]);
 
 	const saveTask = () => {
-		if (draft.title.trim() === "") {
+		if (taskFields.title.trim() === "") {
 			setProblem("Give the task a title before saving it.");
 			titleRef.current?.focus();
 			return;
@@ -164,17 +197,16 @@ export function CalendarQuickCreate({
 		setProblem("");
 		dispatch({ type: "save" });
 		const clock = deviceTimeZone();
+		const allDay = taskFields.dueTime === "";
 		void createTask({
-			calendarId: draft.calendarId,
-			summary: draft.title.trim(),
-			description: draft.notes,
-			allDay: draft.range.allDay,
-			due: draft.range.allDay
-				? draft.range.date
-				: isoAtInZone(draft.range.date, draft.range.startTime, clock),
-			...(draft.range.allDay
-				? {}
-				: { timeZone: anchorZoneFor(UNZONED_CALENDAR) }),
+			calendarId: taskFields.calendarId,
+			summary: taskFields.title.trim(),
+			description: taskFields.description,
+			allDay,
+			due: allDay
+				? taskFields.dueDate
+				: isoAtInZone(taskFields.dueDate, taskFields.dueTime, clock),
+			...(allDay ? {} : { timeZone: anchorZoneFor(UNZONED_CALENDAR) }),
 		}).then((outcome) => {
 			if (outcome.kind === "written") {
 				dispatch({ type: "saved" });
@@ -188,7 +220,7 @@ export function CalendarQuickCreate({
 	};
 
 	const save = () => {
-		if (draft.kind === "task") {
+		if (mode === "task") {
 			saveTask();
 			return;
 		}
@@ -200,7 +232,7 @@ export function CalendarQuickCreate({
 					timeZoneByCalendarId[draft.calendarId] ?? UNZONED_CALENDAR,
 				),
 			},
-			defaultSenderId,
+			organizerAccountId,
 		);
 		if (!built.ok) {
 			setProblem(built.problem);
@@ -232,7 +264,11 @@ export function CalendarQuickCreate({
 		<div ref={cardRef}>
 			<CalendarQuickCreateCard
 				headingId={headingId}
+				mode={mode}
+				onMode={switchMode}
 				fields={draft}
+				taskFields={taskFields}
+				onTaskChange={setTaskFields}
 				calendars={calendars}
 				taskLists={taskLists}
 				guestSuggestions={guestSuggestions}

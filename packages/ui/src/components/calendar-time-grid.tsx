@@ -55,6 +55,7 @@ import type {
 	CalendarColorId,
 	CalendarEventData,
 	CalendarSlotPick,
+	CalendarTaskData,
 } from "./calendar-types.js";
 
 /** What a reader did on the grid, for whoever holds the draft to decide. */
@@ -99,8 +100,12 @@ export interface CalendarTimeGridProps {
 	canMove?: (eventId: string) => boolean;
 	/** A stored event dropped at a new time or with a new end. */
 	onMoveEvent?: (eventId: string, range: CalendarSlotPick) => void;
+	/** Tasks due in the days on screen, drawn in the all-day row of their day. */
+	tasks?: readonly CalendarTaskData[];
+	selectedTaskId?: string;
+	onSelectTask?: (calendarTaskId: string) => void;
 	/** Ticks or unticks a task drawn on the grid. */
-	onToggleTask?: (eventId: string) => void;
+	onToggleTask?: (calendarTaskId: string) => void;
 	className?: string;
 }
 
@@ -193,6 +198,9 @@ export function CalendarTimeGrid({
 	touch = false,
 	canMove = () => false,
 	onMoveEvent,
+	tasks = [],
+	selectedTaskId = "",
+	onSelectTask,
 	onToggleTask,
 	className,
 }: CalendarTimeGridProps) {
@@ -228,14 +236,35 @@ export function CalendarTimeGrid({
 		[zoned],
 	);
 
-	const bars = layoutAllDay(
-		days,
-		allDay.map((entry) => ({
+	const dueDays = useMemo(
+		() =>
+			new Map(
+				tasks.map((task) => [
+					task.calendarTaskId,
+					{
+						task,
+						date: task.allDay
+							? task.due.slice(0, 10)
+							: zonedMoment(task.due, timeZone).date,
+						minute: task.allDay ? 0 : zonedMoment(task.due, timeZone).minute,
+					},
+				]),
+			),
+		[tasks, timeZone],
+	);
+
+	const bars = layoutAllDay(days, [
+		...allDay.map((entry) => ({
 			id: entry.event.id,
 			first: entry.event.start.slice(0, 10),
 			last: lastDayOf(entry.event),
 		})),
-	);
+		...[...dueDays.values()].map(({ task, date }) => ({
+			id: task.calendarTaskId,
+			first: date,
+			last: date,
+		})),
+	]);
 	const draftBar =
 		draft?.range.allDay === true
 			? layoutAllDay(days, [
@@ -726,7 +755,7 @@ export function CalendarTimeGrid({
 						}
 						onSelectEvent(event.id, click.currentTarget);
 					}}
-					aria-label={`${event.task ? "Task: " : ""}${event.title}, ${describeEvent(event, timeZone)}`}
+					aria-label={`${event.title}, ${describeEvent(event, timeZone)}`}
 					className={cn(
 						calendarEventBodyClasses({
 							color,
@@ -740,8 +769,6 @@ export function CalendarTimeGrid({
 						"h-full w-full cursor-pointer text-left outline-none focus-visible:ring-2 focus-visible:ring-ring",
 						touch && "touch-pan-y",
 						lifted?.id === event.id && "opacity-40",
-						event.task && "pl-5",
-						event.task?.completed && "line-through opacity-60",
 					)}
 				>
 					<CalendarEventChipContent
@@ -754,17 +781,6 @@ export function CalendarTimeGrid({
 						zoneCertainty={event.zoneCertainty}
 					/>
 				</button>
-				{event.task && (
-					<input
-						type="checkbox"
-						aria-label={event.title === "" ? "(No title)" : event.title}
-						checked={event.task.completed}
-						onPointerDown={(press) => press.stopPropagation()}
-						onClick={(click) => click.stopPropagation()}
-						onChange={() => onToggleTask?.(event.id)}
-						className="absolute top-1 left-1 z-10 size-3.5 accent-current"
-					/>
-				)}
 				{movable && (
 					<span
 						aria-hidden="true"
@@ -782,6 +798,46 @@ export function CalendarTimeGrid({
 						style={{ touchAction: "none" }}
 					/>
 				)}
+			</>
+		);
+	};
+
+	const taskChip = (task: CalendarTaskData, minute: number | undefined) => {
+		const title = task.title === "" ? "(No title)" : task.title;
+		const color = colorByCalendarId[task.calendarId] ?? FALLBACK_COLOR;
+		const timeText = minute === undefined ? "" : clock(minute);
+		return (
+			<>
+				<button
+					type="button"
+					data-task-id={task.calendarTaskId}
+					onPointerDown={(press) => press.stopPropagation()}
+					onClick={() => onSelectTask?.(task.calendarTaskId)}
+					aria-label={`Task: ${title}${timeText === "" ? "" : `, due ${timeText}`}`}
+					className={cn(
+						calendarEventBodyClasses({
+							color,
+							layout: "row",
+							density: "compact",
+							rsvp: "accepted",
+							status: "confirmed",
+							selected: task.calendarTaskId === selectedTaskId,
+							stacked: false,
+						}),
+						"h-full w-full cursor-pointer truncate pl-5 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring",
+						task.completed && "line-through opacity-60",
+					)}
+				>
+					{timeText === "" ? title : `${timeText} ${title}`}
+				</button>
+				<input
+					type="checkbox"
+					aria-label={title}
+					checked={task.completed}
+					onPointerDown={(press) => press.stopPropagation()}
+					onChange={() => onToggleTask?.(task.calendarTaskId)}
+					className="absolute top-1 left-1.5 z-10 size-3.5 accent-current"
+				/>
 			</>
 		);
 	};
@@ -964,7 +1020,8 @@ export function CalendarTimeGrid({
 					</div>
 					{bars.map((bar) => {
 						const event = byId.get(bar.id);
-						if (!event) return null;
+						const due = dueDays.get(bar.id);
+						if (!event && !due) return null;
 						return (
 							<div
 								key={bar.id}
@@ -976,7 +1033,13 @@ export function CalendarTimeGrid({
 									height: ALL_DAY_LANE - 2,
 								}}
 							>
-								{chip(event, "row", false)}
+								{event
+									? chip(event, "row", false)
+									: due &&
+										taskChip(
+											due.task,
+											due.task.allDay ? undefined : due.minute,
+										)}
 							</div>
 						);
 					})}

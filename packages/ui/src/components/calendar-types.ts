@@ -1,3 +1,4 @@
+import type { GuestEntry } from "../lib/guest-list.js";
 /**
  * The shapes the calendar surfaces pass around. Presentational only: a
  * component here takes one of these and renders it, and every mutation leaves
@@ -91,8 +92,17 @@ export interface CalendarEventData {
 	 */
 	seriesException: boolean;
 	status: "confirmed" | "tentative";
-	/** Present on a task: what is drawn is a to-do on its due day, with a checkbox. */
-	task?: { completed: boolean };
+}
+
+/** A task as the grid draws it: a to-do on its due day, with a checkbox. */
+export interface CalendarTaskData {
+	calendarTaskId: string;
+	calendarId: string;
+	title: string;
+	/** `YYYY-MM-DD` on an all-day task, else the due instant. */
+	due: string;
+	allDay: boolean;
+	completed: boolean;
 }
 
 /**
@@ -263,8 +273,7 @@ export interface EventDraft {
 	allDay: boolean;
 	calendarId: string;
 	location: string;
-	/** Free text, one guest per comma — the prototype does not resolve them. */
-	guests: string;
+	guests: GuestEntry[];
 	notes: string;
 	/** Human-readable rule, empty for a one-off. */
 	repeat: string;

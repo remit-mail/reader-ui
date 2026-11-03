@@ -7,18 +7,14 @@
  * Nothing here reaches the API or the address: the screen reads the state and
  * runs the save and the navigations itself.
  */
-import type { CalendarSlotPick, GridGesture } from "@remit/ui";
+import type { CalendarSlotPick, GridGesture, GuestEntry } from "@remit/ui";
 
 export interface SessionDraft {
 	range: CalendarSlotPick;
 	title: string;
 	location: string;
 	calendarId: string;
-	/** Guests, comma separated. */
-	guests: string;
-	/** A task swaps the range for a due date with an optional time. */
-	kind: "event" | "task";
-	notes: string;
+	guests: GuestEntry[];
 }
 
 export type DraftStatus = "editing" | "saving" | "failed";
@@ -76,9 +72,7 @@ const blank = (range: CalendarSlotPick): SessionDraft => ({
 	title: "",
 	location: "",
 	calendarId: "",
-	guests: "",
-	kind: "event",
-	notes: "",
+	guests: [],
 });
 
 /** Which layer Esc closes: only the top one, a drag first. */

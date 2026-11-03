@@ -1,12 +1,7 @@
 import { Check, CircleHelp, Clock3, Crown, X } from "lucide-react";
 import { useId, useState } from "react";
 import { cn } from "../lib/cn.js";
-import {
-	formatGuestList,
-	type GuestEntry,
-	parseGuest,
-	parseGuestList,
-} from "../lib/guest-list.js";
+import { type GuestEntry, parseGuest, withGuest } from "../lib/guest-list.js";
 import {
 	type CalendarFailure,
 	CalendarFailureBlock,
@@ -20,9 +15,8 @@ export interface GuestSuggestion {
 }
 
 export interface CalendarGuestsFieldProps {
-	/** The field text: guests separated by commas. */
-	value: string;
-	onChange: (value: string) => void;
+	value: readonly GuestEntry[];
+	onChange: (value: GuestEntry[]) => void;
 	/** Contacts matching what is being typed. */
 	suggestions: readonly GuestSuggestion[];
 	/** What is being typed, so the caller can look contacts up. */
@@ -48,7 +42,7 @@ export function CalendarGuestsField({
 	const listId = useId();
 	const noteId = useId();
 	const [draft, setDraft] = useState("");
-	const guests = parseGuestList(value);
+	const guests = value;
 	const invalid = guests.find((guest) => !guest.valid);
 
 	const commit = (text: string) => {
@@ -63,13 +57,13 @@ export function CalendarGuestsField({
 						: `${picked.name} <${picked.email}>`,
 				)
 			: parseGuest(text);
-		onChange(formatGuestList([...guests, entry]));
+		onChange(withGuest(guests, entry));
 		setDraft("");
 		onQuery("");
 	};
 
 	const remove = (guest: GuestEntry) =>
-		onChange(formatGuestList(guests.filter((other) => other !== guest)));
+		onChange(guests.filter((other) => other !== guest));
 
 	return (
 		<div className="flex flex-col gap-2">
@@ -187,20 +181,25 @@ export function CalendarSenderField({
 	);
 }
 
-const TALLY_WORDS: [RsvpState, string][] = [
+/** How many guests gave each answer, as the server counts them. */
+export interface CalendarGuestCounts {
+	accepted: number;
+	declined: number;
+	tentative: number;
+	needsAction: number;
+}
+
+const TALLY_WORDS: [keyof CalendarGuestCounts, string][] = [
 	["accepted", "yes"],
 	["declined", "no"],
 	["tentative", "maybe"],
-	["noReply", "awaiting"],
+	["needsAction", "awaiting"],
 ];
 
-/** "1 yes, 1 maybe, 1 awaiting": every answer that somebody gave. */
-export function guestTally(attendees: readonly CalendarAttendee[]): string {
-	return TALLY_WORDS.flatMap(([rsvp, word]) => {
-		const count = attendees.filter((attendee) => attendee.rsvp === rsvp).length;
-		return count === 0 ? [] : [`${count} ${word}`];
-	}).join(", ");
-}
+const tallyOf = (counts: CalendarGuestCounts): string =>
+	TALLY_WORDS.flatMap(([answer, word]) =>
+		counts[answer] === 0 ? [] : [`${counts[answer]} ${word}`],
+	).join(", ");
 
 const answerMark = (rsvp: RsvpState) => {
 	if (rsvp === "accepted")
@@ -218,8 +217,10 @@ const answerMark = (rsvp: RsvpState) => {
  */
 export function CalendarEventGuests({
 	attendees,
+	counts,
 }: {
 	attendees: readonly CalendarAttendee[];
+	counts: CalendarGuestCounts;
 }) {
 	if (attendees.length === 0) return null;
 	return (
@@ -227,7 +228,7 @@ export function CalendarEventGuests({
 			<p className="font-medium text-fg">
 				{attendees.length} {attendees.length === 1 ? "guest" : "guests"}
 			</p>
-			<p className="text-fg-muted">{guestTally(attendees)}</p>
+			<p className="text-fg-muted">{tallyOf(counts)}</p>
 			<ul className="flex flex-col gap-1">
 				{attendees.map((attendee) => (
 					<li key={attendee.email} className="flex items-center gap-2">
@@ -343,6 +344,38 @@ export function CalendarInvitationsNotSent({
 			>
 				Report an issue
 			</a>
+			<button
+				type="button"
+				aria-label="Dismiss"
+				onClick={onDismiss}
+				className="ml-auto rounded-full p-1 text-fg-muted hover:bg-surface focus-visible:ring-2 focus-visible:ring-ring"
+			>
+				<X className="size-4" />
+			</button>
+		</div>
+	);
+}
+
+export interface CalendarCancellationsSentProps {
+	/** The guests a deleted event's cancellation is going to. */
+	guests: readonly string[];
+	onDismiss: () => void;
+}
+
+/** The event is deleted; these guests are being told. */
+export function CalendarCancellationsSent({
+	guests,
+	onDismiss,
+}: CalendarCancellationsSentProps) {
+	if (guests.length === 0) return null;
+	return (
+		<div
+			role="status"
+			className="flex flex-wrap items-center gap-3 rounded-md border border-line bg-surface-sunken px-3 py-2 text-sm"
+		>
+			<p className="text-fg">
+				Deleted. A cancellation is going to {guests.join(", ")}.
+			</p>
 			<button
 				type="button"
 				aria-label="Dismiss"

@@ -6,11 +6,6 @@ import {
 } from "../../lib/bug-report";
 import type { PushErrorInput } from "./error-banners.js";
 
-/*
- * The context lives apart from the provider component so a dev-server hot
- * update of the provider keeps one context object; a second one leaves every
- * consumer outside the provider until the page reloads.
- */
 export interface ErrorBannerContextValue {
 	errors: ErrorBannerEntry[];
 	pushError: (input: PushErrorInput) => string;

@@ -104,13 +104,3 @@ function List({ initial }: { initial: EventSuggestion[] }) {
 export const Several: Story = {
 	render: () => <List initial={queue} />,
 };
-
-/** One reading whose clock is unstated: Add waits for the reader to pick one. */
-export const UnsettledClock: Story = {
-	render: () => <List initial={[flight]} />,
-};
-
-/** Nothing waiting. */
-export const Empty: Story = {
-	render: () => <List initial={[]} />,
-};

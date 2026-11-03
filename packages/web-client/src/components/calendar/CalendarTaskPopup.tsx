@@ -1,3 +1,4 @@
+import type { RemitImapCalendarTaskResponse } from "@remit/api-http-client/types.gen.ts";
 import {
 	type CalendarFailure,
 	CalendarPopover,
@@ -6,17 +7,17 @@ import {
 } from "@remit/ui";
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import {
-	calendarTaskIdOf,
 	deviceTimeZone,
 	isoAtInZone,
 	isoOnClock,
 	type TaskWriteOutcome,
 	useCalendars,
+	useCalendarTask,
 	useCalendarTaskWrites,
 } from "../../hooks/calendar";
-import { useCalendarData } from "../../hooks/useCalendarData";
 import { calendarEventReportHref } from "../../lib/calendar-report";
-import { useCalendarAddress, useCalendarNavigation } from "../../routing";
+import { useCalendarNavigation } from "../../routing";
+import { CalendarLoadFailed } from "./CalendarLoadFailed";
 
 const dueText = (due: string, allDay: boolean): string => {
 	const date = new Date(`${due.slice(0, 10)}T00:00:00Z`);
@@ -30,9 +31,56 @@ const dueText = (due: string, allDay: boolean): string => {
 };
 
 /** The task the address names, in a popup beside its chip. */
-export function CalendarTaskPopup({ eventId }: { eventId: string }) {
-	const { view, date, calendarIds } = useCalendarAddress();
-	const { tasks } = useCalendarData({ view, date, calendarIds });
+export function CalendarTaskPopup({
+	calendarTaskId,
+}: {
+	calendarTaskId: string;
+}) {
+	const read = useCalendarTask(calendarTaskId);
+	const { closeToView } = useCalendarNavigation();
+	const headingId = useId();
+	const closeRef = useRef<HTMLButtonElement>(null);
+	const gone = read.kind === "gone";
+
+	useEffect(() => {
+		if (gone) closeRef.current?.focus();
+	}, [gone]);
+
+	if (read.kind === "loading") return null;
+	if (read.kind === "found") return <OpenTask task={read.task} />;
+	if (read.kind === "failed")
+		return (
+			<CalendarPopover anchor={null} anchorKey="failed" labelledBy={headingId}>
+				<div id={headingId} className="p-4">
+					<CalendarLoadFailed
+						title="Couldn't open this task"
+						error={read.error}
+						onRetry={read.retry}
+						compact
+					/>
+				</div>
+			</CalendarPopover>
+		);
+	return (
+		<CalendarPopover anchor={null} anchorKey="gone" labelledBy={headingId}>
+			<div className="flex flex-col gap-3 p-4">
+				<h2 id={headingId} className="text-base font-medium text-fg">
+					This task was deleted or moved
+				</h2>
+				<button
+					ref={closeRef}
+					type="button"
+					onClick={closeToView}
+					className="self-end rounded-md border border-line px-3 py-1.5 text-sm font-medium hover:bg-surface-sunken focus-visible:ring-2 focus-visible:ring-ring"
+				>
+					Close
+				</button>
+			</div>
+		</CalendarPopover>
+	);
+}
+
+function OpenTask({ task }: { task: RemitImapCalendarTaskResponse }) {
 	const { taskLists } = useCalendars();
 	const { closeToView } = useCalendarNavigation();
 	const { updateTask, deleteTask, isWriting } = useCalendarTaskWrites();
@@ -40,25 +88,19 @@ export function CalendarTaskPopup({ eventId }: { eventId: string }) {
 	const headingRef = useRef<HTMLHeadingElement>(null);
 	const [failure, setFailure] = useState<CalendarFailure | undefined>();
 	const [anchor, setAnchor] = useState<HTMLElement | null>(null);
-	const task = tasks.find(
-		(candidate) => candidate.calendarTaskId === calendarTaskIdOf(eventId),
-	);
+	const { calendarTaskId } = task;
 
 	useLayoutEffect(() => {
 		setAnchor(
-			task
-				? document.querySelector<HTMLElement>(
-						`[data-event-id="${CSS.escape(eventId)}"]`,
-					)
-				: null,
+			document.querySelector<HTMLElement>(
+				`[data-task-id="${CSS.escape(calendarTaskId)}"]`,
+			),
 		);
-	}, [task, eventId]);
+	}, [calendarTaskId]);
 
 	useEffect(() => {
-		if (task) headingRef.current?.focus();
-	}, [task]);
-
-	if (!task) return null;
+		headingRef.current?.focus();
+	}, []);
 
 	const clock = deviceTimeZone();
 	const shownDue = task.allDay ? task.due : isoOnClock(task.due, clock);
@@ -111,7 +153,7 @@ export function CalendarTaskPopup({ eventId }: { eventId: string }) {
 	return (
 		<CalendarPopover
 			anchor={anchor}
-			anchorKey={`${eventId}:${anchor ? "chip" : "none"}`}
+			anchorKey={`${calendarTaskId}:${anchor ? "chip" : "none"}`}
 			labelledBy={headingId}
 		>
 			<CalendarTaskPopupCard

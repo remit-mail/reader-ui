@@ -17,6 +17,7 @@ import type {
 	CalendarColorId,
 	CalendarEventData,
 	CalendarSlotPick,
+	CalendarTaskData,
 	RsvpState,
 	ZoneCertainty,
 } from "./calendar-types.js";
@@ -56,6 +57,9 @@ export interface CalendarGridProps {
 	canMove?: (eventId: string) => boolean;
 	/** A stored event dropped on other days, or stretched across more. */
 	onMoveEvent?: (eventId: string, range: CalendarSlotPick) => void;
+	/** Tasks due in the month, each on its due day. */
+	tasks?: readonly CalendarTaskData[];
+	onSelectTask?: (calendarTaskId: string) => void;
 	className?: string;
 }
 
@@ -112,6 +116,8 @@ export function CalendarGrid({
 	onZoomDay,
 	canMove = () => false,
 	onMoveEvent,
+	tasks = [],
+	onSelectTask,
 	className,
 }: CalendarGridProps) {
 	const calendarRef = useRef<CalendarRef>(null);
@@ -120,9 +126,14 @@ export function CalendarGrid({
 		calendarRef.current?.getApi().gotoDate(date);
 	}, [date]);
 
+	const taskById = useMemo(
+		() => new Map(tasks.map((task) => [task.calendarTaskId, task])),
+		[tasks],
+	);
+
 	const eventInputs = useMemo<EventInput[]>(
-		() =>
-			events.map((event) => ({
+		() => [
+			...events.map((event) => ({
 				id: event.id,
 				title: event.title,
 				start: event.start,
@@ -130,7 +141,15 @@ export function CalendarGrid({
 				allDay: event.allDay,
 				editable: onMoveEvent !== undefined && canMove(event.id),
 			})),
-		[events, canMove, onMoveEvent],
+			...tasks.map((task) => ({
+				id: task.calendarTaskId,
+				title: task.title,
+				start: task.due,
+				allDay: task.allDay,
+				editable: false,
+			})),
+		],
+		[events, tasks, canMove, onMoveEvent],
 	);
 
 	const dropped = (info: {
@@ -228,11 +247,18 @@ export function CalendarGrid({
 				eventTimeFormat={{ hour: "2-digit", minute: "2-digit", hour12: false }}
 				dayHeaderFormat={{ weekday: "short" }}
 				events={eventInputs}
-				eventClick={(info) => onSelectEvent(info.event.id)}
+				eventClick={(info) =>
+					taskById.has(info.event.id)
+						? onSelectTask?.(info.event.id)
+						: onSelectEvent(info.event.id)
+				}
 				eventDrop={dropped}
 				eventResize={dropped}
 				eventDidMount={(info) => {
-					info.el.setAttribute("data-event-id", info.event.id);
+					info.el.setAttribute(
+						taskById.has(info.event.id) ? "data-task-id" : "data-event-id",
+						info.event.id,
+					);
 				}}
 				/* A point is `dateClick`'s and a dragged run of days is `select`'s;
 				   acting on both would report a point twice. */
@@ -288,6 +314,21 @@ export function CalendarGrid({
 					)
 				}
 				eventContent={(info) => {
+					const task = taskById.get(info.event.id);
+					if (task)
+						return (
+							<span
+								className={cn(
+									"flex min-w-0 items-center gap-1 truncate",
+									task.completed && "line-through opacity-60",
+								)}
+							>
+								<span aria-hidden="true">{task.completed ? "☑" : "☐"}</span>
+								<span className="truncate">
+									{task.title === "" ? "(No title)" : task.title}
+								</span>
+							</span>
+						);
 					const event = lookup(info.event.id);
 					return (
 						<CalendarEventChipContent

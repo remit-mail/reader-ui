@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useState } from "react";
+import { type GuestEntry, parseGuest } from "../lib/guest-list.js";
 import {
 	CalendarGuestsField,
 	CalendarInvitationsNotSent,
@@ -17,7 +18,7 @@ const meta = {
 		),
 	],
 	args: {
-		value: "",
+		value: [],
 		onChange: () => {},
 		suggestions: [{ email: "guest@example.com", name: "Guest name" }],
 		onQuery: () => {},
@@ -28,7 +29,7 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 const Live = (args: Story["args"]) => {
-	const [value, setValue] = useState(args?.value ?? "");
+	const [value, setValue] = useState<readonly GuestEntry[]>(args?.value ?? []);
 	return (
 		<CalendarGuestsField
 			value={value}
@@ -42,12 +43,19 @@ const Live = (args: Story["args"]) => {
 export const Empty: Story = { render: (args) => <Live {...args} /> };
 
 export const WithGuests: Story = {
-	args: { value: "sender@example.com, Guest name <guest@example.com>" },
+	args: {
+		value: [
+			parseGuest("sender@example.com"),
+			parseGuest("Guest name <guest@example.com>"),
+		],
+	},
 	render: (args) => <Live {...args} />,
 };
 
 export const InvalidGuest: Story = {
-	args: { value: "sender@example.com, not-an-email" },
+	args: {
+		value: [parseGuest("sender@example.com"), parseGuest("not-an-email")],
+	},
 	render: (args) => <Live {...args} />,
 };
 

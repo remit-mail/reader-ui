@@ -16,9 +16,9 @@ import type {
 import {
 	type CalendarEventData,
 	type EventDraft,
+	type GuestEntry,
 	invalidGuest,
 	lastDayOf,
-	parseGuestList,
 } from "@remit/ui";
 import { moveRule, rruleFromText } from "./recurrence-rule";
 import { addDays, isoAtInZone, isoOnClock } from "./window";
@@ -56,7 +56,7 @@ export function emptyDraft(date: string, calendarId: string): EventDraft {
 		allDay: false,
 		calendarId,
 		location: "",
-		guests: "",
+		guests: [],
 		notes: "",
 		repeat: "",
 	};
@@ -69,7 +69,12 @@ export function emptyDraft(date: string, calendarId: string): EventDraft {
  */
 export function draftFromEvent(
 	event: CalendarEventData,
-	stored: { repeat: string; location: string; notes: string; guests?: string },
+	stored: {
+		repeat: string;
+		location: string;
+		notes: string;
+		guests: GuestEntry[];
+	},
 ): EventDraft {
 	return {
 		title: event.title,
@@ -80,7 +85,7 @@ export function draftFromEvent(
 		allDay: event.allDay,
 		calendarId: event.calendarId,
 		location: stored.location,
-		guests: stored.guests ?? "",
+		guests: stored.guests,
 		notes: stored.notes,
 		repeat: stored.repeat,
 	};
@@ -152,9 +157,12 @@ function refuse(draft: EventDraft, checkRepeat: boolean): string {
 
 /** The guest list as the API takes it: every entry an address, named or not. */
 export const attendeesOfDraft = (draft: Pick<EventDraft, "guests">) =>
-	parseGuestList(draft.guests)
+	draft.guests
 		.filter((guest) => guest.valid)
 		.map((guest) => ({ email: guest.email, displayName: guest.displayName }));
+
+const guestKey = (draft: Pick<EventDraft, "guests">): string =>
+	JSON.stringify(attendeesOfDraft(draft));
 
 export function createInputFromDraft(
 	draft: EventDraft,
@@ -164,6 +172,7 @@ export function createInputFromDraft(
 	const problem = refuse(draft, true);
 	if (problem !== "") return { ok: false, problem };
 	const { start, end } = timesFor(draft, zones.clock);
+	const attendees = attendeesOfDraft(draft);
 	return {
 		ok: true,
 		input: {
@@ -176,8 +185,10 @@ export function createInputFromDraft(
 			allDay: draft.allDay,
 			...(zones.anchor === "" ? {} : { timeZone: zones.anchor }),
 			recurrenceRule: storedRule(draft, start, zones),
-			attendees: attendeesOfDraft(draft),
-			...(organizerAccountId === undefined ? {} : { organizerAccountId }),
+			attendees,
+			...(organizerAccountId === undefined || attendees.length === 0
+				? {}
+				: { organizerAccountId }),
 		},
 	};
 }
@@ -217,7 +228,8 @@ export function patchFromDrafts(
 	}
 
 	if (repeatChanged) patch.recurrenceRule = storedRule(after, start, zones);
-	if (after.guests !== before.guests) patch.attendees = attendeesOfDraft(after);
+	if (guestKey(after) !== guestKey(before))
+		patch.attendees = attendeesOfDraft(after);
 
 	return { ok: true, patch };
 }

@@ -5,10 +5,9 @@ import {
 	type CalendarFailure,
 	ConfirmDialog,
 	type EventDraft,
-	formatGuestList,
-	parseGuest,
 	type RecurrenceScope,
 	RecurrenceScopePrompt,
+	storedGuest,
 } from "@remit/ui";
 import { useEffect, useId, useRef, useState } from "react";
 import {
@@ -160,7 +159,6 @@ export function CalendarNewEventSidebar() {
 	const { createEvent, isWriting } = useCalendarWrites();
 	const { senders, defaultSenderId } = useCalendarSenders();
 	const [pickedSender, setPickedSender] = useState<string | undefined>();
-	const senderId = pickedSender ?? defaultSenderId;
 	const [guestQuery, setGuestQuery] = useState("");
 	const guestSuggestions = useGuestSuggestions(guestQuery);
 	const { trackSends } = useCalendarSession();
@@ -218,10 +216,15 @@ export function CalendarNewEventSidebar() {
 			!extras.busy ||
 			draft.title !== (initial?.title ?? "") ||
 			draft.location !== (initial?.location ?? "") ||
-			draft.guests !== (initial?.guests ?? ""));
+			draft.guests.length !== (initial?.guests.length ?? 0));
 	const { close, confirm, leave } = useSidebarClose(touched);
 
 	if (!draft) return null;
+	const senderId =
+		pickedSender ??
+		defaultSenderId ??
+		calendars.find((calendar) => calendar.id === draft.calendarId)?.accountId ??
+		"";
 	const eventDraft: EventDraft = {
 		...eventDraftOf(draft),
 		notes: extras.notes,
@@ -286,8 +289,6 @@ export function CalendarNewEventSidebar() {
 							location: next.location,
 							calendarId: next.calendarId,
 							guests: next.guests,
-							kind: "event",
-							notes: next.notes,
 						},
 					});
 					setExtras((current) => ({
@@ -310,7 +311,7 @@ export function CalendarNewEventSidebar() {
 					suggestions: guestSuggestions,
 					onQuery: setGuestQuery,
 					senders,
-					sender: senderId ?? "",
+					sender: senderId,
 					onSender: setPickedSender,
 					senderEditable: true,
 				}}
@@ -391,17 +392,9 @@ export function CalendarEditEventSidebar({
 				rrule === "" ? "" : (textFromRrule(shownRule, startTime) ?? "Repeats"),
 			location: stored.location,
 			notes: stored.description,
-			guests: formatGuestList(
-				resource.attendees
-					.filter((attendee) => attendee.role === "Guest")
-					.map((attendee) =>
-						parseGuest(
-							attendee.displayName === ""
-								? attendee.email
-								: `${attendee.displayName} <${attendee.email}>`,
-						),
-					),
-			),
+			guests: resource.attendees
+				.filter((attendee) => attendee.role === "Guest")
+				.map((attendee) => storedGuest(attendee.email, attendee.displayName)),
 		});
 		const isBusy = !freeIds.has(event.id);
 		setBefore({ draft, busy: isBusy, anchor });
@@ -465,7 +458,12 @@ export function CalendarEditEventSidebar({
 	const organizerSender = senders.find(
 		(sender) => sender.email === organizer,
 	)?.accountId;
-	const senderId = organizerSender ?? pickedSender ?? defaultSenderId;
+	const senderId =
+		organizerSender ??
+		pickedSender ??
+		defaultSenderId ??
+		calendar?.accountId ??
+		"";
 
 	const save = (scope: RecurrenceScope | undefined) => {
 		setAsking(false);
@@ -484,7 +482,7 @@ export function CalendarEditEventSidebar({
 				? { ...patch.patch, transparency: transparencyOf(busy) }
 				: patch.patch;
 		const body =
-			withBusy.attendees !== undefined && organizer === "" && senderId
+			withBusy.attendees !== undefined && organizer === "" && senderId !== ""
 				? { ...withBusy, organizerAccountId: senderId }
 				: withBusy;
 		void updateEvent(
@@ -539,7 +537,7 @@ export function CalendarEditEventSidebar({
 								suggestions: guestSuggestions,
 								onQuery: setGuestQuery,
 								senders,
-								sender: senderId ?? "",
+								sender: senderId,
 								onSender: setPickedSender,
 								senderEditable: organizer === "",
 							}

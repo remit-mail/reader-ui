@@ -58,6 +58,7 @@ export function useMoveEvent(): MoveEvent {
 				repeat: "",
 				location: "",
 				notes: "",
+				guests: [],
 			});
 			const after = {
 				...before,

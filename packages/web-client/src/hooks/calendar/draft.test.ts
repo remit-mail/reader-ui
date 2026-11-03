@@ -36,7 +36,7 @@ const draft = (over: Partial<EventDraft> = {}): EventDraft => ({
 	...over,
 });
 
-const STORED = { repeat: "", location: "", notes: "" };
+const STORED = { repeat: "", location: "", notes: "", guests: [] };
 
 const event = (over: Partial<CalendarEventData>): CalendarEventData => ({
 	id: "evt_1",

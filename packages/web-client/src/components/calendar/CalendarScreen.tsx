@@ -1,5 +1,8 @@
 import type { RemitImapCalendarSchedulingSend } from "@remit/api-http-client/types.gen.ts";
 import {
+	CalendarCancellationsSent,
+	type CalendarFailure,
+	CalendarFailureBlock,
 	CalendarGrid,
 	CalendarInvitationsNotSent,
 	CalendarScreenToolbar,
@@ -25,7 +28,6 @@ import { Loader2 } from "lucide-react";
 import { type ReactNode, useCallback, useMemo, useRef, useState } from "react";
 import {
 	calendarInstanceId,
-	calendarTaskIdOf,
 	deviceTimeZone,
 	useCalendarTaskWrites,
 	useSendsFollowUp,
@@ -52,6 +54,7 @@ import {
 	useEditingEvent,
 	useIsWritingEvent,
 	useOpenCalendarEvent,
+	useOpenCalendarTask,
 } from "../../routing";
 import { AgendaView } from "./AgendaView";
 import { CalendarLoadFailed } from "./CalendarLoadFailed";
@@ -99,17 +102,28 @@ export function CalendarScreen({ isPhone, detail }: CalendarScreenProps) {
 		retry,
 		instanceOf,
 		tasks,
+		storedTasks,
 	} = useCalendarData({ view, date, calendarIds, enabled: drawsGrid });
 	const { updateTask } = useCalendarTaskWrites();
+	const [taskFailure, setTaskFailure] = useState<CalendarFailure | undefined>();
 	const toggleTask = useCallback(
-		(eventId: string) => {
-			const task = tasks.find(
-				(candidate) => candidate.calendarTaskId === calendarTaskIdOf(eventId),
+		function toggle(calendarTaskId: string) {
+			const task = storedTasks.find(
+				(candidate) => candidate.calendarTaskId === calendarTaskId,
 			);
 			if (!task) return;
-			void updateTask(task, { completed: !task.completed });
+			setTaskFailure(undefined);
+			void updateTask(task, { completed: !task.completed }).then((outcome) => {
+				if (outcome.kind === "written") return;
+				const text = `Couldn't save "${task.summary}": ${outcome.message}`;
+				setTaskFailure({
+					text,
+					reportHref: calendarEventReportHref(text),
+					onRetry: () => toggle(calendarTaskId),
+				});
+			});
 		},
-		[tasks, updateTask],
+		[storedTasks, updateTask],
 	);
 	const [sends, setSends] = useState<RemitImapCalendarSchedulingSend[]>([]);
 	const trackSends = useCallback(
@@ -117,6 +131,9 @@ export function CalendarScreen({ isPhone, detail }: CalendarScreenProps) {
 		[],
 	);
 	const followUp = useSendsFollowUp(sends);
+	const cancelled = sends
+		.filter((send) => send.method === "Cancel")
+		.map((send) => send.email);
 	const moves = useEventMoves(
 		storedEvents,
 		calendars,
@@ -129,6 +146,7 @@ export function CalendarScreen({ isPhone, detail }: CalendarScreenProps) {
 		goToToday,
 		goToDate,
 		openEvent,
+		openTask,
 		openNewEvent,
 		closeToView,
 		changeSuggestionFirst,
@@ -138,6 +156,7 @@ export function CalendarScreen({ isPhone, detail }: CalendarScreenProps) {
 	const editingEvent = useEditingEvent();
 	const routedEvent = useOpenCalendarEvent();
 	const openedEvent = editingEvent ? undefined : routedEvent;
+	const openedTask = useOpenCalendarTask();
 	const isWriting = useIsWritingEvent();
 	const [density, setDensity] = useState(readCalendarDensity);
 	const changeDensity = useCallback((next: Density) => {
@@ -165,7 +184,7 @@ export function CalendarScreen({ isPhone, detail }: CalendarScreenProps) {
 		focusSaved,
 	} = useDraftSession({
 		layers: {
-			eventPopup: openedEvent !== undefined,
+			eventPopup: openedEvent !== undefined || openedTask !== undefined,
 			sidebar: isWriting,
 			nav: sidePane.navOpen,
 		},
@@ -221,8 +240,14 @@ export function CalendarScreen({ isPhone, detail }: CalendarScreenProps) {
 				: zonedMoment(event.start, zone).date;
 			counts[day] = (counts[day] ?? 0) + 1;
 		}
+		for (const task of tasks) {
+			const day = task.allDay
+				? task.due.slice(0, 10)
+				: zonedMoment(task.due, zone).date;
+			counts[day] = (counts[day] ?? 0) + 1;
+		}
 		return counts;
-	}, [events, shown]);
+	}, [events, tasks, shown]);
 	const timeGridDays =
 		shown === "day"
 			? [date]
@@ -291,8 +316,11 @@ export function CalendarScreen({ isPhone, detail }: CalendarScreenProps) {
 			onSelectEvent={selectEvent}
 			onOpenDay={zoomToDay}
 			touch={isPhone}
-			canMove={(id) => calendarTaskIdOf(id) === undefined && moves.canMove(id)}
+			canMove={moves.canMove}
 			onMoveEvent={moves.onMoveEvent}
+			tasks={tasks}
+			selectedTaskId={openedTask ?? ""}
+			onSelectTask={openTask}
 			onToggleTask={toggleTask}
 		/>
 	) : (
@@ -308,8 +336,10 @@ export function CalendarScreen({ isPhone, detail }: CalendarScreenProps) {
 			onPickSlot={pickSlot}
 			dayHref={dayHref}
 			onZoomDay={zoomToDay}
-			canMove={(id) => calendarTaskIdOf(id) === undefined && moves.canMove(id)}
+			canMove={moves.canMove}
 			onMoveEvent={moves.onMoveEvent}
+			tasks={tasks}
+			onSelectTask={openTask}
 		/>
 	);
 
@@ -381,6 +411,29 @@ export function CalendarScreen({ isPhone, detail }: CalendarScreenProps) {
 								className="flex min-h-0 min-w-0 flex-1 flex-col"
 							>
 								{moves.banner}
+								{cancelled.length > 0 && (
+									<div className="p-2">
+										<CalendarCancellationsSent
+											guests={cancelled}
+											onDismiss={() => setSends([])}
+										/>
+									</div>
+								)}
+								{taskFailure && (
+									<div className="p-2">
+										<CalendarFailureBlock failure={taskFailure} />
+									</div>
+								)}
+								{followUp.checkError !== null && (
+									<div className="p-2">
+										<CalendarLoadFailed
+											title={`Couldn't check whether the messages to ${followUp.unchecked.join(", ")} went out`}
+											error={followUp.checkError}
+											onRetry={followUp.recheck}
+											compact
+										/>
+									</div>
+								)}
 								{followUp.missed.length > 0 && (
 									<div className="p-2">
 										<CalendarInvitationsNotSent

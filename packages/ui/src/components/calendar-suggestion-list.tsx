@@ -9,15 +9,12 @@ export interface CalendarSuggestionListItem {
 
 export interface CalendarSuggestionListProps {
 	items: readonly CalendarSuggestionListItem[];
-	/** What an empty list says. */
-	emptyText?: string;
 	className?: string;
 }
 
 /** Readings waiting on a decision, one under the other, each with its own buttons. */
 export function CalendarSuggestionList({
 	items,
-	emptyText = "Nothing in your mail is waiting on a decision about time.",
 	className,
 }: CalendarSuggestionListProps) {
 	if (items.length === 0)
@@ -29,7 +26,9 @@ export function CalendarSuggestionList({
 				)}
 			>
 				<Sparkles className="size-6 text-fg-subtle" aria-hidden />
-				<p className="text-sm text-fg-muted">{emptyText}</p>
+				<p className="text-sm text-fg-muted">
+					Nothing in your mail is waiting on a decision about time.
+				</p>
 			</div>
 		);
 	return (

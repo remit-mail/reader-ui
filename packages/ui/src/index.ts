@@ -207,7 +207,10 @@ export {
 } from "./components/calendar-grid.js";
 export {
 	type CalendarAnswer,
+	CalendarCancellationsSent,
+	type CalendarCancellationsSentProps,
 	CalendarEventGuests,
+	type CalendarGuestCounts,
 	CalendarGuestsField,
 	type CalendarGuestsFieldProps,
 	CalendarInvitationsNotSent,
@@ -217,7 +220,6 @@ export {
 	type CalendarSender,
 	CalendarSenderField,
 	type GuestSuggestion,
-	guestTally,
 } from "./components/calendar-guests.js";
 export {
 	CalendarInviteCard,
@@ -241,6 +243,8 @@ export {
 	CalendarQuickCreateCard,
 	type CalendarQuickCreateCardProps,
 	type QuickCreateFields,
+	type QuickCreateMode,
+	type QuickTaskFields,
 } from "./components/calendar-quick-create.js";
 export {
 	CalendarScreenToolbar,
@@ -295,6 +299,7 @@ export {
 	type CalendarParseMethod,
 	type CalendarProposal,
 	type CalendarSlotPick,
+	type CalendarTaskData,
 	type CalendarViewId,
 	calendarColorIds,
 	type EventDraft,
@@ -1147,11 +1152,11 @@ export {
 } from "./lib/folder-tree-focus.js";
 export { type GridSlot, initialFocus } from "./lib/grid-keyboard.js";
 export {
-	formatGuestList,
 	type GuestEntry,
 	invalidGuest,
 	parseGuest,
-	parseGuestList,
+	storedGuest,
+	withGuest,
 } from "./lib/guest-list.js";
 export { isoWeek } from "./lib/iso-week.js";
 export {

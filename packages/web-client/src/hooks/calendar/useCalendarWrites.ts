@@ -39,6 +39,8 @@ const CALENDAR_QUERY_IDS = new Set([
 	"calendarEventOperationsListCalendarEvents",
 	"calendarEventDetailOperationsGetCalendarEvent",
 	"calendarFreeBusyOperationsListCalendarFreeBusy",
+	"calendarTaskOperationsListCalendarTasks",
+	"calendarTaskDetailOperationsGetCalendarTask",
 ]);
 
 export type CalendarWriteOutcome =

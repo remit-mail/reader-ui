@@ -1,7 +1,7 @@
 import { GripHorizontal, X } from "lucide-react";
 import type { PointerEvent, Ref } from "react";
 import { cn } from "../lib/cn.js";
-import { invalidGuest } from "../lib/guest-list.js";
+import { type GuestEntry, invalidGuest } from "../lib/guest-list.js";
 import {
 	type CalendarFailure,
 	CalendarFailureBlock,
@@ -10,6 +10,7 @@ import {
 	CalendarGuestsField,
 	type GuestSuggestion,
 } from "./calendar-guests.js";
+import type { CalendarTaskFields } from "./calendar-task-popup.js";
 import type { CalendarDescriptor, CalendarSlotPick } from "./calendar-types.js";
 
 export interface QuickCreateFields {
@@ -17,17 +18,24 @@ export interface QuickCreateFields {
 	range: CalendarSlotPick;
 	location: string;
 	calendarId: string;
-	/** Guests, comma separated. Only an event has them. */
-	guests: string;
-	/** A task swaps the range for a due date with an optional time. */
-	kind: "event" | "task";
-	/** A task's description. */
-	notes: string;
+	guests: GuestEntry[];
 }
+
+/** A new task: a due date with an optional time, in a task list. */
+export interface QuickTaskFields extends CalendarTaskFields {
+	calendarId: string;
+}
+
+/** What the card is making: an event over the range, or a task due on its day. */
+export type QuickCreateMode = "event" | "task";
 
 export interface CalendarQuickCreateCardProps {
 	headingId: string;
+	mode: QuickCreateMode;
+	onMode: (mode: QuickCreateMode) => void;
 	fields: QuickCreateFields;
+	taskFields: QuickTaskFields;
+	onTaskChange: (fields: QuickTaskFields) => void;
 	/** Only the calendars that accept writes. */
 	calendars: readonly CalendarDescriptor[];
 	/** The lists a task can go into. */
@@ -69,7 +77,11 @@ const withRange = (
 /** Google Calendar's small create popup: title, when, where, which calendar. */
 export function CalendarQuickCreateCard({
 	headingId,
+	mode,
+	onMode,
 	fields,
+	taskFields,
+	onTaskChange,
 	calendars,
 	taskLists,
 	guestSuggestions,
@@ -87,23 +99,16 @@ export function CalendarQuickCreateCard({
 	dragHandle,
 	touch = false,
 }: CalendarQuickCreateCardProps) {
-	const isTask = fields.kind === "task";
+	const isTask = mode === "task";
 	const lists = isTask ? taskLists : calendars;
 	const noWritable = lists.length === 0;
 	const blocked = !isTask && invalidGuest(fields.guests) !== undefined;
 	const control = cn(field, touch && "h-11");
-	const switchKind = (kind: QuickCreateFields["kind"]) => {
-		if (kind === fields.kind) return;
-		const range =
-			kind === "task"
-				? {
-						...fields.range,
-						endDate: fields.range.date,
-						endTime: fields.range.startTime,
-					}
-				: fields.range;
-		onChange({ ...fields, kind, range, calendarId: "" });
-	};
+	const title = isTask ? taskFields.title : fields.title;
+	const setTitle = (next: string) =>
+		isTask
+			? onTaskChange({ ...taskFields, title: next })
+			: onChange({ ...fields, title: next });
 	return (
 		<form
 			className="relative flex flex-col"
@@ -129,10 +134,8 @@ export function CalendarQuickCreateCard({
 					ref={titleRef}
 					aria-label="Title"
 					placeholder="Add title"
-					value={fields.title}
-					onChange={(event) =>
-						onChange({ ...fields, title: event.target.value })
-					}
+					value={title}
+					onChange={(event) => setTitle(event.target.value)}
 					className={cn(
 						"border-b-2 border-line bg-transparent pb-1 text-xl text-fg outline-none placeholder:text-fg-subtle focus:border-accent",
 					)}
@@ -144,7 +147,7 @@ export function CalendarQuickCreateCard({
 							key={kind}
 							className={cn(
 								"cursor-pointer rounded px-3 py-1 font-medium has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring",
-								fields.kind === kind
+								mode === kind
 									? "bg-surface text-fg shadow-sm"
 									: "text-fg-muted",
 								touch && "min-h-11",
@@ -154,8 +157,8 @@ export function CalendarQuickCreateCard({
 								type="radio"
 								name={`${headingId}-kind`}
 								value={kind}
-								checked={fields.kind === kind}
-								onChange={() => switchKind(kind)}
+								checked={mode === kind}
+								onChange={() => onMode(kind)}
 								className="sr-only"
 							/>
 							{kind === "event" ? "Event" : "Task"}
@@ -168,33 +171,18 @@ export function CalendarQuickCreateCard({
 						<input
 							type="date"
 							aria-label="Due date"
-							value={fields.range.date}
+							value={taskFields.dueDate}
 							onChange={(event) =>
 								event.target.value !== "" &&
-								onChange({
-									...fields,
-									range: {
-										...fields.range,
-										date: event.target.value,
-										endDate: event.target.value,
-									},
-								})
+								onTaskChange({ ...taskFields, dueDate: event.target.value })
 							}
 							className={control}
 						/>
-						{fields.range.allDay ? (
+						{taskFields.dueTime === "" ? (
 							<button
 								type="button"
 								onClick={() =>
-									onChange({
-										...fields,
-										range: {
-											...fields.range,
-											allDay: false,
-											startTime: "09:00",
-											endTime: "09:00",
-										},
-									})
+									onTaskChange({ ...taskFields, dueTime: "09:00" })
 								}
 								className="rounded-md px-2 font-medium text-accent hover:bg-accent-soft"
 							>
@@ -205,24 +193,9 @@ export function CalendarQuickCreateCard({
 								type="time"
 								aria-label="Due time"
 								step={900}
-								value={fields.range.startTime}
+								value={taskFields.dueTime}
 								onChange={(event) =>
-									onChange({
-										...fields,
-										range:
-											event.target.value === ""
-												? {
-														...fields.range,
-														allDay: true,
-														startTime: "",
-														endTime: "",
-													}
-												: {
-														...fields.range,
-														startTime: event.target.value,
-														endTime: event.target.value,
-													},
-									})
+									onTaskChange({ ...taskFields, dueTime: event.target.value })
 								}
 								className={control}
 							/>
@@ -287,9 +260,9 @@ export function CalendarQuickCreateCard({
 						aria-label="Description"
 						placeholder="Add description"
 						rows={2}
-						value={fields.notes}
+						value={taskFields.description}
 						onChange={(event) =>
-							onChange({ ...fields, notes: event.target.value })
+							onTaskChange({ ...taskFields, description: event.target.value })
 						}
 						className="w-full rounded-md border border-line bg-surface-sunken px-2 py-1 text-sm text-fg outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
 					/>
@@ -317,9 +290,14 @@ export function CalendarQuickCreateCard({
 				) : (
 					<select
 						aria-label={isTask ? "Task list" : "Calendar"}
-						value={fields.calendarId}
+						value={isTask ? taskFields.calendarId : fields.calendarId}
 						onChange={(event) =>
-							onChange({ ...fields, calendarId: event.target.value })
+							isTask
+								? onTaskChange({
+										...taskFields,
+										calendarId: event.target.value,
+									})
+								: onChange({ ...fields, calendarId: event.target.value })
 						}
 						className={control}
 					>

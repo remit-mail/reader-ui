@@ -3,7 +3,11 @@ import {
 	CalendarEventGone,
 	CalendarEventPopupCard,
 } from "./calendar-event-popup.js";
-import { CalendarEventGuests, CalendarReplyRow } from "./calendar-guests.js";
+import {
+	CalendarEventGuests,
+	type CalendarGuestCounts,
+	CalendarReplyRow,
+} from "./calendar-guests.js";
 import type { CalendarAttendee } from "./calendar-types.js";
 
 const guests: CalendarAttendee[] = [
@@ -21,6 +25,13 @@ const guests: CalendarAttendee[] = [
 	},
 	{ name: "", email: "two@example.com", rsvp: "noReply", role: "attendee" },
 ];
+
+const counts: CalendarGuestCounts = {
+	accepted: 1,
+	declined: 0,
+	tentative: 1,
+	needsAction: 1,
+};
 
 const meta = {
 	title: "Design System/Calendar/Event popup",
@@ -67,14 +78,16 @@ export const Gone: Story = {
 };
 
 export const WithGuests: Story = {
-	args: { children: <CalendarEventGuests attendees={guests} /> },
+	args: {
+		children: <CalendarEventGuests attendees={guests} counts={counts} />,
+	},
 };
 
 export const Reply: Story = {
 	args: {
 		children: (
 			<>
-				<CalendarEventGuests attendees={guests} />
+				<CalendarEventGuests attendees={guests} counts={counts} />
 				<CalendarReplyRow current="tentative" onAnswer={() => {}} />
 			</>
 		),
@@ -85,7 +98,7 @@ export const ReplyFailed: Story = {
 	args: {
 		children: (
 			<>
-				<CalendarEventGuests attendees={guests} />
+				<CalendarEventGuests attendees={guests} counts={counts} />
 				<CalendarReplyRow
 					current="accepted"
 					onAnswer={() => {}}

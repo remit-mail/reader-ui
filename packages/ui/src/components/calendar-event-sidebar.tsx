@@ -212,7 +212,7 @@ export function CalendarEventSidebar({
 						/>
 					</EventField>
 				)}
-				{guests && draft.guests.trim() !== "" && guests.senders.length > 0 && (
+				{guests && draft.guests.length > 0 && guests.senders.length > 0 && (
 					<EventField label="Send invitations from">
 						<CalendarSenderField
 							label="Send invitations from"

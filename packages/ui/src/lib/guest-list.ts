@@ -25,36 +25,29 @@ export function parseGuest(text: string): GuestEntry {
 	};
 }
 
-/**
- * The guests a Guests field holds, read from its text: entries split on comma,
- * semicolon or line break, blanks dropped, and a second entry for an address
- * already listed dropped too.
- */
-export function parseGuestList(text: string): GuestEntry[] {
-	const seen = new Set<string>();
-	const guests: GuestEntry[] = [];
-	for (const part of text.split(/[,;\n]/)) {
-		if (part.trim() === "") continue;
-		const guest = parseGuest(part);
-		if (guest.valid && seen.has(guest.email)) continue;
-		if (guest.valid) seen.add(guest.email);
-		guests.push(guest);
-	}
-	return guests;
+/** A guest the server already holds, by address and the name it stored. */
+export function storedGuest(email: string, displayName: string): GuestEntry {
+	return {
+		text: email,
+		email,
+		displayName: displayName === "" ? email : displayName,
+		valid: true,
+	};
 }
 
-/** The field text for a list of guests, the inverse of `parseGuestList`. */
-export function formatGuestList(guests: readonly GuestEntry[]): string {
-	return guests
-		.map((guest) =>
-			guest.valid && guest.displayName !== guest.email
-				? `${guest.displayName} <${guest.email}>`
-				: guest.text,
-		)
-		.join(", ");
+/** The list with one more guest, unless that address is already on it. */
+export function withGuest(
+	guests: readonly GuestEntry[],
+	guest: GuestEntry,
+): GuestEntry[] {
+	if (guest.valid && guests.some((other) => other.email === guest.email))
+		return [...guests];
+	return [...guests, guest];
 }
 
 /** The first entry that is not an email address, which blocks a save. */
-export function invalidGuest(text: string): GuestEntry | undefined {
-	return parseGuestList(text).find((guest) => !guest.valid);
+export function invalidGuest(
+	guests: readonly GuestEntry[],
+): GuestEntry | undefined {
+	return guests.find((guest) => !guest.valid);
 }

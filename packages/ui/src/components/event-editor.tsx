@@ -5,6 +5,7 @@ import { calendarColorClasses } from "../lib/calendar-color.js";
 import { cn } from "../lib/cn.js";
 import { NO_REPEAT, repeatChoices } from "../lib/recurrence.js";
 import { Button } from "./button.js";
+import { CalendarGuestsField } from "./calendar-guests.js";
 import type { CalendarDescriptor, EventDraft } from "./calendar-types.js";
 import { Input } from "./input.js";
 import { Select } from "./select.js";
@@ -267,12 +268,12 @@ export function EventLocationField({
 
 export function EventGuestsField({ draft, onChange, touch }: EventFieldProps) {
 	return (
-		<Input
+		<CalendarGuestsField
 			value={draft.guests}
-			placeholder="Guests, comma separated"
-			aria-label="Guests"
-			onChange={(e) => setField({ draft, onChange }, "guests", e.target.value)}
-			className={touch ? "min-h-11" : ""}
+			onChange={(guests) => onChange({ ...draft, guests })}
+			suggestions={[]}
+			onQuery={() => undefined}
+			touch={touch}
 		/>
 	);
 }

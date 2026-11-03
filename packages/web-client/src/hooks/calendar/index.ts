@@ -112,10 +112,10 @@ export {
 } from "./useCalendarSuggestions";
 export { type CalendarsResult, useCalendars } from "./useCalendars";
 export {
-	calendarTaskEventId,
-	calendarTaskIdOf,
+	type CalendarTaskRead,
 	type TaskWriteOutcome,
-	toTaskEventData,
+	toTaskData,
+	useCalendarTask,
 	useCalendarTasks,
 	useCalendarTaskWrites,
 } from "./useCalendarTasks";

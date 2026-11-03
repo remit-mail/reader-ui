@@ -26,6 +26,7 @@ import {
 	useQueryClient,
 } from "@tanstack/react-query";
 import { useCallback, useMemo } from "react";
+import { getErrorStatus } from "../../lib/error-classifier";
 import { useDebouncedValue } from "../useDebouncedValue";
 
 export interface CalendarSenders {
@@ -111,11 +112,18 @@ export interface SendsFollowUp {
 	missed: string[];
 	/** Sends every failed message again. */
 	retry: () => Promise<void>;
+	/** Why the state of a queued message could not be read; null when every read answered. */
+	checkError: unknown;
+	/** The guests whose message could not be followed, while `checkError` stands. */
+	unchecked: string[];
+	/** Reads the unanswered rows again. */
+	recheck: () => void;
 }
 
 /**
  * Follows each queued scheduling message until it settles. A row that left the
- * outbox was sent and filed, which reads as a 404 here and as reached.
+ * outbox was sent and filed, which reads as a 404 here and as reached; any
+ * other failed read is said, never taken as reached.
  */
 export function useSendsFollowUp(
 	sends: readonly RemitImapCalendarSchedulingSend[],
@@ -141,6 +149,14 @@ export function useSendsFollowUp(
 			},
 		})),
 	});
+	const unreadable = sends.flatMap((send, index) => {
+		const result = results[index];
+		if (!result?.error || getErrorStatus(result.error) === 404) return [];
+		return [{ send, error: result.error, refetch: result.refetch }];
+	});
+	const recheck = () => {
+		for (const entry of unreadable) void entry.refetch();
+	};
 	const missed = sends.filter((_, index) => {
 		const status = results[index]?.data?.status;
 		return status !== undefined && MISSED.includes(status);
@@ -157,5 +173,11 @@ export function useSendsFollowUp(
 			});
 		}
 	}, [missed, resend, queryClient]);
-	return { missed: missed.map((send) => send.email), retry };
+	return {
+		missed: missed.map((send) => send.email),
+		retry,
+		checkError: unreadable[0]?.error ?? null,
+		unchecked: unreadable.map((entry) => entry.send.email),
+		recheck,
+	};
 }
