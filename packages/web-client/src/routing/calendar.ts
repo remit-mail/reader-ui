@@ -24,6 +24,7 @@ declare module "@tanstack/react-router" {
 }
 const SUGGESTION_ROUTE =
 	"/calendar/$view/$date/suggestion/$suggestionId" as const;
+const TASK_ROUTE = "/calendar/$view/$date/task/$calendarTaskId" as const;
 
 /** Which zoom the calendar is at, on which day, over which calendars. */
 export interface CalendarAddress {
@@ -79,6 +80,11 @@ export function useOpenCalendarEvent(): OpenCalendarEvent | undefined {
 		() => (calendarObjectId ? { calendarObjectId, recurrenceId } : undefined),
 		[calendarObjectId, recurrenceId],
 	);
+}
+
+/** The task the popup has open, if the address names one. */
+export function useOpenCalendarTask(): string | undefined {
+	return useParams({ from: TASK_ROUTE, shouldThrow: false })?.calendarTaskId;
 }
 
 /** Whether the composer is up, which is a route rather than a flag. */
@@ -158,6 +164,8 @@ export interface CalendarNavigation {
 	 * a resource that does not recur names only itself.
 	 */
 	openEvent: (calendarObjectId: string, recurrenceId?: string) => void;
+	/** A task in its popup, by its own segment. */
+	openTask: (calendarTaskId: string) => void;
 	/**
 	 * Back to the view from an event popup or a sidebar: Back when the view is
 	 * the entry before, else the view by replace.
@@ -186,7 +194,8 @@ export function useCalendarNavigation(): CalendarNavigation {
 	const retainPanels = useRetainOpenPanels();
 	const { view, date } = useCalendarAddress();
 	const openedEvent = useOpenCalendarEvent();
-	const popupOpen = openedEvent !== undefined;
+	const openedTask = useOpenCalendarTask();
+	const popupOpen = openedEvent !== undefined || openedTask !== undefined;
 
 	const goTo = useCallback(
 		(params: { view: CalendarViewId; date: string }) => {
@@ -259,6 +268,15 @@ export function useCalendarNavigation(): CalendarNavigation {
 							replace: popupOpen,
 							state: { openedFromView: true },
 						}),
+			openTask: (calendarTaskId: string) =>
+				navigate({
+					to: TASK_ROUTE,
+					params: { view, date, calendarTaskId },
+					search: true,
+					hash: retainPanels,
+					replace: popupOpen,
+					state: { openedFromView: true },
+				}),
 			closeToView: () => {
 				if (router.state.location.state.openedFromView === true) {
 					router.history.back();

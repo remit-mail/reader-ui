@@ -5,7 +5,7 @@ import type {
 } from "@remit/api-http-client/types.gen.ts";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
-import { useErrorBanners } from "../components/ui/ErrorBannerProvider";
+import { useErrorBanners } from "../components/ui/error-banner-context";
 import { formatErrorDetail } from "../components/ui/error-banners";
 import { runChunkedMutation } from "../lib/bulk-actions";
 import {

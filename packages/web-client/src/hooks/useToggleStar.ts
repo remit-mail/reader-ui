@@ -4,7 +4,7 @@ import {
 } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
 import type { RemitImapThreadMessageResponse } from "@remit/api-http-client/types.gen.ts";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useErrorBanners } from "../components/ui/ErrorBannerProvider";
+import { useErrorBanners } from "../components/ui/error-banner-context";
 import { formatErrorDetail } from "../components/ui/error-banners";
 import { patchThreadListCache } from "../lib/thread-cache";
 import {

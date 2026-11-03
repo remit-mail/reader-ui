@@ -32,7 +32,7 @@ const draft: EventDraft = {
 	allDay: false,
 	calendarId: "c1",
 	location: "",
-	guests: "",
+	guests: [],
 	notes: "",
 	repeat: "",
 };

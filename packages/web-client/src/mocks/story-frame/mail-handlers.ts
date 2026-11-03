@@ -6,6 +6,7 @@ import type {
 	CalendarEventOperationsListCalendarEventsResponse,
 	CalendarOperationsListCalendarsResponse,
 	CalendarSuggestionOperationsListCalendarSuggestionsResponse,
+	CalendarTaskOperationsListCalendarTasksResponse,
 	FilterOperationsListFiltersResponse,
 	LabelOperationsListLabelsResponse,
 	MailboxDetailOperationsRenameMailboxResponse,
@@ -528,6 +529,11 @@ export const mailHandlers = (
 				resource,
 			);
 		}),
+		http.get(`${API}/calendar-tasks`, () =>
+			HttpResponse.json<CalendarTaskOperationsListCalendarTasksResponse>({
+				items: [],
+			}),
+		),
 		http.get(`${API}/calendar-suggestions`, () =>
 			HttpResponse.json<CalendarSuggestionOperationsListCalendarSuggestionsResponse>(
 				{ items: [] },

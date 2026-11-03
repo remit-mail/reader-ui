@@ -82,7 +82,7 @@ const draft = (over: Partial<EventDraft>): EventDraft => ({
 	allDay: false,
 	calendarId: WORK,
 	location: "",
-	guests: "",
+	guests: [],
 	notes: "",
 	repeat: "",
 	...over,

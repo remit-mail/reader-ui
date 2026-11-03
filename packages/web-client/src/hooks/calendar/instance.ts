@@ -13,6 +13,7 @@ import type {
 	CalendarColorId,
 	CalendarDescriptor,
 	CalendarEventData,
+	RsvpState,
 	ZoneCertainty,
 } from "@remit/ui";
 import { isoOnClock } from "./window";
@@ -47,6 +48,26 @@ const COLORS: Record<string, CalendarColorId> = {
 	Cal5: "cal-5",
 	Cal6: "cal-6",
 };
+
+/**
+ * The reader's own answer, as an event is drawn. An event the reader
+ * organizes, or one nobody was invited to, is theirs and drawn as a yes.
+ */
+const RSVP_OF: Record<
+	RemitImapCalendarEventInstance["participation"],
+	RsvpState
+> = {
+	Unscheduled: "accepted",
+	Organizer: "accepted",
+	Accepted: "accepted",
+	Tentative: "tentative",
+	Declined: "declined",
+	NeedsAction: "noReply",
+};
+
+export const rsvpOfParticipation = (
+	participation: RemitImapCalendarEventInstance["participation"],
+): RsvpState => RSVP_OF[participation];
 
 const ZONES: Record<string, ZoneCertainty> = {
 	Local: "local",
@@ -202,7 +223,7 @@ export function toCalendarEventData(
 		location: "",
 		notes: "",
 		attendees: [],
-		myRsvp: "accepted",
+		myRsvp: RSVP_OF[instance.participation],
 		threadId: "",
 		threadSubject: "",
 		timeZone,

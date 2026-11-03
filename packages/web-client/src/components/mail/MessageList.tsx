@@ -60,7 +60,7 @@ import {
 	useSelectionWizard,
 	useWizardStepValue,
 } from "../../routing";
-import { useErrorBanners } from "../ui/ErrorBannerProvider";
+import { useErrorBanners } from "../ui/error-banner-context";
 import { DeleteConfirmDialog } from "./DeleteConfirmDialog";
 import { LabelApplyTrigger } from "./LabelApplyTrigger";
 import {

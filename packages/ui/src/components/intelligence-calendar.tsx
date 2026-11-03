@@ -6,7 +6,7 @@ import { CalendarEventChip } from "./calendar-event-chip.js";
 import { CalendarFailureNote } from "./calendar-failure-note.js";
 import { CalendarInviteCard } from "./calendar-invite-card.js";
 import { CalendarSlotOffers } from "./calendar-slot-offers.js";
-import { CalendarSuggestionDeck } from "./calendar-suggestion-deck.js";
+import { CalendarSuggestionList } from "./calendar-suggestion-list.js";
 import type {
 	CalendarClash,
 	CalendarColorId,
@@ -17,11 +17,7 @@ import type {
 	EventSuggestion,
 	RsvpState,
 } from "./calendar-types.js";
-import {
-	EventSuggestionCard,
-	settleZone,
-	ZONE_UNSETTLED_REASON,
-} from "./event-suggestion-card.js";
+import { EventSuggestionCard } from "./event-suggestion-card.js";
 import { IntelligenceSection } from "./intelligence-section.js";
 
 /**
@@ -93,7 +89,7 @@ export interface IntelligenceCalendarData {
 	day: CalendarDayEntry[];
 	/** The day those entries sit on, in words. */
 	dayLabel: string;
-	/** An answer to the top reading is on its way to the server. */
+	/** An answer to one of the readings is on its way to the server. */
 	suggestionsBusy?: boolean;
 	/** What the tab could not read. Empty when it read everything. */
 	failure?: string;
@@ -157,11 +153,6 @@ export function IntelligenceCalendar({
 	} = data;
 	const { onReviewSuggestion, onOpenThread } = actions;
 	const [zoneChoices, setZoneChoices] = useState<Record<string, string>>({});
-	const top = suggestions[0];
-	const topChoice =
-		top === undefined ? "" : (zoneChoices[top.suggestion.id] ?? "");
-	const topSettlement =
-		top === undefined ? undefined : settleZone(top.suggestion, topChoice);
 	const picked = new Set(prose?.picked ?? []);
 	const nothingToSay =
 		failure === "" &&
@@ -299,52 +290,39 @@ export function IntelligenceCalendar({
 
 			{suggestions.length > 0 && (
 				<IntelligenceSection label="Read out of this thread">
-					<CalendarSuggestionDeck
-						hasCard={top !== undefined}
-						remaining={suggestions.length}
-						blocked={topSettlement !== undefined && !topSettlement.settled}
-						blockedReason={ZONE_UNSETTLED_REASON}
-						onConfirm={() => {
-							if (top && topSettlement?.settled && addBlocked === undefined)
-								actions.onAddSuggestion(
-									top.suggestion.id,
-									topSettlement.timeZone,
-								);
-						}}
-						onReject={() => {
-							if (top) actions.onDismissSuggestion(top.suggestion.id);
-						}}
-					>
-						{top && (
-							<EventSuggestionCard
-								suggestion={top.suggestion}
-								whenText={top.whenText}
-								addLabel="Add to calendar"
-								zoneChoice={topChoice}
-								onZoneChoice={(timeZone) =>
-									setZoneChoices((prev) => ({
-										...prev,
-										[top.suggestion.id]: timeZone,
-									}))
-								}
-								onAdd={(timeZone) =>
-									actions.onAddSuggestion(top.suggestion.id, timeZone)
-								}
-								onReview={
-									onReviewSuggestion &&
-									((timeZone) =>
-										onReviewSuggestion(top.suggestion.id, timeZone))
-								}
-								onDismiss={() => actions.onDismissSuggestion(top.suggestion.id)}
-								onOpenThread={
-									onOpenThread && (() => onOpenThread(top.suggestion.threadId))
-								}
-								busy={suggestionsBusy}
-								addBlocked={addBlocked !== undefined}
-								touch={touch}
-							/>
-						)}
-					</CalendarSuggestionDeck>
+					<CalendarSuggestionList
+						items={suggestions.map(({ suggestion, whenText }) => ({
+							id: suggestion.id,
+							card: (
+								<EventSuggestionCard
+									suggestion={suggestion}
+									whenText={whenText}
+									addLabel="Add to calendar"
+									zoneChoice={zoneChoices[suggestion.id] ?? ""}
+									onZoneChoice={(timeZone) =>
+										setZoneChoices((prev) => ({
+											...prev,
+											[suggestion.id]: timeZone,
+										}))
+									}
+									onAdd={(timeZone) =>
+										actions.onAddSuggestion(suggestion.id, timeZone)
+									}
+									onReview={
+										onReviewSuggestion &&
+										((timeZone) => onReviewSuggestion(suggestion.id, timeZone))
+									}
+									onDismiss={() => actions.onDismissSuggestion(suggestion.id)}
+									onOpenThread={
+										onOpenThread && (() => onOpenThread(suggestion.threadId))
+									}
+									busy={suggestionsBusy}
+									addBlocked={addBlocked !== undefined}
+									touch={touch}
+								/>
+							),
+						}))}
+					/>
 					{addBlocked !== undefined && (
 						<div className="mt-2 rounded-md border border-warning/40 bg-warning-soft p-2 text-xs text-fg">
 							{addBlocked}

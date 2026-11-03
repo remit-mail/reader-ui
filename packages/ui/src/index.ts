@@ -206,6 +206,22 @@ export {
 	type CalendarGridProps,
 } from "./components/calendar-grid.js";
 export {
+	type CalendarAnswer,
+	CalendarCancellationsSent,
+	type CalendarCancellationsSentProps,
+	CalendarEventGuests,
+	type CalendarGuestCounts,
+	CalendarGuestsField,
+	type CalendarGuestsFieldProps,
+	CalendarInvitationsNotSent,
+	type CalendarInvitationsNotSentProps,
+	CalendarReplyRow,
+	type CalendarReplyRowProps,
+	type CalendarSender,
+	CalendarSenderField,
+	type GuestSuggestion,
+} from "./components/calendar-guests.js";
+export {
 	CalendarInviteCard,
 	type CalendarInviteCardProps,
 } from "./components/calendar-invite-card.js";
@@ -227,6 +243,8 @@ export {
 	CalendarQuickCreateCard,
 	type CalendarQuickCreateCardProps,
 	type QuickCreateFields,
+	type QuickCreateMode,
+	type QuickTaskFields,
 } from "./components/calendar-quick-create.js";
 export {
 	CalendarScreenToolbar,
@@ -247,9 +265,15 @@ export {
 	type CalendarSlotOffersProps,
 } from "./components/calendar-slot-offers.js";
 export {
-	CalendarSuggestionDeck,
-	type CalendarSuggestionDeckProps,
-} from "./components/calendar-suggestion-deck.js";
+	CalendarSuggestionList,
+	type CalendarSuggestionListItem,
+	type CalendarSuggestionListProps,
+} from "./components/calendar-suggestion-list.js";
+export {
+	type CalendarTaskFields,
+	CalendarTaskPopupCard,
+	type CalendarTaskPopupCardProps,
+} from "./components/calendar-task-popup.js";
 export {
 	CalendarTimeGrid,
 	type CalendarTimeGridProps,
@@ -275,6 +299,7 @@ export {
 	type CalendarParseMethod,
 	type CalendarProposal,
 	type CalendarSlotPick,
+	type CalendarTaskData,
 	type CalendarViewId,
 	calendarColorIds,
 	type EventDraft,
@@ -1126,6 +1151,13 @@ export {
 	isSelectable,
 } from "./lib/folder-tree-focus.js";
 export { type GridSlot, initialFocus } from "./lib/grid-keyboard.js";
+export {
+	type GuestEntry,
+	invalidGuest,
+	parseGuest,
+	storedGuest,
+	withGuest,
+} from "./lib/guest-list.js";
 export { isoWeek } from "./lib/iso-week.js";
 export {
 	defaultKeyboardHints,

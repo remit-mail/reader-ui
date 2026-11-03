@@ -7,7 +7,7 @@ import type { RemitImapThreadMessageResponse } from "@remit/api-http-client/type
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef } from "react";
 import { useRoleAppointmentPrompt } from "../components/mail/RoleAppointmentPromptProvider";
-import { useErrorBanners } from "../components/ui/ErrorBannerProvider";
+import { useErrorBanners } from "../components/ui/error-banner-context";
 import { formatErrorDetail } from "../components/ui/error-banners";
 import { isFolderRoleRefusal } from "../components/ui/folder-role-refusal";
 import {

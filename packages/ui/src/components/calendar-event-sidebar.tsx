@@ -1,10 +1,17 @@
 import { X } from "lucide-react";
 import type { ReactNode, Ref } from "react";
 import { cn } from "../lib/cn.js";
+import { invalidGuest } from "../lib/guest-list.js";
 import {
 	type CalendarFailure,
 	CalendarFailureBlock,
 } from "./calendar-event-popup.js";
+import {
+	CalendarGuestsField,
+	type CalendarSender,
+	CalendarSenderField,
+	type GuestSuggestion,
+} from "./calendar-guests.js";
 import type { CalendarDescriptor, EventDraft } from "./calendar-types.js";
 import {
 	EventField,
@@ -41,6 +48,16 @@ export interface CalendarEventSidebarProps {
 	touch?: boolean;
 	/** The scope question or the discard confirm, over the form. */
 	children?: ReactNode;
+	/** Absent where the reader cannot change the guest list: an invitation from someone else. */
+	guests?: {
+		suggestions: readonly GuestSuggestion[];
+		onQuery: (query: string) => void;
+		senders: readonly CalendarSender[];
+		sender: string;
+		onSender: (accountId: string) => void;
+		/** A stored event keeps the organizer it was sent from. */
+		senderEditable: boolean;
+	};
 }
 
 const control =
@@ -69,9 +86,12 @@ export function CalendarEventSidebar({
 	titleRef,
 	touch = false,
 	children,
+	guests,
 }: CalendarEventSidebarProps) {
 	const field = cn(control, touch && "h-11");
 	const backwards = endsBeforeStart(draft);
+	const blocked =
+		guests !== undefined && invalidGuest(draft.guests) !== undefined;
 	return (
 		<form
 			aria-label={heading}
@@ -79,7 +99,7 @@ export function CalendarEventSidebar({
 			className="flex h-full min-h-0 flex-col bg-surface"
 			onSubmit={(event) => {
 				event.preventDefault();
-				if (!saving && !backwards) onSave();
+				if (!saving && !backwards && !blocked) onSave();
 			}}
 		>
 			<div className="flex shrink-0 items-center justify-between border-b border-line px-4 py-2">
@@ -181,6 +201,32 @@ export function CalendarEventSidebar({
 						className="w-full rounded-md border border-line bg-surface-sunken px-3 py-2 text-sm text-fg outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
 					/>
 				</EventField>
+				{guests && (
+					<EventField label="Guests">
+						<CalendarGuestsField
+							value={draft.guests}
+							onChange={(value) => onChange({ ...draft, guests: value })}
+							suggestions={guests.suggestions}
+							onQuery={guests.onQuery}
+							touch={touch}
+						/>
+					</EventField>
+				)}
+				{guests && draft.guests.length > 0 && guests.senders.length > 0 && (
+					<EventField label="Send invitations from">
+						<CalendarSenderField
+							label="Send invitations from"
+							senders={guests.senders}
+							value={guests.sender}
+							onChange={guests.onSender}
+							disabled={!guests.senderEditable}
+							touch={touch}
+						/>
+						<p className="mt-1 text-xs text-fg-muted">
+							Default set in Settings, Calendars
+						</p>
+					</EventField>
+				)}
 				{children}
 			</div>
 			<div className="flex shrink-0 flex-col gap-2 border-t border-line px-4 py-3">
@@ -205,7 +251,7 @@ export function CalendarEventSidebar({
 					</button>
 					<button
 						type="submit"
-						disabled={saving || backwards}
+						disabled={saving || backwards || blocked}
 						className={cn(
 							"rounded-md bg-accent px-5 text-sm font-medium text-accent-fg hover:bg-accent-hover focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50",
 							touch ? "min-h-11" : "h-9",

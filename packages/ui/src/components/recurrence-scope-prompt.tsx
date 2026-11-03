@@ -11,6 +11,8 @@ export interface RecurrenceScopePromptProps {
 	instanceText: string;
 	onChoose: (scope: RecurrenceScope) => void;
 	onCancel: () => void;
+	/** The scopes offered. An answer to an invitation takes this occurrence or all of them. */
+	scopes?: readonly RecurrenceScope[];
 	touch?: boolean;
 	className?: string;
 }
@@ -41,6 +43,7 @@ export function RecurrenceScopePrompt({
 	instanceText,
 	onChoose,
 	onCancel,
+	scopes,
 	touch,
 	className,
 }: RecurrenceScopePromptProps) {
@@ -55,20 +58,26 @@ export function RecurrenceScopePrompt({
 			<p className="text-sm text-fg">What should the change apply to?</p>
 
 			<div className="flex flex-col gap-1.5">
-				{choices.map((choice) => (
-					<button
-						key={choice.scope}
-						type="button"
-						onClick={() => onChoose(choice.scope)}
-						className={cn(
-							"flex flex-col rounded-md border border-line bg-surface px-3 py-2 text-left outline-none transition-colors hover:border-line-strong hover:bg-surface-sunken focus-visible:ring-2 focus-visible:ring-ring",
-							touch && "min-h-11 justify-center",
-						)}
-					>
-						<span className="text-sm font-medium text-fg">{choice.label}</span>
-						<span className="text-2xs text-fg-subtle">{choice.note}</span>
-					</button>
-				))}
+				{choices
+					.filter(
+						(choice) => scopes === undefined || scopes.includes(choice.scope),
+					)
+					.map((choice) => (
+						<button
+							key={choice.scope}
+							type="button"
+							onClick={() => onChoose(choice.scope)}
+							className={cn(
+								"flex flex-col rounded-md border border-line bg-surface px-3 py-2 text-left outline-none transition-colors hover:border-line-strong hover:bg-surface-sunken focus-visible:ring-2 focus-visible:ring-ring",
+								touch && "min-h-11 justify-center",
+							)}
+						>
+							<span className="text-sm font-medium text-fg">
+								{choice.label}
+							</span>
+							<span className="text-2xs text-fg-subtle">{choice.note}</span>
+						</button>
+					))}
 			</div>
 
 			<Button

@@ -5,7 +5,7 @@ import {
 } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo } from "react";
-import { useErrorBanners } from "../components/ui/ErrorBannerProvider";
+import { useErrorBanners } from "../components/ui/error-banner-context";
 import { buildMutationErrorBanner } from "../components/ui/error-banners";
 
 export interface SignatureData {

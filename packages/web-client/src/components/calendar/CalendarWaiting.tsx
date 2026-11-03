@@ -1,25 +1,23 @@
 import {
 	CalendarFailureNote,
-	CalendarSuggestionDeck,
 	type CalendarSuggestionIntel,
+	CalendarSuggestionList,
 	EventSuggestionCard,
-	settleZone,
-	ZONE_UNSETTLED_REASON,
 } from "@remit/ui";
 import { Sparkles } from "lucide-react";
 import type { ReactNode } from "react";
 
 /**
  * What the mail is still asking about time, beside the calendar it would land
- * on. One reading at a time, as a deck: each is a decision, and the reader
- * makes it with the week in view rather than from a list of them.
+ * on. Every reading at once, one under the other, each with its own Add and
+ * Dismiss, beside the week it would land on.
  *
  * Presentational. The readings, the answer on its way and the refusal all come
  * in from the host, which reads them off the server.
  */
 export interface CalendarWaitingProps {
 	suggestions: CalendarSuggestionIntel[];
-	/** An answer to the top reading is on its way. */
+	/** An answer to one of the readings is on its way. */
 	busy: boolean;
 	/** Why the last answer did not land. Empty when it did. */
 	failure: string;
@@ -42,9 +40,6 @@ export function CalendarWaiting({
 	onChangeFirst,
 	onDismiss,
 }: CalendarWaitingProps) {
-	const top = suggestions[0];
-	const settlement = top ? settleZone(top.suggestion, "") : undefined;
-
 	return (
 		<aside
 			aria-label="Waiting for you"
@@ -66,33 +61,24 @@ export function CalendarWaiting({
 					{addBlocked}
 				</div>
 			)}
-			<CalendarSuggestionDeck
+			<CalendarSuggestionList
 				className="px-row-inset"
-				hasCard={top !== undefined}
-				remaining={suggestions.length}
-				blocked={settlement !== undefined && !settlement.settled}
-				blockedReason={ZONE_UNSETTLED_REASON}
-				onConfirm={() => {
-					if (top && !busy && addBlocked === undefined)
-						onAdd(top.suggestion.id);
-				}}
-				onReject={() => {
-					if (top && !busy) onDismiss(top.suggestion.id);
-				}}
-			>
-				{top && (
-					<EventSuggestionCard
-						suggestion={top.suggestion}
-						whenText={top.whenText}
-						onAdd={() => onAdd(top.suggestion.id)}
-						onReview={onChangeFirst && (() => onChangeFirst(top.suggestion.id))}
-						onDismiss={() => onDismiss(top.suggestion.id)}
-						addLabel="Add to calendar"
-						busy={busy}
-						addBlocked={addBlocked !== undefined}
-					/>
-				)}
-			</CalendarSuggestionDeck>
+				items={suggestions.map(({ suggestion, whenText }) => ({
+					id: suggestion.id,
+					card: (
+						<EventSuggestionCard
+							suggestion={suggestion}
+							whenText={whenText}
+							onAdd={() => onAdd(suggestion.id)}
+							onReview={onChangeFirst && (() => onChangeFirst(suggestion.id))}
+							onDismiss={() => onDismiss(suggestion.id)}
+							addLabel="Add to calendar"
+							busy={busy}
+							addBlocked={addBlocked !== undefined}
+						/>
+					),
+				}))}
+			/>
 			<p className="px-row-inset text-2xs text-fg-subtle">
 				None of this is on your calendar until you add it. Adding sends the
 				organiser nothing.

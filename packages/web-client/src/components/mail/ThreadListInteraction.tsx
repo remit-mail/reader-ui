@@ -40,7 +40,7 @@ import type { TriageContextUpdate } from "../../hooks/useTriageLayer";
 import type { DeleteTarget } from "../../lib/format";
 import { tabStopId } from "../../lib/list-focus";
 import { useListHeaderChrome } from "../../lib/list-header-chrome";
-import { useErrorBanners } from "../ui/ErrorBannerProvider";
+import { useErrorBanners } from "../ui/error-banner-context";
 import { DeleteConfirmDialog } from "./DeleteConfirmDialog";
 import type { MessageListCommands } from "./MessageList";
 import type { MessageRowSelection } from "./MessageRow";

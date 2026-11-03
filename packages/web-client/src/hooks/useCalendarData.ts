@@ -9,9 +9,10 @@ import type {
 	CalendarColorId,
 	CalendarDescriptor,
 	CalendarEventData,
+	CalendarTaskData,
 	CalendarViewId,
 } from "@remit/ui";
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import {
 	type CalendarInstanceRef,
 	calendarInstanceId,
@@ -22,6 +23,7 @@ import {
 	useDrawnEvents,
 	usePrefetchAdjacentWindows,
 } from "./calendar";
+import { toTaskData, useCalendarTasks } from "./calendar/useCalendarTasks";
 
 export interface CalendarDataRequest {
 	view: CalendarViewId;
@@ -45,9 +47,13 @@ export interface CalendarData {
 	/** The zone each collection's times are read on — never the device's. */
 	timeZoneByCalendarId: Record<string, string>;
 	isLoading: boolean;
-	/** A refusal the calendar renders itself. Null when the read succeeded. */
+	/** A refusal the calendar renders itself. Null when every read succeeded. */
 	error: unknown;
 	retry: () => void;
+	/** The tasks due in the window, as the API returned them. */
+	storedTasks: ReturnType<typeof useCalendarTasks>["tasks"];
+	/** The same tasks, as the grid draws them. */
+	tasks: CalendarTaskData[];
 	/** The resource and occurrence behind an event the grid selected. */
 	instanceOf: (eventId: string) => CalendarInstanceRef;
 	/** The events that leave their time free rather than busy. */
@@ -79,11 +85,20 @@ export function useCalendarData({
 	});
 	usePrefetchAdjacentWindows(view, date, narrowed, active);
 
-	const eventData = useDrawnEvents(
+	const drawnEvents = useDrawnEvents(
 		events.instances,
 		timeZoneByCalendarId,
 		shown,
 	);
+	const taskRead = useCalendarTasks(window, active);
+	const storedTasks = taskRead.tasks;
+	const tasks = useMemo(() => storedTasks.map(toTaskData), [storedTasks]);
+	const refetchEvents = events.refetch;
+	const refetchTasks = taskRead.refetch;
+	const retry = useCallback(() => {
+		refetchEvents();
+		void refetchTasks();
+	}, [refetchEvents, refetchTasks]);
 
 	const freeIds = useMemo(
 		() =>
@@ -102,12 +117,14 @@ export function useCalendarData({
 
 	return {
 		calendars,
-		events: eventData,
+		events: drawnEvents,
 		colorByCalendarId,
 		timeZoneByCalendarId,
 		isLoading: isLoading || events.isLoading,
-		error: events.error,
-		retry: events.refetch,
+		error: events.error ?? taskRead.error,
+		retry,
+		storedTasks,
+		tasks,
 		instanceOf: readCalendarInstanceId,
 		freeIds,
 	};

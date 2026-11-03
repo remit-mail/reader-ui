@@ -63,7 +63,7 @@ import {
 	useEditDraft,
 	useOpenOutboxDraft,
 } from "../../routing";
-import { useErrorBanners } from "../ui/ErrorBannerProvider";
+import { useErrorBanners } from "../ui/error-banner-context";
 import { buildMutationErrorBanner } from "../ui/error-banners";
 import { MessageBody } from "./MessageBody";
 import { NavMenuButton } from "./NavMenuButton";

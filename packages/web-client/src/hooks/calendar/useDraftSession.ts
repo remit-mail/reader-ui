@@ -24,7 +24,7 @@ import {
 
 /** Presses the grid answers itself, and the popups they open. */
 const GRID_OWNED =
-	"[data-calendar-popover], [data-event-id], [data-time-columns], [data-all-day-row], [role='dialog']";
+	"[data-calendar-popover], [data-event-id], [data-task-id], [data-time-columns], [data-all-day-row], [role='dialog']";
 
 export interface DraftSessionBindings {
 	layers: SessionLayers;

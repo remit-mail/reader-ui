@@ -17,6 +17,7 @@ export {
 	useIsWritingEvent,
 	useNewEventBounds,
 	useOpenCalendarEvent,
+	useOpenCalendarTask,
 	useOpenEventOnCalendar,
 } from "./calendar";
 export {

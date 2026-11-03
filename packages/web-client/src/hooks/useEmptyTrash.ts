@@ -16,7 +16,7 @@ import type { ConfigOperationsGetConfigResponse } from "@remit/api-http-client/t
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useRef, useState } from "react";
 import { useRoleAppointmentPrompt } from "../components/mail/RoleAppointmentPromptProvider";
-import { useErrorBanners } from "../components/ui/ErrorBannerProvider";
+import { useErrorBanners } from "../components/ui/error-banner-context";
 import { formatErrorDetail } from "../components/ui/error-banners";
 import {
 	type FolderRoleRefusal,

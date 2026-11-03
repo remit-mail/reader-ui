@@ -20,6 +20,7 @@ import {
 	calendarEventOperationsCreateCalendarEventMutation,
 } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
 import type {
+	RemitImapCalendarSchedulingSend,
 	RemitImapCreateCalendarEventInput,
 	RemitImapRecurrenceScope,
 	RemitImapUpdateCalendarEventInput,
@@ -31,25 +32,29 @@ import { useCallback, useMemo } from "react";
 import { getErrorStatus, softErrorStatuses } from "../../lib/error-classifier";
 
 /** The refusals a calendar surface renders itself. A 401 is not among them. */
-const CALENDAR_WRITE_META = softErrorStatuses(400, 404, 412);
+export const CALENDAR_WRITE_META = softErrorStatuses(400, 404, 412);
 
 /** Every read whose answer a write can change. */
 const CALENDAR_QUERY_IDS = new Set([
 	"calendarEventOperationsListCalendarEvents",
 	"calendarEventDetailOperationsGetCalendarEvent",
 	"calendarFreeBusyOperationsListCalendarFreeBusy",
+	"calendarTaskOperationsListCalendarTasks",
+	"calendarTaskDetailOperationsGetCalendarTask",
 ]);
 
 export type CalendarWriteOutcome =
-	| { kind: "written" }
+	| { kind: "written"; sends: RemitImapCalendarSchedulingSend[] }
 	| { kind: "conflict" }
 	| { kind: "refused"; message: string };
 
-const WRITTEN: CalendarWriteOutcome = { kind: "written" };
-
 /** A create that lands names the resource it made, so the grid can focus it. */
 export type CalendarCreateOutcome =
-	| { kind: "created"; calendarObjectId: string }
+	| {
+			kind: "created";
+			calendarObjectId: string;
+			sends: RemitImapCalendarSchedulingSend[];
+	  }
 	| { kind: "conflict" }
 	| { kind: "refused"; message: string };
 
@@ -136,6 +141,7 @@ export function useCalendarWrites(): CalendarWrites {
 					(created): CalendarCreateOutcome => ({
 						kind: "created",
 						calendarObjectId: created.calendarObjectId,
+						sends: created.sends,
 					}),
 				)
 				.catch(
@@ -156,7 +162,12 @@ export function useCalendarWrites(): CalendarWrites {
 					headers: { "If-Match": write.etag },
 					body: patch,
 				})
-				.then(() => WRITTEN)
+				.then(
+					(updated): CalendarWriteOutcome => ({
+						kind: "written",
+						sends: updated.sends,
+					}),
+				)
 				.catch(outcomeFor),
 		[update],
 	);
@@ -169,7 +180,12 @@ export function useCalendarWrites(): CalendarWrites {
 					query: { calendarId: write.calendarId, ...scopeQuery(write) },
 					headers: { "If-Match": write.etag },
 				})
-				.then(() => WRITTEN)
+				.then(
+					(removed): CalendarWriteOutcome => ({
+						kind: "written",
+						sends: removed.sends,
+					}),
+				)
 				.catch(outcomeFor),
 		[remove],
 	);

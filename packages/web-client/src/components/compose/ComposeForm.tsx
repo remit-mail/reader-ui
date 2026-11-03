@@ -53,7 +53,7 @@ import { useSignature } from "../../hooks/useSignature.js";
 import { isNotFound, softErrorMeta } from "../../lib/error-classifier";
 import type { ComposeSeed } from "../../lib/mail-search";
 import { accountIsMissingSmtp } from "../settings/account-form-helpers.js";
-import { useErrorBanners } from "../ui/ErrorBannerProvider.js";
+import { useErrorBanners } from "../ui/error-banner-context";
 import {
 	buildMutationErrorBanner,
 	formatErrorDetail,

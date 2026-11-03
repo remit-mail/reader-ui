@@ -1,8 +1,17 @@
+import type {
+	RemitImapCalendarAttendee,
+	RemitImapCalendarInviteAnswer,
+} from "@remit/api-http-client/types.gen.ts";
 import {
+	type CalendarAnswer,
+	type CalendarAttendee,
 	CalendarEventGone,
+	CalendarEventGuests,
 	CalendarEventPopupCard,
 	type CalendarFailure,
 	CalendarPopover,
+	CalendarReplyRow,
+	ConfirmDialog,
 	type RecurrenceScope,
 	RecurrenceScopePrompt,
 } from "@remit/ui";
@@ -11,6 +20,7 @@ import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import {
 	type CalendarWriteOutcome,
 	calendarInstanceId,
+	rsvpOfParticipation,
 	type ScopedWrite,
 	seriesOccurrenceOf,
 	textFromIcalData,
@@ -24,6 +34,30 @@ import { formatEventWhen } from "../../lib/calendar-format";
 import { calendarEventReportHref } from "../../lib/calendar-report";
 import type { CalendarSearch } from "../../lib/calendar-route";
 import { useCalendarAddress, useCalendarNavigation } from "../../routing";
+import { useCalendarSession } from "./CalendarSession";
+
+const ATTENDEE_RSVP: Record<
+	RemitImapCalendarAttendee["status"],
+	CalendarAttendee["rsvp"]
+> = {
+	Accepted: "accepted",
+	Declined: "declined",
+	Tentative: "tentative",
+	NeedsAction: "noReply",
+};
+
+const toAttendee = (attendee: RemitImapCalendarAttendee): CalendarAttendee => ({
+	name: attendee.displayName,
+	email: attendee.email,
+	rsvp: ATTENDEE_RSVP[attendee.status],
+	role: attendee.role === "Organizer" ? "organizer" : "attendee",
+});
+
+const ANSWER_OF: Record<CalendarAnswer, RemitImapCalendarInviteAnswer> = {
+	accepted: "Accepted",
+	declined: "Declined",
+	tentative: "Tentative",
+};
 
 export interface CalendarEventPopupProps {
 	calendarObjectId: string;
@@ -56,12 +90,18 @@ export function CalendarEventPopup({
 	});
 	const { calendars } = useCalendars();
 	const { closeToView, openEditor } = useCalendarNavigation();
-	const { deleteEvent, isWriting } = useCalendarWrites();
+	const { deleteEvent, updateEvent, isWriting } = useCalendarWrites();
+	const calendarSession = useCalendarSession();
+	const [answering, setAnswering] = useState<CalendarAnswer | undefined>();
+	const [replyFailure, setReplyFailure] = useState<
+		CalendarFailure | undefined
+	>();
 	const headingId = useId();
 	const headingRef = useRef<HTMLHeadingElement>(null);
 	const closeRef = useRef<HTMLButtonElement>(null);
 	const failureRef = useRef<HTMLDivElement>(null);
 	const [asking, setAsking] = useState(false);
+	const [confirmingDelete, setConfirmingDelete] = useState(false);
 	const [failure, setFailure] = useState<CalendarFailure | undefined>(
 		undefined,
 	);
@@ -125,10 +165,36 @@ export function CalendarEventPopup({
 		etag: resource?.etag ?? "",
 	});
 
+	const guestNames = (resource?.attendees ?? [])
+		.filter((attendee) => attendee.role === "Guest")
+		.map((attendee) =>
+			attendee.displayName === "" ? attendee.email : attendee.displayName,
+		);
+	const askDelete = () => {
+		if (guestNames.length > 0) {
+			setConfirmingDelete(true);
+			return;
+		}
+		if (repeats) {
+			setAsking(true);
+			return;
+		}
+		remove(undefined);
+	};
+	const confirmDelete = () => {
+		setConfirmingDelete(false);
+		if (repeats) {
+			setAsking(true);
+			return;
+		}
+		remove(undefined);
+	};
+
 	const remove = (scope: RecurrenceScope | undefined) => {
 		setAsking(false);
 		void deleteEvent(write(scope)).then((outcome) => {
 			if (outcome.kind === "written") {
+				calendarSession.trackSends(outcome.sends);
 				closeToView();
 				return;
 			}
@@ -140,6 +206,36 @@ export function CalendarEventPopup({
 			});
 		});
 	};
+
+	const reply = (
+		answer: CalendarAnswer,
+		scope: RecurrenceScope | undefined,
+	) => {
+		setAnswering(undefined);
+		setReplyFailure(undefined);
+		void updateEvent(write(scope), { answer: ANSWER_OF[answer] }).then(
+			(outcome) => {
+				if (outcome.kind === "written") {
+					calendarSession.trackSends(outcome.sends);
+					return;
+				}
+				const text =
+					outcome.kind === "conflict"
+						? `${CONFLICT} Close the popup and open the event again.`
+						: `Couldn't send your reply: ${outcome.message}`;
+				setReplyFailure({
+					text,
+					reportHref: calendarEventReportHref(text),
+					onRetry: () => reply(answer, scope),
+				});
+			},
+		);
+	};
+	const participation = resource?.participation;
+	const isGuest =
+		participation !== undefined &&
+		participation !== "Organizer" &&
+		participation !== "Unscheduled";
 
 	if (occurrence) {
 		return (
@@ -237,45 +333,79 @@ export function CalendarEventPopup({
 	if (!event) return null;
 
 	return (
-		<CalendarPopover
-			anchor={anchor}
-			anchorKey={`${instanceId}:${anchor ? "chip" : "none"}`}
-			labelledBy={headingId}
-		>
-			<CalendarEventPopupCard
-				headingId={headingId}
-				headingRef={headingRef}
-				title={event.title}
-				color={calendar?.color ?? "cal-1"}
-				when={formatEventWhen(event).replace(", ", " · ")}
-				location={stored?.location ?? ""}
-				calendarName={calendar?.name ?? ""}
-				availability={freeIds.has(event.id) ? "Free" : "Busy"}
-				onEdit={
-					writable
-						? () => openEditor(calendarObjectId, recurrenceId)
-						: undefined
-				}
-				onDelete={
-					writable
-						? () => (repeats ? setAsking(true) : remove(undefined))
-						: undefined
-				}
-				deleting={isWriting}
-				onClose={closeToView}
-				failure={failure}
-				failureRef={failureRef}
+		<>
+			<CalendarPopover
+				anchor={anchor}
+				anchorKey={`${instanceId}:${anchor ? "chip" : "none"}`}
+				labelledBy={headingId}
 			>
-				{asking && (
-					<RecurrenceScopePrompt
-						title={event.title}
-						ruleText="It repeats"
-						instanceText={formatEventWhen(event)}
-						onChoose={remove}
-						onCancel={() => setAsking(false)}
-					/>
-				)}
-			</CalendarEventPopupCard>
-		</CalendarPopover>
+				<CalendarEventPopupCard
+					headingId={headingId}
+					headingRef={headingRef}
+					title={event.title}
+					color={calendar?.color ?? "cal-1"}
+					when={formatEventWhen(event).replace(", ", " · ")}
+					location={stored?.location ?? ""}
+					calendarName={calendar?.name ?? ""}
+					availability={freeIds.has(event.id) ? "Free" : "Busy"}
+					onEdit={
+						writable
+							? () => openEditor(calendarObjectId, recurrenceId)
+							: undefined
+					}
+					onDelete={writable ? askDelete : undefined}
+					deleting={isWriting}
+					onClose={closeToView}
+					failure={failure}
+					failureRef={failureRef}
+				>
+					{resource && (
+						<CalendarEventGuests
+							attendees={resource.attendees.map(toAttendee)}
+							counts={resource.attendeeCounts}
+						/>
+					)}
+					{isGuest && participation && (
+						<CalendarReplyRow
+							current={rsvpOfParticipation(participation)}
+							onAnswer={(answer) =>
+								repeats ? setAnswering(answer) : reply(answer, undefined)
+							}
+							sending={isWriting}
+							failure={replyFailure}
+						/>
+					)}
+					{answering && (
+						<RecurrenceScopePrompt
+							title={event.title}
+							ruleText="It repeats"
+							instanceText={formatEventWhen(event)}
+							scopes={["this", "all"]}
+							onChoose={(scope) => reply(answering, scope)}
+							onCancel={() => setAnswering(undefined)}
+						/>
+					)}
+					{asking && (
+						<RecurrenceScopePrompt
+							title={event.title}
+							ruleText="It repeats"
+							instanceText={formatEventWhen(event)}
+							onChoose={remove}
+							onCancel={() => setAsking(false)}
+						/>
+					)}
+				</CalendarEventPopupCard>
+			</CalendarPopover>
+			<ConfirmDialog
+				isOpen={confirmingDelete}
+				title="Delete and tell the guests?"
+				description={`${guestNames.join(", ")} will get a cancellation.`}
+				confirmLabel="Delete and send"
+				cancelLabel="Keep event"
+				destructive
+				onConfirm={confirmDelete}
+				onCancel={() => setConfirmingDelete(false)}
+			/>
+		</>
 	);
 }

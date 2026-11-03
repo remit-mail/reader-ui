@@ -99,7 +99,9 @@ const mount = async (
 	http = mockFetch((call) =>
 		call.path.endsWith("/calendars")
 			? { items: calendars }
-			: { items: instances },
+			: call.path.endsWith("/calendar-tasks")
+				? { items: [] }
+				: { items: instances },
 	);
 	harness = createDomHarness();
 	harness.renderApp(createElement(Probe, { date, calendarIds }));

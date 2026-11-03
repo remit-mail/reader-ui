@@ -152,6 +152,8 @@ describe("creating an event", () => {
 				summary: "Roadmap review",
 				start: "2026-06-10T10:00:00+02:00",
 				end: "2026-06-10T11:30:00+02:00",
+				attendees: [],
+				organizerAccountId: "acc-1",
 			}),
 		);
 
@@ -259,6 +261,8 @@ describe("a refusal the server states", () => {
 				summary: "Backwards",
 				start: "2026-06-10T11:00:00+02:00",
 				end: "2026-06-10T10:00:00+02:00",
+				attendees: [],
+				organizerAccountId: "acc-1",
 			}),
 		);
 		assert.deepEqual(outcome, {
@@ -313,6 +317,8 @@ describe("a session that has lapsed", () => {
 				summary: "Roadmap review",
 				start: "2026-06-10T10:00:00+02:00",
 				end: "2026-06-10T11:30:00+02:00",
+				attendees: [],
+				organizerAccountId: "acc-1",
 			}),
 		);
 
