@@ -16,6 +16,7 @@ import {
 	parseCalendarDate,
 	parseCalendarView,
 	readCalendarIds,
+	shownCalendarView,
 	stepCalendarDate,
 } from "./calendar-route.js";
 
@@ -220,5 +221,18 @@ describe("calendarSearchSchema", () => {
 describe("density is not URL state", () => {
 	it("has no reading in the query", () => {
 		assert.deepEqual(calendarSearchSchema.parse({ density: "compact" }), {});
+	});
+});
+
+describe("shownCalendarView", () => {
+	it("draws every view as named on a wide screen", () => {
+		for (const view of calendarViews)
+			assert.equal(shownCalendarView(view, false), view);
+	});
+
+	it("draws a week as its day and a year as its month on a phone", () => {
+		assert.equal(shownCalendarView("week", true), "day");
+		assert.equal(shownCalendarView("year", true), "month");
+		assert.equal(shownCalendarView("agenda", true), "agenda");
 	});
 });

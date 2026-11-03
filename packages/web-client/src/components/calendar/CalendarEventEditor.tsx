@@ -96,7 +96,7 @@ function useFirstFocus(
 /** Cancel, Close and Esc: a touched draft asks before it is thrown away. */
 function useSidebarClose(touched: boolean) {
 	const { requestClose } = useCalendarSession();
-	const { closeEditor } = useCalendarNavigation();
+	const { closeToView } = useCalendarNavigation();
 	const [confirming, setConfirming] = useState(false);
 	const discarding = useRef(false);
 	useBackCloses(touched && !confirming, () => {
@@ -109,7 +109,7 @@ function useSidebarClose(touched: boolean) {
 			setConfirming(true);
 			return;
 		}
-		closeEditor();
+		closeToView();
 	};
 	const closeRef = useRef(close);
 	closeRef.current = close;
@@ -130,14 +130,14 @@ function useSidebarClose(touched: boolean) {
 			onConfirm={() => {
 				discarding.current = true;
 				setConfirming(false);
-				closeEditor();
+				closeToView();
 			}}
 			onCancel={() => setConfirming(false)}
 		/>
 	);
 	const leave = () => {
 		discarding.current = true;
-		closeEditor();
+		closeToView();
 	};
 	return { close, confirm, leave };
 }
@@ -317,7 +317,7 @@ export function CalendarEditEventSidebar({
 		calendarIds,
 	});
 	const { calendars, timeZoneByCalendarId } = useCalendars();
-	const { closeEditor } = useCalendarNavigation();
+	const { closeToView } = useCalendarNavigation();
 	const { updateEvent, isWriting } = useCalendarWrites();
 	const titleRef = useRef<HTMLInputElement>(null);
 	const failureRef = useRef<HTMLDivElement>(null);
@@ -405,7 +405,7 @@ export function CalendarEditEventSidebar({
 				className="flex h-full flex-col bg-surface"
 				aria-labelledby={goneId}
 			>
-				<CalendarEventGone headingId={goneId} onClose={closeEditor} />
+				<CalendarEventGone headingId={goneId} onClose={closeToView} />
 			</section>
 		);
 	if (!event || !before || !after) return null;

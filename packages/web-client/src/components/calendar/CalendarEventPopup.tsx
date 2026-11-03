@@ -55,7 +55,7 @@ export function CalendarEventPopup({
 		calendarIds,
 	});
 	const { calendars } = useCalendars();
-	const { closeEvent, openEditor } = useCalendarNavigation();
+	const { closeToView, openEditor } = useCalendarNavigation();
 	const { deleteEvent, isWriting } = useCalendarWrites();
 	const headingId = useId();
 	const headingRef = useRef<HTMLHeadingElement>(null);
@@ -129,7 +129,7 @@ export function CalendarEventPopup({
 		setAsking(false);
 		void deleteEvent(write(scope)).then((outcome) => {
 			if (outcome.kind === "written") {
-				closeEvent();
+				closeToView();
 				return;
 			}
 			const text = failureText(outcome);
@@ -212,7 +212,7 @@ export function CalendarEventPopup({
 					</p>
 					<button
 						type="button"
-						onClick={closeEvent}
+						onClick={closeToView}
 						className="self-end rounded-md border border-line px-3 py-1.5 text-sm font-medium"
 					>
 						Close
@@ -227,7 +227,7 @@ export function CalendarEventPopup({
 			<CalendarPopover anchor={null} anchorKey="gone" labelledBy={headingId}>
 				<CalendarEventGone
 					headingId={headingId}
-					onClose={closeEvent}
+					onClose={closeToView}
 					closeRef={closeRef}
 				/>
 			</CalendarPopover>
@@ -262,7 +262,7 @@ export function CalendarEventPopup({
 						: undefined
 				}
 				deleting={isWriting}
-				onClose={closeEvent}
+				onClose={closeToView}
 				failure={failure}
 				failureRef={failureRef}
 			>

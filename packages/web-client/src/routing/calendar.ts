@@ -11,7 +11,6 @@ import {
 	type CalendarSearch,
 	canonicalCalendarParams,
 	isoDate,
-	stepCalendarDate,
 } from "../lib/calendar-route";
 import { useRetainOpenPanels } from "./fragment";
 
@@ -19,8 +18,8 @@ const VIEW_ROUTE = "/calendar/$view/$date" as const;
 
 declare module "@tanstack/react-router" {
 	interface HistoryState {
-		/** This entry is an event popup opened from the grid, so Back closes it. */
-		calendarPopup?: boolean;
+		/** This entry was opened from the calendar view, so Back returns to it. */
+		openedFromView?: boolean;
 	}
 }
 const SUGGESTION_ROUTE =
@@ -139,8 +138,6 @@ export function useIsWritingEvent(): boolean {
 export interface CalendarNavigation {
 	/** Change zoom, keeping the day on screen. */
 	goToView: (view: CalendarViewId) => void;
-	/** The previous or next screenful, measured in the view's own unit. */
-	step: (direction: -1 | 1) => void;
 	/** Home, from every view and every distance away. */
 	goToToday: () => void;
 	/** The same view on another day. */
@@ -161,16 +158,17 @@ export interface CalendarNavigation {
 	 * a resource that does not recur names only itself.
 	 */
 	openEvent: (calendarObjectId: string, recurrenceId?: string) => void;
-	closeEvent: () => void;
-	openComposer: () => void;
+	/**
+	 * Back to the view from an event popup or a sidebar: Back when the view is
+	 * the entry before, else the view by replace.
+	 */
+	closeToView: () => void;
 	/** The advanced sidebar on a new event over a range, as `start` and `end`. */
 	openNewEvent: (bounds: { start: string; end: string }) => void;
 	/** A new range for the open sidebar, by replace. */
 	setNewEventBounds: (bounds: { start: string; end: string }) => void;
 	/** The advanced sidebar on a stored event. */
 	openEditor: (calendarObjectId: string, recurrenceId?: string) => void;
-	/** Back to the calendar from the sidebar. */
-	closeEditor: () => void;
 	changeSuggestionFirst: (suggestionId: string, date: string) => void;
 }
 
@@ -216,8 +214,6 @@ export function useCalendarNavigation(): CalendarNavigation {
 	return useMemo(
 		() => ({
 			goToView: (next: CalendarViewId) => goTo({ view: next, date }),
-			step: (direction: -1 | 1) =>
-				goTo({ view, date: stepCalendarDate(date, view, direction) }),
 			goToToday: () => goTo({ view, date: isoDate(new Date()) }),
 			goToDate: (next: string) => goTo({ view, date: next }),
 			setCalendarIds: (calendarIds: readonly string[]) =>
@@ -253,7 +249,7 @@ export function useCalendarNavigation(): CalendarNavigation {
 							search: true,
 							hash: retainPanels,
 							replace: popupOpen,
-							state: { calendarPopup: true },
+							state: { openedFromView: true },
 						})
 					: navigate({
 							to: "/calendar/$view/$date/$calendarObjectId/$recurrenceId",
@@ -261,17 +257,19 @@ export function useCalendarNavigation(): CalendarNavigation {
 							search: true,
 							hash: retainPanels,
 							replace: popupOpen,
-							state: { calendarPopup: true },
+							state: { openedFromView: true },
 						}),
-			closeEvent: () => {
-				if (router.state.location.state.calendarPopup === true) {
+			closeToView: () => {
+				if (router.state.location.state.openedFromView === true) {
 					router.history.back();
 					return;
 				}
 				navigate({
 					to: VIEW_ROUTE,
 					params: { view, date },
-					search: true,
+					search: (previous: CalendarSearch) => ({
+						calendarId: previous.calendarId,
+					}),
 					hash: retainPanels,
 					replace: true,
 				});
@@ -283,7 +281,7 @@ export function useCalendarNavigation(): CalendarNavigation {
 					search: (previous: CalendarSearch) => ({ ...previous, ...bounds }),
 					hash: retainPanels,
 					replace: popupOpen,
-					state: { calendarPopup: true },
+					state: { openedFromView: true },
 				}),
 			setNewEventBounds: (bounds: { start: string; end: string }) =>
 				navigate({
@@ -302,7 +300,7 @@ export function useCalendarNavigation(): CalendarNavigation {
 							search: true,
 							hash: retainPanels,
 							replace: popupOpen,
-							state: { calendarPopup: true },
+							state: { openedFromView: true },
 						})
 					: navigate({
 							to: "/calendar/$view/$date/$calendarObjectId/$recurrenceId/edit",
@@ -310,32 +308,8 @@ export function useCalendarNavigation(): CalendarNavigation {
 							search: true,
 							hash: retainPanels,
 							replace: popupOpen,
-							state: { calendarPopup: true },
+							state: { openedFromView: true },
 						}),
-			closeEditor: () => {
-				if (router.state.location.state.calendarPopup === true) {
-					router.history.back();
-					return;
-				}
-				navigate({
-					to: VIEW_ROUTE,
-					params: { view, date },
-					search: (
-						previous: CalendarSearch & { start?: string; end?: string },
-					) => ({
-						calendarId: previous.calendarId,
-					}),
-					hash: retainPanels,
-					replace: true,
-				});
-			},
-			openComposer: () =>
-				navigate({
-					to: "/calendar/$view/$date/new",
-					params: { view, date },
-					search: true,
-					hash: retainPanels,
-				}),
 			changeSuggestionFirst: (suggestionId: string, on: string) =>
 				navigate({
 					to: SUGGESTION_ROUTE,

@@ -258,10 +258,6 @@ export {
 	type GridGesture,
 } from "./components/calendar-time-grid.js";
 export {
-	CalendarDateNav,
-	type CalendarDateNavProps,
-	CalendarViewSwitch,
-	type CalendarViewSwitchProps,
 	Segmented,
 	type SegmentedProps,
 	type SegmentOption,

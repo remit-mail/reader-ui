@@ -11,7 +11,6 @@ import {
 	Dialog,
 	datesFrom,
 	type GridDraft,
-	type GridGesture,
 	initialFocus,
 	isoWeek,
 	NewEventSquare,
@@ -21,33 +20,22 @@ import {
 	zonedMoment,
 } from "@remit/ui";
 import { Loader2 } from "lucide-react";
-import {
-	type ReactNode,
-	useCallback,
-	useEffect,
-	useMemo,
-	useReducer,
-	useRef,
-	useState,
-} from "react";
-import {
-	addDays,
-	calendarInstanceId,
-	deviceTimeZone,
-} from "../../hooks/calendar";
-import {
-	draftSessionReducer,
-	drawnRange,
-	escapeTarget,
-	IDLE,
-} from "../../hooks/calendar/draft-session";
+import { type ReactNode, useCallback, useMemo, useRef, useState } from "react";
+import { calendarInstanceId, deviceTimeZone } from "../../hooks/calendar";
+import { drawnRange } from "../../hooks/calendar/draft-session";
+import { useDraftSession } from "../../hooks/calendar/useDraftSession";
 import { useCalendarData } from "../../hooks/useCalendarData";
 import { useCalendarSidePane } from "../../hooks/useCalendarSidePane";
 import {
 	readCalendarDensity,
 	writeCalendarDensity,
 } from "../../lib/calendar-density";
-import { calendarViewMountsAgenda, isoDate } from "../../lib/calendar-route";
+import {
+	calendarViewMountsAgenda,
+	isoDate,
+	shownCalendarView,
+	stepCalendarDate,
+} from "../../lib/calendar-route";
 import { searchFromRange } from "../../lib/new-event-range";
 import {
 	useCalendarAddress,
@@ -63,10 +51,6 @@ import { CalendarQuickCreate } from "./CalendarQuickCreate";
 import { CalendarSessionContext } from "./CalendarSession";
 import { useEventMoves } from "./EventMoves";
 import { PendingSuggestions } from "./PendingSuggestions";
-
-/** Presses the grid answers itself, and the popups they open. */
-const GRID_OWNED =
-	"[data-calendar-popover], [data-event-id], [data-time-columns], [data-all-day-row], [role='dialog']";
 
 const PHONE_VIEWS: CalendarViewId[] = ["day", "month", "agenda"];
 
@@ -117,10 +101,9 @@ export function CalendarScreen({ isPhone, detail }: CalendarScreenProps) {
 		goToView,
 		goToToday,
 		goToDate,
-		step,
 		openEvent,
 		openNewEvent,
-		closeEvent,
+		closeToView,
 		changeSuggestionFirst,
 		zoomToDay,
 		dayHref,
@@ -143,125 +126,40 @@ export function CalendarScreen({ isPhone, detail }: CalendarScreenProps) {
 		[instanceOf, openEvent],
 	);
 
-	const pickSlot = useCallback((slot: CalendarSlotPick) => {
-		dispatch({ type: "new-event", range: slot });
-	}, []);
-
 	const hasDetail = isWriting;
-	const [session, dispatch] = useReducer(draftSessionReducer, IDLE);
-	const layers = {
-		eventPopup: openedEvent !== undefined,
-		sidebar: isWriting,
-		nav: false,
-	};
-	const layersRef = useRef(layers);
-	layersRef.current = layers;
-	const takeGesture = useCallback(
-		(gesture: GridGesture) => {
-			const settles =
-				gesture.type === "click" ||
-				gesture.type === "drag-end" ||
-				gesture.type === "keyboard";
-			if (
-				isPhone &&
-				gesture.type === "click" &&
-				sessionRef.current.mode === "idle" &&
-				!layersRef.current.eventPopup
-			)
-				return;
-			if (settles && layersRef.current.eventPopup) closeEvent();
-			if (
-				(gesture.type === "click" || gesture.type === "keyboard") &&
-				sessionRef.current.mode === "idle"
-			)
-				originRef.current = gesture.origin;
-			if (gesture.type === "drag-end" && sessionRef.current.mode === "idle")
-				originRef.current = document.querySelector<HTMLElement>(
-					"[role='grid'][aria-label='Time grid']",
-				);
-			dispatch({ type: "gesture", gesture, layers: layersRef.current });
+	const sidePane = useCalendarSidePane(isPhone);
+	const {
+		session,
+		dispatch,
+		takeGesture,
+		setOrigin,
+		requestClose,
+		carriedFocus,
+		focusSaved,
+	} = useDraftSession({
+		layers: {
+			eventPopup: openedEvent !== undefined,
+			sidebar: isWriting,
+			nav: sidePane.navOpen,
 		},
-		[closeEvent, isPhone],
-	);
-	const sessionRef = useRef(session);
-	sessionRef.current = session;
-	useEffect(() => {
-		const onPointerDown = (event: PointerEvent) => {
-			if (!(event.target instanceof Element)) return;
-			if (event.target.closest(GRID_OWNED)) return;
-			if (layersRef.current.eventPopup) closeEvent();
-			dispatch({ type: "outside" });
-		};
-		document.addEventListener("pointerdown", onPointerDown, true);
-		return () =>
-			document.removeEventListener("pointerdown", onPointerDown, true);
-	}, [closeEvent]);
-	useEffect(() => {
-		const onKeyDown = (event: KeyboardEvent) => {
-			if (event.key !== "Escape" || event.defaultPrevented) return;
-			const target = escapeTarget(sessionRef.current, layersRef.current);
-			if (target === null || target === "drag") return;
-			event.preventDefault();
-			if (target === "event-popup") closeEvent();
-			else if (target === "sidebar") requestClose.current?.();
-			else if (target === "nav") sidePaneRef.current?.setNavOpen(false);
-			else dispatch({ type: "escape", layers: layersRef.current });
-		};
-		window.addEventListener("keydown", onKeyDown);
-		return () => window.removeEventListener("keydown", onKeyDown);
-	}, [closeEvent]);
-	const originRef = useRef<HTMLElement | null>(null);
-	const savedRef = useRef(false);
-	const [focusAfterSave, setFocusAfterSave] = useState("");
-	const wasQuick = useRef(false);
-	useEffect(() => {
-		const isQuick = session.mode === "quick";
-		if (wasQuick.current && session.mode === "idle" && !savedRef.current)
-			originRef.current?.focus();
-		if (isQuick) savedRef.current = false;
-		wasQuick.current = isQuick;
-	}, [session.mode]);
-	useEffect(() => {
-		if (focusAfterSave === "" || events.length === 0) return;
-		const chip = document.querySelector<HTMLElement>(
-			`[data-event-id^="${CSS.escape(focusAfterSave)}"]`,
-		);
-		if (!chip) return;
-		chip.focus();
-		setFocusAfterSave("");
-	}, [focusAfterSave, events]);
-	const requestClose = useRef<(() => void) | null>(null);
-	const carriedFocus = useRef("");
+		isPhone,
+		closeToView,
+		closeNav: () => sidePane.setNavOpen(false),
+		drawnEvents: events,
+	});
 	const moreOptions = useCallback(
 		(focusedLabel: string) => {
-			if (sessionRef.current.mode !== "quick") return;
+			if (session.mode !== "quick") return;
 			carriedFocus.current = focusedLabel;
-			const bounds = searchFromRange(
-				sessionRef.current.draft.range,
-				deviceTimeZone(),
-			);
 			dispatch({ type: "expand" });
-			openNewEvent(bounds);
+			openNewEvent(searchFromRange(session.draft.range, deviceTimeZone()));
 		},
-		[openNewEvent],
+		[session, carriedFocus, dispatch, openNewEvent],
 	);
-	const saved = useCallback((calendarObjectId: string) => {
-		savedRef.current = true;
-		setFocusAfterSave(calendarObjectId);
-	}, []);
 	const sessionValue = useMemo(
-		() => ({
-			session,
-			dispatch,
-			requestClose,
-			carriedFocus,
-			focusSaved: saved,
-		}),
-		[session, saved],
+		() => ({ session, dispatch, requestClose, carriedFocus, focusSaved }),
+		[session, dispatch, requestClose, carriedFocus, focusSaved],
 	);
-	useEffect(() => {
-		if (!isWriting) dispatch({ type: "sidebar-closed" });
-	}, [isWriting]);
 	const drawn = drawnRange(session);
 	const gridDraft: GridDraft | undefined = drawn
 		? {
@@ -276,9 +174,12 @@ export function CalendarScreen({ isPhone, detail }: CalendarScreenProps) {
 			}
 		: undefined;
 	const now = new Date().toISOString();
+	const shown = shownCalendarView(view, isPhone);
+	const pickSlot = (slot: CalendarSlotPick) =>
+		dispatch({ type: "new-event", range: slot });
 	const yearCounts = useMemo(() => {
 		const counts: Record<string, number> = {};
-		if (view !== "year") return counts;
+		if (shown !== "year") return counts;
 		const zone = deviceTimeZone();
 		for (const event of events) {
 			const day = event.allDay
@@ -287,11 +188,11 @@ export function CalendarScreen({ isPhone, detail }: CalendarScreenProps) {
 			counts[day] = (counts[day] ?? 0) + 1;
 		}
 		return counts;
-	}, [events, view]);
+	}, [events, shown]);
 	const timeGridDays =
-		view === "day" || (isPhone && view === "week")
+		shown === "day"
 			? [date]
-			: view === "week"
+			: shown === "week"
 				? datesFrom(weekStart(date), 7)
 				: undefined;
 	const selectedEventId = openedEvent
@@ -300,26 +201,23 @@ export function CalendarScreen({ isPhone, detail }: CalendarScreenProps) {
 				openedEvent.recurrenceId ?? "",
 			)
 		: "";
-	const sidePane = useCalendarSidePane(isPhone);
-	const phoneDay = isPhone && view === "week";
-	const sidePaneRef = useRef(sidePane);
-	sidePaneRef.current = sidePane;
 	const newEventRef = useRef<HTMLButtonElement>(null);
 	const newEvent = useCallback(() => {
 		const today = isoDate(new Date());
 		const minutes = new Date().getHours() * 60;
 		const days = timeGridDays ?? [date];
 		const slot = initialFocus(days, today, minutes);
-		originRef.current =
+		setOrigin(
 			document.activeElement instanceof HTMLElement
 				? document.activeElement
-				: newEventRef.current;
-		if (layersRef.current.eventPopup) closeEvent();
+				: newEventRef.current,
+		);
+		if (openedEvent) closeToView();
 		dispatch({ type: "new-event", range: clickRange(slot.date, slot.minute) });
-	}, [timeGridDays, date, closeEvent]);
+	}, [timeGridDays, date, openedEvent, closeToView, setOrigin, dispatch]);
 	const weekNumber =
-		view === "week" || view === "day"
-			? isoWeek(view === "week" ? weekStart(date) : date)
+		shown === "week" || shown === "day"
+			? isoWeek(shown === "week" ? weekStart(date) : date)
 			: undefined;
 
 	const body = calendarViewMountsAgenda(view) ? (
@@ -338,7 +236,7 @@ export function CalendarScreen({ isPhone, detail }: CalendarScreenProps) {
 		>
 			<Loader2 className="size-6 animate-spin text-fg-subtle" />
 		</div>
-	) : view === "year" && !isPhone ? (
+	) : shown === "year" ? (
 		<CalendarYear
 			date={date}
 			today={isoDate(new Date())}
@@ -364,28 +262,19 @@ export function CalendarScreen({ isPhone, detail }: CalendarScreenProps) {
 		/>
 	) : (
 		<CalendarGrid
-			view={view === "year" ? "month" : view}
 			date={date}
 			events={events}
 			colorByCalendarId={colorByCalendarId}
 			density={density}
-			selectedEventId={
-				openedEvent
-					? calendarInstanceId(
-							openedEvent.calendarObjectId,
-							openedEvent.recurrenceId ?? "",
-						)
-					: ""
-			}
+			selectedEventId={selectedEventId}
 			timeZone={deviceTimeZone()}
-			now={new Date().toISOString()}
+			now={now}
 			onSelectEvent={selectEvent}
 			onPickSlot={pickSlot}
 			dayHref={dayHref}
 			onZoomDay={zoomToDay}
 			canMove={moves.canMove}
 			onMoveEvent={moves.onMoveEvent}
-			onRangeChange={() => {}}
 		/>
 	);
 
@@ -393,22 +282,22 @@ export function CalendarScreen({ isPhone, detail }: CalendarScreenProps) {
 		<CalendarSessionContext.Provider value={sessionValue}>
 			<div className="flex h-full min-h-0 flex-col bg-surface text-fg">
 				<CalendarScreenToolbar
-					view={phoneDay ? "day" : isPhone && view === "year" ? "month" : view}
+					view={shown}
 					views={isPhone ? PHONE_VIEWS : undefined}
 					title={
-						isPhone && timeGridDays?.length === 1
+						isPhone && shown === "day"
 							? new Intl.DateTimeFormat(undefined, {
 									weekday: "short",
 									day: "numeric",
 									month: "short",
 									timeZone: "UTC",
 								}).format(new Date(`${date}T00:00:00Z`))
-							: calendarRangeTitle(view, date)
+							: calendarRangeTitle(shown, date)
 					}
 					weekNumber={weekNumber}
 					onChangeView={goToView}
-					onPrev={() => (phoneDay ? goToDate(addDays(date, -1)) : step(-1))}
-					onNext={() => (phoneDay ? goToDate(addDays(date, 1)) : step(1))}
+					onPrev={() => goToDate(stepCalendarDate(date, shown, -1))}
+					onNext={() => goToDate(stepCalendarDate(date, shown, 1))}
 					onToday={goToToday}
 					touch={isPhone}
 					sidePane={{
@@ -417,7 +306,7 @@ export function CalendarScreen({ isPhone, detail }: CalendarScreenProps) {
 						onToggle: sidePane.toggle,
 					}}
 					trailing={
-						view === "week" || view === "day" ? (
+						shown === "week" || shown === "day" ? (
 							<Segmented
 								ariaLabel="Calendar density"
 								options={DENSITY_OPTIONS}
@@ -467,7 +356,7 @@ export function CalendarScreen({ isPhone, detail }: CalendarScreenProps) {
 							session={session}
 							dispatch={dispatch}
 							onMoreOptions={moreOptions}
-							onSaved={saved}
+							onSaved={focusSaved}
 							touch={isPhone}
 						/>
 					)}

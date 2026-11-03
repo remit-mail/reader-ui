@@ -55,7 +55,7 @@ const serverWith =
 	};
 
 function WaitingThenEditor() {
-	const { changeSuggestionFirst, closeEvent } = useCalendarNavigation();
+	const { changeSuggestionFirst, closeToView } = useCalendarNavigation();
 	const changing = useChangingSuggestionId();
 	return (
 		<div className="flex h-dvh bg-canvas">
@@ -64,7 +64,7 @@ function WaitingThenEditor() {
 				{changing !== undefined && (
 					<ChangeCalendarSuggestion
 						suggestionId={changing}
-						onClose={closeEvent}
+						onClose={closeToView}
 					/>
 				)}
 			</div>
