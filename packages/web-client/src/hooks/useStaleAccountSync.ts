@@ -4,8 +4,8 @@ import type { RemitImapAccountResponse } from "@remit/api-http-client/types.gen.
 import { type QueryClient, useQueryClient } from "@tanstack/react-query";
 import pMap from "p-map";
 import { useEffect, useRef } from "react";
-import { shouldEscalate } from "../lib/error-classifier";
-import { reportFatalError } from "../lib/fatal-error";
+import { isUnauthenticated, shouldEscalate } from "../lib/error-classifier";
+import { escalate } from "../lib/escalate";
 import {
 	HOT_POLL_INTERVAL_MS,
 	isHotSyncWindowActive,
@@ -169,8 +169,8 @@ export const handleBackgroundSyncFailure = (
 	error: unknown,
 ): void => {
 	triggeredAccountIds.delete(accountId);
-	if (shouldEscalate(error, { softError: true }, "nobody")) {
-		reportFatalError(error);
+	if (isUnauthenticated(error) || shouldEscalate(error, { softError: true })) {
+		escalate(error, { softError: true });
 		return;
 	}
 	console.warn("[remit] background mailbox sync failed", {

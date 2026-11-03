@@ -1,20 +1,14 @@
 /**
- * The one place an API call's 401 or 403 goes: the session is no longer one the
- * server accepts, so every screen shows the same signed-out notice instead of
- * rendering empty data or the fatal page.
+ * The one place a 401 goes: the session is no longer one the server accepts,
+ * so every screen shows the same signed-out notice instead of rendering empty
+ * data or the fatal page. A 403 is a refusal of one resource and stays with
+ * the call site that asked for it.
  */
-import { getErrorStatus } from "./error-classifier";
 
 type SignedOutListener = (signedOut: boolean) => void;
 
 const listeners = new Set<SignedOutListener>();
 let signedOut = false;
-
-/** Whether an error says the session is gone: a 401, or a 403 refusing it. */
-export const isSignedOutError = (error: unknown): boolean => {
-	const status = getErrorStatus(error);
-	return status === 401 || status === 403;
-};
 
 export const reportSignedOut = (): void => {
 	if (signedOut) return;
@@ -33,7 +27,7 @@ export const subscribeSignedOut = (
 	};
 };
 
-/** For tests: forget a reported sign-out. */
+/** Forgets a reported sign-out, once the reader is signing back in. */
 export const resetSignedOut = (): void => {
 	signedOut = false;
 	for (const listener of listeners) listener(false);

@@ -17,14 +17,14 @@ import {
 } from "../components/ui/FatalErrorOverlay";
 import { SignedOutOverlay } from "../components/ui/SignedOutOverlay";
 import { SelfUpdateProvider } from "../hooks/use-system-update";
-import { isServerError } from "../lib/error-classifier";
+import { isServerError, isUnauthenticated } from "../lib/error-classifier";
 import { reportFatalError } from "../lib/fatal-error";
-import { isSignedOutError, reportSignedOut } from "../lib/signed-out";
+import { reportSignedOut } from "../lib/signed-out";
 import type { RouterContext } from "../router";
 import { getRuntimeConfig } from "../runtime-config";
 
 const RootErrorComponent = ({ error, reset, info }: ErrorComponentProps) => {
-	if (isSignedOutError(error)) {
+	if (isUnauthenticated(error)) {
 		reportSignedOut();
 		return <SignedOutOverlay />;
 	}

@@ -282,43 +282,12 @@ describe("shouldEscalate (the fail-fast decision table — #1059)", () => {
 		assert.equal(shouldEscalate(bug, { softError: true }), true);
 	});
 
-	it("escalates a 401 on a write EVEN when the call site marked it soft (rule 4 wins)", () => {
-		assert.equal(
-			shouldEscalate(
-				new ApiError("signed out", 401),
-				{ softError: true },
-				"user",
-			),
-			true,
-			"a dismissible banner leaves the user signed out with no way back in",
-		);
-	});
-
-	it("leaves a soft 401 soft when nobody is waiting on the answer", () => {
-		assert.equal(
-			shouldEscalate(
-				new ApiError("signed out", 401),
-				{ softError: true },
-				"nobody",
-			),
-			false,
-			"a background poll's 401 must not put the fatal page over the whole app",
-		);
-	});
-
-	it("defaults to nobody waiting, so an unstated call site keeps a soft 401 soft", () => {
+	it("never puts a 401 on the fatal page — the signed-out notice owns it", () => {
 		assert.equal(
 			shouldEscalate(new ApiError("signed out", 401), { softError: true }),
 			false,
 		);
-	});
-
-	it("escalates a 401 on a read that never opted out", () => {
-		assert.equal(
-			shouldEscalate(new ApiError("signed out", 401), undefined, "nobody"),
-			true,
-			"a read with no softError escalates on the default, waiting or not",
-		);
+		assert.equal(shouldEscalate(new ApiError("signed out", 401)), false);
 	});
 
 	it("leaves a soft 403 soft — the call site can state that refusal in place", () => {
@@ -340,36 +309,29 @@ describe("meta.softErrorStatuses (one outcome owned, the rest not)", () => {
 
 	it("does NOT escalate the status the call site named", () => {
 		assert.equal(
-			shouldEscalate(new ApiError("gone", 404), ownsNotFound, "nobody"),
+			shouldEscalate(new ApiError("gone", 404), ownsNotFound),
 			false,
 		);
 	});
 
-	it("escalates every other 4xx, the lapsed session included", () => {
+	it("escalates every other 4xx", () => {
 		assert.equal(
-			shouldEscalate(new ApiError("signed out", 401), ownsNotFound, "nobody"),
-			true,
-		);
-		assert.equal(
-			shouldEscalate(new ApiError("not yours", 403), ownsNotFound, "nobody"),
+			shouldEscalate(new ApiError("not yours", 403), ownsNotFound),
 			true,
 		);
 	});
 
 	it("escalates a 5xx and a client bug, as every opt-out does", () => {
+		assert.equal(shouldEscalate(new ApiError("boom", 500), ownsNotFound), true);
 		assert.equal(
-			shouldEscalate(new ApiError("boom", 500), ownsNotFound, "nobody"),
-			true,
-		);
-		assert.equal(
-			shouldEscalate(new TypeError("x is undefined"), ownsNotFound, "nobody"),
+			shouldEscalate(new TypeError("x is undefined"), ownsNotFound),
 			true,
 		);
 	});
 
 	it("does not open the restart gap for a call site that never claimed one", () => {
 		assert.equal(
-			shouldEscalate(new ApiError("bad gateway", 502), ownsNotFound, "nobody"),
+			shouldEscalate(new ApiError("bad gateway", 502), ownsNotFound),
 			true,
 		);
 	});
@@ -392,11 +354,7 @@ describe("meta.restartExpected (the gap in a restart this call site asked for)",
 	it("does NOT escalate the gateway statuses answered while the backend is down", () => {
 		for (const status of [502, 503, 504]) {
 			assert.equal(
-				shouldEscalate(
-					new ApiError("gateway", status),
-					restartExpectedMeta,
-					"nobody",
-				),
+				shouldEscalate(new ApiError("gateway", status), restartExpectedMeta),
 				false,
 				`a ${status} inside the restart window belongs to the update surface`,
 			);
@@ -405,29 +363,22 @@ describe("meta.restartExpected (the gap in a restart this call site asked for)",
 
 	it("escalates a 500 — a server that answered is up, and up and broken is not designed", () => {
 		assert.equal(
-			shouldEscalate(new ApiError("boom", 500), restartExpectedMeta, "nobody"),
+			shouldEscalate(new ApiError("boom", 500), restartExpectedMeta),
 			true,
 		);
 	});
 
 	it("escalates the same 502 without the claim, however soft the call site is", () => {
+		assert.equal(shouldEscalate(new ApiError("gateway", 502), undefined), true);
 		assert.equal(
-			shouldEscalate(new ApiError("gateway", 502), undefined, "nobody"),
-			true,
-		);
-		assert.equal(
-			shouldEscalate(new ApiError("gateway", 502), { softError: true }, "user"),
+			shouldEscalate(new ApiError("gateway", 502), { softError: true }),
 			true,
 		);
 	});
 
 	it("escalates a client bug raised inside the window", () => {
 		assert.equal(
-			shouldEscalate(
-				new TypeError("x is undefined"),
-				restartExpectedMeta,
-				"nobody",
-			),
+			shouldEscalate(new TypeError("x is undefined"), restartExpectedMeta),
 			true,
 		);
 	});

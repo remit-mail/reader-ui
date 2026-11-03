@@ -1,7 +1,5 @@
 import type { Mutation, Query } from "@tanstack/react-query";
-import { shouldEscalate } from "./error-classifier";
-import { reportFatalError } from "./fatal-error";
-import { isSignedOutError, reportSignedOut } from "./signed-out";
+import { escalate } from "./escalate";
 
 /**
  * Global React Query error sink. Every query and mutation error flows through
@@ -11,12 +9,8 @@ import { isSignedOutError, reportSignedOut } from "./signed-out";
  * statusless network blips, and non-5xx errors a call site opted out of via
  * `meta.softError` stay soft.
  *
- * The two caches differ on one thing, the `Awaiting` argument. A mutation is
- * something the user did and is owed the outcome of, so a 401 there escalates
- * over `meta.softError` — no banner signs anyone back in. A query is "nobody" as
- * a class: the reads the screen is actually waiting on carry no `meta.softError`
- * and escalate on the default anyway, so the only ones this spares are those
- * that already declared they own their failures.
+ * A 401 from either cache raises the signed-out notice instead, whatever the
+ * call site declared (`lib/escalate.ts`).
  *
  * This is the v5 equivalent of `defaultOptions.queries.onError` /
  * `.mutations.onError` — v5 moved the global error hook onto the caches.
@@ -25,13 +19,7 @@ export const handleQueryCacheError = (
 	error: Error,
 	query: Query<unknown, unknown, unknown>,
 ): void => {
-	if (isSignedOutError(error)) {
-		reportSignedOut();
-		return;
-	}
-	if (shouldEscalate(error, query.meta, "nobody")) {
-		reportFatalError(error);
-	}
+	escalate(error, query.meta);
 };
 
 export const handleMutationCacheError = (
@@ -40,11 +28,5 @@ export const handleMutationCacheError = (
 	_onMutateResult: unknown,
 	mutation: Mutation<unknown, unknown, unknown>,
 ): void => {
-	if (isSignedOutError(error)) {
-		reportSignedOut();
-		return;
-	}
-	if (shouldEscalate(error, mutation.meta, "user")) {
-		reportFatalError(error);
-	}
+	escalate(error, mutation.meta);
 };
