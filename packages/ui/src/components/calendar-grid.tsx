@@ -1,15 +1,8 @@
 import "../calendar.css";
-import type {
-	CalendarRef,
-	EventDisplayInfo,
-	EventInput,
-} from "@fullcalendar/react";
+import type { CalendarRef, EventInput } from "@fullcalendar/react";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/react/daygrid";
 import interactionPlugin from "@fullcalendar/react/interaction";
-import listPlugin from "@fullcalendar/react/list";
-import multiMonthPlugin from "@fullcalendar/react/multimonth";
-import timeGridPlugin from "@fullcalendar/react/timegrid";
 import { type MouseEvent, useEffect, useMemo, useRef } from "react";
 import { calendarEventBodyClasses } from "../lib/calendar-event-shell.js";
 import {
@@ -24,72 +17,27 @@ import type {
 	CalendarColorId,
 	CalendarEventData,
 	CalendarSlotPick,
-	CalendarViewId,
 	RsvpState,
 	ZoneCertainty,
 } from "./calendar-types.js";
 
 /**
- * One continuous strip of time, at whichever zoom the view names. Every pixel
- * comes from the kit's tokens: the calendar engine ships a structural skeleton
- * sheet and no theme, and it is styled entirely through its per-element
- * `*Class` props, so no rule here overrides one of the library's own.
+ * A month of days, drawn by the calendar engine and styled entirely through
+ * its per-element `*Class` props. The day and the week are the kit's own time
+ * grid (`CalendarTimeGrid`); only the month uses the engine.
  *
  * The component is presentational. It holds no events of its own, reads no
  * clock of its own, and every gesture leaves through a callback.
  */
 
-const PLUGINS = [
-	dayGridPlugin,
-	timeGridPlugin,
-	listPlugin,
-	multiMonthPlugin,
-	interactionPlugin,
-];
+const PLUGINS = [dayGridPlugin, interactionPlugin];
 
-const FC_VIEW: Record<CalendarViewId, string> = {
-	year: "multiMonthYear",
-	month: "dayGridMonth",
-	week: "timeGridWeek",
-	day: "timeGridDay",
-	agenda: "listWeek",
-};
-
-/* A week or a day names the date in its header. A month grid repeats the same
-   seven weekdays down the page, so the header names the weekday and the cells
-   own the dates; a year has room for one letter. */
-const DAY_HEADER_FORMAT: Record<
-	CalendarViewId,
-	{ weekday: "short" | "narrow"; day?: "numeric" }
-> = {
-	year: { weekday: "narrow" },
-	month: { weekday: "short" },
-	week: { weekday: "short", day: "numeric" },
-	day: { weekday: "short", day: "numeric" },
-	agenda: { weekday: "short", day: "numeric" },
-};
-
-/** Views that draw every event as a horizontal pill rather than a block. */
-const ROW_VIEWS = new Set<CalendarViewId>(["year", "month", "agenda"]);
-
-/**
- * Density is a real change in how much of a day fits on screen, not a padding
- * tweak: a tighter setting halves the slot height and drops the time off short
- * chips.
- */
-const DENSITY: Record<
-	Density,
-	{ slotMinutes: number; slotMinHeight: number; eventShortHeight: number }
-> = {
-	comfortable: { slotMinutes: 30, slotMinHeight: 26, eventShortHeight: 34 },
-	compact: { slotMinutes: 60, slotMinHeight: 15, eventShortHeight: 22 },
-};
+const MAX_EVENTS: Record<Density, number> = { comfortable: 3, compact: 2 };
 
 const FALLBACK_COLOR: CalendarColorId = "cal-1";
 
 export interface CalendarGridProps {
-	view: CalendarViewId;
-	/** The day the view is centred on; changing it moves the grid. */
+	/** A day in the month on screen; changing it moves the grid. */
 	date: string;
 	events: CalendarEventData[];
 	/** Which calendar owns which hue. Anything missing falls back to cal-1. */
@@ -98,12 +46,10 @@ export interface CalendarGridProps {
 	selectedEventId: string;
 	/** IANA zone the grid's clock runs on, and the zone a pick is read in. */
 	timeZone: string;
-	/** The instant the grid calls now: the today marker and the now line read it. */
+	/** The instant the grid calls now: the today marker reads it. */
 	now: string;
 	onSelectEvent: (eventId: string) => void;
 	onPickSlot: (pick: CalendarSlotPick) => void;
-	/** The range title the grid computed, e.g. "8 – 14 Jun 2026". */
-	onRangeChange: (title: string) => void;
 	dayHref: (date: string) => string;
 	onZoomDay: (date: string) => void;
 	/** Whether an event may be dragged to other days; its calendar takes writes. */
@@ -137,16 +83,6 @@ const MIRROR_EVENT: GridEvent = {
 	zoneCertainty: "local",
 };
 
-function toInput(event: CalendarEventData): EventInput {
-	return {
-		id: event.id,
-		title: event.title,
-		start: event.start,
-		end: event.end,
-		allDay: event.allDay,
-	};
-}
-
 const isoDayInZone = (instant: Date, timeZone: string): string =>
 	new Intl.DateTimeFormat("en-CA", {
 		timeZone,
@@ -163,7 +99,6 @@ const isModifiedClick = (click: MouseEvent<HTMLElement>): boolean =>
 	click.altKey;
 
 export function CalendarGrid({
-	view,
 	date,
 	events,
 	colorByCalendarId,
@@ -173,7 +108,6 @@ export function CalendarGrid({
 	now,
 	onSelectEvent,
 	onPickSlot,
-	onRangeChange,
 	dayHref,
 	onZoomDay,
 	canMove = () => false,
@@ -183,17 +117,17 @@ export function CalendarGrid({
 	const calendarRef = useRef<CalendarRef>(null);
 
 	useEffect(() => {
-		calendarRef.current?.getApi().changeView(FC_VIEW[view]);
-	}, [view]);
-
-	useEffect(() => {
 		calendarRef.current?.getApi().gotoDate(date);
 	}, [date]);
 
-	const eventInputs = useMemo(
+	const eventInputs = useMemo<EventInput[]>(
 		() =>
 			events.map((event) => ({
-				...toInput(event),
+				id: event.id,
+				title: event.title,
+				start: event.start,
+				end: event.end,
+				allDay: event.allDay,
 				editable: onMoveEvent !== undefined && canMove(event.id),
 			})),
 		[events, canMove, onMoveEvent],
@@ -232,46 +166,7 @@ export function CalendarGrid({
 		[events, colorByCalendarId],
 	);
 
-	const lookup = useMemo(
-		() => (id: string) => byId.get(id) ?? MIRROR_EVENT,
-		[byId],
-	);
-
-	const isRowEvent = useMemo(
-		() => (info: EventDisplayInfo) => info.event.allDay || ROW_VIEWS.has(view),
-		[view],
-	);
-
-	/* The event element the engine built, dressed as the body of a
-	   `CalendarEventChip`: same box, same hue, same states, one definition. A
-	   grid cell is tight whatever the density does to the slots around it. */
-	const eventBody = useMemo(
-		() => (info: EventDisplayInfo) => {
-			const event = lookup(info.event.id);
-			const isRow = isRowEvent(info);
-			return cn(
-				calendarEventBodyClasses({
-					color: event.color,
-					layout: isRow ? "row" : "column",
-					density: "compact",
-					rsvp: event.rsvp,
-					status: event.status,
-					selected: info.event.id === selectedEventId,
-					stacked: false,
-				}),
-				"cursor-pointer outline-none transition-colors",
-				"focus-visible:ring-2 focus-visible:ring-ring",
-				/* Tighter than a chip drawn on its own: a grid cell is smaller than
-				   anywhere else an event lands, and an all-day pill has to fit a band
-				   one line high. */
-				isRow ? "my-px px-1 py-0" : "px-1 py-0.5",
-			);
-		},
-		[lookup, isRowEvent, selectedEventId],
-	);
-
-	const slot = DENSITY[density];
-	const isTight = density === "compact";
+	const lookup = (id: string) => byId.get(id) ?? MIRROR_EVENT;
 
 	return (
 		<div
@@ -281,7 +176,7 @@ export function CalendarGrid({
 			<FullCalendar
 				ref={calendarRef}
 				plugins={PLUGINS}
-				initialView={FC_VIEW[view]}
+				initialView="dayGridMonth"
 				initialDate={date}
 				now={now}
 				timeZone={timeZone}
@@ -289,19 +184,14 @@ export function CalendarGrid({
 				headerToolbar={false}
 				firstDay={1}
 				fixedWeekCount={false}
-				nowIndicator
 				selectable
-				selectMirror
 				editable={false}
 				/* Events take focus and answer Enter, the way the toolbar's controls
 				   do — the grid is not reachable by pointer only. */
 				eventInteractive
 				expandRows
-				allDayText="All day"
-				dayMaxEvents={isTight ? 2 : 3}
-				eventMaxStack={3}
+				dayMaxEvents={MAX_EVENTS[density]}
 				dayCellTopContent={(info) => {
-					if (view !== "month") return;
 					const day = isoDayInZone(info.date, timeZone);
 					return (
 						<a
@@ -319,7 +209,6 @@ export function CalendarGrid({
 					);
 				}}
 				dayCellDidMount={(info) => {
-					if (view !== "month") return;
 					/* The engine hides a day number from assistive tech unless it is its
 					   own nav link, and a link inside a hidden wrapper is unreachable. */
 					info.el
@@ -335,15 +224,9 @@ export function CalendarGrid({
 				}}
 				moreLinkClick="popover"
 				moreLinkText={(num) => `+${num}`}
-				scrollTime="08:30:00"
-				scrollTimeReset={false}
-				slotDuration={{ minutes: slot.slotMinutes }}
-				slotMinHeight={slot.slotMinHeight}
-				eventShortHeight={slot.eventShortHeight}
 				displayEventEnd={false}
 				eventTimeFormat={{ hour: "2-digit", minute: "2-digit", hour12: false }}
-				slotHeaderFormat={{ hour: "2-digit", minute: "2-digit", hour12: false }}
-				dayHeaderFormat={DAY_HEADER_FORMAT[view]}
+				dayHeaderFormat={{ weekday: "short" }}
 				events={eventInputs}
 				eventClick={(info) => onSelectEvent(info.event.id)}
 				eventDrop={dropped}
@@ -351,35 +234,16 @@ export function CalendarGrid({
 				eventDidMount={(info) => {
 					info.el.setAttribute("data-event-id", info.event.id);
 				}}
-				/* One gesture, two readings, and each owns a shape the other cannot
-				   reach. A point is `dateClick`'s: a finger has to hold a full second
-				   before the library will call it a selection, and a selection cancels
-				   the scroll the finger might have meant, so a tap has nowhere else to
-				   land. A dragged range is `select`'s.
-
-				   Acting on both would report a point twice, and the second report
-				   arrives late — the library finishes a click a task after the pointer
-				   is up — by which time the pane the first report opened has rebuilt
-				   the grid and left the second reading a detached cell. */
+				/* A point is `dateClick`'s and a dragged run of days is `select`'s;
+				   acting on both would report a point twice. */
 				dateClick={(info) => onPickSlot(pointPick(info.dateStr, info.allDay))}
 				select={(info) => {
-					if (
-						!isDraggedSelection(
-							info.startStr,
-							info.endStr,
-							info.allDay,
-							slot.slotMinutes,
-						)
-					) {
-						/* The point reading is answering this one. Left alone the
-						   selection would stay lit under the draft, a slot wide where
-						   the draft is an hour, until a click somewhere else. */
+					if (!isDraggedSelection(info.startStr, info.endStr, true, 0)) {
 						info.view.calendar.unselect();
 						return;
 					}
-					onPickSlot(rangePick(info.startStr, info.endStr, info.allDay));
+					onPickSlot(rangePick(info.startStr, info.endStr, true));
 				}}
-				datesSet={(info) => onRangeChange(info.view.title)}
 				/* ---- chrome, all of it ours ---- */
 				viewClass="bg-surface"
 				tableClass="border-line"
@@ -397,7 +261,6 @@ export function CalendarGrid({
 				dayCellClass={(info) =>
 					cn("border-line", info.isOther && "bg-surface-sunken")
 				}
-				dayLaneClass={(info) => cn(info.isToday && "bg-accent-soft/40")}
 				dayCellTopInnerClass={(info) =>
 					cn(
 						"px-1 py-0.5 text-2xs tabular-nums",
@@ -405,46 +268,32 @@ export function CalendarGrid({
 					)
 				}
 				dayRowClass="border-line"
-				slotLaneClass={(info) =>
-					cn("border-line", info.isMinor && "border-dashed")
-				}
-				slotHeaderClass="border-line"
-				slotHeaderInnerClass="pr-1.5 text-2xs tabular-nums text-fg-subtle"
-				slotHeaderDividerClass="border-r border-line"
-				allDayHeaderClass="border-line"
-				allDayHeaderInnerClass="px-1 text-2xs uppercase tracking-wider text-fg-subtle"
-				allDayDividerClass="border-b border-line-strong"
-				nonBusinessHoursClass="bg-surface-sunken"
 				highlightClass="bg-accent-soft"
-				nowIndicatorLineClass="border-t border-danger"
-				nowIndicatorDotClass="bg-danger"
 				moreLinkClass="rounded-sm bg-surface-sunken text-2xs font-semibold text-fg-muted hover:bg-line hover:text-fg"
 				moreLinkInnerClass="px-1 py-0.5"
 				popoverClass="rounded-lg border border-line bg-surface-raised shadow-xl shadow-black/20"
 				popoverCloseClass="text-fg-subtle hover:text-fg"
-				listDaysClass="bg-surface"
-				listDayClass="border-line"
-				listDayHeaderClass="border-y border-line bg-surface-sunken"
-				listDayHeaderInnerClass="flex h-section-row items-center px-row-inset text-2xs font-semibold uppercase tracking-wider text-fg-subtle"
-				listDayBodyClass="border-line"
-				noEventsClass="p-10 text-center"
-				noEventsInnerClass="text-sm text-fg-muted"
-				noEventsContent="Nothing scheduled"
-				singleMonthClass="p-2"
-				singleMonthHeaderClass="pb-1"
-				singleMonthHeaderInnerClass="text-xs font-semibold text-fg"
-				eventClass={eventBody}
-				listItemEventClass={eventBody}
+				eventClass={(info) =>
+					cn(
+						calendarEventBodyClasses({
+							color: lookup(info.event.id).color,
+							layout: "row",
+							density: "compact",
+							rsvp: lookup(info.event.id).rsvp,
+							status: lookup(info.event.id).status,
+							selected: info.event.id === selectedEventId,
+							stacked: false,
+						}),
+						"my-px cursor-pointer px-1 py-0 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring",
+					)
+				}
 				eventContent={(info) => {
 					const event = lookup(info.event.id);
-					/* A column an hour wide has room for a time or a title, never
-					   both — the title is the one worth keeping. */
-					const showTime = info.timeText !== "" && !isTight && !info.isNarrow;
 					return (
 						<CalendarEventChipContent
 							title={info.event.title}
-							timeText={showTime ? info.timeText : ""}
-							layout={isRowEvent(info) ? "row" : "column"}
+							timeText={density === "compact" ? "" : info.timeText}
+							layout="row"
 							rsvp={event.rsvp}
 							hasThread={event.hasThread}
 							isRecurring={event.isRecurring}

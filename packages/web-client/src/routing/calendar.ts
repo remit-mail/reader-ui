@@ -1,19 +1,27 @@
 import type { CalendarViewId } from "@remit/ui";
 import {
+	useBlocker,
 	useNavigate,
 	useParams,
 	useRouter,
 	useSearch,
 } from "@tanstack/react-router";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import {
+	type CalendarSearch,
 	canonicalCalendarParams,
 	isoDate,
-	stepCalendarDate,
 } from "../lib/calendar-route";
 import { useRetainOpenPanels } from "./fragment";
 
 const VIEW_ROUTE = "/calendar/$view/$date" as const;
+
+declare module "@tanstack/react-router" {
+	interface HistoryState {
+		/** This entry was opened from the calendar view, so Back returns to it. */
+		openedFromView?: boolean;
+	}
+}
 const SUGGESTION_ROUTE =
 	"/calendar/$view/$date/suggestion/$suggestionId" as const;
 
@@ -79,7 +87,41 @@ export function useChangingSuggestionId(): string | undefined {
 		?.suggestionId;
 }
 
+/** The stored event the sidebar is editing, if the address has one open. */
+export function useEditingEvent(): OpenCalendarEvent | undefined {
+	const series = useParams({
+		from: "/calendar/$view/$date/$calendarObjectId/edit",
+		shouldThrow: false,
+	});
+	const occurrence = useParams({
+		from: "/calendar/$view/$date/$calendarObjectId/$recurrenceId/edit",
+		shouldThrow: false,
+	});
+	const calendarObjectId =
+		series?.calendarObjectId ?? occurrence?.calendarObjectId;
+	const recurrenceId = occurrence?.recurrenceId;
+	return useMemo(
+		() => (calendarObjectId ? { calendarObjectId, recurrenceId } : undefined),
+		[calendarObjectId, recurrenceId],
+	);
+}
+
+/** The range `/new` names in its query, unread until a sidebar reads it. */
+export function useNewEventBounds():
+	| { start: string | undefined; end: string | undefined }
+	| undefined {
+	const search = useSearch({
+		from: "/calendar/$view/$date/new",
+		shouldThrow: false,
+	});
+	const start = search?.start;
+	const end = search?.end;
+	const open = search !== undefined;
+	return useMemo(() => (open ? { start, end } : undefined), [open, start, end]);
+}
+
 export function useIsWritingEvent(): boolean {
+	const editing = useEditingEvent();
 	const composer = useParams({
 		from: "/calendar/$view/$date/new",
 		shouldThrow: false,
@@ -88,16 +130,20 @@ export function useIsWritingEvent(): boolean {
 		from: SUGGESTION_ROUTE,
 		shouldThrow: false,
 	});
-	return composer !== undefined || changing !== undefined;
+	return (
+		composer !== undefined || changing !== undefined || editing !== undefined
+	);
 }
 
 export interface CalendarNavigation {
 	/** Change zoom, keeping the day on screen. */
 	goToView: (view: CalendarViewId) => void;
-	/** The previous or next screenful, measured in the view's own unit. */
-	step: (direction: -1 | 1) => void;
 	/** Home, from every view and every distance away. */
 	goToToday: () => void;
+	/** The same view on another day. */
+	goToDate: (date: string) => void;
+	/** The calendars to draw; every one of them clears the query. */
+	setCalendarIds: (calendarIds: readonly string[]) => void;
 	/**
 	 * The day the strip has scrolled to, written by `replace`. Scrolling is not
 	 * somewhere the reader went — Back belongs to the screen they arrived from,
@@ -112,8 +158,17 @@ export interface CalendarNavigation {
 	 * a resource that does not recur names only itself.
 	 */
 	openEvent: (calendarObjectId: string, recurrenceId?: string) => void;
-	closeEvent: () => void;
-	openComposer: () => void;
+	/**
+	 * Back to the view from an event popup or a sidebar: Back when the view is
+	 * the entry before, else the view by replace.
+	 */
+	closeToView: () => void;
+	/** The advanced sidebar on a new event over a range, as `start` and `end`. */
+	openNewEvent: (bounds: { start: string; end: string }) => void;
+	/** A new range for the open sidebar, by replace. */
+	setNewEventBounds: (bounds: { start: string; end: string }) => void;
+	/** The advanced sidebar on a stored event. */
+	openEditor: (calendarObjectId: string, recurrenceId?: string) => void;
 	changeSuggestionFirst: (suggestionId: string, date: string) => void;
 }
 
@@ -130,6 +185,8 @@ export function useCalendarNavigation(): CalendarNavigation {
 	const router = useRouter();
 	const retainPanels = useRetainOpenPanels();
 	const { view, date } = useCalendarAddress();
+	const openedEvent = useOpenCalendarEvent();
+	const popupOpen = openedEvent !== undefined;
 
 	const goTo = useCallback(
 		(params: { view: CalendarViewId; date: string }) => {
@@ -157,17 +214,31 @@ export function useCalendarNavigation(): CalendarNavigation {
 	return useMemo(
 		() => ({
 			goToView: (next: CalendarViewId) => goTo({ view: next, date }),
-			step: (direction: -1 | 1) =>
-				goTo({ view, date: stepCalendarDate(date, view, direction) }),
 			goToToday: () => goTo({ view, date: isoDate(new Date()) }),
-			setAnchorDate: (next: string) =>
+			goToDate: (next: string) => goTo({ view, date: next }),
+			setCalendarIds: (calendarIds: readonly string[]) =>
+				navigate({
+					to: VIEW_ROUTE,
+					params: { view, date },
+					search: (previous: CalendarSearch) => ({
+						...previous,
+						calendarId: calendarIds.length === 0 ? undefined : [...calendarIds],
+					}),
+					hash: true,
+					replace: true,
+				}),
+			setAnchorDate: (next: string) => {
+				// An open popup is a child of the view; rewriting the day under
+				// it would close it, so the strip waits until it is gone.
+				if (popupOpen) return;
 				navigate({
 					to: VIEW_ROUTE,
 					params: { view, date: next },
 					search: true,
 					hash: retainPanels,
 					replace: true,
-				}),
+				});
+			},
 			zoomToDay: (next: string) => navigate({ href: dayHref(next) }),
 			dayHref,
 			openEvent: (calendarObjectId: string, recurrenceId?: string) =>
@@ -177,21 +248,68 @@ export function useCalendarNavigation(): CalendarNavigation {
 							params: { view, date, calendarObjectId },
 							search: true,
 							hash: retainPanels,
+							replace: popupOpen,
+							state: { openedFromView: true },
 						})
 					: navigate({
 							to: "/calendar/$view/$date/$calendarObjectId/$recurrenceId",
 							params: { view, date, calendarObjectId, recurrenceId },
 							search: true,
 							hash: retainPanels,
+							replace: popupOpen,
+							state: { openedFromView: true },
 						}),
-			closeEvent: () => goTo({ view, date }),
-			openComposer: () =>
+			closeToView: () => {
+				if (router.state.location.state.openedFromView === true) {
+					router.history.back();
+					return;
+				}
+				navigate({
+					to: VIEW_ROUTE,
+					params: { view, date },
+					search: (previous: CalendarSearch) => ({
+						calendarId: previous.calendarId,
+					}),
+					hash: retainPanels,
+					replace: true,
+				});
+			},
+			openNewEvent: (bounds: { start: string; end: string }) =>
 				navigate({
 					to: "/calendar/$view/$date/new",
 					params: { view, date },
-					search: true,
+					search: (previous: CalendarSearch) => ({ ...previous, ...bounds }),
 					hash: retainPanels,
+					replace: popupOpen,
+					state: { openedFromView: true },
 				}),
+			setNewEventBounds: (bounds: { start: string; end: string }) =>
+				navigate({
+					to: "/calendar/$view/$date/new",
+					params: { view, date },
+					search: (previous: CalendarSearch) => ({ ...previous, ...bounds }),
+					hash: true,
+					replace: true,
+					state: (previous) => previous,
+				}),
+			openEditor: (calendarObjectId: string, recurrenceId?: string) =>
+				recurrenceId === undefined || recurrenceId === ""
+					? navigate({
+							to: "/calendar/$view/$date/$calendarObjectId/edit",
+							params: { view, date, calendarObjectId },
+							search: true,
+							hash: retainPanels,
+							replace: popupOpen,
+							state: { openedFromView: true },
+						})
+					: navigate({
+							to: "/calendar/$view/$date/$calendarObjectId/$recurrenceId/edit",
+							params: { view, date, calendarObjectId, recurrenceId },
+							search: true,
+							hash: retainPanels,
+							replace: popupOpen,
+							state: { openedFromView: true },
+						}),
 			changeSuggestionFirst: (suggestionId: string, on: string) =>
 				navigate({
 					to: SUGGESTION_ROUTE,
@@ -200,7 +318,7 @@ export function useCalendarNavigation(): CalendarNavigation {
 					hash: retainPanels,
 				}),
 		}),
-		[goTo, navigate, dayHref, retainPanels, view, date],
+		[goTo, navigate, dayHref, retainPanels, view, date, router, popupOpen],
 	);
 }
 
@@ -247,4 +365,23 @@ export function useChangeSuggestionOnCalendar(): (
 		},
 		[navigate],
 	);
+}
+
+/**
+ * Back answered by a layer that holds no address of its own: the phone's
+ * quick-create sheet, or an editor that asks before a touched draft goes.
+ * Only Back is caught, and only while `onBack` says it answered it; a
+ * navigation the app starts is never blocked.
+ */
+export function useBackCloses(active: boolean, onBack: () => boolean): void {
+	const latest = useRef(onBack);
+	latest.current = onBack;
+	useBlocker({
+		shouldBlockFn: ({ action }) => {
+			if (action !== "BACK") return false;
+			return latest.current();
+		},
+		enableBeforeUnload: false,
+		disabled: !active,
+	});
 }

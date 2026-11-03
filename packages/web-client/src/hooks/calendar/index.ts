@@ -103,6 +103,7 @@ export {
 } from "./useCalendarSuggestions";
 export { type CalendarsResult, useCalendars } from "./useCalendars";
 export {
+	type CalendarCreateOutcome,
 	type CalendarWriteOutcome,
 	type CalendarWrites,
 	type ScopedWrite,
@@ -110,6 +111,7 @@ export {
 	useInvalidateCalendarReads,
 } from "./useCalendarWrites";
 export { useDraftClashes } from "./useDraftClashes";
+export { type MoveEvent, useMoveEvent } from "./useMoveEvent";
 export {
 	addDays,
 	type CalendarWindow,

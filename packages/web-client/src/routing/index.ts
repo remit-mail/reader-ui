@@ -1,3 +1,4 @@
+export { type AppSwitch, useAppSwitch } from "./app-switch";
 export {
 	type BrowsedList,
 	useBrowsedList,
@@ -7,11 +8,14 @@ export {
 	type CalendarAddress,
 	type CalendarNavigation,
 	type OpenCalendarEvent,
+	useBackCloses,
 	useCalendarAddress,
 	useCalendarNavigation,
 	useChangeSuggestionOnCalendar,
 	useChangingSuggestionId,
+	useEditingEvent,
 	useIsWritingEvent,
+	useNewEventBounds,
 	useOpenCalendarEvent,
 	useOpenEventOnCalendar,
 } from "./calendar";

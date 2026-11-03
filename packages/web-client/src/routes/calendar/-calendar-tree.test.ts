@@ -120,7 +120,11 @@ const beforeLoadOf = (route: unknown): ((args: unknown) => void) => {
 	return beforeLoad;
 };
 
-type Address = { params: Record<string, string>; search: unknown };
+type Address = {
+	params: Record<string, string>;
+	search: unknown;
+	location: { hash: string };
+};
 
 /** Where a route sends an address it will not serve. */
 function sentTo(route: unknown, address: Address): SentTo {
@@ -145,11 +149,16 @@ const TODAY = isoDate(new Date());
 const held = (view: string, date: string) => ({
 	params: { view, date },
 	search: {},
+	location: { hash: "" },
 });
 
 describe("/calendar", () => {
 	it("sends a link that names no zoom to this week", () => {
-		const sent = sentTo(CalendarIndexRoute, { params: {}, search: {} });
+		const sent = sentTo(CalendarIndexRoute, {
+			params: {},
+			search: {},
+			location: { hash: "" },
+		});
 		assert.equal(sent.to, "/calendar/$view/$date");
 		assert.deepEqual(sent.params, { view: "week", date: TODAY });
 	});
@@ -158,8 +167,10 @@ describe("/calendar", () => {
 		const sent = sentTo(CalendarIndexRoute, {
 			params: {},
 			search: { calendarId: ["cal_a"] },
+			location: { hash: "sidebar" },
 		});
 		assert.deepEqual(sent.search, { calendarId: ["cal_a"] });
+		assert.equal((sent as { hash?: string }).hash, "sidebar");
 	});
 });
 

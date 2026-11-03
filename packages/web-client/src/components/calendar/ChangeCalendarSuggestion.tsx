@@ -1,5 +1,8 @@
 import type { RemitImapCalendarSuggestionResponse } from "@remit/api-http-client/types.gen.ts";
 import {
+	CalendarClashStrip,
+	CalendarEventSidebar,
+	type CalendarFailure,
 	CalendarFailureNote,
 	EmptyState,
 	type EventDraft,
@@ -18,8 +21,7 @@ import {
 	usePendingCalendarSuggestion,
 } from "../../hooks/calendar";
 import { calendarReportHref } from "../../lib/calendar-report";
-import { suggestionWhen } from "../../lib/calendar-suggestion";
-import { CalendarComposePane } from "./CalendarComposePane";
+import { useOptionalCalendarSession } from "./CalendarSession";
 
 const TITLE = "Add from mail";
 
@@ -99,7 +101,21 @@ function SuggestionEditor({ suggestion, onClose }: SuggestionEditorProps) {
 		draftFromSuggestion(suggestion, "", deviceTimeZone()),
 	);
 	const [draft, setDraft] = useState<EventDraft>(seed);
+	const dispatch = useOptionalCalendarSession()?.dispatch;
+	useEffect(() => {
+		dispatch?.({
+			type: "sidebar-range",
+			range: {
+				date: seed.date,
+				endDate: seed.endDate,
+				startTime: seed.allDay ? "" : seed.startTime,
+				endTime: seed.allDay ? "" : seed.endTime,
+				allDay: seed.allDay,
+			},
+		});
+	}, [seed, dispatch]);
 	const [problem, setProblem] = useState("");
+	const [failure, setFailure] = useState<CalendarFailure | undefined>();
 	const clashes = useDraftClashes(draft);
 
 	const initialCalendarId = calendars.some(
@@ -135,25 +151,54 @@ function SuggestionEditor({ suggestion, onClose }: SuggestionEditorProps) {
 					onClose();
 					return;
 				}
-				setProblem(`Couldn't add this to your calendar: ${answer.message}`);
+				const text = `Couldn't add this to your calendar: ${answer.message}`;
+				setFailure({
+					text,
+					reportHref: calendarReportHref(text),
+					onRetry: save,
+				});
 			});
 	};
 
 	return (
-		<CalendarComposePane
-			title={TITLE}
-			subtitle={suggestionWhen(suggestion)}
-			notice={suggestion.zoneCertainty === "Ambiguous" ? AMBIGUOUS_NOTICE : ""}
-			calendars={calendars}
+		<CalendarEventSidebar
+			heading={TITLE}
 			draft={draft}
-			onChange={setDraft}
-			problem={problem}
-			saveLabel="Add"
-			isSaving={answers.isAnswering}
+			onChange={(next) => {
+				setDraft(next);
+				dispatch?.({
+					type: "sidebar-range",
+					range: {
+						date: next.date,
+						endDate: next.endDate,
+						startTime: next.allDay ? "" : next.startTime,
+						endTime: next.allDay ? "" : next.endTime,
+						allDay: next.allDay,
+					},
+				});
+			}}
+			calendars={calendars}
+			calendarEditable
 			repeatEditable={false}
-			clashes={clashes}
+			timeZone={deviceTimeZone()}
+			timeZones={[deviceTimeZone()]}
+			onTimeZone={() => {}}
+			busy
+			onBusy={() => {}}
 			onSave={save}
 			onCancel={onClose}
-		/>
+			saving={answers.isAnswering}
+			saveLabel="Add"
+			failure={failure}
+			problem={
+				problem !== ""
+					? problem
+					: suggestion.zoneCertainty === "Ambiguous"
+						? AMBIGUOUS_NOTICE
+						: ""
+			}
+		>
+			{clashes && <CalendarClashStrip clashes={clashes} />}
+		</CalendarEventSidebar>
 	);
 }

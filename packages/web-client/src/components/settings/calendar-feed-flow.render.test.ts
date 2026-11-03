@@ -21,6 +21,7 @@ import {
 	handleMutationCacheError,
 	handleQueryCacheError,
 } from "../../lib/query-error-handler";
+import { isSignedOut, resetSignedOut } from "../../lib/signed-out";
 import { createDomHarness, type DomHarness } from "../../test-support/dom";
 import {
 	type HttpCall,
@@ -46,6 +47,7 @@ afterEach(() => {
 	http?.restore();
 	http = undefined;
 	__resetFatalError();
+	resetSignedOut();
 });
 
 type Responder = (call: HttpCall) => unknown;
@@ -438,12 +440,13 @@ describe("a read the server refuses", () => {
 	 * The one status this card may not keep to itself. No banner here signs
 	 * anyone back in, so a 401 belongs on the page that does.
 	 */
-	it("escalates a lapsed session instead of drawing it in the card", async () => {
+	it("takes a lapsed session to the signed-out notice instead of the card", async () => {
 		await mount((call) => {
 			if (call.method === "GET") return httpError(401, "signed out");
 			return {};
 		});
 
-		assert.ok(escalated(), "a 401 on the read stayed inside the card");
+		assert.ok(isSignedOut(), "a 401 on the read stayed inside the card");
+		assert.equal(escalated(), false);
 	});
 });

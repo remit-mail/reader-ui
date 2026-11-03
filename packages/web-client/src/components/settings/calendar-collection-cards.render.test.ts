@@ -1,9 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import type { CalendarClash, EventDraft } from "@remit/ui";
 import React, { createElement } from "react";
 import { renderToString } from "react-dom/server";
-import { CalendarComposePane } from "../calendar/CalendarComposePane";
 import { CalendarCreateCard } from "./CalendarCreateCard";
 import { CalendarDetailsForm } from "./CalendarDetailsForm";
 import { CalendarFeedCard } from "./CalendarFeedCard";
@@ -95,55 +93,5 @@ describe("CalendarFeedCard with details", () => {
 			html.indexOf("calendar details here") <
 				html.indexOf("Create subscription address"),
 		);
-	});
-});
-
-describe("CalendarComposePane clashes", () => {
-	const draft: EventDraft = {
-		title: "Roadmap review",
-		date: "2026-06-10",
-		endDate: "2026-06-10",
-		startTime: "10:00",
-		endTime: "11:00",
-		allDay: false,
-		calendarId: "cal_work",
-		location: "",
-		guests: "",
-		notes: "",
-		repeat: "",
-	};
-	const pane = (clashes: CalendarClash[] | undefined) =>
-		renderToString(
-			createElement(CalendarComposePane, {
-				title: "New event",
-				calendars: [],
-				draft,
-				onChange: () => undefined,
-				problem: "",
-				saveLabel: "Add",
-				isSaving: false,
-				clashes,
-				onSave: () => undefined,
-				onCancel: () => undefined,
-			}) as never,
-		);
-
-	it("names what the span runs into", () => {
-		const html = pane([{ id: "a", label: "Board prep, Wed 10 June" }]);
-		assert.match(
-			html,
-			/This clashes with something you have already agreed to/,
-		);
-		assert.match(html, /Board prep, Wed 10 June/);
-	});
-
-	it("says a checked span is clear", () => {
-		assert.match(pane([]), /Nothing else is booked at this time/);
-	});
-
-	it("draws nothing before there is an answer", () => {
-		const html = pane(undefined);
-		assert.doesNotMatch(html, /Nothing else is booked/);
-		assert.doesNotMatch(html, /This clashes/);
 	});
 });

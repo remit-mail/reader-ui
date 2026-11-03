@@ -37,12 +37,8 @@ import {
 	useRef,
 	useState,
 } from "react";
-import {
-	restartExpectedMeta,
-	shouldEscalate,
-	softErrorMeta,
-} from "../lib/error-classifier";
-import { reportFatalError } from "../lib/fatal-error";
+import { restartExpectedMeta, softErrorMeta } from "../lib/error-classifier";
+import { escalate } from "../lib/escalate";
 import {
 	appliesSchemaMigration,
 	type CheckPress,
@@ -247,9 +243,7 @@ export function useSystemUpdate(): SelfUpdateApi {
 				// This is a raw SDK call, outside the query cache that feeds the
 				// global sink, so the 5xx the seam answers when the control volume
 				// is unwritable escalates from here or from nowhere.
-				if (shouldEscalate(error, softErrorMeta, "user")) {
-					reportFatalError(error);
-				}
+				escalate(error, softErrorMeta);
 				setCheckPress(null);
 				setCheckFailure(checkRequestFailureReason(error));
 			});

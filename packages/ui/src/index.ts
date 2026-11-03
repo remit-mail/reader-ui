@@ -258,10 +258,6 @@ export {
 	type GridGesture,
 } from "./components/calendar-time-grid.js";
 export {
-	CalendarDateNav,
-	type CalendarDateNavProps,
-	CalendarViewSwitch,
-	type CalendarViewSwitchProps,
 	Segmented,
 	type SegmentedProps,
 	type SegmentOption,
@@ -389,10 +385,6 @@ export type {
 	AuthorDeclarations,
 	EmailFrameVariant,
 } from "./components/email-frame-css.js";
-export {
-	EventDetail,
-	type EventDetailProps,
-} from "./components/event-detail.js";
 export {
 	EventEditor,
 	type EventEditorLayout,

@@ -8,12 +8,12 @@ import {
 
 function ChangeSuggestionRoute() {
 	const suggestionId = useChangingSuggestionId();
-	const { closeEvent } = useCalendarNavigation();
+	const { closeToView } = useCalendarNavigation();
 	if (suggestionId === undefined) return null;
 	return (
 		<ChangeCalendarSuggestion
 			suggestionId={suggestionId}
-			onClose={closeEvent}
+			onClose={closeToView}
 		/>
 	);
 }

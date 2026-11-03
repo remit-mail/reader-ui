@@ -34,6 +34,7 @@ import {
 	handleMutationCacheError,
 	handleQueryCacheError,
 } from "../../lib/query-error-handler";
+import { isSignedOut, resetSignedOut } from "../../lib/signed-out";
 import { createDomHarness, type DomHarness } from "../../test-support/dom";
 import { type HttpMock, httpError, mockFetch } from "../../test-support/http";
 import { FatalErrorOverlay } from "../ui/FatalErrorOverlay";
@@ -87,6 +88,7 @@ afterEach(() => {
 	http?.restore();
 	http = undefined;
 	__resetFatalError();
+	resetSignedOut();
 });
 
 const creates = () =>
@@ -335,16 +337,14 @@ describe("a failed autosave and the message it is holding", () => {
 		);
 	});
 
-	it("escalates a 401 — a dismissible banner is no way back in", async () => {
+	it("takes a 401 to the signed-out notice, not the fatal page", async () => {
 		await mount({ outboxMessageId: OUTBOX_MESSAGE_ID, patchStatus: 401 });
 
 		harness?.type(subjectField(), "Fwd: Lunch on Thursday");
 		await harness?.wait(AUTOSAVE_DEBOUNCE_MS + 300);
 
-		assert.ok(
-			fatalOverlay(),
-			"a signed-out session must reach the page that signs back in",
-		);
+		assert.ok(isSignedOut(), "a signed-out session must reach the notice");
+		assert.equal(fatalOverlay(), null);
 	});
 
 	it("still escalates a 5xx from the same write", async () => {

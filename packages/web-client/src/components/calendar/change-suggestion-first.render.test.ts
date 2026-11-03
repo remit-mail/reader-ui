@@ -171,7 +171,9 @@ const mount = async (respond: (call: HttpCall) => unknown) => {
 		"the editor to open seeded from the suggestion",
 	);
 	await harness.waitFor(
-		() => harness?.query("input[type=radio]:checked") !== null,
+		() =>
+			(harness?.query<HTMLSelectElement>("select[aria-label=Calendar]")
+				?.value ?? "") !== "",
 		"the default calendar to be picked",
 	);
 	return router;

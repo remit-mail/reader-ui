@@ -312,7 +312,6 @@ export function MailSidebarAdapter({
 			selectedNavId={selectedNavId}
 			onSelectNav={handleSelectNav}
 			linkComponent={linkComponent}
-			calendarNav="shown"
 			variant={variant}
 		/>
 	);

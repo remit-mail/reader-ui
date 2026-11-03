@@ -9,7 +9,12 @@ import { useIsDesktop } from "../hooks/useMediaQuery";
  * independent of in-memory data, so a cold load of the URL reproduces it
  * exactly.
  */
-export const panelFragments = ["intelligence", "nav", "shortcuts"] as const;
+export const panelFragments = [
+	"intelligence",
+	"sidebar",
+	"nav",
+	"shortcuts",
+] as const;
 
 export type PanelFragment = (typeof panelFragments)[number];
 

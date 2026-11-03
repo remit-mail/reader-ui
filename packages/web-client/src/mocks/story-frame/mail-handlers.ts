@@ -49,6 +49,9 @@ export interface MailHandlerOptions {
 	send?: "sends" | "holds";
 	search?: "answers" | "holds";
 	config?: "answers" | "holds";
+	/** The calendar reads: answered, or lost on the network. */
+	calendarEvents?: "answers" | "fails";
+	calendars?: "answers" | "fails";
 }
 
 const contentPath = (row: RemitImapThreadMessageResponse): string =>
@@ -498,14 +501,18 @@ export const mailHandlers = (
 			return new HttpResponse(null, { status: 204 });
 		}),
 		http.get(`${API}/calendars`, () =>
-			HttpResponse.json<CalendarOperationsListCalendarsResponse>({
-				items: world.calendars,
-			}),
+			options.calendars === "fails"
+				? HttpResponse.error()
+				: HttpResponse.json<CalendarOperationsListCalendarsResponse>({
+						items: world.calendars,
+					}),
 		),
 		http.get(`${API}/calendar-events`, ({ request }) =>
-			HttpResponse.json<CalendarEventOperationsListCalendarEventsResponse>({
-				items: instancesWithin(new URL(request.url), world.calendarEvents),
-			}),
+			options.calendarEvents === "fails"
+				? HttpResponse.error()
+				: HttpResponse.json<CalendarEventOperationsListCalendarEventsResponse>({
+						items: instancesWithin(new URL(request.url), world.calendarEvents),
+					}),
 		),
 		http.get(`${API}/calendar-events/:calendarObjectId`, ({ params }) => {
 			const resource = world.calendarResources.find(

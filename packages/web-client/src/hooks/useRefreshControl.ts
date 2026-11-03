@@ -7,8 +7,7 @@ import type { RemitImapSyncPhase } from "@remit/api-http-client/types.gen.ts";
 import type { RefreshControlState } from "@remit/ui";
 import { type QueryClient, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { shouldEscalate } from "../lib/error-classifier";
-import { reportFatalError } from "../lib/fatal-error";
+import { escalate } from "../lib/escalate";
 import { startHotSyncWindow } from "../lib/hot-sync-window";
 import { useMailFreshness } from "../lib/mail-freshness";
 import { useTelemetry } from "../lib/telemetry-context";
@@ -33,13 +32,10 @@ const messageFor = (error: unknown): string =>
 		? error.message
 		: "Something went wrong";
 
-// The user pulled to refresh and is watching the spinner, so this is theirs to
-// be answered: a 401 here escalates over the soft meta rather than resolving
-// into a spinner that stops for no stated reason.
+// The user pulled to refresh and is watching the spinner: a 401 raises the
+// signed-out notice rather than a spinner that stops for no stated reason.
 const escalateIfFatal = (error: unknown): void => {
-	if (shouldEscalate(error, { softError: true }, "user")) {
-		reportFatalError(error);
-	}
+	escalate(error, { softError: true });
 };
 
 /**

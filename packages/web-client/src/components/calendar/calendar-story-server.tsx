@@ -1,4 +1,3 @@
-import type { CalendarSlotPick } from "@remit/ui";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
 	type AnyRouter,
@@ -13,12 +12,11 @@ import { type ReactNode, useState } from "react";
 import { calendarSearchSchema } from "../../lib/calendar-route";
 import { client } from "../../lib/client";
 import { stringifySearch } from "../../lib/search-params";
-import { CalendarComposeSeedProvider } from "./CalendarComposeSeed";
 
 /**
  * The calendar's addresses and its server, stood up for a story.
  *
- * `AgendaView`, `OpenCalendarEvent` and `WriteCalendarEvent` are the three panes
+ * `AgendaView` and `ChangeCalendarSuggestion` are the panes
  * that read the address and read the API, so a story cannot hand them props:
  * what they draw comes out of a URL and a response. Both are supplied here, with
  * synthetic answers, so the story still names one state and asserts it.
@@ -50,22 +48,14 @@ export type CalendarServer = (request: Request) => Response | Promise<Response>;
 /** Nowhere. Every request is answered before it can leave. */
 const STORY_BASE_URL = "https://calendar.story.invalid";
 
-function storyRouter(
-	entry: string,
-	pane: ReactNode,
-	pick: CalendarSlotPick | undefined,
-): AnyRouter {
+function storyRouter(entry: string, pane: ReactNode): AnyRouter {
 	const leaf = () => <>{pane}</>;
 	const rootRoute = createRootRoute({ component: Outlet });
 	const viewRoute = createRoute({
 		getParentRoute: () => rootRoute,
 		path: "/calendar/$view/$date",
 		validateSearch: calendarSearchSchema,
-		component: () => (
-			<CalendarComposeSeedProvider pick={pick}>
-				<Outlet />
-			</CalendarComposeSeedProvider>
-		),
+		component: () => <Outlet />,
 	});
 	const eventRoute = createRoute({
 		getParentRoute: () => viewRoute,
@@ -117,16 +107,9 @@ export interface CalendarStoryProps {
 	entry: string;
 	/** What the server answers, request by request. */
 	server: CalendarServer;
-	/** The slot a reader dragged out of the grid, for the composer. */
-	pick?: CalendarSlotPick;
 }
 
-export function CalendarStory({
-	pane,
-	entry,
-	server,
-	pick,
-}: CalendarStoryProps) {
+export function CalendarStory({ pane, entry, server }: CalendarStoryProps) {
 	// Built once, and the client configured before anything can ask it a
 	// question: a pane that fetched against the default host would reach for the
 	// network on its first render.
@@ -139,7 +122,7 @@ export function CalendarStory({
 				)) as typeof globalThis.fetch,
 		});
 		return {
-			router: storyRouter(entry, pane, pick),
+			router: storyRouter(entry, pane),
 			queryClient: new QueryClient({
 				defaultOptions: {
 					queries: { retry: false },

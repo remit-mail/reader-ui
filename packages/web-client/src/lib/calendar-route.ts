@@ -197,3 +197,18 @@ export const calendarSearchSchema = z.object({
 });
 
 export type CalendarSearch = z.infer<typeof calendarSearchSchema>;
+
+/**
+ * The view a screen draws for the view the address names. A phone has room
+ * for one day and one month, so a week draws its day and a year its month;
+ * the address keeps what it said.
+ */
+export function shownCalendarView(
+	view: CalendarViewId,
+	isPhone: boolean,
+): CalendarViewId {
+	if (!isPhone) return view;
+	if (view === "week") return "day";
+	if (view === "year") return "month";
+	return view;
+}

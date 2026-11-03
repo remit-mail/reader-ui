@@ -25,6 +25,7 @@ import {
 	handleMutationCacheError,
 	handleQueryCacheError,
 } from "../../lib/query-error-handler";
+import { isSignedOut, resetSignedOut } from "../../lib/signed-out";
 import { createDomHarness, type DomHarness } from "../../test-support/dom";
 import {
 	type HttpCall,
@@ -43,6 +44,7 @@ afterEach(() => {
 	http?.restore();
 	http = undefined;
 	__resetFatalError();
+	resetSignedOut();
 });
 
 const ACCOUNT_ID = "acct-imported";
@@ -224,7 +226,7 @@ describe("ConfigImportWizard — an instance that is not empty", () => {
 });
 
 describe("ConfigImportWizard — a session that has lapsed", () => {
-	it("escalates a 401 rather than keeping it in the wizard", async () => {
+	it("takes a 401 to the signed-out notice rather than keeping it in the wizard", async () => {
 		const dom = start({
 			onImport: () => refusal(401, { message: "signed out" }),
 		});
@@ -232,10 +234,8 @@ describe("ConfigImportWizard — a session that has lapsed", () => {
 		dom.click(checkButton(dom));
 		await dom.flush();
 
-		assert.ok(
-			getCurrentFatalError(),
-			"expected the 401 to escalate rather than stay in the wizard",
-		);
+		assert.ok(isSignedOut(), "expected the 401 to reach the notice");
+		assert.equal(getCurrentFatalError(), null);
 	});
 });
 

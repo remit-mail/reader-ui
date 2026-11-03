@@ -16,11 +16,12 @@ import {
 
 export const Route = createFileRoute("/calendar/")({
 	validateSearch: calendarSearchSchema,
-	beforeLoad: ({ search }) => {
+	beforeLoad: ({ search, location }) => {
 		throw redirect({
 			to: "/calendar/$view/$date",
 			params: { view: DEFAULT_CALENDAR_VIEW, date: isoDate(new Date()) },
 			search,
+			hash: location.hash,
 			replace: true,
 		});
 	},

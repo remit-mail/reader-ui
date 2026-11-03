@@ -109,29 +109,6 @@ export const isAlwaysFatal = (error: unknown): boolean =>
 export const isUnauthenticated = (error: unknown): boolean =>
 	getErrorStatus(error) === 401;
 
-/**
- * Who is waiting on this request's answer. One decision turns on it, and only
- * one: whether a 401 overrides the call site's own `meta.softError`.
- *
- * "user" — the user did something and the app owes them the outcome. Every
- * mutation is this, the debounced autosave included: it carries text that is on
- * screen, and if it is refused for want of a session then so is the send behind
- * it. No banner a call site can render signs anyone back in, so this is the one
- * 4xx a call site may not keep to itself.
- *
- * "nobody" — a poll, a prefetch, a best-effort background trigger, an inline
- * sub-resource with an error surface of its own. A 401 there is not news the
- * app may take the whole screen for, and `meta.softError` decides as usual.
- *
- * Reads are "nobody" as a class, which is not the same as saying no read
- * matters: a read the screen is actually waiting on has no `meta.softError` on
- * it, so rule 1 escalates it anyway. The only reads this spares are the ones
- * that already declared they own their failures — the update poll mounted at
- * the app root, the message body with its own inline banner. Escalating those
- * put the full-screen page over every screen in the app.
- */
-export type Awaiting = "user" | "nobody";
-
 const isSoftErrorMeta = (
 	error: unknown,
 	meta: Record<string, unknown> | undefined,
@@ -184,11 +161,8 @@ const isDesignedRestartGap = (
  *     the operation working, and that call site renders the wait itself.
  *  3. A client-side exception ALWAYS escalates, on the same terms. It is our
  *     bug; there is nothing for the user to retry and nothing to dismiss.
- *  4. A 401 on a request the user is waiting on ALWAYS escalates, on the same
- *     terms. Dismissing it leaves them signed out with no way back in, and a
- *     send that keeps failing becomes a loop with no exit — `BetterAuthShell`
- *     re-gates only when `useSession()` revalidates, which a banner never makes
- *     happen. See `Awaiting` for what nobody waiting on it means.
+ *  4. A 401 NEVER escalates here: the session is gone, and the signed-out
+ *     notice (`lib/escalate.ts`) owns it on every screen.
  *  5. The ONLY soft (do-NOT-escalate) exemptions:
  *     a. aborts / cancellations — never a failure;
  *     b. network/offline errors — environmental, recovered by React Query's
@@ -201,12 +175,11 @@ const isDesignedRestartGap = (
 export const shouldEscalate = (
 	error: unknown,
 	meta?: Record<string, unknown>,
-	awaiting: Awaiting = "nobody",
 ): boolean => {
 	if (isServerError(error)) return !isDesignedRestartGap(error, meta);
 	if (isAbortError(error)) return false;
 	if (isNetworkError(error)) return false;
-	if (awaiting === "user" && isUnauthenticated(error)) return true;
+	if (isUnauthenticated(error)) return false;
 	if (isAlwaysFatal(error)) return true;
 	if (isSoftErrorMeta(error, meta)) return false;
 	return true;
@@ -215,8 +188,8 @@ export const shouldEscalate = (
 /**
  * The meta a call site sets to keep its own non-5xx failures off the
  * full-screen fatal page, because it renders them itself — a banner, a retry,
- * an empty state. Rules 2, 3 and 4 above still win: a 5xx, a client-side
- * exception, and a 401 on something the user is waiting on, escalate regardless.
+ * an empty state. Rules 2 and 3 above still win: a 5xx and a client-side
+ * exception escalate regardless, and a 401 goes to the signed-out notice.
  *
  * Two classes of call site must always carry it. One is a request the user
  * never asked for and is not waiting on — a debounced autosave, a

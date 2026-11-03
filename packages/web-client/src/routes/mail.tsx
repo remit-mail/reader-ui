@@ -15,6 +15,7 @@ import {
 	useRouterState,
 } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo } from "react";
+import { AppFrame } from "../components/layout/AppFrame";
 import { ComposeFab } from "../components/layout/ComposeFab";
 import { MailShellProvider } from "../components/layout/MailShell";
 import { MailTopBar } from "../components/layout/MailTopBar";
@@ -221,22 +222,24 @@ function MailLayout() {
 	return (
 		<MailContext.Provider value={mailContextValue}>
 			<MailFreshnessProvider accountIds={accountIds}>
-				{isConfigError ? (
-					<div className="flex h-full items-center justify-center bg-canvas p-4">
-						<ErrorState
-							title="Couldn't load your account"
-							error={configError}
-							onRetry={() => {
-								refetchConfig();
-							}}
-						/>
-					</div>
-				) : (
-					// Each list route mounts its own shell around its own panes.
-					<MailShellProvider chrome={shellChrome}>
-						<Outlet />
-					</MailShellProvider>
-				)}
+				<AppFrame>
+					{isConfigError ? (
+						<div className="flex h-full items-center justify-center bg-canvas p-4">
+							<ErrorState
+								title="Couldn't load your account"
+								error={configError}
+								onRetry={() => {
+									refetchConfig();
+								}}
+							/>
+						</div>
+					) : (
+						// Each list route mounts its own shell around its own panes.
+						<MailShellProvider chrome={shellChrome}>
+							<Outlet />
+						</MailShellProvider>
+					)}
+				</AppFrame>
 				<KeyboardShortcutsModal
 					isOpen={showShortcuts}
 					onClose={() => showOverlay(undefined)}
