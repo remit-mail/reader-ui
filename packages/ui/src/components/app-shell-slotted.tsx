@@ -75,6 +75,11 @@ export interface AppShellSlottedProps {
 	 */
 	topBar?: ReactNode;
 	/**
+	 * The app switcher bar. Sits down the left edge beneath `topBar`, so the top
+	 * bar runs the full width above it.
+	 */
+	appBar?: ReactNode;
+	/**
 	 * Content rendered outside the pane group (e.g., the compose FAB). Floats
 	 * over the layout regardless of width.
 	 */
@@ -165,6 +170,7 @@ export function AppShellSlotted({
 	listBias = "balanced",
 	header,
 	topBar,
+	appBar,
 	overlay,
 	skeleton,
 	isLoading = false,
@@ -299,33 +305,38 @@ export function AppShellSlotted({
 					<>
 						{topBar}
 
-						{navPaneVisible ? (
-							<ResizablePanelGroup
-								direction="horizontal"
-								className="min-h-0 flex-1"
-							>
-								<ResizablePanel
-									id="nav"
-									order={1}
-									defaultSize={17}
-									minSize={12}
-									maxSize={24}
-									className="min-w-0"
-								>
-									{nav}
-								</ResizablePanel>
-								<ResizableHandle />
-								<ResizablePanel
-									id="content"
-									order={2}
-									className="flex min-w-0 flex-col"
-								>
-									{content}
-								</ResizablePanel>
-							</ResizablePanelGroup>
-						) : (
-							content
-						)}
+						<div className="flex min-h-0 flex-1">
+							{appBar}
+							<div className="flex min-h-0 min-w-0 flex-1 flex-col">
+								{navPaneVisible ? (
+									<ResizablePanelGroup
+										direction="horizontal"
+										className="min-h-0 flex-1"
+									>
+										<ResizablePanel
+											id="nav"
+											order={1}
+											defaultSize={17}
+											minSize={12}
+											maxSize={24}
+											className="min-w-0"
+										>
+											{nav}
+										</ResizablePanel>
+										<ResizableHandle />
+										<ResizablePanel
+											id="content"
+											order={2}
+											className="flex min-w-0 flex-col"
+										>
+											{content}
+										</ResizablePanel>
+									</ResizablePanelGroup>
+								) : (
+									content
+								)}
+							</div>
+						</div>
 
 						{/* Narrow nav: dismissible slide-over (#784). */}
 						{!showNavPane && (

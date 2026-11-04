@@ -46,6 +46,19 @@ export const Default: Story = {
 	},
 };
 
+export const TopBarAboveAppBar: Story = {
+	play: async () => {
+		await expect(await conversation()).toBeVisible();
+		const appBar = await page().findByRole("navigation", { name: "Apps" });
+		const topBar = page().getByRole("banner");
+		const barRect = topBar.getBoundingClientRect();
+		const appBarRect = appBar.getBoundingClientRect();
+		await expect(barRect.left).toBeLessThanOrEqual(appBarRect.left);
+		await expect(barRect.right).toBeGreaterThan(appBarRect.right);
+		await expect(appBarRect.top).toBeGreaterThanOrEqual(barRect.bottom);
+	},
+};
+
 export const Inbox: Story = {
 	args: { url: `${openInInbox}#intelligence` },
 	play: async () => {

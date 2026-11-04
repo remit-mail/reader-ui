@@ -7,13 +7,24 @@ export interface AppFrameProps {
 	children: ReactNode;
 	/** A full-screen surface on a phone takes the tab bar's room too. */
 	hideTabBar?: boolean;
+	/** The shell inside draws the app bar itself, beneath its own top bar. */
+	appBarInShell?: boolean;
+}
+
+export function AppFrameAppBar() {
+	const { items, active, switchTo } = useAppSwitch();
+	return <AppBar items={items} active={active} onNavigate={switchTo} />;
 }
 
 /**
  * Mail and calendar side by side as apps: a bar down the left edge on a wide
  * screen, a tab bar under the content on a phone.
  */
-export function AppFrame({ children, hideTabBar = false }: AppFrameProps) {
+export function AppFrame({
+	children,
+	hideTabBar = false,
+	appBarInShell = false,
+}: AppFrameProps) {
 	const isPhone = useLayoutTier() === "phone";
 	const { items, active, switchTo } = useAppSwitch();
 
@@ -35,7 +46,9 @@ export function AppFrame({ children, hideTabBar = false }: AppFrameProps) {
 
 	return (
 		<div className="flex h-full w-full">
-			<AppBar items={items} active={active} onNavigate={switchTo} />
+			{!appBarInShell && (
+				<AppBar items={items} active={active} onNavigate={switchTo} />
+			)}
 			<div className="min-w-0 flex-1">{children}</div>
 		</div>
 	);

@@ -23,6 +23,7 @@ export interface MailShellChrome {
 	intelligenceOpen: boolean;
 	nav: ReactNode;
 	topBar: ReactNode;
+	appBar: ReactNode;
 	overlay: ReactNode;
 	navOpen: boolean;
 	onOpenNav: () => void;
@@ -96,6 +97,7 @@ export function MailShell({
 		<AppShellSlotted
 			{...shared}
 			topBar={chrome.topBar}
+			appBar={chrome.appBar}
 			list={list}
 			reading={reading}
 			intelligence={intelligence}
