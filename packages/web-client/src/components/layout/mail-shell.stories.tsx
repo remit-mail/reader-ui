@@ -155,6 +155,11 @@ export const Loading: Story = {
 			expect(document.querySelector(".animate-pulse")).not.toBeNull(),
 		);
 		await expect(rows()).toHaveLength(0);
-		await expect(page().queryByRole("button", { name: "Compose" })).toBeNull();
+		await expect(
+			await page().findByRole("button", { name: "Compose" }),
+		).toBeVisible();
+		await expect(
+			page().getByRole("navigation", { name: "Apps" }),
+		).toBeVisible();
 	},
 };
