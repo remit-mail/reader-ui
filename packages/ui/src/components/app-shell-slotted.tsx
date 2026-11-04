@@ -1,4 +1,5 @@
 import { createContext, type ReactNode, useContext, useState } from "react";
+import { AppChrome } from "./app-chrome.js";
 import {
 	type PaneLayout,
 	resolvePaneLayout,
@@ -74,6 +75,11 @@ export interface AppShellSlottedProps {
 	 * read as the app's search rather than the list's.
 	 */
 	topBar?: ReactNode;
+	/**
+	 * The app switcher bar. Sits down the left edge beneath `topBar`, so the top
+	 * bar runs the full width above it.
+	 */
+	appBar?: ReactNode;
 	/**
 	 * Content rendered outside the pane group (e.g., the compose FAB). Floats
 	 * over the layout regardless of width.
@@ -165,6 +171,7 @@ export function AppShellSlotted({
 	listBias = "balanced",
 	header,
 	topBar,
+	appBar,
 	overlay,
 	skeleton,
 	isLoading = false,
@@ -293,41 +300,40 @@ export function AppShellSlotted({
 				ref={containerRef}
 				className="safe-area-frame @container flex h-full w-full flex-col overflow-hidden bg-canvas font-sans text-fg"
 			>
-				{isLoading && skeleton ? (
-					skeleton
-				) : (
-					<>
-						{topBar}
-
-						{navPaneVisible ? (
-							<ResizablePanelGroup
-								direction="horizontal"
-								className="min-h-0 flex-1"
+				<AppChrome topBar={topBar} appBar={appBar}>
+					{isLoading && skeleton ? (
+						skeleton
+					) : navPaneVisible ? (
+						<ResizablePanelGroup
+							direction="horizontal"
+							className="min-h-0 flex-1"
+						>
+							<ResizablePanel
+								id="nav"
+								order={1}
+								defaultSize={17}
+								minSize={12}
+								maxSize={24}
+								className="min-w-0"
 							>
-								<ResizablePanel
-									id="nav"
-									order={1}
-									defaultSize={17}
-									minSize={12}
-									maxSize={24}
-									className="min-w-0"
-								>
-									{nav}
-								</ResizablePanel>
-								<ResizableHandle />
-								<ResizablePanel
-									id="content"
-									order={2}
-									className="flex min-w-0 flex-col"
-								>
-									{content}
-								</ResizablePanel>
-							</ResizablePanelGroup>
-						) : (
-							content
-						)}
+								{nav}
+							</ResizablePanel>
+							<ResizableHandle />
+							<ResizablePanel
+								id="content"
+								order={2}
+								className="flex min-w-0 flex-col"
+							>
+								{content}
+							</ResizablePanel>
+						</ResizablePanelGroup>
+					) : (
+						content
+					)}
+				</AppChrome>
 
-						{/* Narrow nav: dismissible slide-over (#784). */}
+				{!(isLoading && skeleton) && (
+					<>
 						{!showNavPane && (
 							<Dialog
 								open={navOpen}

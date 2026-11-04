@@ -23,6 +23,7 @@ export interface MailShellChrome {
 	intelligenceOpen: boolean;
 	nav: ReactNode;
 	topBar: ReactNode;
+	appBar: ReactNode;
 	overlay: ReactNode;
 	navOpen: boolean;
 	onOpenNav: () => void;
@@ -74,6 +75,7 @@ export function MailShell({
 
 	const shared = {
 		nav: chrome.nav,
+		appBar: chrome.appBar,
 		overlay: chrome.overlay,
 		skeleton: <AppShellSkeleton />,
 		isLoading: chrome.isLoading,

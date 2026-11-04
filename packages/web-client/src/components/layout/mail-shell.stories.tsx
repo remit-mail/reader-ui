@@ -46,6 +46,20 @@ export const Default: Story = {
 	},
 };
 
+export const TopBarAboveAppBar: Story = {
+	play: async () => {
+		await expect(await conversation()).toBeVisible();
+		const appBar = await page().findByRole("navigation", { name: "Apps" });
+		const topBar = page().getByLabelText("Search mail").closest("header");
+		if (!topBar) throw new Error("the search field is not inside a header");
+		const barRect = topBar.getBoundingClientRect();
+		const appBarRect = appBar.getBoundingClientRect();
+		await expect(barRect.left).toBeLessThanOrEqual(appBarRect.left);
+		await expect(barRect.right).toBeGreaterThan(appBarRect.right);
+		await expect(appBarRect.top).toBeGreaterThanOrEqual(barRect.bottom);
+	},
+};
+
 export const Inbox: Story = {
 	args: { url: `${openInInbox}#intelligence` },
 	play: async () => {
@@ -141,6 +155,11 @@ export const Loading: Story = {
 			expect(document.querySelector(".animate-pulse")).not.toBeNull(),
 		);
 		await expect(rows()).toHaveLength(0);
-		await expect(page().queryByRole("button", { name: "Compose" })).toBeNull();
+		await expect(
+			await page().findByRole("button", { name: "Compose" }),
+		).toBeVisible();
+		await expect(
+			page().getByRole("navigation", { name: "Apps" }),
+		).toBeVisible();
 	},
 };

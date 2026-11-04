@@ -112,13 +112,15 @@ describe("AppShellSlotted slot rendering", () => {
 		}
 	});
 
-	it("hides the top bar with the rest of the layout while loading", () => {
+	it("keeps the top bar and app bar while loading", () => {
 		const html = render({
 			isLoading: true,
 			skeleton: createElement("div", { "data-testid": "skeleton" }, "Loading"),
 			topBar: createElement("div", { "data-testid": "topbar" }, "Bar"),
+			appBar: createElement("div", { "data-testid": "appbar" }, "Apps"),
 		});
-		assert.doesNotMatch(html, /data-testid="topbar"/);
+		assert.match(html, /data-testid="topbar"/);
+		assert.match(html, /data-testid="appbar"/);
 	});
 
 	it("renders the skeleton when isLoading is true", () => {
