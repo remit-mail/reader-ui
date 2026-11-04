@@ -50,7 +50,8 @@ export const TopBarAboveAppBar: Story = {
 	play: async () => {
 		await expect(await conversation()).toBeVisible();
 		const appBar = await page().findByRole("navigation", { name: "Apps" });
-		const topBar = page().getByRole("banner");
+		const topBar = page().getByLabelText("Search mail").closest("header");
+		if (!topBar) throw new Error("the search field is not inside a header");
 		const barRect = topBar.getBoundingClientRect();
 		const appBarRect = appBar.getBoundingClientRect();
 		await expect(barRect.left).toBeLessThanOrEqual(appBarRect.left);

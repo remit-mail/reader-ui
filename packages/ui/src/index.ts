@@ -63,6 +63,7 @@ export {
 	NextUpCard,
 	type NextUpCardProps,
 } from "./components/agenda-panels.js";
+export { AppChrome, type AppChromeProps } from "./components/app-chrome.js";
 export {
 	AppPasswordHint,
 	type AppPasswordHintProps,

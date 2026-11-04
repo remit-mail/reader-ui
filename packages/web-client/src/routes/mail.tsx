@@ -15,8 +15,10 @@ import {
 	useRouterState,
 } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo } from "react";
-import { AppFrame, AppFrameAppBar } from "../components/layout/AppFrame";
+import { AppFrame } from "../components/layout/AppFrame";
 import { ComposeFab } from "../components/layout/ComposeFab";
+import { DesktopAppBar } from "../components/layout/DesktopAppBar";
+import { DesktopChrome } from "../components/layout/DesktopChrome";
 import { MailShellProvider } from "../components/layout/MailShell";
 import { MailTopBar } from "../components/layout/MailTopBar";
 import { MailNav } from "../components/mail/MailNav";
@@ -211,7 +213,7 @@ function MailLayout() {
 		// and the phone takeover; there is no room for a bar spanning panes that do
 		// not exist side by side.
 		topBar: isSinglePane ? undefined : <MailTopBar accounts={accounts} />,
-		appBar: isSinglePane ? undefined : <AppFrameAppBar />,
+		appBar: tier === "phone" ? undefined : <DesktopAppBar />,
 		// Single-pane only, where the FAB is the compose entry point. Above it the
 		// top bar owns compose.
 		overlay: isSinglePane ? <ComposeFab /> : undefined,
@@ -223,17 +225,19 @@ function MailLayout() {
 	return (
 		<MailContext.Provider value={mailContextValue}>
 			<MailFreshnessProvider accountIds={accountIds}>
-				<AppFrame appBarInShell={!isSinglePane}>
+				<AppFrame>
 					{isConfigError ? (
-						<div className="flex h-full items-center justify-center bg-canvas p-4">
-							<ErrorState
-								title="Couldn't load your account"
-								error={configError}
-								onRetry={() => {
-									refetchConfig();
-								}}
-							/>
-						</div>
+						<DesktopChrome topBar={<MailTopBar accounts={accounts} />}>
+							<div className="flex h-full items-center justify-center bg-canvas p-4">
+								<ErrorState
+									title="Couldn't load your account"
+									error={configError}
+									onRetry={() => {
+										refetchConfig();
+									}}
+								/>
+							</div>
+						</DesktopChrome>
 					) : (
 						// Each list route mounts its own shell around its own panes.
 						<MailShellProvider chrome={shellChrome}>

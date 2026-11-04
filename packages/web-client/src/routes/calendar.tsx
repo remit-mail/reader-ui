@@ -13,6 +13,8 @@ import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { AppFrame } from "../components/layout/AppFrame";
 import { AppShellSkeleton } from "../components/layout/AppShellSkeleton";
+import { CalendarTopBar } from "../components/layout/CalendarTopBar";
+import { DesktopChrome } from "../components/layout/DesktopChrome";
 import { useIsWritingEvent } from "../routing";
 import "../lib/client";
 
@@ -45,21 +47,25 @@ function CalendarLayout() {
 
 	if (isError) {
 		return (
-			<div className="flex h-full items-center justify-center bg-canvas p-4">
-				<ErrorState
-					title="Couldn't load your account"
-					error={error}
-					onRetry={() => {
-						refetch();
-					}}
-				/>
-			</div>
+			<DesktopChrome topBar={<CalendarTopBar />}>
+				<div className="flex h-full items-center justify-center bg-canvas p-4">
+					<ErrorState
+						title="Couldn't load your account"
+						error={error}
+						onRetry={() => {
+							refetch();
+						}}
+					/>
+				</div>
+			</DesktopChrome>
 		);
 	}
 
 	return (
 		<AppFrame hideTabBar={isWriting}>
-			{isLoading || hasNoAccounts ? <AppShellSkeleton /> : <Outlet />}
+			<DesktopChrome topBar={<CalendarTopBar />}>
+				{isLoading || hasNoAccounts ? <AppShellSkeleton /> : <Outlet />}
+			</DesktopChrome>
 		</AppFrame>
 	);
 }

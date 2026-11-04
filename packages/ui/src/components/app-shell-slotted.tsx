@@ -1,4 +1,5 @@
 import { createContext, type ReactNode, useContext, useState } from "react";
+import { AppChrome } from "./app-chrome.js";
 import {
 	type PaneLayout,
 	resolvePaneLayout,
@@ -299,46 +300,40 @@ export function AppShellSlotted({
 				ref={containerRef}
 				className="safe-area-frame @container flex h-full w-full flex-col overflow-hidden bg-canvas font-sans text-fg"
 			>
-				{isLoading && skeleton ? (
-					skeleton
-				) : (
+				<AppChrome topBar={topBar} appBar={appBar}>
+					{isLoading && skeleton ? (
+						skeleton
+					) : navPaneVisible ? (
+						<ResizablePanelGroup
+							direction="horizontal"
+							className="min-h-0 flex-1"
+						>
+							<ResizablePanel
+								id="nav"
+								order={1}
+								defaultSize={17}
+								minSize={12}
+								maxSize={24}
+								className="min-w-0"
+							>
+								{nav}
+							</ResizablePanel>
+							<ResizableHandle />
+							<ResizablePanel
+								id="content"
+								order={2}
+								className="flex min-w-0 flex-col"
+							>
+								{content}
+							</ResizablePanel>
+						</ResizablePanelGroup>
+					) : (
+						content
+					)}
+				</AppChrome>
+
+				{!(isLoading && skeleton) && (
 					<>
-						{topBar}
-
-						<div className="flex min-h-0 flex-1">
-							{appBar}
-							<div className="flex min-h-0 min-w-0 flex-1 flex-col">
-								{navPaneVisible ? (
-									<ResizablePanelGroup
-										direction="horizontal"
-										className="min-h-0 flex-1"
-									>
-										<ResizablePanel
-											id="nav"
-											order={1}
-											defaultSize={17}
-											minSize={12}
-											maxSize={24}
-											className="min-w-0"
-										>
-											{nav}
-										</ResizablePanel>
-										<ResizableHandle />
-										<ResizablePanel
-											id="content"
-											order={2}
-											className="flex min-w-0 flex-col"
-										>
-											{content}
-										</ResizablePanel>
-									</ResizablePanelGroup>
-								) : (
-									content
-								)}
-							</div>
-						</div>
-
-						{/* Narrow nav: dismissible slide-over (#784). */}
 						{!showNavPane && (
 							<Dialog
 								open={navOpen}

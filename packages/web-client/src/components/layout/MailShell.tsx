@@ -75,6 +75,7 @@ export function MailShell({
 
 	const shared = {
 		nav: chrome.nav,
+		appBar: chrome.appBar,
 		overlay: chrome.overlay,
 		skeleton: <AppShellSkeleton />,
 		isLoading: chrome.isLoading,
@@ -97,7 +98,6 @@ export function MailShell({
 		<AppShellSlotted
 			{...shared}
 			topBar={chrome.topBar}
-			appBar={chrome.appBar}
 			list={list}
 			reading={reading}
 			intelligence={intelligence}
