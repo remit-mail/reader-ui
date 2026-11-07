@@ -1,0 +1,7 @@
+import{j as e}from"./iframe-COEer--I.js";import{S as a}from"./shield-alert-D8DI2iSE.js";function s({authenticity:n,onOpenIntelligence:t}){return n.dkimMismatch?e.jsxs("div",{className:"flex items-start gap-2 rounded-none border-b border-danger/20 bg-danger-soft px-5 py-2.5 text-sm",children:[e.jsx(a,{className:"mt-0.5 size-4 shrink-0 text-danger"}),e.jsxs("p",{className:"flex-1 leading-snug text-fg",children:["This message claims to be from"," ",e.jsx("span",{className:"font-semibold",children:n.fromDomain})," but was sent",n.dkimDomain?` via ${n.dkimDomain}`:" from a different domain","."," ",t&&e.jsx("button",{type:"button",onClick:t,className:"font-medium text-danger hover:underline",children:"Why?"})]})]}):null}s.__docgenInfo={description:`Danger banner rendered above the thread body when DKIM mismatch is detected.
+Design spec (03-reading-and-intelligence.md): "a danger banner renders above
+the body: 'This message claims to be a company but was sent from a personal
+mailbox.' with a 'Why?' link that opens/highlights this section."
+
+The link sits in the sentence at the sentence's own size. Set apart as
+smaller, right-floated chrome it read as a label rather than the way in.`,methods:[],displayName:"AuthenticityBanner",props:{authenticity:{required:!0,tsType:{name:"RemitImapMessageAuthenticity"},description:""},onOpenIntelligence:{required:!1,tsType:{name:"signature",type:"function",raw:"() => void",signature:{arguments:[],return:{name:"void"}}},description:""}}};export{s as A};
