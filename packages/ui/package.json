@@ -2,6 +2,7 @@
 	"name": "@remit/ui",
 	"version": "0.0.223",
 	"type": "module",
+	"sideEffects": ["**/*.css", "./src/components/rich-text-spellcheck-worker.ts", "./dist/components/rich-text-spellcheck-worker.js"],
 	"exports": {
 		".": "./src/index.ts",
 		"./mcp-pages": "./src/mcp-pages.ts",
