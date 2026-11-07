@@ -199,10 +199,6 @@ function PeopleTable({
 	);
 }
 
-/**
- * Everyone with an account on this self-hosted server, and the four actions any
- * signed-in person may take on them, each behind a password step-up.
- */
 export function PeoplePanel() {
 	const people = usePeople();
 	const [pending, setPending] = useState<PendingAction | null>(null);

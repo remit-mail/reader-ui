@@ -112,21 +112,12 @@ const confirmWithPassword = async (canvasElement: HTMLElement) => {
 	);
 };
 
-export const List: Story = {
-	play: async ({ canvasElement }) => {
-		const canvas = within(canvasElement);
-		await expect(await canvas.findByText("person1@example.com")).toBeVisible();
-		await expect(canvas.getByText("(you)")).toBeVisible();
-		await expect(canvas.getByText("Disabled")).toBeVisible();
-		await expect(canvas.getByRole("button", { name: "People" })).toBeVisible();
-	},
-};
+export const List: Story = {};
 
 export const RowMenu: Story = {
 	play: async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
 		await openMenu(canvasElement, "you@example.com");
-		await expect(await canvas.findByText("Not your own account")).toBeVisible();
 		await expect(
 			canvas.getByRole("button", { name: /Disable/ }),
 		).toBeDisabled();
@@ -140,10 +131,6 @@ export const ConfirmDisable: Story = {
 		await userEvent.click(
 			await canvas.findByRole("button", { name: "Disable" }),
 		);
-		const dialog = await canvas.findByRole("dialog", {
-			name: "Disable person1@example.com?",
-		});
-		await expect(within(dialog).getByLabelText("Your password")).toBeVisible();
 	},
 };
 

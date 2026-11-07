@@ -16,7 +16,6 @@ import { peopleActionMeta, replacePerson } from "../lib/people";
 export interface PersonActionInput {
 	action: RemitImapStepUpAction;
 	person: RemitImapPerson;
-	password: string;
 }
 
 export interface PersonActionResult {
@@ -58,19 +57,23 @@ const runAction = async (
 
 /**
  * One People action behind its own password step-up: the token is earned for
- * this action on this person and spent at once, never stored.
+ * this action on this person and spent at once, never stored. The password
+ * reaches the request through this closure, so it never becomes mutation
+ * variables, and `gcTime: 0` drops the result, reset link included, once the
+ * dialog lets go of it.
  */
-export const usePersonAction = () => {
+export const usePersonAction = (password: string) => {
 	const queryClient = useQueryClient();
 
 	return useMutation({
 		meta: peopleActionMeta,
+		gcTime: 0,
 		mutationFn: async (
 			input: PersonActionInput,
 		): Promise<PersonActionResult> => {
 			const { data } = await peopleOperationsCreateStepUp({
 				body: {
-					password: input.password,
+					password,
 					action: input.action,
 					userId: input.person.userId,
 				},

@@ -169,7 +169,9 @@ const isDesignedRestartGap = (
  *     answered "I'm broken"; that is never benign. The single exception is a
  *     502/503/504 on a call site that declared it is polling across a restart it
  *     asked for (`meta.restartExpected`, #468): there the backend being gone is
- *     the operation working, and that call site renders the wait itself.
+ *     the operation working, and that call site renders the wait itself. The
+ *     other is a user action whose call site states the failure on the screen
+ *     the user is on, with a report link (`meta.ownsServerErrors`).
  *  3. A client-side exception ALWAYS escalates, on the same terms. It is our
  *     bug; there is nothing for the user to retry and nothing to dismiss.
  *  4. A 401 NEVER escalates here: the session is gone, and the signed-out
@@ -187,7 +189,11 @@ export const shouldEscalate = (
 	error: unknown,
 	meta?: Record<string, unknown>,
 ): boolean => {
-	if (isServerError(error)) return !isDesignedRestartGap(error, meta);
+	if (isServerError(error)) {
+		return (
+			!isDesignedRestartGap(error, meta) && meta?.ownsServerErrors !== true
+		);
+	}
 	if (isAbortError(error)) return false;
 	if (isNetworkError(error)) return false;
 	if (isUnauthenticated(error)) return false;
@@ -237,6 +243,16 @@ export const softErrorStatuses = (
  */
 export const restartExpectedMeta: { restartExpected: true } = {
 	restartExpected: true,
+};
+
+/**
+ * For a user action that shows its own server failure where the user acted, as
+ * the People actions do: a banner naming what did not happen, with a prefilled
+ * report. A 401 still goes to the signed-out notice and a client bug still
+ * escalates.
+ */
+export const ownsServerErrorsMeta: { ownsServerErrors: true } = {
+	ownsServerErrors: true,
 };
 
 /** The record is not there. */

@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { HttpResponse, http } from "msw";
-import { expect, fn, userEvent, within } from "storybook/test";
+import { expect, fn, userEvent, waitFor, within } from "storybook/test";
 import { ResetPasswordPage } from "./ResetPasswordPage";
 
 const redeemed = http.post("/api/auth/reset-password", () =>
@@ -34,7 +34,7 @@ export const ResetPage: Story = {
 		).toBeVisible();
 		await expect(canvas.getByLabelText("New password")).toHaveFocus();
 		await setPassword(canvasElement, "a long phrase to remember");
-		await expect(args.onDone).toHaveBeenCalled();
+		await waitFor(() => expect(args.onDone).toHaveBeenCalled());
 	},
 };
 

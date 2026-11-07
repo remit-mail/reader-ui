@@ -73,6 +73,15 @@ describe("createRumTelemetry", () => {
 		);
 	});
 
+	it("recordPageView strips the reset link token", () => {
+		const t = createRumTelemetry(rum);
+		t.recordPageView("/reset-password/q8Zr2w1kVb0x");
+		assert.equal(
+			stubCalls(rum).recordPageView[0],
+			"/reset-password/[redacted]",
+		);
+	});
+
 	it("recordError scrubs message id tokens from error messages", () => {
 		const t = createRumTelemetry(rum);
 		const error = new Error("failed to load /messages/msg_abc123def456");

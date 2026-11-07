@@ -24,11 +24,6 @@ const WRONG_PASSWORD = "That is not your password. Try again.";
 const LOCKED =
 	"Five wrong passwords in 15 minutes. Wait 15 minutes, then try again.";
 
-/**
- * The confirm step of every People action. It asks for the caller's own
- * password, earns a step-up for this one action on this one person and spends
- * it straight away.
- */
 export function PersonActionDialog({
 	action,
 	person,
@@ -39,7 +34,7 @@ export function PersonActionDialog({
 	const copy = personActionCopy(action, person.email);
 	const [password, setPassword] = useState("");
 	const [problem, setProblem] = useState<string | null>(null);
-	const mutation = usePersonAction();
+	const mutation = usePersonAction(password);
 
 	const cancel = () => {
 		if (mutation.isPending) return;
@@ -51,7 +46,7 @@ export function PersonActionDialog({
 		if (mutation.isPending || password === "") return;
 		setProblem(null);
 		mutation.mutate(
-			{ action, person, password },
+			{ action, person },
 			{
 				onSuccess: onDone,
 				onError: (error) => {

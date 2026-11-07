@@ -7,6 +7,7 @@ import { buildBugReportContext, buildGitHubIssueUrl } from "./bug-report";
 import {
 	getErrorStatus,
 	isNetworkError,
+	ownsServerErrorsMeta,
 	softErrorStatuses,
 } from "./error-classifier";
 import { formatDatePreset } from "./format";
@@ -18,8 +19,14 @@ import { formatDatePreset } from "./format";
  */
 export const peopleQueryMeta = softErrorStatuses(403, 404);
 
-/** The action dialogs own every refusal the People operations answer. */
-export const peopleActionMeta = softErrorStatuses(403, 404, 409, 429);
+/**
+ * The action dialogs own every refusal the People operations answer, and a
+ * server failure too: it shows as the banner over the list.
+ */
+export const peopleActionMeta = {
+	...softErrorStatuses(403, 404, 409, 429),
+	...ownsServerErrorsMeta,
+};
 
 const SIGNED_OUT_CODES = new Set(["sign_in_disabled", "caller_disabled"]);
 
@@ -59,13 +66,11 @@ const failureReason = (error: unknown): string => {
 	return "Something went wrong on the server. Nothing changed. Try again.";
 };
 
-/** Why the People list did not load, for the banner over the page. */
 export const peopleListFailureReason = (error: unknown): string =>
 	isNetworkError(error)
 		? "The server could not be reached. Check your connection and try again."
 		: "The server did not answer as expected. Try again.";
 
-/** Sorts a failed step-up or action into what the page shows for it. */
 export const classifyPeopleFailure = (error: unknown): PeopleFailure => {
 	if (getErrorStatus(error) === 401 || isPeopleSignedOut(error)) {
 		return { kind: "signedOut" };
@@ -148,7 +153,6 @@ const sameDay = (a: Date, b: Date): boolean =>
 	a.getMonth() === b.getMonth() &&
 	a.getDate() === b.getDate();
 
-/** A People table date: "Today", or the day in the reader's locale. */
 export const formatPersonDate = (epochMs: number, now: Date): string =>
 	sameDay(new Date(epochMs), now)
 		? "Today"

@@ -9,6 +9,7 @@ import {
 	isNetworkError,
 	isNotFound,
 	isServerError,
+	ownsServerErrorsMeta,
 	restartExpectedMeta,
 	shouldEscalate,
 	softErrorStatuses,
@@ -341,6 +342,22 @@ describe("meta.softErrorStatuses (one outcome owned, the rest not)", () => {
 		assert.equal(isNotFound({ status: 404 }), true);
 		assert.equal(isNotFound(new ApiError("gone", 410)), false);
 		assert.equal(isNotFound(new TypeError("x is undefined")), false);
+	});
+});
+
+describe("meta.ownsServerErrors (a user action that shows its own failure)", () => {
+	it("keeps a 5xx off the fatal page", () => {
+		assert.equal(
+			shouldEscalate(new ApiError("boom", 500), ownsServerErrorsMeta),
+			false,
+		);
+	});
+
+	it("still escalates a client bug", () => {
+		assert.equal(
+			shouldEscalate(new TypeError("x is undefined"), ownsServerErrorsMeta),
+			true,
+		);
 	});
 });
 

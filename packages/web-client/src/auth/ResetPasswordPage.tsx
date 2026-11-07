@@ -16,7 +16,6 @@ import { authClient } from "./better-auth-config";
 
 const RESET_PATH = /\/reset-password\/([^/]+)\/?$/;
 
-/** The token in a `/reset-password/<token>` address, the link People hands out. */
 export const resetPasswordToken = (pathname: string): string | undefined => {
 	const match = RESET_PATH.exec(pathname);
 	return match?.[1] ? decodeURIComponent(match[1]) : undefined;

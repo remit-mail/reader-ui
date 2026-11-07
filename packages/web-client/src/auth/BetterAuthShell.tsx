@@ -49,10 +49,6 @@ const SIGN_IN_REQUEST: AuthRequest = {
 	path: "/api/auth/sign-in/email",
 };
 
-/**
- * What the sign-in screen says before the form: a server refusal it learned
- * from the session lookup or a submit, or the password a reset link just set.
- */
 export type SignInNotice = AuthRefusal | "passwordChanged";
 
 const NoticeBanner = ({ notice }: { notice: SignInNotice }) => {
@@ -219,6 +215,7 @@ export const SignInForm = ({ notice: initialNotice }: SignInFormProps) => {
 							onChange={(e) => setEmail(e.target.value)}
 							placeholder="you@example.com"
 							required
+							disabled={signInOff}
 						/>
 					</div>
 
@@ -235,10 +232,11 @@ export const SignInForm = ({ notice: initialNotice }: SignInFormProps) => {
 							onChange={(e) => setPassword(e.target.value)}
 							placeholder="Your password"
 							required
+							disabled={signInOff}
 						/>
 					</div>
 
-					<Button type="submit">
+					<Button type="submit" disabled={signInOff}>
 						{activeMode === "signUp" ? "Create account" : "Sign in"}
 					</Button>
 				</form>
