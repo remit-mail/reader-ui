@@ -3,8 +3,12 @@ import { AccountSession } from "./AccountSession";
 
 export const AccountMenu = () => (
 	<AccountSession>
-		{({ email, signOut }) => (
-			<AccountMenuView email={email} onSignOut={signOut} />
+		{({ email, signOut, securityUrl }) => (
+			<AccountMenuView
+				email={email}
+				securityUrl={securityUrl}
+				onSignOut={signOut}
+			/>
 		)}
 	</AccountSession>
 );

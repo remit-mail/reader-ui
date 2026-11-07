@@ -1,4 +1,4 @@
-import { LogOut } from "lucide-react";
+import { LogOut, ShieldCheck } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { Avatar } from "./avatar.js";
 import {
@@ -10,10 +10,15 @@ import {
 
 export interface AccountMenuProps {
 	email: string | null;
+	securityUrl?: string;
 	onSignOut: () => void;
 }
 
-export function AccountMenu({ email, onSignOut }: AccountMenuProps) {
+export function AccountMenu({
+	email,
+	securityUrl,
+	onSignOut,
+}: AccountMenuProps) {
 	const triggerRef = useRef<HTMLButtonElement>(null);
 	const { open, setOpen, containerRef, panelRef, getAnchor } =
 		usePopoverMenuState("account-menu", () => triggerRef.current?.focus());
@@ -61,6 +66,16 @@ export function AccountMenu({ email, onSignOut }: AccountMenuProps) {
 							</div>
 							<hr className="my-1 h-px border-0 bg-line" />
 						</>
+					)}
+					{securityUrl && (
+						<PopoverMenuRow
+							label="Security"
+							icon={<ShieldCheck className="size-4" />}
+							onSelect={() => {
+								setOpen(false);
+								window.location.assign(securityUrl);
+							}}
+						/>
 					)}
 					<PopoverMenuRow
 						label="Sign out"

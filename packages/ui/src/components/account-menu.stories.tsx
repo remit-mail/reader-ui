@@ -35,6 +35,18 @@ export const Open: Story = {
 	},
 };
 
+export const WithSecurityLink: Story = {
+	args: { securityUrl: "https://login.example.com/security" },
+	play: async ({ canvasElement }) => {
+		const canvas = within(canvasElement);
+		await userEvent.click(canvas.getByRole("button", { name: "Account" }));
+		const page = within(canvasElement.ownerDocument.body);
+		await expect(
+			page.getByRole("menuitem", { name: "Security" }),
+		).toBeVisible();
+	},
+};
+
 export const NoEmail: Story = {
 	args: { email: null },
 	play: async ({ canvasElement }) => {
