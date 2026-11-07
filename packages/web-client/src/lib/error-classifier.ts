@@ -102,12 +102,23 @@ export const isAlwaysFatal = (error: unknown): boolean =>
 	isServerError(error) || isClientBug(error);
 
 /**
- * The session is gone. Not 403: a handler answers 403 for a resource belonging
- * to another account config, which is a refusal a call site can state where it
- * stands. A 401 is the user signed out from under whatever they were doing.
+ * The bearer token could not be minted because the server refused the session
+ * itself: the self-host kill switch is on, or the account was disabled. Read by
+ * name, as `isAbortError` does, so this module never loads the auth client.
+ */
+const isRefusedTokenMint = (error: unknown): boolean =>
+	error instanceof Error &&
+	error.name === "AuthTokenError" &&
+	getErrorStatus(error) === 403;
+
+/**
+ * The session is gone. Not any 403: a handler answers 403 for a resource
+ * belonging to another account config, which is a refusal a call site can state
+ * where it stands. A 401 is the user signed out from under whatever they were
+ * doing, and so is a token mint the server refused.
  */
 export const isUnauthenticated = (error: unknown): boolean =>
-	getErrorStatus(error) === 401;
+	getErrorStatus(error) === 401 || isRefusedTokenMint(error);
 
 const isSoftErrorMeta = (
 	error: unknown,

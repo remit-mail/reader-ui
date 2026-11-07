@@ -10,7 +10,7 @@ import { SelfUpdatePanel } from "../../components/settings/SelfUpdatePanel";
 import { TlsRootCaDownload } from "../../components/settings/TlsRootCaDownload";
 import { AppVersion } from "../../components/ui/AppVersion";
 import { getRuntimeConfig } from "../../runtime-config";
-import { SETTINGS_ID_TO_PATH, SETTINGS_NAV_ITEMS } from "../settings";
+import { SETTINGS_ID_TO_PATH, useSettingsNavItems } from "../settings";
 import { advancedHelp } from "./-shared/help-copy";
 
 export const Route = createFileRoute("/settings/advanced")({
@@ -19,6 +19,7 @@ export const Route = createFileRoute("/settings/advanced")({
 
 function AdvancedSettings() {
 	const navigate = useNavigate();
+	const navItems = useSettingsNavItems();
 	const [helpOpen, setHelpOpen] = useState(true);
 
 	const handleSelectNav = (id: string) => {
@@ -28,7 +29,7 @@ function AdvancedSettings() {
 
 	return (
 		<SettingsShell
-			items={SETTINGS_NAV_ITEMS}
+			items={navItems}
 			activeId="advanced"
 			title="Advanced"
 			description="Notification rules, export, and diagnostics."

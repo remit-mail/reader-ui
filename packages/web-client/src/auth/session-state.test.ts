@@ -63,4 +63,34 @@ describe("classifySessionQuery", () => {
 			{ kind: "signedOut" },
 		);
 	});
+
+	it("ends a held session when the kill switch or a disable refuses it", () => {
+		assert.deepEqual(
+			classifySessionQuery({
+				data: { user: { id: "u1" } },
+				isPending: false,
+				error: { status: 403, code: "SIGN_IN_DISABLED" },
+			}),
+			{ kind: "refused", refusal: "signInOff" },
+		);
+		assert.deepEqual(
+			classifySessionQuery({
+				data: null,
+				isPending: false,
+				error: { status: 403, code: "ACCOUNT_DISABLED" },
+			}),
+			{ kind: "refused", refusal: "accountDisabled" },
+		);
+	});
+
+	it("keeps a held session through a 403 that carries no refusal code", () => {
+		assert.deepEqual(
+			classifySessionQuery({
+				data: { user: { id: "u1" } },
+				isPending: false,
+				error: { status: 403, code: "FORBIDDEN" },
+			}),
+			{ kind: "active" },
+		);
+	});
 });

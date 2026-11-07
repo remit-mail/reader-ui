@@ -7,7 +7,13 @@ import {
 	Input,
 	PasswordInput,
 } from "@remit/ui";
-import { type FormEvent, type ReactNode, useState } from "react";
+import {
+	type FormEvent,
+	type ReactNode,
+	useEffect,
+	useRef,
+	useState,
+} from "react";
 import { AppShellSkeleton } from "../components/layout/AppShellSkeleton";
 import { FatalErrorOverlay } from "../components/ui/FatalErrorOverlay";
 import { openBugReport } from "../lib/bug-report";
@@ -18,11 +24,13 @@ import {
 	classifyAuthError,
 	reportFatalAuthError,
 } from "./auth-error";
+import { type AuthRefusal, authRefusal } from "./auth-refusal";
 import {
 	authClient,
 	isBetterAuthEnabled,
 	isSignUpDisabledError,
 } from "./better-auth-config";
+import { ResetPasswordPage, resetPasswordToken } from "./ResetPasswordPage";
 import { SessionRateLimited } from "./SessionRateLimited";
 import { classifySessionQuery, type SessionQuery } from "./session-state";
 
@@ -41,7 +49,50 @@ const SIGN_IN_REQUEST: AuthRequest = {
 	path: "/api/auth/sign-in/email",
 };
 
-export const SignInForm = () => {
+/**
+ * What the sign-in screen says before the form: a server refusal it learned
+ * from the session lookup or a submit, or the password a reset link just set.
+ */
+export type SignInNotice = AuthRefusal | "passwordChanged";
+
+const NoticeBanner = ({ notice }: { notice: SignInNotice }) => {
+	const ref = useRef<HTMLDivElement>(null);
+
+	useEffect(() => {
+		ref.current?.focus();
+	}, []);
+
+	return (
+		<div ref={ref} tabIndex={-1} className="outline-none">
+			{notice === "signInOff" && (
+				<Banner tone="info">
+					<p className="font-medium">Sign-in is turned off on this server.</p>
+					<p className="mt-1">
+						The person who runs this server turned it off. Ask them when it is
+						back.
+					</p>
+				</Banner>
+			)}
+			{notice === "accountDisabled" && (
+				<Banner tone="danger">
+					<p className="font-medium">This account is disabled.</p>
+					<p className="mt-1">Ask the person who runs this server.</p>
+				</Banner>
+			)}
+			{notice === "passwordChanged" && (
+				<Banner tone="success">
+					Password changed. Sign in with your new password.
+				</Banner>
+			)}
+		</div>
+	);
+};
+
+interface SignInFormProps {
+	notice?: SignInNotice;
+}
+
+export const SignInForm = ({ notice: initialNotice }: SignInFormProps) => {
 	const [mode, setMode] = useState<Mode>("signIn");
 	const [name, setName] = useState("");
 	const [email, setEmail] = useState("");
@@ -51,10 +102,17 @@ export const SignInForm = () => {
 	// Learned from the server's rejection, never a client-side flag — the UI
 	// cannot disagree with better-auth's `disableSignUp`.
 	const [signUpClosed, setSignUpClosed] = useState(false);
+	const [notice, setNotice] = useState<SignInNotice | undefined>(initialNotice);
 
-	const activeMode: Mode = signUpClosed ? "signIn" : mode;
+	const signInOff = notice === "signInOff";
+	const activeMode: Mode = signUpClosed || signInOff ? "signIn" : mode;
 
 	const handleFailure = (failure: unknown, request: AuthRequest) => {
+		const refusal = authRefusal(failure);
+		if (refusal) {
+			setNotice(refusal);
+			return;
+		}
 		if (isSignUpDisabledError(failure)) {
 			setSignUpClosed(true);
 			setMode("signIn");
@@ -72,6 +130,7 @@ export const SignInForm = () => {
 		event.preventDefault();
 		if (submitting) return;
 		setError(null);
+		setNotice(undefined);
 		setSubmitting(true);
 
 		const request = activeMode === "signUp" ? SIGN_UP_REQUEST : SIGN_IN_REQUEST;
@@ -101,7 +160,9 @@ export const SignInForm = () => {
 					onSubmit={submit}
 					className="mt-6 flex flex-col gap-4 rounded-lg border border-line bg-surface p-7 shadow-lg"
 				>
-					{signUpClosed ? (
+					{notice && <NoticeBanner key={notice} notice={notice} />}
+
+					{signInOff ? null : signUpClosed ? (
 						<Banner tone="info">
 							New signups are currently closed. Sign in with an existing
 							account, or contact your administrator for access.
@@ -195,6 +256,7 @@ export const SignInForm = () => {
 interface SessionGateProps {
 	session: SessionQuery;
 	onRetry: () => void;
+	notice?: SignInNotice;
 	children: ReactNode;
 }
 
@@ -205,6 +267,7 @@ interface SessionGateProps {
 export const SessionGate = ({
 	session,
 	onRetry,
+	notice,
 	children,
 }: SessionGateProps) => {
 	const state = classifySessionQuery(session);
@@ -214,11 +277,35 @@ export const SessionGate = ({
 	if (state.kind === "rateLimited") {
 		return <SessionRateLimited onRetry={onRetry} onReport={openBugReport} />;
 	}
-	return <SignInForm />;
+	if (state.kind === "refused") {
+		return <SignInForm key={state.refusal} notice={state.refusal} />;
+	}
+	return <SignInForm notice={notice} />;
 };
 
+/**
+ * The gate, plus the one page that stands before it: a reset link opens its
+ * page signed out, and setting the password leads to the sign-in form.
+ */
 export const BetterAuthShell = ({ children }: BetterAuthShellProps) => {
 	const { data, isPending, error, refetch } = authClient.useSession();
+	const [resetToken, setResetToken] = useState(() =>
+		resetPasswordToken(window.location.pathname),
+	);
+	const [notice, setNotice] = useState<SignInNotice | undefined>(undefined);
+
+	if (resetToken) {
+		return (
+			<ResetPasswordPage
+				token={resetToken}
+				onDone={() => {
+					window.history.replaceState(null, "", "/");
+					setResetToken(undefined);
+					setNotice("passwordChanged");
+				}}
+			/>
+		);
+	}
 
 	return (
 		<SessionGate
@@ -226,6 +313,7 @@ export const BetterAuthShell = ({ children }: BetterAuthShellProps) => {
 			onRetry={() => {
 				void refetch();
 			}}
+			notice={notice}
 		>
 			{children}
 		</SessionGate>

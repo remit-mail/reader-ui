@@ -2,7 +2,7 @@ import { SettingsShell } from "@remit/ui";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { WarningsPanel } from "../../components/settings/WarningsPanel";
-import { SETTINGS_ID_TO_PATH, SETTINGS_NAV_ITEMS } from "../settings";
+import { SETTINGS_ID_TO_PATH, useSettingsNavItems } from "../settings";
 import { warningsHelp } from "./-shared/help-copy";
 
 export const Route = createFileRoute("/settings/warnings")({
@@ -11,6 +11,7 @@ export const Route = createFileRoute("/settings/warnings")({
 
 function WarningsSettings() {
 	const navigate = useNavigate();
+	const navItems = useSettingsNavItems();
 	const [helpOpen, setHelpOpen] = useState(true);
 
 	const handleSelectNav = (id: string) => {
@@ -20,7 +21,7 @@ function WarningsSettings() {
 
 	return (
 		<SettingsShell
-			items={SETTINGS_NAV_ITEMS}
+			items={navItems}
 			activeId="warnings"
 			title="Warnings"
 			description="Messages that failed to sync, and messages set aside."

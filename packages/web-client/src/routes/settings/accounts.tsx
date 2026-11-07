@@ -35,7 +35,7 @@ import {
 } from "../../hooks/useRedirectEnded";
 import { useReturnFromRedirect } from "../../hooks/useReturnFromRedirect";
 import { formatRelativeTime } from "../../lib/format";
-import { SETTINGS_ID_TO_PATH, SETTINGS_NAV_ITEMS } from "../settings";
+import { SETTINGS_ID_TO_PATH, useSettingsNavItems } from "../settings";
 import { accountsHelp } from "./-shared/help-copy";
 
 const accountsSearchSchema = z.object({
@@ -221,6 +221,7 @@ const LoadingSkeleton = () => (
 function AccountsSettings() {
 	const search = Route.useSearch();
 	const navigate = useNavigate({ from: Route.fullPath });
+	const navItems = useSettingsNavItems();
 	const [helpOpen, setHelpOpen] = useState(true);
 
 	const [showForm, setShowForm] = useState(false);
@@ -421,7 +422,7 @@ function AccountsSettings() {
 
 	return (
 		<SettingsShell
-			items={SETTINGS_NAV_ITEMS}
+			items={navItems}
 			activeId="accounts"
 			title="Accounts"
 			description="Every account keeps syncing — muted ones just stay out of unified views."

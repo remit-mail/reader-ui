@@ -39,7 +39,7 @@ import {
 	labelForMailbox,
 	NAV_ROLE_TO_CANONICAL,
 } from "../../lib/folder-roles";
-import { SETTINGS_ID_TO_PATH, SETTINGS_NAV_ITEMS } from "../settings";
+import { SETTINGS_ID_TO_PATH, useSettingsNavItems } from "../settings";
 
 export const Route = createFileRoute("/settings/folders")({
 	component: FoldersSettings,
@@ -274,6 +274,7 @@ function AccountFolders({ account }: { account: RemitImapAccountResponse }) {
 
 function FoldersSettings() {
 	const navigate = useNavigate();
+	const navItems = useSettingsNavItems();
 	const [helpOpen, setHelpOpen] = useState(true);
 
 	const {
@@ -291,7 +292,7 @@ function FoldersSettings() {
 
 	return (
 		<SettingsShell
-			items={SETTINGS_NAV_ITEMS}
+			items={navItems}
 			activeId="folders"
 			title="Folder roles"
 			description="Appoint which real folder fills each canonical role, per account."

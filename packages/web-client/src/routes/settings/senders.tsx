@@ -33,7 +33,7 @@ import { Search, Star, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 import { formatDate } from "../../lib/format";
-import { SETTINGS_ID_TO_PATH, SETTINGS_NAV_ITEMS } from "../settings";
+import { SETTINGS_ID_TO_PATH, useSettingsNavItems } from "../settings";
 import { sendersHelp } from "./-shared/help-copy";
 
 export const Route = createFileRoute("/settings/senders")({
@@ -344,6 +344,7 @@ export function SearchGroupPane({
 
 function SendersSettings() {
 	const navigate = useNavigate();
+	const navItems = useSettingsNavItems();
 	const [group, setGroup] = useState<SenderGroup>("vip");
 	const [query, setQuery] = useState("");
 	const [helpOpen, setHelpOpen] = useState(true);
@@ -378,7 +379,7 @@ function SendersSettings() {
 
 	return (
 		<SettingsShell
-			items={SETTINGS_NAV_ITEMS}
+			items={navItems}
 			activeId="senders"
 			title="Senders & Rules"
 			description="Per-sender preferences — set with one key from any message, managed here."

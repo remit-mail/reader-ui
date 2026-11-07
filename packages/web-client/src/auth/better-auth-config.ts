@@ -200,7 +200,7 @@ const isTransientMintFailure = (error: unknown): boolean => {
  * signed for that same revoked session, so it must be discarded rather than
  * served until it expires.
  */
-const isRevocation = (error: unknown): boolean =>
+const isRevocation = (error: unknown): error is AuthTokenError =>
 	error instanceof AuthTokenError &&
 	(error.status === 401 || error.status === 403);
 
@@ -236,6 +236,9 @@ export const fetchBetterAuthToken = async (): Promise<string> => {
 	} catch (error) {
 		if (isRevocation(error)) {
 			resetBetterAuthTokenCache();
+			// A 403 is the kill switch or a disabled account. The session lookup
+			// answers it with a code the sign-in screen states, so re-read it.
+			if (error.status === 403) authClient.$store.notify("$sessionSignal");
 			throw error;
 		}
 		if (current && isUsable(current) && isTransientMintFailure(error)) {
