@@ -97,16 +97,12 @@ export function OutboxRow({
 										} as const,
 									]
 								: []),
-							...(status === "unfiled"
-								? []
-								: [
-										{
-											label: "Edit as draft",
-											iconOnly: true,
-											icon: <Send className="size-3.5" />,
-											onClick: onEdit,
-										} as const,
-									]),
+							{
+								label: "Edit as draft",
+								iconOnly: true,
+								icon: <Send className="size-3.5" />,
+								onClick: onEdit,
+							} as const,
 						]}
 						destructive={{
 							label: "Delete message",
