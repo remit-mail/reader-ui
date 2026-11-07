@@ -9,7 +9,7 @@ import { CalendarSubscriptionStatus } from "../../components/settings/CalendarSu
 import { useCalendarCollectionWrites } from "../../hooks/calendar/useCalendarCollectionWrites";
 import { useCalendarSubscriptions } from "../../hooks/calendar/useCalendarSubscriptions";
 import { useCalendars } from "../../hooks/calendar/useCalendars";
-import { SETTINGS_ID_TO_PATH, SETTINGS_NAV_ITEMS } from "../settings";
+import { SETTINGS_ID_TO_PATH, useSettingsNavItems } from "../settings";
 
 export const Route = createFileRoute("/settings/calendars")({
 	component: CalendarsSettings,
@@ -47,6 +47,7 @@ const calendarsHelp = (
 
 function CalendarsSettings() {
 	const navigate = useNavigate();
+	const navItems = useSettingsNavItems();
 	const [helpOpen, setHelpOpen] = useState(true);
 	const { calendars, collections, timeZoneByCalendarId, isLoading } =
 		useCalendars();
@@ -56,7 +57,7 @@ function CalendarsSettings() {
 
 	return (
 		<SettingsShell
-			items={SETTINGS_NAV_ITEMS}
+			items={navItems}
 			activeId="calendars"
 			title="Calendars"
 			description="Add, rename and delete calendars, subscribe to a calendar feed, and share one with any client that can subscribe to a URL."

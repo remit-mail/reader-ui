@@ -14,7 +14,7 @@ import {
 	setThemePreference,
 	type ThemePreference,
 } from "../../lib/theme-preference";
-import { SETTINGS_ID_TO_PATH, SETTINGS_NAV_ITEMS } from "../settings";
+import { SETTINGS_ID_TO_PATH, useSettingsNavItems } from "../settings";
 import { appearanceHelp } from "./-shared/help-copy";
 
 export const Route = createFileRoute("/settings/appearance")({
@@ -39,6 +39,7 @@ function readDensity(): Density {
 
 function AppearanceSettings() {
 	const navigate = useNavigate();
+	const navItems = useSettingsNavItems();
 	const [helpOpen, setHelpOpen] = useState(true);
 
 	const [density, setDensity] = useState<Density>(readDensity);
@@ -65,7 +66,7 @@ function AppearanceSettings() {
 
 	return (
 		<SettingsShell
-			items={SETTINGS_NAV_ITEMS}
+			items={navItems}
 			activeId="appearance"
 			title="Appearance"
 			description="Display density and colour theme — instant-apply."

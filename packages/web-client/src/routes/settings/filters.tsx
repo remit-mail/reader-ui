@@ -25,7 +25,7 @@ import {
 import { buildMailboxRoleMap, labelForMailbox } from "../../lib/folder-roles";
 import { buildMoveOptions, folderDelimiter } from "../../lib/move-options";
 import { filterRunStatus } from "../../lib/organize/filter-run";
-import { SETTINGS_ID_TO_PATH, SETTINGS_NAV_ITEMS } from "../settings";
+import { SETTINGS_ID_TO_PATH, useSettingsNavItems } from "../settings";
 
 export const Route = createFileRoute("/settings/filters")({
 	component: FiltersSettings,
@@ -203,6 +203,7 @@ export function AccountFilters({
 
 function FiltersSettings() {
 	const navigate = useNavigate();
+	const navItems = useSettingsNavItems();
 	const [helpOpen, setHelpOpen] = useState(true);
 
 	const {
@@ -220,7 +221,7 @@ function FiltersSettings() {
 
 	return (
 		<SettingsShell
-			items={SETTINGS_NAV_ITEMS}
+			items={navItems}
 			activeId="filters"
 			title="Filters"
 			description="Standing and temporary rules created by Organize, per account."

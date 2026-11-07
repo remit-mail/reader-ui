@@ -25,7 +25,7 @@ import {
 	useUpdateLabel,
 } from "../../hooks/useLabels";
 import { deleteLabelConfirmCopy } from "../../lib/organize/label-delete-copy";
-import { SETTINGS_ID_TO_PATH, SETTINGS_NAV_ITEMS } from "../settings";
+import { SETTINGS_ID_TO_PATH, useSettingsNavItems } from "../settings";
 
 export const Route = createFileRoute("/settings/labels")({
 	component: LabelsSettings,
@@ -186,6 +186,7 @@ function AccountLabels({ account }: { account: RemitImapAccountResponse }) {
 
 function LabelsSettings() {
 	const navigate = useNavigate();
+	const navItems = useSettingsNavItems();
 	const [helpOpen, setHelpOpen] = useState(true);
 
 	const {
@@ -203,7 +204,7 @@ function LabelsSettings() {
 
 	return (
 		<SettingsShell
-			items={SETTINGS_NAV_ITEMS}
+			items={navItems}
 			activeId="labels"
 			title="Labels"
 			description="Mark mail without moving it, per account."

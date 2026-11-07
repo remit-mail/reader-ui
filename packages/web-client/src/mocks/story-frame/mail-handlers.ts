@@ -21,6 +21,7 @@ import type {
 	MessageCalendarSuggestionOperationsListMessageCalendarSuggestionsResponse,
 	OrganizeOperationsPreviewOrganizeResponse,
 	OutboxOperationsListOutboxMessagesResponse,
+	PeopleOperationsListPeopleErrors,
 	RemitImapConfigDescriptionResponse,
 	RemitImapCreateOutboxMessageInput,
 	RemitImapDescribeMessageResponse,
@@ -228,6 +229,13 @@ export const mailHandlers = (
 		);
 
 	return [
+		// Off self-host, or with self sign-up open, the server has no People page.
+		http.get(`${API}/people`, () =>
+			HttpResponse.json<PeopleOperationsListPeopleErrors[404]>(
+				{ code: "not_found", message: "Not found" },
+				{ status: 404 },
+			),
+		),
 		http.get(`${API}/config`, () =>
 			options.config === "holds"
 				? pending()

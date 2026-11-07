@@ -6,8 +6,12 @@ import { noopTelemetry } from "./telemetry";
 const ID_TOKEN_PATTERN =
 	/([?&](token|access_token|id_token|authorization)=[^&]*)|\/messages\/[a-z0-9_-]+/gi;
 
+const RESET_TOKEN_PATTERN = /\/reset-password\/[^/?#\s]+/gi;
+
 function scrubIds(value: string): string {
-	return value.replace(ID_TOKEN_PATTERN, "[redacted]");
+	return value
+		.replace(ID_TOKEN_PATTERN, "[redacted]")
+		.replace(RESET_TOKEN_PATTERN, "/reset-password/[redacted]");
 }
 
 function sanitizePath(path: string): string {
