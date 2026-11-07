@@ -54,11 +54,23 @@ const isDeliberateAbort = (error: unknown): boolean =>
  * breadcrumb (method, path, status, duration, correlation id) for bug reports.
  * A deliberate abort is not a request outcome worth reporting, so it is
  * re-thrown before any breadcrumb is written.
+ *
+ * Redirects are never followed. Behind Cloudflare Access an expired session
+ * answers with a 302 to the login page on another origin, which sends no CORS
+ * headers, so a followed redirect rejects as "Failed to fetch" and would read
+ * as an offline blip. No API route redirects a fetch, so an opaque redirect
+ * means the session is gone and becomes a 401, the signed-out path. The
+ * `redirect` in `init` overrides the one on a `Request` input, which is what
+ * the generated client passes.
  */
 export const taggedFetch: typeof fetch = async (input, init) => {
 	const startedAt = performance.now();
 	try {
-		const response = await fetch(input, init);
+		const received = await fetch(input, { ...init, redirect: "manual" });
+		const response =
+			received.type === "opaqueredirect"
+				? new Response(null, { status: 401 })
+				: received;
 		recordRequest({
 			input,
 			init,

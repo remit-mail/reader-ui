@@ -7,6 +7,8 @@ import { getRuntimeConfig } from "../runtime-config";
 import { type HttpMock, mockFetch } from "../test-support/http";
 import { ApiError } from "./api";
 import "./client";
+import { escalate } from "./escalate";
+import { isSignedOut, resetSignedOut } from "./signed-out";
 
 let http: HttpMock | undefined;
 
@@ -67,6 +69,37 @@ describe("the error interceptor", () => {
 
 		assert.ok(error instanceof ApiError);
 		assert.equal(error.message, "Request failed with status 503");
+	});
+
+	it("sends an expired Access session redirect to the signed-out notice", async () => {
+		const sentRedirects: Array<RequestRedirect | undefined> = [];
+		const original = globalThis.fetch;
+		globalThis.fetch = (async (
+			_input: RequestInfo | URL,
+			init?: RequestInit,
+		) => {
+			sentRedirects.push(init?.redirect);
+			const response = new Response(null, { status: 200 });
+			Object.defineProperty(response, "type", { value: "opaqueredirect" });
+			return response;
+		}) as typeof fetch;
+		resetSignedOut();
+
+		try {
+			const error = await empty().then(
+				() => undefined,
+				(reason: unknown) => reason,
+			);
+			escalate(error);
+
+			assert.deepEqual(sentRedirects, ["manual"]);
+			assert.ok(error instanceof ApiError);
+			assert.equal(error.status, 401);
+			assert.equal(isSignedOut(), true);
+		} finally {
+			globalThis.fetch = original;
+			resetSignedOut();
+		}
 	});
 });
 
