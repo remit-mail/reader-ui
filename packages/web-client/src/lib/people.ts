@@ -2,6 +2,7 @@ import type {
 	RemitImapPerson,
 	RemitImapStepUpAction,
 } from "@remit/api-http-client/types.gen.ts";
+import { PeopleErrorCode } from "@remit/domain-enums";
 import { codedApiErrorBody } from "./api";
 import { buildBugReportContext, buildGitHubIssueUrl } from "./bug-report";
 import {
@@ -28,7 +29,10 @@ export const peopleActionMeta = {
 	...ownsServerErrorsMeta,
 };
 
-const SIGNED_OUT_CODES = new Set(["sign_in_disabled", "caller_disabled"]);
+const SIGNED_OUT_CODES = new Set<string>([
+	PeopleErrorCode.SignInDisabled,
+	PeopleErrorCode.CallerDisabled,
+]);
 
 /**
  * A People refusal that means the caller's session no longer counts: the kill
@@ -51,13 +55,13 @@ const failureReason = (error: unknown): string => {
 		return "The server could not be reached. Nothing changed. Try again.";
 	}
 	const code = codedApiErrorBody(error)?.code;
-	if (code === "cannot_disable_self") {
+	if (code === PeopleErrorCode.CannotDisableSelf) {
 		return "You cannot disable your own account, so one account always stays on.";
 	}
-	if (code === "step_up_required") {
+	if (code === PeopleErrorCode.StepUpRequired) {
 		return "The password check did not carry over to the action. Nothing changed. Try again.";
 	}
-	if (code === "foreign_origin") {
+	if (code === PeopleErrorCode.ForeignOrigin) {
 		return "The server refused a request from this address. Nothing changed. Open this page from the server's own address.";
 	}
 	if (getErrorStatus(error) === 404) {
@@ -76,8 +80,8 @@ export const classifyPeopleFailure = (error: unknown): PeopleFailure => {
 		return { kind: "signedOut" };
 	}
 	const code = codedApiErrorBody(error)?.code;
-	if (code === "wrong_password") return { kind: "wrongPassword" };
-	if (code === "step_up_locked") return { kind: "locked" };
+	if (code === PeopleErrorCode.WrongPassword) return { kind: "wrongPassword" };
+	if (code === PeopleErrorCode.StepUpLocked) return { kind: "locked" };
 	return { kind: "failed", reason: failureReason(error) };
 };
 

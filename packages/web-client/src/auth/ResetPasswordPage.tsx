@@ -21,17 +21,8 @@ export const resetPasswordToken = (pathname: string): string | undefined => {
 	return match?.[1] ? decodeURIComponent(match[1]) : undefined;
 };
 
-const MIN_LENGTH = 12;
-const MAX_LENGTH = 128;
-
-const lengthProblem = (password: string): string | undefined => {
-	const length = [...password].length;
-	if (length >= MIN_LENGTH && length <= MAX_LENGTH) return undefined;
-	return `This password has ${length} characters. Use ${MIN_LENGTH} to ${MAX_LENGTH}.`;
-};
-
 type Problem =
-	| { kind: "length"; message: string }
+	| { kind: "password"; message: string }
 	| { kind: "deadLink" }
 	| { kind: "signInOff" }
 	| { kind: "inline"; message: string }
@@ -59,6 +50,12 @@ const problemFor = (failure: unknown): Problem => {
 			? failure.code
 			: undefined;
 	if (code === "INVALID_TOKEN") return { kind: "deadLink" };
+	if (code === "PASSWORD_TOO_SHORT" || code === "PASSWORD_TOO_LONG") {
+		return {
+			kind: "password",
+			message: authServerMessage(failure) ?? "Use 12 to 128 characters.",
+		};
+	}
 	const kind = classifyAuthError(failure);
 	if (kind === "network") {
 		return {
@@ -104,11 +101,6 @@ export function ResetPasswordPage({ token, onDone }: ResetPasswordPageProps) {
 	const submit = async (event: FormEvent) => {
 		event.preventDefault();
 		if (submitting) return;
-		const tooShortOrLong = lengthProblem(password);
-		if (tooShortOrLong) {
-			setProblem({ kind: "length", message: tooShortOrLong });
-			return;
-		}
 		setProblem(null);
 		setSubmitting(true);
 		const failure: unknown = await authClient
@@ -178,15 +170,15 @@ export function ResetPasswordPage({ token, onDone }: ResetPasswordPageProps) {
 						value={password}
 						onChange={(event) => {
 							setPassword(event.target.value);
-							if (problem?.kind === "length") setProblem(null);
+							if (problem?.kind === "password") setProblem(null);
 						}}
 						placeholder="12 to 128 characters"
-						aria-invalid={problem?.kind === "length"}
+						aria-invalid={problem?.kind === "password"}
 						aria-describedby="reset-new-password-hint"
 						required
 					/>
 					<p id="reset-new-password-hint" className="text-xs text-fg-muted">
-						{problem?.kind === "length" ? (
+						{problem?.kind === "password" ? (
 							<span className="text-danger" role="alert">
 								{problem.message}
 							</span>

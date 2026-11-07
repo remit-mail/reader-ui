@@ -38,17 +38,6 @@ export const ResetPage: Story = {
 	},
 };
 
-export const TooShort: Story = {
-	play: async ({ args, canvasElement }) => {
-		const canvas = within(canvasElement);
-		await setPassword(canvasElement, "too short");
-		await expect(
-			await canvas.findByText("This password has 9 characters. Use 12 to 128."),
-		).toBeVisible();
-		await expect(args.onDone).not.toHaveBeenCalled();
-	},
-};
-
 export const LinkNoLongerWorks: Story = {
 	parameters: {
 		msw: {
