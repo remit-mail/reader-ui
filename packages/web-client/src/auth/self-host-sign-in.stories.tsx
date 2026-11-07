@@ -5,11 +5,19 @@ import { AppStory } from "../mocks/story-frame/AppStory";
 import { mailHandlers } from "../mocks/story-frame/mail-handlers";
 import { mailWorld } from "../mocks/story-frame/mail-world";
 import { withRuntimeConfig } from "../mocks/story-frame/session";
+import { authClient } from "./better-auth-config";
 import { betterAuthProvider } from "./better-auth-provider";
 
 const signedOut = http.get("/api/auth/get-session", () =>
 	HttpResponse.json(null),
 );
+
+// better-auth holds the session in one module-level store, so a refusal one
+// story answered would otherwise greet the next. Each story re-reads the
+// session from its own handlers before it renders.
+const rereadSession = async (): Promise<void> => {
+	await authClient.$store.atoms.session?.get().refetch();
+};
 
 const meta = {
 	title: "Playground/Shipped/Sign in/Self-host",
@@ -19,7 +27,7 @@ const meta = {
 		layout: "fullscreen",
 		msw: { handlers: [signedOut, ...mailHandlers(mailWorld())] },
 	},
-	beforeEach: withRuntimeConfig({ betterAuthEnabled: true }),
+	beforeEach: [withRuntimeConfig({ betterAuthEnabled: true }), rereadSession],
 } satisfies Meta<typeof AppStory>;
 export default meta;
 
