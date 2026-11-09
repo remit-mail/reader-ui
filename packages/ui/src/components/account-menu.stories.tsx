@@ -36,7 +36,7 @@ export const Open: Story = {
 };
 
 export const WithSecurityLink: Story = {
-	args: { securityUrl: "https://login.example.com/security" },
+	args: { onOpenSecurity: () => {} },
 	play: async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
 		await userEvent.click(canvas.getByRole("button", { name: "Account" }));

@@ -10,13 +10,13 @@ import {
 
 export interface AccountMenuProps {
 	email: string | null;
-	securityUrl?: string;
+	onOpenSecurity?: () => void;
 	onSignOut: () => void;
 }
 
 export function AccountMenu({
 	email,
-	securityUrl,
+	onOpenSecurity,
 	onSignOut,
 }: AccountMenuProps) {
 	const triggerRef = useRef<HTMLButtonElement>(null);
@@ -67,13 +67,13 @@ export function AccountMenu({
 							<hr className="my-1 h-px border-0 bg-line" />
 						</>
 					)}
-					{securityUrl && (
+					{onOpenSecurity && (
 						<PopoverMenuRow
 							label="Security"
 							icon={<ShieldCheck className="size-4" />}
 							onSelect={() => {
 								setOpen(false);
-								window.location.assign(securityUrl);
+								onOpenSecurity();
 							}}
 						/>
 					)}

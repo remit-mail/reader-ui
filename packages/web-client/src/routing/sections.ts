@@ -12,6 +12,7 @@ export type AppSection =
 	| "outbox"
 	| "settings"
 	| "accounts"
+	| "security"
 	| "importConfig";
 
 const sectionRoute = {
@@ -20,6 +21,7 @@ const sectionRoute = {
 	outbox: "/mail/outbox",
 	settings: "/settings",
 	accounts: "/settings/accounts",
+	security: "/settings/security",
 	importConfig: "/import",
 } as const satisfies Record<AppSection, string>;
 
