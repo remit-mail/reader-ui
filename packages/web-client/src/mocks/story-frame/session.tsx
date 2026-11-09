@@ -2,10 +2,13 @@ import { type AuthProvider, noneAuthProvider } from "../../auth/provider";
 
 type RuntimeConfig = NonNullable<typeof globalThis.__REMIT_CONFIG__>;
 
-export const signedInAs = (email: string): AuthProvider => ({
+export const signedInAs = (
+	email: string,
+	securityUrl?: string,
+): AuthProvider => ({
 	...noneAuthProvider,
 	Account: ({ children }) => (
-		<>{children({ email, signOut: () => undefined })}</>
+		<>{children({ email, securityUrl, signOut: () => undefined })}</>
 	),
 });
 

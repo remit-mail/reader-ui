@@ -32,11 +32,6 @@ function SecuritySettings() {
 			onBackToMail={() => void navigate({ to: "/mail" })}
 		>
 			<div className="space-y-3 text-sm text-fg-muted">
-				<p>
-					Two-factor authentication asks for a code or a security key after your
-					password. Passkeys let you sign in with your fingerprint, face or
-					device lock instead of a password.
-				</p>
 				<AccountSession>
 					{({ securityUrl }) =>
 						securityUrl ? (
