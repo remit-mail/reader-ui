@@ -54,8 +54,11 @@ export function useConfigureAccountSmtp(): (accountId: string) => void {
 	);
 }
 
-/** Open a settings section the host registered. */
-export function useOpenSettingsSlot(): (slotId: string) => void {
+/**
+ * Open a settings section by id. A built-in section matches its own literal
+ * route before `/settings/$slotId`, so one call reaches both kinds.
+ */
+export function useOpenSettingsSection(): (slotId: string) => void {
 	const navigate = useNavigate();
 	return useCallback(
 		(slotId: string) => {

@@ -15,6 +15,7 @@ export {
 export {
 	AccountMenu,
 	type AccountMenuProps,
+	type AccountMenuSection,
 } from "./components/account-menu.js";
 export {
 	type AccountServiceChange,

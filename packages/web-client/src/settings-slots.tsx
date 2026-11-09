@@ -14,7 +14,7 @@ export interface SettingsSlot {
 	label: string;
 	icon: ReactNode;
 	Component: ComponentType;
-	help?: ReactNode;
+	help: ReactNode;
 }
 
 const SettingsSlotsContext = createContext<SettingsSlot[]>([]);
@@ -23,6 +23,3 @@ export const SettingsSlotsProvider = SettingsSlotsContext.Provider;
 
 export const useSettingsSlots = (): SettingsSlot[] =>
 	useContext(SettingsSlotsContext);
-
-export const useSettingsSlot = (id: string): SettingsSlot | undefined =>
-	useSettingsSlots().find((slot) => slot.id === id);

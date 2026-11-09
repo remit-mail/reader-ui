@@ -33,7 +33,8 @@ import { Search, Star, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 import { formatDate } from "../../lib/format";
-import { settingsPath, useSettingsNavItems } from "../settings";
+import { useOpenSettingsSection } from "../../routing/sections";
+import { useSettingsNavItems } from "../settings";
 import { sendersHelp } from "./-shared/help-copy";
 
 export const Route = createFileRoute("/settings/senders")({
@@ -345,6 +346,7 @@ export function SearchGroupPane({
 function SendersSettings() {
 	const navigate = useNavigate();
 	const navItems = useSettingsNavItems();
+	const openSettingsSection = useOpenSettingsSection();
 	const [group, setGroup] = useState<SenderGroup>("vip");
 	const [query, setQuery] = useState("");
 	const [helpOpen, setHelpOpen] = useState(true);
@@ -372,11 +374,6 @@ function SendersSettings() {
 
 	const total = groupCounts[group];
 
-	const handleSelectNav = (id: string) => {
-		const path = settingsPath(id);
-		if (path) void navigate({ to: path });
-	};
-
 	return (
 		<SettingsShell
 			items={navItems}
@@ -387,7 +384,7 @@ function SendersSettings() {
 			help={sendersHelp}
 			helpOpen={helpOpen}
 			onToggleHelp={() => setHelpOpen((v) => !v)}
-			onSelect={handleSelectNav}
+			onSelect={openSettingsSection}
 			onBackToMail={() => void navigate({ to: "/mail" })}
 		>
 			<div className="flex min-h-0 flex-1 flex-col lg:flex-row">

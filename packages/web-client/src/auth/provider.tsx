@@ -9,7 +9,6 @@ import { createContext, type FC, type ReactNode, useContext } from "react";
  */
 export interface AuthAccount {
 	email: string | null;
-	securityUrl?: string;
 	signOut: () => void | Promise<void>;
 }
 

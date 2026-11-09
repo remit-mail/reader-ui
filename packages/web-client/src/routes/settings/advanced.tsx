@@ -9,8 +9,9 @@ import { ConfigTransferPanel } from "../../components/settings/ConfigTransferPan
 import { SelfUpdatePanel } from "../../components/settings/SelfUpdatePanel";
 import { TlsRootCaDownload } from "../../components/settings/TlsRootCaDownload";
 import { AppVersion } from "../../components/ui/AppVersion";
+import { useOpenSettingsSection } from "../../routing/sections";
 import { getRuntimeConfig } from "../../runtime-config";
-import { settingsPath, useSettingsNavItems } from "../settings";
+import { useSettingsNavItems } from "../settings";
 import { advancedHelp } from "./-shared/help-copy";
 
 export const Route = createFileRoute("/settings/advanced")({
@@ -20,12 +21,8 @@ export const Route = createFileRoute("/settings/advanced")({
 function AdvancedSettings() {
 	const navigate = useNavigate();
 	const navItems = useSettingsNavItems();
+	const openSettingsSection = useOpenSettingsSection();
 	const [helpOpen, setHelpOpen] = useState(true);
-
-	const handleSelectNav = (id: string) => {
-		const path = settingsPath(id);
-		if (path) void navigate({ to: path });
-	};
 
 	return (
 		<SettingsShell
@@ -36,7 +33,7 @@ function AdvancedSettings() {
 			help={advancedHelp}
 			helpOpen={helpOpen}
 			onToggleHelp={() => setHelpOpen((v) => !v)}
-			onSelect={handleSelectNav}
+			onSelect={openSettingsSection}
 			onBackToMail={() => void navigate({ to: "/mail" })}
 		>
 			{getRuntimeConfig().updateMode === "self" && <SelfUpdatePanel />}

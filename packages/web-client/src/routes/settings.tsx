@@ -69,8 +69,6 @@ export const SETTINGS_NAV_ITEMS: SettingsNavItem[] = [
 	{ id: "advanced", label: "Advanced", icon: <AdvancedNavIcon /> },
 ];
 
-export const settingsPath = (id: string): string => `/settings/${id}`;
-
 const PEOPLE_NAV_ITEM: SettingsNavItem = {
 	id: "people",
 	label: "People",

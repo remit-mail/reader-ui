@@ -14,7 +14,8 @@ import {
 	setThemePreference,
 	type ThemePreference,
 } from "../../lib/theme-preference";
-import { settingsPath, useSettingsNavItems } from "../settings";
+import { useOpenSettingsSection } from "../../routing/sections";
+import { useSettingsNavItems } from "../settings";
 import { appearanceHelp } from "./-shared/help-copy";
 
 export const Route = createFileRoute("/settings/appearance")({
@@ -40,6 +41,7 @@ function readDensity(): Density {
 function AppearanceSettings() {
 	const navigate = useNavigate();
 	const navItems = useSettingsNavItems();
+	const openSettingsSection = useOpenSettingsSection();
 	const [helpOpen, setHelpOpen] = useState(true);
 
 	const [density, setDensity] = useState<Density>(readDensity);
@@ -59,11 +61,6 @@ function AppearanceSettings() {
 		setThemePreference(value); // persists + applies immediately
 	};
 
-	const handleSelectNav = (id: string) => {
-		const path = settingsPath(id);
-		if (path) void navigate({ to: path });
-	};
-
 	return (
 		<SettingsShell
 			items={navItems}
@@ -73,7 +70,7 @@ function AppearanceSettings() {
 			help={appearanceHelp}
 			helpOpen={helpOpen}
 			onToggleHelp={() => setHelpOpen((v) => !v)}
-			onSelect={handleSelectNav}
+			onSelect={openSettingsSection}
 			onBackToMail={() => void navigate({ to: "/mail" })}
 		>
 			<div className="space-y-5">

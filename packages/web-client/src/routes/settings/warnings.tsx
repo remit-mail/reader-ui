@@ -2,7 +2,8 @@ import { SettingsShell } from "@remit/ui";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { WarningsPanel } from "../../components/settings/WarningsPanel";
-import { settingsPath, useSettingsNavItems } from "../settings";
+import { useOpenSettingsSection } from "../../routing/sections";
+import { useSettingsNavItems } from "../settings";
 import { warningsHelp } from "./-shared/help-copy";
 
 export const Route = createFileRoute("/settings/warnings")({
@@ -12,12 +13,8 @@ export const Route = createFileRoute("/settings/warnings")({
 function WarningsSettings() {
 	const navigate = useNavigate();
 	const navItems = useSettingsNavItems();
+	const openSettingsSection = useOpenSettingsSection();
 	const [helpOpen, setHelpOpen] = useState(true);
-
-	const handleSelectNav = (id: string) => {
-		const path = settingsPath(id);
-		if (path) void navigate({ to: path });
-	};
 
 	return (
 		<SettingsShell
@@ -28,7 +25,7 @@ function WarningsSettings() {
 			help={warningsHelp}
 			helpOpen={helpOpen}
 			onToggleHelp={() => setHelpOpen((v) => !v)}
-			onSelect={handleSelectNav}
+			onSelect={openSettingsSection}
 			onBackToMail={() => void navigate({ to: "/mail" })}
 		>
 			<WarningsPanel />

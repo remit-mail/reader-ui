@@ -77,6 +77,13 @@ export const mountApp = ({
 	installStaleBuildReload();
 
 	const router = createAppRouter(queryClient, telemetry);
+	for (const slot of settingsSlots) {
+		if (Object.hasOwn(router.routesByPath, `/settings/${slot.id}`)) {
+			throw new Error(
+				`Settings slot "${slot.id}" collides with a built-in settings section`,
+			);
+		}
+	}
 	telemetry.recordPageView(window.location.pathname);
 
 	const rootElement = document.getElementById(rootElementId);

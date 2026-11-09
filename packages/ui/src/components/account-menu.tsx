@@ -1,5 +1,5 @@
-import { LogOut, ShieldCheck } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { LogOut } from "lucide-react";
+import { type ReactNode, useEffect, useRef } from "react";
 import { Avatar } from "./avatar.js";
 import {
 	PopoverMenuPanel,
@@ -8,15 +8,23 @@ import {
 	usePopoverMenuState,
 } from "./popover-menu.js";
 
+export interface AccountMenuSection {
+	id: string;
+	label: string;
+	icon: ReactNode;
+}
+
 export interface AccountMenuProps {
 	email: string | null;
-	onOpenSecurity?: () => void;
+	sections?: AccountMenuSection[];
+	onOpenSection?: (id: string) => void;
 	onSignOut: () => void;
 }
 
 export function AccountMenu({
 	email,
-	onOpenSecurity,
+	sections = [],
+	onOpenSection,
 	onSignOut,
 }: AccountMenuProps) {
 	const triggerRef = useRef<HTMLButtonElement>(null);
@@ -67,16 +75,17 @@ export function AccountMenu({
 							<hr className="my-1 h-px border-0 bg-line" />
 						</>
 					)}
-					{onOpenSecurity && (
+					{sections.map((section) => (
 						<PopoverMenuRow
-							label="Security"
-							icon={<ShieldCheck className="size-4" />}
+							key={section.id}
+							label={section.label}
+							icon={section.icon}
 							onSelect={() => {
 								setOpen(false);
-								onOpenSecurity();
+								onOpenSection?.(section.id);
 							}}
 						/>
-					)}
+					))}
 					<PopoverMenuRow
 						label="Sign out"
 						icon={<LogOut className="size-4" />}
