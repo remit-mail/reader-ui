@@ -39,7 +39,7 @@ import {
 	labelForMailbox,
 	NAV_ROLE_TO_CANONICAL,
 } from "../../lib/folder-roles";
-import { SETTINGS_ID_TO_PATH, useSettingsNavItems } from "../settings";
+import { settingsPath, useSettingsNavItems } from "../settings";
 
 export const Route = createFileRoute("/settings/folders")({
 	component: FoldersSettings,
@@ -286,7 +286,7 @@ function FoldersSettings() {
 	} = useQuery(configOperationsGetConfigOptions());
 
 	const handleSelectNav = (id: string) => {
-		const path = SETTINGS_ID_TO_PATH[id];
+		const path = settingsPath(id);
 		if (path) void navigate({ to: path });
 	};
 

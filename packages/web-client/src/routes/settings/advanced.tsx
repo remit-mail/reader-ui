@@ -10,7 +10,7 @@ import { SelfUpdatePanel } from "../../components/settings/SelfUpdatePanel";
 import { TlsRootCaDownload } from "../../components/settings/TlsRootCaDownload";
 import { AppVersion } from "../../components/ui/AppVersion";
 import { getRuntimeConfig } from "../../runtime-config";
-import { SETTINGS_ID_TO_PATH, useSettingsNavItems } from "../settings";
+import { settingsPath, useSettingsNavItems } from "../settings";
 import { advancedHelp } from "./-shared/help-copy";
 
 export const Route = createFileRoute("/settings/advanced")({
@@ -23,7 +23,7 @@ function AdvancedSettings() {
 	const [helpOpen, setHelpOpen] = useState(true);
 
 	const handleSelectNav = (id: string) => {
-		const path = SETTINGS_ID_TO_PATH[id];
+		const path = settingsPath(id);
 		if (path) void navigate({ to: path });
 	};
 

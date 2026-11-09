@@ -33,7 +33,7 @@ import { Search, Star, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 import { formatDate } from "../../lib/format";
-import { SETTINGS_ID_TO_PATH, useSettingsNavItems } from "../settings";
+import { settingsPath, useSettingsNavItems } from "../settings";
 import { sendersHelp } from "./-shared/help-copy";
 
 export const Route = createFileRoute("/settings/senders")({
@@ -373,7 +373,7 @@ function SendersSettings() {
 	const total = groupCounts[group];
 
 	const handleSelectNav = (id: string) => {
-		const path = SETTINGS_ID_TO_PATH[id];
+		const path = settingsPath(id);
 		if (path) void navigate({ to: path });
 	};
 

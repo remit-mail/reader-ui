@@ -9,7 +9,7 @@ import { CalendarSubscriptionStatus } from "../../components/settings/CalendarSu
 import { useCalendarCollectionWrites } from "../../hooks/calendar/useCalendarCollectionWrites";
 import { useCalendarSubscriptions } from "../../hooks/calendar/useCalendarSubscriptions";
 import { useCalendars } from "../../hooks/calendar/useCalendars";
-import { SETTINGS_ID_TO_PATH, useSettingsNavItems } from "../settings";
+import { settingsPath, useSettingsNavItems } from "../settings";
 
 export const Route = createFileRoute("/settings/calendars")({
 	component: CalendarsSettings,
@@ -65,7 +65,7 @@ function CalendarsSettings() {
 			helpOpen={helpOpen}
 			onToggleHelp={() => setHelpOpen((open) => !open)}
 			onSelect={(id) => {
-				const path = SETTINGS_ID_TO_PATH[id];
+				const path = settingsPath(id);
 				if (path) void navigate({ to: path });
 			}}
 			onBackToMail={() => void navigate({ to: "/mail" })}

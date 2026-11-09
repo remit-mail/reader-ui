@@ -25,7 +25,7 @@ import {
 import { buildMailboxRoleMap, labelForMailbox } from "../../lib/folder-roles";
 import { buildMoveOptions, folderDelimiter } from "../../lib/move-options";
 import { filterRunStatus } from "../../lib/organize/filter-run";
-import { SETTINGS_ID_TO_PATH, useSettingsNavItems } from "../settings";
+import { settingsPath, useSettingsNavItems } from "../settings";
 
 export const Route = createFileRoute("/settings/filters")({
 	component: FiltersSettings,
@@ -215,7 +215,7 @@ function FiltersSettings() {
 	} = useQuery(configOperationsGetConfigOptions());
 
 	const handleSelectNav = (id: string) => {
-		const path = SETTINGS_ID_TO_PATH[id];
+		const path = settingsPath(id);
 		if (path) void navigate({ to: path });
 	};
 

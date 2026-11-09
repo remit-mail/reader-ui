@@ -14,7 +14,7 @@ import {
 	setThemePreference,
 	type ThemePreference,
 } from "../../lib/theme-preference";
-import { SETTINGS_ID_TO_PATH, useSettingsNavItems } from "../settings";
+import { settingsPath, useSettingsNavItems } from "../settings";
 import { appearanceHelp } from "./-shared/help-copy";
 
 export const Route = createFileRoute("/settings/appearance")({
@@ -60,7 +60,7 @@ function AppearanceSettings() {
 	};
 
 	const handleSelectNav = (id: string) => {
-		const path = SETTINGS_ID_TO_PATH[id];
+		const path = settingsPath(id);
 		if (path) void navigate({ to: path });
 	};
 

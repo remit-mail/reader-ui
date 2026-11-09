@@ -1,16 +1,18 @@
 import { AccountMenu as AccountMenuView } from "@remit/ui";
-import { useGoToSection } from "../routing/sections";
+import { useOpenSettingsSlot } from "../routing/sections";
+import { useSettingsSlot } from "../settings-slots";
 import { AccountSession } from "./AccountSession";
 
 export const AccountMenu = () => {
-	const goToSection = useGoToSection();
+	const openSettingsSlot = useOpenSettingsSlot();
+	const security = useSettingsSlot("security");
 	return (
 		<AccountSession>
-			{({ email, signOut, securityUrl }) => (
+			{({ email, signOut }) => (
 				<AccountMenuView
 					email={email}
 					onOpenSecurity={
-						securityUrl ? () => goToSection("security") : undefined
+						security ? () => openSettingsSlot(security.id) : undefined
 					}
 					onSignOut={signOut}
 				/>

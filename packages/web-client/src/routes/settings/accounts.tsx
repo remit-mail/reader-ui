@@ -35,7 +35,7 @@ import {
 } from "../../hooks/useRedirectEnded";
 import { useReturnFromRedirect } from "../../hooks/useReturnFromRedirect";
 import { formatRelativeTime } from "../../lib/format";
-import { SETTINGS_ID_TO_PATH, useSettingsNavItems } from "../settings";
+import { settingsPath, useSettingsNavItems } from "../settings";
 import { accountsHelp } from "./-shared/help-copy";
 
 const accountsSearchSchema = z.object({
@@ -416,7 +416,7 @@ function AccountsSettings() {
 	};
 
 	const handleSelectNav = (id: string) => {
-		const path = SETTINGS_ID_TO_PATH[id];
+		const path = settingsPath(id);
 		if (path) void navigate({ to: path });
 	};
 

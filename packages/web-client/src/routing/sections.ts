@@ -12,7 +12,6 @@ export type AppSection =
 	| "outbox"
 	| "settings"
 	| "accounts"
-	| "security"
 	| "importConfig";
 
 const sectionRoute = {
@@ -21,7 +20,6 @@ const sectionRoute = {
 	outbox: "/mail/outbox",
 	settings: "/settings",
 	accounts: "/settings/accounts",
-	security: "/settings/security",
 	importConfig: "/import",
 } as const satisfies Record<AppSection, string>;
 
@@ -51,6 +49,17 @@ export function useConfigureAccountSmtp(): (accountId: string) => void {
 				to: "/settings/accounts",
 				search: { editAccountId: accountId, focusSmtp: true },
 			});
+		},
+		[navigate],
+	);
+}
+
+/** Open a settings section the host registered. */
+export function useOpenSettingsSlot(): (slotId: string) => void {
+	const navigate = useNavigate();
+	return useCallback(
+		(slotId: string) => {
+			navigate({ to: "/settings/$slotId", params: { slotId } });
 		},
 		[navigate],
 	);

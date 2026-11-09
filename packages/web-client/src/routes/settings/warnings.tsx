@@ -2,7 +2,7 @@ import { SettingsShell } from "@remit/ui";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { WarningsPanel } from "../../components/settings/WarningsPanel";
-import { SETTINGS_ID_TO_PATH, useSettingsNavItems } from "../settings";
+import { settingsPath, useSettingsNavItems } from "../settings";
 import { warningsHelp } from "./-shared/help-copy";
 
 export const Route = createFileRoute("/settings/warnings")({
@@ -15,7 +15,7 @@ function WarningsSettings() {
 	const [helpOpen, setHelpOpen] = useState(true);
 
 	const handleSelectNav = (id: string) => {
-		const path = SETTINGS_ID_TO_PATH[id];
+		const path = settingsPath(id);
 		if (path) void navigate({ to: path });
 	};
 

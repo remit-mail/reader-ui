@@ -17,12 +17,14 @@ import {
 } from "../../lib/query-error-handler";
 import { noopTelemetry } from "../../lib/telemetry";
 import { createAppRouter } from "../../router";
+import { type SettingsSlot, SettingsSlotsProvider } from "../../settings-slots";
 import "../../lib/i18n";
 import "../../lib/client";
 
 export interface AppStoryProps {
 	url: string;
 	authProvider?: AuthProvider;
+	settingsSlots?: SettingsSlot[];
 }
 
 const createStoryQueryClient = (): QueryClient =>
@@ -38,6 +40,7 @@ const createStoryQueryClient = (): QueryClient =>
 export function AppStory({
 	url,
 	authProvider = noneAuthProvider,
+	settingsSlots = [],
 }: AppStoryProps) {
 	const [queryClient] = useState(createStoryQueryClient);
 	const [router] = useState(() => {
@@ -53,9 +56,11 @@ export function AppStory({
 	return (
 		<QueryClientProvider client={queryClient}>
 			<AuthProviderProvider value={authProvider}>
-				<Shell>
-					<RouterProvider router={router} />
-				</Shell>
+				<SettingsSlotsProvider value={settingsSlots}>
+					<Shell>
+						<RouterProvider router={router} />
+					</Shell>
+				</SettingsSlotsProvider>
 			</AuthProviderProvider>
 		</QueryClientProvider>
 	);

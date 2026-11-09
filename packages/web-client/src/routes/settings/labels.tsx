@@ -25,7 +25,7 @@ import {
 	useUpdateLabel,
 } from "../../hooks/useLabels";
 import { deleteLabelConfirmCopy } from "../../lib/organize/label-delete-copy";
-import { SETTINGS_ID_TO_PATH, useSettingsNavItems } from "../settings";
+import { settingsPath, useSettingsNavItems } from "../settings";
 
 export const Route = createFileRoute("/settings/labels")({
 	component: LabelsSettings,
@@ -198,7 +198,7 @@ function LabelsSettings() {
 	} = useQuery(configOperationsGetConfigOptions());
 
 	const handleSelectNav = (id: string) => {
-		const path = SETTINGS_ID_TO_PATH[id];
+		const path = settingsPath(id);
 		if (path) void navigate({ to: path });
 	};
 
