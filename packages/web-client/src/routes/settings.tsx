@@ -16,6 +16,7 @@ import {
 	FolderTree,
 	Inbox,
 	Palette,
+	ShieldCheck,
 	Tag,
 	UserCog,
 	Users,
@@ -30,6 +31,11 @@ import { usePeople } from "../hooks/usePeople";
 
 export const SETTINGS_NAV_ITEMS: SettingsNavItem[] = [
 	{ id: "accounts", label: "Accounts", icon: <Inbox className="size-4" /> },
+	{
+		id: "security",
+		label: "Security",
+		icon: <ShieldCheck className="size-4" />,
+	},
 	{
 		id: "senders",
 		label: "Senders & Rules",
@@ -70,6 +76,7 @@ export const SETTINGS_NAV_ITEMS: SettingsNavItem[] = [
 
 export const SETTINGS_ID_TO_PATH: Record<string, string> = {
 	accounts: "/settings/accounts",
+	security: "/settings/security",
 	senders: "/settings/senders",
 	folders: "/settings/folders",
 	filters: "/settings/filters",

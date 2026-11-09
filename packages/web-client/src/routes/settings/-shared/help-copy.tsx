@@ -69,6 +69,19 @@ export const advancedHelp = (
 	</div>
 );
 
+export const securityHelp = (
+	<div className="space-y-3">
+		<p>
+			<strong className="text-fg">Two-factor authentication</strong> asks for a
+			second proof when you sign in, so a stolen password alone is not enough.
+		</p>
+		<p>
+			<strong className="text-fg">Passkeys</strong> replace the password with
+			the lock on your device.
+		</p>
+	</div>
+);
+
 export const warningsHelp = (
 	<div className="space-y-3">
 		<p>
