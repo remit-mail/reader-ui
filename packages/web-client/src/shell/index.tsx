@@ -22,6 +22,7 @@ import { TelemetryContext } from "../lib/telemetry-context";
 import { installThemeSync } from "../lib/theme";
 import { createAppRouter } from "../router";
 import { getRuntimeConfig } from "../runtime-config";
+import { type SettingsSlot, SettingsSlotsProvider } from "../settings-slots";
 import "../lib/i18n";
 import "../index.css";
 import "../lib/client"; // Initialize client with error interceptor
@@ -29,6 +30,8 @@ import "../lib/client"; // Initialize client with error interceptor
 export interface MountOptions {
 	/** The identity system this build composes. */
 	authProvider: AuthProvider;
+	/** Settings sections the host adds, each at `/settings/<id>`. */
+	settingsSlots?: SettingsSlot[];
 	/** Element to mount into. Defaults to `#root`. */
 	rootElementId?: string;
 }
@@ -41,6 +44,7 @@ export interface MountOptions {
  */
 export const mountApp = ({
 	authProvider,
+	settingsSlots = [],
 	rootElementId = "root",
 }: MountOptions): void => {
 	installConsoleErrorCatcher();
@@ -73,6 +77,13 @@ export const mountApp = ({
 	installStaleBuildReload();
 
 	const router = createAppRouter(queryClient, telemetry);
+	for (const slot of settingsSlots) {
+		if (Object.hasOwn(router.routesByPath, `/settings/${slot.id}`)) {
+			throw new Error(
+				`Settings slot "${slot.id}" collides with a built-in settings section`,
+			);
+		}
+	}
 	telemetry.recordPageView(window.location.pathname);
 
 	const rootElement = document.getElementById(rootElementId);
@@ -87,9 +98,11 @@ export const mountApp = ({
 			<TelemetryContext.Provider value={telemetry}>
 				<QueryClientProvider client={queryClient}>
 					<AuthProviderProvider value={authProvider}>
-						<Shell>
-							<RouterProvider router={router} />
-						</Shell>
+						<SettingsSlotsProvider value={settingsSlots}>
+							<Shell>
+								<RouterProvider router={router} />
+							</Shell>
+						</SettingsSlotsProvider>
 					</AuthProviderProvider>
 					{!import.meta.env.PROD && !getRuntimeConfig().disableDevtools && (
 						<ReactQueryDevtools initialIsOpen={false} />
@@ -99,3 +112,5 @@ export const mountApp = ({
 		</StrictMode>,
 	);
 };
+
+export type { SettingsSlot } from "../settings-slots";

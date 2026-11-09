@@ -2,7 +2,8 @@ import { SettingsShell } from "@remit/ui";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { PeoplePanel } from "../../components/settings/people/PeoplePanel";
-import { SETTINGS_ID_TO_PATH, useSettingsNavItems } from "../settings";
+import { useOpenSettingsSection } from "../../routing/sections";
+import { useSettingsNavItems } from "../settings";
 
 export const Route = createFileRoute("/settings/people")({
 	component: PeopleSettings,
@@ -34,6 +35,7 @@ const peopleHelp = (
 function PeopleSettings() {
 	const navigate = useNavigate();
 	const navItems = useSettingsNavItems();
+	const openSettingsSection = useOpenSettingsSection();
 	const [helpOpen, setHelpOpen] = useState(true);
 
 	return (
@@ -45,10 +47,7 @@ function PeopleSettings() {
 			help={peopleHelp}
 			helpOpen={helpOpen}
 			onToggleHelp={() => setHelpOpen((open) => !open)}
-			onSelect={(id) => {
-				const path = SETTINGS_ID_TO_PATH[id];
-				if (path) void navigate({ to: path });
-			}}
+			onSelect={openSettingsSection}
 			onBackToMail={() => void navigate({ to: "/mail" })}
 		>
 			<PeoplePanel />

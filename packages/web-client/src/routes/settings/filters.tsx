@@ -25,7 +25,8 @@ import {
 import { buildMailboxRoleMap, labelForMailbox } from "../../lib/folder-roles";
 import { buildMoveOptions, folderDelimiter } from "../../lib/move-options";
 import { filterRunStatus } from "../../lib/organize/filter-run";
-import { SETTINGS_ID_TO_PATH, useSettingsNavItems } from "../settings";
+import { useOpenSettingsSection } from "../../routing/sections";
+import { useSettingsNavItems } from "../settings";
 
 export const Route = createFileRoute("/settings/filters")({
 	component: FiltersSettings,
@@ -204,6 +205,7 @@ export function AccountFilters({
 function FiltersSettings() {
 	const navigate = useNavigate();
 	const navItems = useSettingsNavItems();
+	const openSettingsSection = useOpenSettingsSection();
 	const [helpOpen, setHelpOpen] = useState(true);
 
 	const {
@@ -214,11 +216,6 @@ function FiltersSettings() {
 		refetch,
 	} = useQuery(configOperationsGetConfigOptions());
 
-	const handleSelectNav = (id: string) => {
-		const path = SETTINGS_ID_TO_PATH[id];
-		if (path) void navigate({ to: path });
-	};
-
 	return (
 		<SettingsShell
 			items={navItems}
@@ -228,7 +225,7 @@ function FiltersSettings() {
 			help={filtersHelp}
 			helpOpen={helpOpen}
 			onToggleHelp={() => setHelpOpen((v) => !v)}
-			onSelect={handleSelectNav}
+			onSelect={openSettingsSection}
 			onBackToMail={() => void navigate({ to: "/mail" })}
 		>
 			{isPending ? (

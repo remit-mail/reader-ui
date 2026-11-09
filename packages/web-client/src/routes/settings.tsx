@@ -16,16 +16,14 @@ import {
 	FolderTree,
 	Inbox,
 	Palette,
-	ShieldCheck,
 	Tag,
 	UserCog,
 	Users,
 } from "lucide-react";
-import { createContext, useContext } from "react";
-import { useAuthProvider } from "../auth/provider";
 import { AdvancedNavIcon } from "../components/settings/AdvancedNavIcon";
 import { WarningsNavIcon } from "../components/settings/WarningsNavIcon";
 import { usePeople } from "../hooks/usePeople";
+import { useSettingsSlots } from "../settings-slots";
 
 /* ------------------------------------------------------------------ */
 /* Nav items — single source of truth shared by all settings pages    */
@@ -71,28 +69,6 @@ export const SETTINGS_NAV_ITEMS: SettingsNavItem[] = [
 	{ id: "advanced", label: "Advanced", icon: <AdvancedNavIcon /> },
 ];
 
-export const SETTINGS_ID_TO_PATH: Record<string, string> = {
-	accounts: "/settings/accounts",
-	security: "/settings/security",
-	senders: "/settings/senders",
-	folders: "/settings/folders",
-	filters: "/settings/filters",
-	labels: "/settings/labels",
-	calendars: "/settings/calendars",
-	appearance: "/settings/appearance",
-	warnings: "/settings/warnings",
-	people: "/settings/people",
-	advanced: "/settings/advanced",
-};
-
-const SECURITY_NAV_ITEM: SettingsNavItem = {
-	id: "security",
-	label: "Security",
-	icon: <ShieldCheck className="size-4" />,
-};
-
-const SecurityUrlContext = createContext<string | undefined>(undefined);
-
 const PEOPLE_NAV_ITEM: SettingsNavItem = {
 	id: "people",
 	label: "People",
@@ -105,9 +81,13 @@ const PEOPLE_NAV_ITEM: SettingsNavItem = {
  */
 export const useSettingsNavItems = (): SettingsNavItem[] => {
 	const people = usePeople();
-	const securityUrl = useContext(SecurityUrlContext);
+	const slots = useSettingsSlots();
 	const items = [...SETTINGS_NAV_ITEMS];
-	if (securityUrl) items.splice(1, 0, SECURITY_NAV_ITEM);
+	items.splice(
+		1,
+		0,
+		...slots.map(({ id, label, icon }) => ({ id, label, icon })),
+	);
 	if (!people.isSuccess) return items;
 	const advanced = items.findIndex((item) => item.id === "advanced");
 	return [
@@ -117,29 +97,10 @@ export const useSettingsNavItems = (): SettingsNavItem[] => {
 	];
 };
 
-const SettingsLayout = () => {
-	const { Account } = useAuthProvider();
-	return (
-		<Account
-			fallback={
-				<SecurityUrlContext.Provider value={undefined}>
-					<Outlet />
-				</SecurityUrlContext.Provider>
-			}
-		>
-			{({ securityUrl }) => (
-				<SecurityUrlContext.Provider value={securityUrl}>
-					<Outlet />
-				</SecurityUrlContext.Provider>
-			)}
-		</Account>
-	);
-};
-
 /* ------------------------------------------------------------------ */
 /* Route — pass-through                                               */
 /* ------------------------------------------------------------------ */
 
 export const Route = createFileRoute("/settings")({
-	component: SettingsLayout,
+	component: () => <Outlet />,
 });

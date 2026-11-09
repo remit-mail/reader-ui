@@ -35,7 +35,8 @@ import {
 } from "../../hooks/useRedirectEnded";
 import { useReturnFromRedirect } from "../../hooks/useReturnFromRedirect";
 import { formatRelativeTime } from "../../lib/format";
-import { SETTINGS_ID_TO_PATH, useSettingsNavItems } from "../settings";
+import { useOpenSettingsSection } from "../../routing/sections";
+import { useSettingsNavItems } from "../settings";
 import { accountsHelp } from "./-shared/help-copy";
 
 const accountsSearchSchema = z.object({
@@ -222,6 +223,7 @@ function AccountsSettings() {
 	const search = Route.useSearch();
 	const navigate = useNavigate({ from: Route.fullPath });
 	const navItems = useSettingsNavItems();
+	const openSettingsSection = useOpenSettingsSection();
 	const [helpOpen, setHelpOpen] = useState(true);
 
 	const [showForm, setShowForm] = useState(false);
@@ -415,11 +417,6 @@ function AccountsSettings() {
 		setFocusSmtp(false);
 	};
 
-	const handleSelectNav = (id: string) => {
-		const path = SETTINGS_ID_TO_PATH[id];
-		if (path) void navigate({ to: path });
-	};
-
 	return (
 		<SettingsShell
 			items={navItems}
@@ -429,7 +426,7 @@ function AccountsSettings() {
 			help={accountsHelp}
 			helpOpen={helpOpen}
 			onToggleHelp={() => setHelpOpen((v) => !v)}
-			onSelect={handleSelectNav}
+			onSelect={openSettingsSection}
 			onBackToMail={() => void navigate({ to: "/mail" })}
 		>
 			{successMessage && (

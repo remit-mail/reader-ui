@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
+import { ShieldCheck } from "lucide-react";
 import { expect, fn, userEvent, waitFor, within } from "storybook/test";
 import { AccountMenu } from "./account-menu.js";
 
@@ -35,8 +36,17 @@ export const Open: Story = {
 	},
 };
 
-export const WithSecurityLink: Story = {
-	args: { onOpenSecurity: () => {} },
+export const WithSection: Story = {
+	args: {
+		sections: [
+			{
+				id: "security",
+				label: "Security",
+				icon: <ShieldCheck className="size-4" />,
+			},
+		],
+		onOpenSection: fn(),
+	},
 	play: async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
 		await userEvent.click(canvas.getByRole("button", { name: "Account" }));

@@ -25,7 +25,8 @@ import {
 	useUpdateLabel,
 } from "../../hooks/useLabels";
 import { deleteLabelConfirmCopy } from "../../lib/organize/label-delete-copy";
-import { SETTINGS_ID_TO_PATH, useSettingsNavItems } from "../settings";
+import { useOpenSettingsSection } from "../../routing/sections";
+import { useSettingsNavItems } from "../settings";
 
 export const Route = createFileRoute("/settings/labels")({
 	component: LabelsSettings,
@@ -187,6 +188,7 @@ function AccountLabels({ account }: { account: RemitImapAccountResponse }) {
 function LabelsSettings() {
 	const navigate = useNavigate();
 	const navItems = useSettingsNavItems();
+	const openSettingsSection = useOpenSettingsSection();
 	const [helpOpen, setHelpOpen] = useState(true);
 
 	const {
@@ -197,11 +199,6 @@ function LabelsSettings() {
 		refetch,
 	} = useQuery(configOperationsGetConfigOptions());
 
-	const handleSelectNav = (id: string) => {
-		const path = SETTINGS_ID_TO_PATH[id];
-		if (path) void navigate({ to: path });
-	};
-
 	return (
 		<SettingsShell
 			items={navItems}
@@ -211,7 +208,7 @@ function LabelsSettings() {
 			help={labelsHelp}
 			helpOpen={helpOpen}
 			onToggleHelp={() => setHelpOpen((v) => !v)}
-			onSelect={handleSelectNav}
+			onSelect={openSettingsSection}
 			onBackToMail={() => void navigate({ to: "/mail" })}
 		>
 			{isPending ? (

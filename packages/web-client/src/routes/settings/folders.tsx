@@ -39,7 +39,8 @@ import {
 	labelForMailbox,
 	NAV_ROLE_TO_CANONICAL,
 } from "../../lib/folder-roles";
-import { SETTINGS_ID_TO_PATH, useSettingsNavItems } from "../settings";
+import { useOpenSettingsSection } from "../../routing/sections";
+import { useSettingsNavItems } from "../settings";
 
 export const Route = createFileRoute("/settings/folders")({
 	component: FoldersSettings,
@@ -275,6 +276,7 @@ function AccountFolders({ account }: { account: RemitImapAccountResponse }) {
 function FoldersSettings() {
 	const navigate = useNavigate();
 	const navItems = useSettingsNavItems();
+	const openSettingsSection = useOpenSettingsSection();
 	const [helpOpen, setHelpOpen] = useState(true);
 
 	const {
@@ -285,11 +287,6 @@ function FoldersSettings() {
 		refetch,
 	} = useQuery(configOperationsGetConfigOptions());
 
-	const handleSelectNav = (id: string) => {
-		const path = SETTINGS_ID_TO_PATH[id];
-		if (path) void navigate({ to: path });
-	};
-
 	return (
 		<SettingsShell
 			items={navItems}
@@ -299,7 +296,7 @@ function FoldersSettings() {
 			help={<FolderRolesHelp />}
 			helpOpen={helpOpen}
 			onToggleHelp={() => setHelpOpen((v) => !v)}
-			onSelect={handleSelectNav}
+			onSelect={openSettingsSection}
 			onBackToMail={() => void navigate({ to: "/mail" })}
 		>
 			{isPending ? (
