@@ -47,12 +47,24 @@ export const draftFromSettings = (
 		: { presetId: undefined, model: "", baseUrl: "", apiKey: "" };
 
 export const draftForPreset = (
-	presetId: RemitImapClassificationPresetId,
+	preset: RemitImapClassificationPreset,
 	settings: RemitImapClassificationSettings,
-): ProviderDraft =>
-	settings.state === "Configured" && settings.presetId === presetId
-		? draftFromSettings(settings)
-		: { presetId, model: "", baseUrl: "", apiKey: "" };
+): ProviderDraft => {
+	const draft: ProviderDraft =
+		settings.state === "Configured" && settings.presetId === preset.presetId
+			? draftFromSettings(settings)
+			: {
+					presetId: preset.presetId,
+					model: "",
+					baseUrl: "",
+					apiKey: "",
+				};
+	return {
+		...draft,
+		baseUrl:
+			draft.baseUrl === "" ? (preset.defaultBaseUrl ?? "") : draft.baseUrl,
+	};
+};
 
 export interface PresetGroup {
 	group: RemitImapClassificationPresetGroup;
