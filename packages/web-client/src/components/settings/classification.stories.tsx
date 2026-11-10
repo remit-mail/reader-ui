@@ -213,8 +213,11 @@ export const TestConnectionError: Story = {
 		const alert = await canvas.findByText("Test failed after 312 ms: 401");
 		await expect(alert.closest("[role=alert]")).not.toBeNull();
 		await expect(
-			canvas.getByText("The provider rejected this key."),
+			canvas.getByText(/Mistral rejected the API key/),
 		).toBeVisible();
+		await expect(
+			canvas.getByRole("button", { name: "Replace" }),
+		).toHaveAttribute("aria-invalid", "true");
 		await expect(
 			canvas.getByRole("link", { name: "Report an issue" }),
 		).toBeVisible();
