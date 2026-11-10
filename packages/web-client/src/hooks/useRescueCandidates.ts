@@ -1,13 +1,14 @@
+import { threadOperationsSearchThreadsQueryKey } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
 import { threadOperationsSearchThreads } from "@remit/api-http-client/sdk.gen.ts";
+import type {
+	RemitImapSenderTrust,
+	RemitImapThreadMessageResponse,
+} from "@remit/api-http-client/types.gen.ts";
 import type { RescueCandidate } from "@remit/ui";
-import { useInfiniteQuery } from "@tanstack/react-query";
-import { useEffect, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { rescueCandidateReason } from "../lib/rescue-candidates";
 
 const TRUST_REASON = "We can verify this sender";
-
-export const rescueCandidatesQueryKey = (junkMailboxId: string | undefined) =>
-	["rescue-candidates", junkMailboxId] as const;
 
 /**
  * Fetch rescue candidates from the backend for the given Junk mailbox.
@@ -26,51 +27,43 @@ export const rescueCandidatesQueryKey = (junkMailboxId: string | undefined) =>
 export function useRescueCandidates(junkMailboxId: string | undefined): {
 	candidates: RescueCandidate[];
 } {
-	const { data, hasNextPage, isFetchingNextPage, fetchNextPage } =
-		useInfiniteQuery({
-			queryKey: rescueCandidatesQueryKey(junkMailboxId),
-			queryFn: async ({ pageParam }) => {
+	const path = { mailboxId: junkMailboxId ?? "" };
+	const query = {
+		senderTrust: ["vip", "wellknown"] as RemitImapSenderTrust[],
+		dkimMismatch: false,
+		results: true,
+		limit: 500,
+	};
+	const { data } = useQuery({
+		queryKey: threadOperationsSearchThreadsQueryKey({ path, query }),
+		queryFn: async () => {
+			const items: RemitImapThreadMessageResponse[] = [];
+			let continuationToken: string | undefined;
+			do {
 				const { data: page } = await threadOperationsSearchThreads({
-					path: { mailboxId: junkMailboxId ?? "" },
-					query: {
-						senderTrust: ["vip", "wellknown"],
-						dkimMismatch: false,
-						results: true,
-						limit: 500,
-						continuationToken: pageParam,
-					},
+					path,
+					query: { ...query, continuationToken },
 					throwOnError: true,
 				});
-				return page;
-			},
-			initialPageParam: undefined as string | undefined,
-			getNextPageParam: (lastPage) => lastPage.continuationToken,
-			enabled: !!junkMailboxId,
-			staleTime: 60_000,
-		});
+				items.push(...(page.items ?? []));
+				continuationToken = page.continuationToken;
+			} while (continuationToken);
+			return { items };
+		},
+		enabled: !!junkMailboxId,
+		staleTime: 60_000,
+	});
 
-	useEffect(() => {
-		if (hasNextPage && !isFetchingNextPage) {
-			void fetchNextPage();
-		}
-	}, [hasNextPage, isFetchingNextPage, fetchNextPage]);
-
-	const candidates = useMemo<RescueCandidate[]>(
-		() =>
-			(data?.pages ?? [])
-				.flatMap((page) => page.items ?? [])
-				.map((thread) => ({
-					id: thread.messageId,
-					senderName: thread.fromName || thread.fromEmail || "Unknown sender",
-					senderAddress: thread.fromEmail ?? "",
-					subject: thread.subject || "(no subject)",
-					snippet: thread.snippet ?? "",
-					trustReason: TRUST_REASON,
-					trustSubReason: rescueCandidateReason(thread.senderTrust),
-					senderTrust: thread.senderTrust,
-				})),
-		[data],
-	);
+	const candidates: RescueCandidate[] = (data?.items ?? []).map((thread) => ({
+		id: thread.messageId,
+		senderName: thread.fromName || thread.fromEmail || "Unknown sender",
+		senderAddress: thread.fromEmail ?? "",
+		subject: thread.subject || "(no subject)",
+		snippet: thread.snippet ?? "",
+		trustReason: TRUST_REASON,
+		trustSubReason: rescueCandidateReason(thread.senderTrust),
+		senderTrust: thread.senderTrust,
+	}));
 
 	return { candidates };
 }

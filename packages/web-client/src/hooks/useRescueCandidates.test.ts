@@ -10,7 +10,9 @@
 
 import assert from "node:assert/strict";
 import { afterEach, describe, test } from "node:test";
+import { threadOperationsSearchThreadsQueryKey } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
 import type {
+	RemitImapSenderTrust,
 	RemitImapThreadMessageResponse,
 	RemitImapThreadSearchResponse,
 } from "@remit/api-http-client/types.gen.ts";
@@ -19,16 +21,23 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createElement } from "react";
 import { renderToString } from "react-dom/server";
 import { createDomHarness, type DomHarness } from "../test-support/dom";
-import {
-	rescueCandidatesQueryKey,
-	useRescueCandidates,
-} from "./useRescueCandidates.js";
+import { useRescueCandidates } from "./useRescueCandidates.js";
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
 const JUNK_MAILBOX_ID = "mb-junk";
+
+const HOOK_QUERY_OPTIONS = {
+	path: { mailboxId: JUNK_MAILBOX_ID },
+	query: {
+		senderTrust: ["vip", "wellknown"] as RemitImapSenderTrust[],
+		dkimMismatch: false,
+		results: true,
+		limit: 500,
+	},
+};
 
 function makeThread(
 	overrides: Partial<RemitImapThreadMessageResponse> &
@@ -65,10 +74,10 @@ function renderHookWithResponse(response: RemitImapThreadSearchResponse): {
 	const client = new QueryClient({
 		defaultOptions: { queries: { retry: false } },
 	});
-	client.setQueryData(rescueCandidatesQueryKey(JUNK_MAILBOX_ID), {
-		pages: [response],
-		pageParams: [undefined],
-	});
+	client.setQueryData(
+		threadOperationsSearchThreadsQueryKey(HOOK_QUERY_OPTIONS),
+		response,
+	);
 
 	let captured: { candidates: RescueCandidate[] } = { candidates: [] };
 
