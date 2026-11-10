@@ -4,6 +4,7 @@ import type {
 	RemitImapClassificationSettings,
 	RemitImapClassificationTestResponse,
 } from "@remit/api-http-client/types.gen.ts";
+import { ClassificationValueSource } from "@remit/domain-enums";
 import {
 	Banner,
 	Button,
@@ -28,10 +29,11 @@ import {
 	type ProviderDraft,
 	presetNote,
 	providerSave,
+	settingsSources,
+	sourceNote,
 	switchingFrom,
 	testFailureHeadline,
 } from "../../../lib/classification";
-import { formatDatePreset } from "../../../lib/format";
 import { ReportLink } from "../ReportLink";
 import { type ClassificationFailure, FailureBanner } from "./FailureBanner";
 import { describedBy, Field } from "./Field";
@@ -194,6 +196,7 @@ function PresetForm({ preset, settings, onAnnounce }: PresetFormProps) {
 	const onSave = () => {
 		const result = providerSave(draft, preset, settings);
 		if (!result.ok) {
+			if (result.field === "ApiKey" && savedKey) setReplacing(true);
 			setFieldError({ field: result.field, message: result.message });
 			focus(result.field);
 			return;
@@ -257,6 +260,12 @@ function PresetForm({ preset, settings, onAnnounce }: PresetFormProps) {
 	};
 
 	const enabled = settings.state === "Configured" && settings.enabled;
+	const sources = settingsSources(settings, preset.presetId);
+	const keyInherited = sources?.apiKey === ClassificationValueSource.Deployment;
+	const withSource = (
+		hint: string,
+		source: keyof NonNullable<typeof sources>,
+	) => (sources ? `${hint} ${sourceNote(sources[source])}` : hint);
 	const keyError = errorFor("ApiKey");
 
 	return (
@@ -264,7 +273,7 @@ function PresetForm({ preset, settings, onAnnounce }: PresetFormProps) {
 			<Field
 				id={modelId}
 				label="Model"
-				hint={`Empty uses ${preset.defaultModel}.`}
+				hint={withSource(`Empty uses ${preset.defaultModel}.`, "model")}
 				error={errorFor("Model")}
 			>
 				<Input
@@ -288,7 +297,7 @@ function PresetForm({ preset, settings, onAnnounce }: PresetFormProps) {
 				<Field
 					id={baseUrlId}
 					label="Base URL"
-					hint="Remit's server calls this URL."
+					hint={withSource("Remit's server calls this URL.", "baseUrl")}
 					error={errorFor("BaseUrl")}
 				>
 					<Input
@@ -318,16 +327,25 @@ function PresetForm({ preset, settings, onAnnounce }: PresetFormProps) {
 				<div>
 					<p className="mb-1 text-xs font-medium text-fg-muted">API key</p>
 					<div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-						<span
-							className={
-								invalid("ApiKey") ? "text-sm text-danger" : "text-sm text-fg"
-							}
-						>
-							set
-						</span>
-						<span className="text-sm text-fg-muted">
-							saved {formatDatePreset(savedKey.savedAt, "short")}
-						</span>
+						{keyInherited ? (
+							<span
+								className={
+									invalid("ApiKey")
+										? "text-sm text-danger"
+										: "text-sm text-fg-muted"
+								}
+							>
+								provided by the deployment
+							</span>
+						) : (
+							<span
+								className={
+									invalid("ApiKey") ? "text-sm text-danger" : "text-sm text-fg"
+								}
+							>
+								set
+							</span>
+						)}
 						<span className="flex-1" />
 						<Button
 							ref={replaceRef}
@@ -336,15 +354,17 @@ function PresetForm({ preset, settings, onAnnounce }: PresetFormProps) {
 							aria-invalid={invalid("ApiKey")}
 							onClick={startReplace}
 						>
-							Replace
+							{keyInherited ? "Use your own key" : "Replace"}
 						</Button>
-						<Button
-							variant="secondary"
-							className="min-h-11"
-							onClick={() => setConfirmClear(true)}
-						>
-							Clear
-						</Button>
+						{!keyInherited && (
+							<Button
+								variant="secondary"
+								className="min-h-11"
+								onClick={() => setConfirmClear(true)}
+							>
+								Clear
+							</Button>
+						)}
 					</div>
 				</div>
 			)}
@@ -353,9 +373,7 @@ function PresetForm({ preset, settings, onAnnounce }: PresetFormProps) {
 					id={keyId}
 					label={replacing ? "New API key" : "API key"}
 					hint={
-						replacing
-							? "The saved key stays in use until you press Save."
-							: undefined
+						replacing ? "The key in use stays until you press Save." : undefined
 					}
 					error={keyError}
 				>
@@ -435,8 +453,8 @@ function PresetForm({ preset, settings, onAnnounce }: PresetFormProps) {
 				title={`Clear the ${preset.label} key?`}
 				description={
 					enabled
-						? `Classification is on. Clearing the key switches it off, and new mail goes back to built-in rules. To use ${preset.label} again you paste the key again.`
-						: `To use ${preset.label} again you paste the key again.`
+						? `Classification is on. Clearing the provider switches it off, and new mail goes back to built-in rules. Every field returns to the deployment default.`
+						: "Clearing the provider returns every field to the deployment default."
 				}
 				confirmLabel="Clear key"
 				destructive
@@ -509,7 +527,8 @@ export function ProviderCard({
 			{from && (
 				<p className="text-sm text-warning">
 					Saving switches from {from.label}
-					{settings.state === "Configured" && settings.apiKeySaved
+					{settings.state === "Configured" &&
+					settings.sources.apiKey === ClassificationValueSource.Saved
 						? " and deletes its saved key."
 						: "."}
 				</p>

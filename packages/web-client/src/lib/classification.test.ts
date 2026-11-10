@@ -4,11 +4,13 @@ import type {
 	RemitImapClassificationConfigured,
 	RemitImapClassificationPreset,
 } from "@remit/api-http-client/types.gen.ts";
+import { ClassificationValueSource } from "@remit/domain-enums";
 import {
 	BAD_URL,
 	groupPresets,
 	LIMIT_INVALID,
 	PASTE_KEY,
+	PASTE_KEY_FOR_NEW_URL,
 	parseDailyLimit,
 	providerSave,
 } from "./classification.js";
@@ -48,7 +50,14 @@ const savedMistral: RemitImapClassificationConfigured = {
 	apiKeySaved: true,
 	enabled: false,
 	dailyLimit: 500,
-	savedAt: 0,
+	sources: {
+		presetId: ClassificationValueSource.Saved,
+		model: ClassificationValueSource.Default,
+		baseUrl: ClassificationValueSource.Default,
+		apiKey: ClassificationValueSource.Deployment,
+		enabled: ClassificationValueSource.Default,
+		dailyLimit: ClassificationValueSource.Default,
+	},
 	usage: [],
 };
 
@@ -83,6 +92,19 @@ describe("providerSave", () => {
 		assert.deepStrictEqual(result, {
 			ok: true,
 			body: { classificationModel: "mistral-large", classificationBaseUrl: "" },
+		});
+	});
+
+	test("asks for a key when an inherited key would go to a different base URL", () => {
+		const result = providerSave(
+			draft({ presetId: "Mistral", baseUrl: "https://proxy.example.com/v1" }),
+			mistral,
+			savedMistral,
+		);
+		assert.deepStrictEqual(result, {
+			ok: false,
+			field: "ApiKey",
+			message: PASTE_KEY_FOR_NEW_URL,
 		});
 	});
 

@@ -7,8 +7,10 @@ import type {
 	RemitImapClassificationSettings,
 	RemitImapClassificationTestFailed,
 	RemitImapClassificationUsage,
+	RemitImapClassificationValueSource,
 	RemitImapUpdateUserSettingsInput,
 } from "@remit/api-http-client/types.gen.ts";
+import { ClassificationValueSource } from "@remit/domain-enums";
 import { buildBugReportContext, buildGitHubIssueUrl } from "./bug-report";
 import {
 	getErrorStatus,
@@ -34,24 +36,39 @@ export interface ProviderDraft {
 	apiKey: string;
 }
 
+export const presetIdOf = (
+	settings: RemitImapClassificationSettings,
+): RemitImapClassificationPresetId | undefined =>
+	settings.state === "NotConfigured" ? undefined : settings.presetId;
+
 export const draftFromSettings = (
 	settings: RemitImapClassificationSettings,
-): ProviderDraft =>
-	settings.state === "Configured"
-		? {
-				presetId: settings.presetId,
-				model: settings.model,
-				baseUrl: settings.baseUrl,
-				apiKey: "",
-			}
-		: { presetId: undefined, model: "", baseUrl: "", apiKey: "" };
+): ProviderDraft => {
+	if (settings.state === "NotConfigured") {
+		return { presetId: undefined, model: "", baseUrl: "", apiKey: "" };
+	}
+	if (settings.state === "Unrunnable") {
+		return {
+			presetId: settings.presetId,
+			model: "",
+			baseUrl: "",
+			apiKey: "",
+		};
+	}
+	return {
+		presetId: settings.presetId,
+		model: settings.model,
+		baseUrl: settings.baseUrl,
+		apiKey: "",
+	};
+};
 
 export const draftForPreset = (
 	preset: RemitImapClassificationPreset,
 	settings: RemitImapClassificationSettings,
 ): ProviderDraft => {
 	const draft: ProviderDraft =
-		settings.state === "Configured" && settings.presetId === preset.presetId
+		presetIdOf(settings) === preset.presetId
 			? draftFromSettings(settings)
 			: {
 					presetId: preset.presetId,
@@ -106,13 +123,32 @@ export const hasSavedKey = (
 ): settings is RemitImapClassificationConfigured =>
 	settings.state === "Configured" &&
 	settings.presetId === presetId &&
-	settings.apiKeySaved;
+	settings.sources.apiKey !== ClassificationValueSource.Default;
+
+export const sourceNote = (
+	source: RemitImapClassificationValueSource,
+): string => {
+	if (source === ClassificationValueSource.Saved) return "Saved by you.";
+	if (source === ClassificationValueSource.Deployment) {
+		return "Provided by the deployment.";
+	}
+	return "Built-in default.";
+};
+
+export const settingsSources = (
+	settings: RemitImapClassificationSettings,
+	presetId: RemitImapClassificationPresetId | undefined,
+): RemitImapClassificationConfigured["sources"] | undefined =>
+	settings.state === "Configured" && settings.presetId === presetId
+		? settings.sources
+		: undefined;
 
 export type ProviderSave =
 	| { ok: true; body: RemitImapUpdateUserSettingsInput }
 	| { ok: false; field: RemitImapClassificationField; message: string };
 
 export const PASTE_KEY = "Paste an API key";
+export const PASTE_KEY_FOR_NEW_URL = "Paste an API key for this base URL";
 export const BAD_URL = "Enter a URL that starts with http:// or https://";
 
 const isHttpUrl = (value: string): boolean => {
@@ -134,15 +170,16 @@ export const providerSave = (
 	if (baseUrl === "" && needsBaseUrl(preset)) {
 		return { ok: false, field: "BaseUrl", message: BAD_URL };
 	}
-	if (
-		preset.needsKey &&
-		apiKey === "" &&
-		!hasSavedKey(settings, preset.presetId)
-	) {
-		return { ok: false, field: "ApiKey", message: PASTE_KEY };
+	if (preset.needsKey && apiKey === "") {
+		if (!hasSavedKey(settings, preset.presetId)) {
+			return { ok: false, field: "ApiKey", message: PASTE_KEY };
+		}
+		const effectiveBaseUrl = baseUrl || (preset.defaultBaseUrl ?? "");
+		if (effectiveBaseUrl !== draftForPreset(preset, settings).baseUrl) {
+			return { ok: false, field: "ApiKey", message: PASTE_KEY_FOR_NEW_URL };
+		}
 	}
-	const switching =
-		settings.state !== "Configured" || settings.presetId !== preset.presetId;
+	const switching = presetIdOf(settings) !== preset.presetId;
 	return {
 		ok: true,
 		body: {
@@ -161,11 +198,10 @@ export const switchingFrom = (
 	presetId: RemitImapClassificationPresetId | undefined,
 	presets: readonly RemitImapClassificationPreset[],
 ): RemitImapClassificationPreset | undefined => {
-	if (settings.state !== "Configured" || presetId === undefined) {
-		return undefined;
-	}
-	if (settings.presetId === presetId) return undefined;
-	return presets.find((preset) => preset.presetId === settings.presetId);
+	const current = presetIdOf(settings);
+	if (current === undefined || presetId === undefined) return undefined;
+	if (current === presetId) return undefined;
+	return presets.find((preset) => preset.presetId === current);
 };
 
 export const testFailureHeadline = (
