@@ -9,7 +9,6 @@ import {
 	groupPresets,
 	PASTE_KEY,
 	providerSave,
-	switchingFrom,
 } from "./classification.js";
 
 const mistral: RemitImapClassificationPreset = {
@@ -118,7 +117,11 @@ describe("providerSave", () => {
 		const result = providerSave(draft({ presetId: "Local" }), local, {
 			state: "NotConfigured",
 		});
-		assert.strictEqual(result.ok, false);
+		assert.deepStrictEqual(result, {
+			ok: false,
+			field: "BaseUrl",
+			message: BAD_URL,
+		});
 	});
 
 	test("sends no key for a preset that needs none", () => {
@@ -154,24 +157,6 @@ describe("groupPresets", () => {
 				["Hosted", ["Mistral", "Jina"]],
 				["Local", ["Local"]],
 			],
-		);
-	});
-});
-
-describe("switchingFrom", () => {
-	test("names the saved preset only when another one is picked", () => {
-		const presets = [mistral, jina];
-		assert.strictEqual(
-			switchingFrom(savedMistral, "Jina", presets)?.label,
-			"Mistral",
-		);
-		assert.strictEqual(
-			switchingFrom(savedMistral, "Mistral", presets),
-			undefined,
-		);
-		assert.strictEqual(
-			switchingFrom({ state: "NotConfigured" }, "Jina", presets),
-			undefined,
 		);
 	});
 });

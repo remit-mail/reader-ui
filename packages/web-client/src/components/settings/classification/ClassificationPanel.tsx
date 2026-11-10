@@ -1,12 +1,12 @@
 import type { RemitImapClassificationSettings } from "@remit/api-http-client/types.gen.ts";
-import { Button, cn } from "@remit/ui";
+import { Switch } from "@remit/ui";
 import { useId, useState } from "react";
 import {
-	useClassificationActions,
 	useClassificationSettings,
+	useSaveClassification,
 } from "../../../hooks/useClassificationSettings";
-import { classificationReportHref } from "../../../lib/classification";
-import { FailureBanner, ProviderCard } from "./ProviderCard";
+import { FailureBanner } from "./FailureBanner";
+import { ProviderCard } from "./ProviderCard";
 
 const LOAD_FAILED = "Mail classification settings did not load";
 
@@ -25,15 +25,13 @@ function StatusCard({
 }: {
 	settings: RemitImapClassificationSettings;
 }) {
-	const { toggle } = useClassificationActions();
+	const toggle = useSaveClassification();
 	const [refusal, setRefusal] = useState<unknown>(null);
 	const ids = useId();
 	const configured = settings.state === "Configured";
 	const on = configured && settings.enabled;
-	const inert = !configured || toggle.isPending;
 
 	const flip = () => {
-		if (inert) return;
 		setRefusal(null);
 		toggle.mutate(
 			{ body: { classificationEnabled: !on } },
@@ -58,38 +56,14 @@ function StatusCard({
 						{switchNote(settings)}
 					</span>
 				</span>
-				<button
-					type="button"
-					role="switch"
-					aria-checked={on}
+				<Switch
+					checked={on}
 					aria-labelledby={`${ids}-label`}
 					aria-describedby={`${ids}-note`}
-					aria-disabled={inert}
+					aria-disabled={!configured || toggle.isPending}
 					aria-busy={toggle.isPending}
-					onClick={flip}
-					className={cn(
-						"inline-flex h-11 w-14 shrink-0 items-center justify-center rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring",
-						inert ? "cursor-not-allowed" : "cursor-pointer",
-					)}
-				>
-					<span
-						aria-hidden
-						className={cn(
-							"relative inline-flex h-6 w-11 items-center rounded-full border transition-colors",
-							on
-								? "border-positive bg-positive"
-								: "border-line-strong bg-surface-sunken",
-							!configured && "opacity-60",
-						)}
-					>
-						<span
-							className={cn(
-								"size-4 rounded-full bg-canvas transition-transform",
-								on ? "translate-x-6" : "translate-x-1",
-							)}
-						/>
-					</span>
-				</button>
+					onToggle={flip}
+				/>
 			</div>
 			{refusal !== null && (
 				<FailureBanner
@@ -122,33 +96,11 @@ export function ClassificationPanel() {
 	if (query.signedOut) return null;
 
 	if (query.isError) {
-		const message =
-			query.error instanceof Error ? query.error.message : String(query.error);
 		return (
-			<div
-				role="alert"
-				className="space-y-2 rounded-md border border-danger/40 bg-danger-soft p-3 text-sm"
-			>
-				<p className="font-medium text-danger">{LOAD_FAILED}</p>
-				<p className="break-words text-fg-muted">{message}</p>
-				<p className="flex items-center gap-4">
-					<Button
-						variant="secondary"
-						className="min-h-11"
-						onClick={() => void query.refetch()}
-					>
-						Retry
-					</Button>
-					<a
-						href={classificationReportHref(LOAD_FAILED, message)}
-						target="_blank"
-						rel="noreferrer"
-						className="inline-flex min-h-11 items-center font-medium text-accent hover:underline"
-					>
-						Report an issue
-					</a>
-				</p>
-			</div>
+			<FailureBanner
+				failure={{ title: LOAD_FAILED, error: query.error }}
+				onRetry={() => void query.refetch()}
+			/>
 		);
 	}
 
@@ -156,7 +108,11 @@ export function ClassificationPanel() {
 	return (
 		<div className="max-w-xl space-y-8">
 			<StatusCard settings={classification} />
-			<ProviderCard presets={classificationPresets} settings={classification} />
+			<ProviderCard
+				key={classification.state}
+				presets={classificationPresets}
+				settings={classification}
+			/>
 		</div>
 	);
 }

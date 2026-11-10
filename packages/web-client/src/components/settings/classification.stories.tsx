@@ -249,6 +249,13 @@ export const ClearKeyConfirm: Story = {
 		const dialog = within(await canvas.findByRole("dialog"));
 		await expect(dialog.getByText("Clear the Mistral key?")).toBeVisible();
 		await expect(dialog.getByRole("button", { name: "Cancel" })).toHaveFocus();
+		await userEvent.click(dialog.getByRole("button", { name: "Clear key" }));
+		await waitFor(() => expect(canvas.queryByRole("dialog")).toBeNull());
+		await expect(await useTheModel(canvasElement)).toHaveAttribute(
+			"aria-disabled",
+			"true",
+		);
+		await expect(canvas.getByText(/Save a provider below first/)).toBeVisible();
 	},
 };
 

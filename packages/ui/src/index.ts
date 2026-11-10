@@ -975,6 +975,7 @@ export {
 	SwipeableRow,
 	type SwipePeek,
 } from "./components/swipeable-row.js";
+export { Switch, type SwitchProps } from "./components/switch.js";
 export { syncWarningDemoEntries } from "./components/sync-warning-fixtures.js";
 export {
 	formatSyncWarningReport,

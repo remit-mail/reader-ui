@@ -9,27 +9,32 @@ import {
 	Button,
 	ConfirmDialog,
 	FieldLabel,
-	formatErrorMessage,
 	Input,
 	PasswordInput,
 	Select,
 } from "@remit/ui";
 import { type ReactNode, useEffect, useId, useRef, useState } from "react";
-import { useClassificationActions } from "../../../hooks/useClassificationSettings";
+import {
+	useClearClassification,
+	useSaveClassification,
+	useTestClassification,
+} from "../../../hooks/useClassificationSettings";
 import {
 	classificationReportHref,
 	draftForPreset,
 	draftFromSettings,
-	FAILURE_FIELD_LINE,
 	groupPresets,
 	hasSavedKey,
 	needsBaseUrl,
 	type ProviderDraft,
+	presetNote,
 	providerSave,
 	switchingFrom,
 	testFailureHeadline,
 } from "../../../lib/classification";
 import { formatDatePreset } from "../../../lib/format";
+import { ReportLink } from "../ReportLink";
+import { type ClassificationFailure, FailureBanner } from "./FailureBanner";
 
 type FocusTarget = RemitImapClassificationField | "Replace";
 
@@ -38,59 +43,22 @@ interface FieldError {
 	message: string;
 }
 
-interface Failure {
-	title: string;
-	error: unknown;
-}
-
 const FIELD_FIX_LABEL: Record<RemitImapClassificationField, string> = {
 	ApiKey: "Replace key",
 	Model: "Fix the model",
 	BaseUrl: "Fix the base URL",
 };
 
-function ReportLink({ href }: { href: string }) {
-	return (
-		<a
-			href={href}
-			target="_blank"
-			rel="noreferrer"
-			className="inline-flex min-h-11 items-center font-medium text-accent hover:underline"
-		>
-			Report an issue
-		</a>
-	);
-}
-
-export function FailureBanner({ failure }: { failure: Failure }) {
-	const message = formatErrorMessage(failure.error);
-	return (
-		<Banner tone="danger" variant="soft">
-			<p className="font-medium">{failure.title}</p>
-			<p className="mt-0.5 break-words text-fg-muted">{message}</p>
-			<ReportLink href={classificationReportHref(failure.title, message)} />
-		</Banner>
-	);
-}
-
-function presetNote(preset: RemitImapClassificationPreset): string {
-	const key = preset.needsKey ? "Needs an API key." : "No key needed.";
-	if (preset.price.state === "Priced") {
-		return `${key} $${preset.price.perMillionInputTokens} per million input tokens.`;
-	}
-	return key;
-}
-
 function TestOutcome({
 	result,
 	presetLabel,
 	onFix,
-	fixable,
+	shown,
 }: {
 	result: RemitImapClassificationTestResponse;
 	presetLabel: string;
 	onFix: (field: RemitImapClassificationField) => void;
-	fixable: (field: RemitImapClassificationField) => boolean;
+	shown: Record<RemitImapClassificationField, boolean>;
 }) {
 	if (result.state === "Passed") {
 		return (
@@ -112,7 +80,7 @@ function TestOutcome({
 				{result.fix} Nothing changed: classification stays as it was.
 			</p>
 			<p className="flex flex-wrap items-center gap-x-4">
-				{field !== undefined && fixable(field) && (
+				{field !== undefined && shown[field] && (
 					<button
 						type="button"
 						onClick={() => onFix(field)}
@@ -168,22 +136,24 @@ const describedBy = (id: string, hint: boolean, error: boolean) =>
 		.filter(Boolean)
 		.join(" ") || undefined;
 
-export interface ProviderCardProps {
-	presets: RemitImapClassificationPreset[];
+interface PresetFormProps {
+	preset: RemitImapClassificationPreset;
 	settings: RemitImapClassificationSettings;
 }
 
-export function ProviderCard({ presets, settings }: ProviderCardProps) {
-	const { save, clear, test } = useClassificationActions();
+function PresetForm({ preset, settings }: PresetFormProps) {
+	const save = useSaveClassification();
+	const clear = useClearClassification();
+	const test = useTestClassification();
 	const [draft, setDraft] = useState<ProviderDraft>(() =>
-		draftFromSettings(settings),
+		draftForPreset(preset.presetId, settings),
 	);
 	const [fieldError, setFieldError] = useState<FieldError | null>(null);
 	const [testResult, setTestResult] =
 		useState<RemitImapClassificationTestResponse | null>(null);
 	const [replacing, setReplacing] = useState(false);
 	const [confirmClear, setConfirmClear] = useState(false);
-	const [failure, setFailure] = useState<Failure | null>(null);
+	const [failure, setFailure] = useState<ClassificationFailure | null>(null);
 	const [announcement, setAnnouncement] = useState("");
 	const [focusTarget, setFocusTarget] = useState<{
 		target: FocusTarget;
@@ -194,7 +164,6 @@ export function ProviderCard({ presets, settings }: ProviderCardProps) {
 	const keyRef = useRef<HTMLInputElement>(null);
 	const replaceRef = useRef<HTMLButtonElement>(null);
 	const ids = useId();
-	const presetFieldId = `${ids}-preset`;
 	const modelId = `${ids}-model`;
 	const baseUrlId = `${ids}-base-url`;
 	const keyId = `${ids}-key`;
@@ -210,15 +179,22 @@ export function ProviderCard({ presets, settings }: ProviderCardProps) {
 		refs[focusTarget.target].current?.focus();
 	}, [focusTarget]);
 
-	const preset = presets.find((entry) => entry.presetId === draft.presetId);
-	const groups = groupPresets(presets);
-	const savedKey = hasSavedKey(settings, draft.presetId);
-	const showKeyRow = preset?.needsKey === true && savedKey && !replacing;
-	const showKeyInput = preset?.needsKey === true && !showKeyRow;
-	const showBaseUrl = preset !== undefined && needsBaseUrl(preset);
-	const from = switchingFrom(settings, draft.presetId, presets);
+	const savedKey =
+		preset.needsKey && hasSavedKey(settings, preset.presetId)
+			? settings
+			: undefined;
+	const showKeyInput = preset.needsKey && (savedKey === undefined || replacing);
+	const showBaseUrl = needsBaseUrl(preset);
+	const shown: Record<RemitImapClassificationField, boolean> = {
+		ApiKey: preset.needsKey,
+		Model: true,
+		BaseUrl: showBaseUrl,
+	};
 	const errorFor = (field: RemitImapClassificationField) =>
 		fieldError?.field === field ? fieldError.message : undefined;
+	const invalid = (field: RemitImapClassificationField) =>
+		errorFor(field) !== undefined ||
+		(testResult?.state === "Failed" && testResult.field === field);
 
 	const focus = (target: FocusTarget) => setFocusTarget({ target });
 
@@ -229,17 +205,6 @@ export function ProviderCard({ presets, settings }: ProviderCardProps) {
 		setDraft((current) => ({ ...current, ...value }));
 		setTestResult((current) => (current?.state === "Passed" ? null : current));
 		setFieldError((current) => (current?.field === field ? null : current));
-		setAnnouncement("");
-	};
-
-	const pickPreset = (presetId: string) => {
-		const picked = presets.find((entry) => entry.presetId === presetId);
-		if (!picked) return;
-		setDraft(draftForPreset(picked.presetId, settings));
-		setTestResult(null);
-		setFieldError(null);
-		setFailure(null);
-		setReplacing(false);
 		setAnnouncement("");
 	};
 
@@ -263,15 +228,7 @@ export function ProviderCard({ presets, settings }: ProviderCardProps) {
 		focus(field);
 	};
 
-	const fixable = (field: RemitImapClassificationField) =>
-		field === "ApiKey"
-			? preset?.needsKey === true
-			: field === "BaseUrl"
-				? showBaseUrl
-				: true;
-
 	const onSave = () => {
-		if (!preset) return;
 		const result = providerSave(draft, preset, settings);
 		if (!result.ok) {
 			setFieldError({ field: result.field, message: result.message });
@@ -297,7 +254,7 @@ export function ProviderCard({ presets, settings }: ProviderCardProps) {
 	};
 
 	const onTest = () => {
-		if (!preset || test.isPending) return;
+		if (test.isPending) return;
 		setTestResult(null);
 		setFailure(null);
 		setAnnouncement("");
@@ -311,15 +268,7 @@ export function ProviderCard({ presets, settings }: ProviderCardProps) {
 				},
 			},
 			{
-				onSuccess: (result) => {
-					setTestResult(result);
-					if (result.state === "Failed" && result.field !== undefined) {
-						setFieldError({
-							field: result.field,
-							message: FAILURE_FIELD_LINE[result.kind],
-						});
-					}
-				},
+				onSuccess: setTestResult,
 				onError: (error) =>
 					setFailure({
 						title: `The test of ${preset.label} did not run`,
@@ -330,17 +279,9 @@ export function ProviderCard({ presets, settings }: ProviderCardProps) {
 	};
 
 	const onClear = () => {
-		if (!preset) return;
 		clear.mutate(
 			{},
 			{
-				onSuccess: () => {
-					setConfirmClear(false);
-					setReplacing(false);
-					setTestResult(null);
-					setFieldError(null);
-					setDraft((current) => ({ ...current, apiKey: "" }));
-				},
 				onError: (error) => {
 					setConfirmClear(false);
 					setFailure({
@@ -356,6 +297,210 @@ export function ProviderCard({ presets, settings }: ProviderCardProps) {
 	const keyError = errorFor("ApiKey");
 
 	return (
+		<>
+			<Field
+				id={modelId}
+				label="Model"
+				hint={`Empty uses ${preset.defaultModel}.`}
+				error={errorFor("Model")}
+			>
+				<Input
+					id={modelId}
+					ref={modelRef}
+					className="h-11"
+					value={draft.model}
+					placeholder={preset.defaultModel}
+					autoComplete="off"
+					spellCheck={false}
+					aria-invalid={invalid("Model")}
+					aria-describedby={describedBy(
+						modelId,
+						true,
+						errorFor("Model") !== undefined,
+					)}
+					onChange={(event) => edit("Model", { model: event.target.value })}
+				/>
+			</Field>
+			{showBaseUrl && (
+				<Field
+					id={baseUrlId}
+					label="Base URL"
+					hint="Remit's server calls this URL."
+					error={errorFor("BaseUrl")}
+				>
+					<Input
+						id={baseUrlId}
+						ref={baseUrlRef}
+						className="h-11"
+						type="url"
+						inputMode="url"
+						value={draft.baseUrl}
+						placeholder="http://localhost:11434/v1"
+						autoComplete="off"
+						spellCheck={false}
+						required
+						aria-invalid={invalid("BaseUrl")}
+						aria-describedby={describedBy(
+							baseUrlId,
+							true,
+							errorFor("BaseUrl") !== undefined,
+						)}
+						onChange={(event) =>
+							edit("BaseUrl", { baseUrl: event.target.value })
+						}
+					/>
+				</Field>
+			)}
+			{savedKey && !replacing && (
+				<div>
+					<p className="mb-1 text-xs font-medium text-fg-muted">API key</p>
+					<div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+						<span
+							className={
+								invalid("ApiKey") ? "text-sm text-danger" : "text-sm text-fg"
+							}
+						>
+							set
+						</span>
+						<span className="text-sm text-fg-muted">
+							saved {formatDatePreset(savedKey.savedAt, "short")}
+						</span>
+						<span className="flex-1" />
+						<Button
+							ref={replaceRef}
+							variant="secondary"
+							className="min-h-11"
+							aria-invalid={invalid("ApiKey")}
+							onClick={startReplace}
+						>
+							Replace
+						</Button>
+						<Button
+							variant="secondary"
+							className="min-h-11"
+							onClick={() => setConfirmClear(true)}
+						>
+							Clear
+						</Button>
+					</div>
+				</div>
+			)}
+			{showKeyInput && (
+				<Field
+					id={keyId}
+					label={replacing ? "New API key" : "API key"}
+					hint={
+						replacing
+							? "The saved key stays in use until you press Save."
+							: undefined
+					}
+					error={keyError}
+				>
+					<div className="flex items-center gap-2">
+						<PasswordInput
+							id={keyId}
+							ref={keyRef}
+							className="h-11 flex-1"
+							value={draft.apiKey}
+							placeholder={replacing ? "Paste the new key" : "Paste the key"}
+							autoComplete="off"
+							spellCheck={false}
+							aria-invalid={invalid("ApiKey")}
+							aria-describedby={describedBy(
+								keyId,
+								replacing,
+								keyError !== undefined,
+							)}
+							onChange={(event) =>
+								edit("ApiKey", { apiKey: event.target.value })
+							}
+							onKeyDown={(event) => {
+								if (event.key === "Escape" && replacing) {
+									event.preventDefault();
+									event.stopPropagation();
+									cancelReplace();
+								}
+							}}
+						/>
+						{replacing && (
+							<Button
+								variant="ghost"
+								className="min-h-11"
+								onClick={cancelReplace}
+							>
+								Cancel
+							</Button>
+						)}
+					</div>
+				</Field>
+			)}
+			<div className="flex flex-wrap gap-2">
+				<Button
+					variant="primary"
+					className="min-h-11"
+					aria-disabled={save.isPending}
+					onClick={() => {
+						if (!save.isPending) onSave();
+					}}
+				>
+					{save.isPending ? "Saving…" : "Save"}
+				</Button>
+				<Button
+					variant="secondary"
+					className="min-h-11"
+					aria-disabled={test.isPending}
+					aria-busy={test.isPending}
+					onClick={onTest}
+				>
+					{test.isPending ? "Testing…" : "Test connection"}
+				</Button>
+			</div>
+			<p aria-live="polite" className="text-sm text-fg-muted empty:hidden">
+				{test.isPending
+					? `Sending one sample message to ${preset.label}`
+					: announcement}
+			</p>
+			{testResult && (
+				<TestOutcome
+					result={testResult}
+					presetLabel={preset.label}
+					onFix={fixField}
+					shown={shown}
+				/>
+			)}
+			{failure && <FailureBanner failure={failure} />}
+			<ConfirmDialog
+				isOpen={confirmClear}
+				title={`Clear the ${preset.label} key?`}
+				description={
+					enabled
+						? `Classification is on. Clearing the key switches it off, and new mail goes back to built-in rules. To use ${preset.label} again you paste the key again.`
+						: `To use ${preset.label} again you paste the key again.`
+				}
+				confirmLabel="Clear key"
+				destructive
+				isBusy={clear.isPending}
+				onConfirm={onClear}
+				onCancel={() => setConfirmClear(false)}
+			/>
+		</>
+	);
+}
+
+export interface ProviderCardProps {
+	presets: RemitImapClassificationPreset[];
+	settings: RemitImapClassificationSettings;
+}
+
+export function ProviderCard({ presets, settings }: ProviderCardProps) {
+	const [presetId, setPresetId] = useState(
+		() => draftFromSettings(settings).presetId,
+	);
+	const presetFieldId = useId();
+	const preset = presets.find((entry) => entry.presetId === presetId);
+	const from = switchingFrom(settings, presetId, presets);
+
+	return (
 		<section className="space-y-4">
 			<h2 className="text-xs font-semibold uppercase tracking-wider text-fg-subtle">
 				Provider
@@ -368,8 +513,13 @@ export function ProviderCard({ presets, settings }: ProviderCardProps) {
 				<Select
 					id={presetFieldId}
 					className="h-11"
-					value={draft.presetId ?? ""}
-					onChange={(event) => pickPreset(event.target.value)}
+					value={presetId ?? ""}
+					onChange={(event) =>
+						setPresetId(
+							presets.find((entry) => entry.presetId === event.target.value)
+								?.presetId,
+						)
+					}
 					aria-describedby={describedBy(
 						presetFieldId,
 						preset !== undefined,
@@ -379,7 +529,7 @@ export function ProviderCard({ presets, settings }: ProviderCardProps) {
 					<option value="" disabled>
 						Choose a provider
 					</option>
-					{groups.map((group) => (
+					{groupPresets(presets).map((group) => (
 						<optgroup key={group.group} label={group.label}>
 							{group.presets.map((entry) => (
 								<option key={entry.presetId} value={entry.presetId}>
@@ -399,197 +549,7 @@ export function ProviderCard({ presets, settings }: ProviderCardProps) {
 				</p>
 			)}
 			{preset && (
-				<>
-					<Field
-						id={modelId}
-						label="Model"
-						hint={`Empty uses ${preset.defaultModel}.`}
-						error={errorFor("Model")}
-					>
-						<Input
-							id={modelId}
-							ref={modelRef}
-							className="h-11"
-							value={draft.model}
-							placeholder={preset.defaultModel}
-							autoComplete="off"
-							spellCheck={false}
-							aria-invalid={errorFor("Model") !== undefined}
-							aria-describedby={describedBy(
-								modelId,
-								true,
-								errorFor("Model") !== undefined,
-							)}
-							onChange={(event) => edit("Model", { model: event.target.value })}
-						/>
-					</Field>
-					{showBaseUrl && (
-						<Field
-							id={baseUrlId}
-							label="Base URL"
-							hint="Remit's server calls this URL."
-							error={errorFor("BaseUrl")}
-						>
-							<Input
-								id={baseUrlId}
-								ref={baseUrlRef}
-								className="h-11"
-								type="url"
-								inputMode="url"
-								value={draft.baseUrl}
-								placeholder="http://localhost:11434/v1"
-								autoComplete="off"
-								spellCheck={false}
-								required
-								aria-invalid={errorFor("BaseUrl") !== undefined}
-								aria-describedby={describedBy(
-									baseUrlId,
-									true,
-									errorFor("BaseUrl") !== undefined,
-								)}
-								onChange={(event) =>
-									edit("BaseUrl", { baseUrl: event.target.value })
-								}
-							/>
-						</Field>
-					)}
-					{showKeyRow && settings.state === "Configured" && (
-						<div>
-							<p className="mb-1 text-xs font-medium text-fg-muted">API key</p>
-							<div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-								<span
-									className={
-										keyError ? "text-sm text-danger" : "text-sm text-fg"
-									}
-								>
-									set
-								</span>
-								<span className="text-sm text-fg-muted">
-									saved {formatDatePreset(settings.savedAt, "short")}
-								</span>
-								<span className="flex-1" />
-								<Button
-									ref={replaceRef}
-									variant="secondary"
-									className="min-h-11"
-									onClick={startReplace}
-								>
-									Replace
-								</Button>
-								<Button
-									variant="secondary"
-									className="min-h-11"
-									onClick={() => setConfirmClear(true)}
-								>
-									Clear
-								</Button>
-							</div>
-							{keyError && (
-								<p className="mt-1 text-xs text-danger">{keyError}</p>
-							)}
-						</div>
-					)}
-					{showKeyInput && (
-						<Field
-							id={keyId}
-							label={replacing ? "New API key" : "API key"}
-							hint={
-								replacing
-									? "The saved key stays in use until you press Save."
-									: undefined
-							}
-							error={keyError}
-						>
-							<div className="flex items-center gap-2">
-								<PasswordInput
-									id={keyId}
-									ref={keyRef}
-									className="h-11 flex-1"
-									value={draft.apiKey}
-									placeholder={
-										replacing ? "Paste the new key" : "Paste the key"
-									}
-									autoComplete="off"
-									spellCheck={false}
-									aria-invalid={keyError !== undefined}
-									aria-describedby={describedBy(
-										keyId,
-										replacing,
-										keyError !== undefined,
-									)}
-									onChange={(event) =>
-										edit("ApiKey", { apiKey: event.target.value })
-									}
-									onKeyDown={(event) => {
-										if (event.key === "Escape" && replacing) {
-											event.preventDefault();
-											event.stopPropagation();
-											cancelReplace();
-										}
-									}}
-								/>
-								{replacing && (
-									<Button
-										variant="ghost"
-										className="min-h-11"
-										onClick={cancelReplace}
-									>
-										Cancel
-									</Button>
-								)}
-							</div>
-						</Field>
-					)}
-					<div className="flex flex-wrap gap-2">
-						<Button
-							variant="primary"
-							className="min-h-11"
-							aria-disabled={save.isPending}
-							onClick={() => {
-								if (!save.isPending) onSave();
-							}}
-						>
-							{save.isPending ? "Saving…" : "Save"}
-						</Button>
-						<Button
-							variant="secondary"
-							className="min-h-11"
-							aria-disabled={test.isPending}
-							aria-busy={test.isPending}
-							onClick={onTest}
-						>
-							{test.isPending ? "Testing…" : "Test connection"}
-						</Button>
-					</div>
-					<p aria-live="polite" className="text-sm text-fg-muted empty:hidden">
-						{test.isPending
-							? `Sending one sample message to ${preset.label}`
-							: announcement}
-					</p>
-					{testResult && (
-						<TestOutcome
-							result={testResult}
-							presetLabel={preset.label}
-							onFix={fixField}
-							fixable={fixable}
-						/>
-					)}
-					{failure && <FailureBanner failure={failure} />}
-					<ConfirmDialog
-						isOpen={confirmClear}
-						title={`Clear the ${preset.label} key?`}
-						description={
-							enabled
-								? `Classification is on. Clearing the key switches it off, and new mail goes back to built-in rules. To use ${preset.label} again you paste the key again.`
-								: `To use ${preset.label} again you paste the key again.`
-						}
-						confirmLabel="Clear key"
-						destructive
-						isBusy={clear.isPending}
-						onConfirm={onClear}
-						onCancel={() => setConfirmClear(false)}
-					/>
-				</>
+				<PresetForm key={preset.presetId} preset={preset} settings={settings} />
 			)}
 		</section>
 	);

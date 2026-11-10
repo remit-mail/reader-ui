@@ -5,7 +5,12 @@ import {
 	userSettingsOperationsUpdateUserSettingsMutation,
 } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
 import type { RemitImapUserSettingsResponse } from "@remit/api-http-client/types.gen.ts";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+	type QueryClient,
+	useMutation,
+	useQuery,
+	useQueryClient,
+} from "@tanstack/react-query";
 import { useEffect } from "react";
 import {
 	classificationActionMeta,
@@ -14,55 +19,53 @@ import {
 } from "../lib/classification";
 import { reportSignedOut } from "../lib/signed-out";
 
-const settingsKey = () =>
-	userSettingsOperationsGetUserSettingsOptions().queryKey;
-
-const useReportSignedOut = (error: unknown): void => {
-	const signedOut = error !== null && isClassificationSignedOut(error);
-	useEffect(() => {
-		if (signedOut) reportSignedOut();
-	}, [signedOut]);
+const reportIfSignedOut = (error: unknown): void => {
+	if (isClassificationSignedOut(error)) reportSignedOut();
 };
+
+const storeSettings =
+	(queryClient: QueryClient) => (settings: RemitImapUserSettingsResponse) => {
+		queryClient.setQueryData(
+			userSettingsOperationsGetUserSettingsOptions().queryKey,
+			settings,
+		);
+	};
 
 export const useClassificationSettings = () => {
 	const query = useQuery({
 		...userSettingsOperationsGetUserSettingsOptions(),
 		meta: classificationQueryMeta,
 	});
-	useReportSignedOut(query.error);
-	return {
-		...query,
-		signedOut: query.isError && isClassificationSignedOut(query.error),
-	};
+	const signedOut = query.isError && isClassificationSignedOut(query.error);
+	useEffect(() => {
+		if (signedOut) reportSignedOut();
+	}, [signedOut]);
+	return { ...query, signedOut };
 };
 
-export const useClassificationActions = () => {
+export const useSaveClassification = () => {
 	const queryClient = useQueryClient();
-	const store = (settings: RemitImapUserSettingsResponse) => {
-		queryClient.setQueryData(settingsKey(), settings);
-	};
-	const save = useMutation({
+	return useMutation({
 		...userSettingsOperationsUpdateUserSettingsMutation(),
 		meta: classificationActionMeta,
-		onSuccess: store,
+		onSuccess: storeSettings(queryClient),
+		onError: reportIfSignedOut,
 	});
-	const clear = useMutation({
+};
+
+export const useClearClassification = () => {
+	const queryClient = useQueryClient();
+	return useMutation({
 		...userSettingsOperationsClearClassificationProviderMutation(),
 		meta: classificationActionMeta,
-		onSuccess: store,
+		onSuccess: storeSettings(queryClient),
+		onError: reportIfSignedOut,
 	});
-	const toggle = useMutation({
-		...userSettingsOperationsUpdateUserSettingsMutation(),
-		meta: classificationActionMeta,
-		onSuccess: store,
-	});
-	const test = useMutation({
+};
+
+export const useTestClassification = () =>
+	useMutation({
 		...userSettingsOperationsTestClassificationProviderMutation(),
 		meta: classificationActionMeta,
+		onError: reportIfSignedOut,
 	});
-	useReportSignedOut(save.error);
-	useReportSignedOut(clear.error);
-	useReportSignedOut(toggle.error);
-	useReportSignedOut(test.error);
-	return { save, clear, toggle, test };
-};

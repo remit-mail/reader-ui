@@ -1,5 +1,5 @@
 import type {
-	RemitImapClassificationFailureKind,
+	RemitImapClassificationConfigured,
 	RemitImapClassificationField,
 	RemitImapClassificationPreset,
 	RemitImapClassificationPresetGroup,
@@ -22,10 +22,8 @@ export const classificationActionMeta = {
 	...ownsServerErrorsMeta,
 };
 
-export const isClassificationSignedOut = (error: unknown): boolean => {
-	const status = getErrorStatus(error);
-	return status === 401 || status === 403;
-};
+export const isClassificationSignedOut = (error: unknown): boolean =>
+	getErrorStatus(error) === 403;
 
 export interface ProviderDraft {
 	presetId: RemitImapClassificationPresetId | undefined;
@@ -91,7 +89,7 @@ export const needsBaseUrl = (preset: RemitImapClassificationPreset): boolean =>
 export const hasSavedKey = (
 	settings: RemitImapClassificationSettings,
 	presetId: RemitImapClassificationPresetId | undefined,
-): boolean =>
+): settings is RemitImapClassificationConfigured =>
 	settings.state === "Configured" &&
 	settings.presetId === presetId &&
 	settings.apiKeySaved;
@@ -175,16 +173,13 @@ export const classificationReportHref = (
 		}),
 	);
 
-export const FAILURE_FIELD_LINE: Record<
-	RemitImapClassificationFailureKind,
-	string
-> = {
-	Unauthorized: "The provider rejected this key.",
-	ModelNotFound: "The provider does not know this model.",
-	RateLimited: "The provider is rate limiting this key.",
-	Rejected: "The provider refused the request.",
-	ProviderError: "The provider is failing.",
-	Unreachable: "Remit's server could not reach this URL.",
-	TimedOut: "No answer from this URL within 10 seconds.",
-	Unparseable: "The answer from this model could not be read.",
+export const presetNote = (preset: RemitImapClassificationPreset): string => {
+	const key = preset.needsKey ? "Needs an API key." : "No key needed.";
+	if (preset.price.state !== "Priced") return key;
+	const price = new Intl.NumberFormat("en", {
+		style: "currency",
+		currency: preset.price.currency,
+		maximumFractionDigits: 4,
+	}).format(preset.price.perMillionInputTokens);
+	return `${key} ${price} per million input tokens.`;
 };
