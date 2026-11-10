@@ -2,9 +2,9 @@ import type { RemitImapClassificationConfigured } from "@remit/api-http-client/t
 import { Button, Input } from "@remit/ui";
 import { type Ref, useId, useState } from "react";
 import { useSaveClassification } from "../../../hooks/useClassificationSettings";
-import { parseDailyLimit } from "../../../lib/classification";
+import { parseDailyLimit, resetTime } from "../../../lib/classification";
 import { type ClassificationFailure, FailureBanner } from "./FailureBanner";
-import { describedBy, Field } from "./ProviderCard";
+import { describedBy, Field } from "./Field";
 
 export interface DailyLimitCardProps {
 	settings: RemitImapClassificationConfigured;
@@ -23,6 +23,8 @@ export function DailyLimitCard({
 	const [failure, setFailure] = useState<ClassificationFailure | null>(null);
 	const ids = useId();
 	const inputId = `${ids}-limit`;
+	const [first] = settings.usage;
+	const reset = first ? `Counts reset at ${resetTime(first.resetsAt)}. ` : "";
 
 	const onSave = () => {
 		if (save.isPending) return;
@@ -53,7 +55,7 @@ export function DailyLimitCard({
 			<Field
 				id={inputId}
 				label="Calls per account per day"
-				hint="Counts reset at 00:00 UTC. Past the limit, that account's new mail uses built-in rules."
+				hint={`${reset}Past the limit, that account's new mail uses built-in rules.`}
 				error={error}
 			>
 				<Input

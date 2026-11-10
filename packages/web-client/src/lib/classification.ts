@@ -15,6 +15,7 @@ import {
 	ownsServerErrorsMeta,
 	softErrorStatuses,
 } from "./error-classifier";
+import { formatDate } from "./format";
 
 export const classificationQueryMeta = softErrorStatuses(403);
 
@@ -225,3 +226,10 @@ export const usageCost = (
 	}
 	return preset?.group === "Local" ? "no price, self-hosted" : "no price";
 };
+
+export const resetTime = (resetsAt: string): string =>
+	formatDate(resetsAt, {
+		hour: "2-digit",
+		minute: "2-digit",
+		timeZoneName: "shortOffset",
+	});

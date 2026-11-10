@@ -1,8 +1,9 @@
 import { configOperationsGetConfigOptions } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
 import type {
-	RemitImapClassificationConfigured,
+	RemitImapAccountResponse,
 	RemitImapClassificationPreset,
 	RemitImapClassificationSettings,
+	RemitImapClassificationUsage,
 } from "@remit/api-http-client/types.gen.ts";
 import { Badge, Banner, Button, Switch } from "@remit/ui";
 import { useQuery } from "@tanstack/react-query";
@@ -11,8 +12,7 @@ import {
 	useClassificationSettings,
 	useSaveClassification,
 } from "../../../hooks/useClassificationSettings";
-import { isCapped, usageCost } from "../../../lib/classification";
-import { formatDate } from "../../../lib/format";
+import { isCapped, resetTime, usageCost } from "../../../lib/classification";
 import { DailyLimitCard } from "./DailyLimitCard";
 import { FailureBanner } from "./FailureBanner";
 import { ProviderCard } from "./ProviderCard";
@@ -29,35 +29,17 @@ const switchNote = (settings: RemitImapClassificationSettings): string => {
 	return "Provider saved. Built-in rules label your mail until you switch this on.";
 };
 
-const useAccountNames = (): ((accountId: string) => string) => {
-	const { data } = useQuery({
-		...configOperationsGetConfigOptions(),
-		staleTime: Infinity,
-	});
-	return (accountId) => {
-		const account = data?.accounts.find(
-			(entry) => entry.accountId === accountId,
-		);
-		if (!account) return "Mail account";
-		return account.displayName?.trim() || account.email;
+type NameOf = (accountId: string) => string;
+
+const namesOf =
+	(accounts: readonly RemitImapAccountResponse[]): NameOf =>
+	(accountId) => {
+		const account = accounts.find((entry) => entry.accountId === accountId);
+		return account?.displayName?.trim() || account?.email || accountId;
 	};
-};
 
-const resetTime = (resetsAt: string): string =>
-	formatDate(resetsAt, {
-		hour: "2-digit",
-		minute: "2-digit",
-		timeZoneName: "shortOffset",
-	});
-
-function StatusBadge({
-	settings,
-	capped,
-}: {
-	settings: RemitImapClassificationSettings;
-	capped: boolean;
-}) {
-	if (settings.state !== "Configured" || !settings.enabled) {
+function StatusBadge({ on, capped }: { on: boolean; capped: boolean }) {
+	if (!on) {
 		return <Badge dot>off</Badge>;
 	}
 	if (capped) {
@@ -75,17 +57,17 @@ function StatusBadge({
 }
 
 function UsageRows({
-	settings,
+	usage: rows,
 	preset,
 	nameOf,
 }: {
-	settings: RemitImapClassificationConfigured;
+	usage: RemitImapClassificationUsage[];
 	preset: RemitImapClassificationPreset | undefined;
-	nameOf: (accountId: string) => string;
+	nameOf: NameOf;
 }) {
 	return (
 		<dl className="space-y-2">
-			{settings.usage.map((usage) => (
+			{rows.map((usage) => (
 				<div
 					key={usage.accountId}
 					className="flex flex-wrap items-baseline justify-between gap-x-3"
@@ -111,17 +93,16 @@ function UsageRows({
 }
 
 function CapBanner({
-	settings,
+	first,
+	capped,
 	nameOf,
 	onRaiseLimit,
 }: {
-	settings: RemitImapClassificationConfigured;
-	nameOf: (accountId: string) => string;
+	first: RemitImapClassificationUsage;
+	capped: RemitImapClassificationUsage[];
+	nameOf: NameOf;
 	onRaiseLimit: () => void;
 }) {
-	const capped = settings.usage.filter(isCapped);
-	const [first] = capped;
-	if (!first) return null;
 	const names = new Intl.ListFormat("en", { type: "conjunction" }).format(
 		capped.map((usage) => nameOf(usage.accountId)),
 	);
@@ -148,19 +129,21 @@ function CapBanner({
 function StatusCard({
 	settings,
 	presets,
+	nameOf,
 	onRaiseLimit,
 }: {
 	settings: RemitImapClassificationSettings;
 	presets: RemitImapClassificationPreset[];
+	nameOf: NameOf;
 	onRaiseLimit: () => void;
 }) {
-	const nameOf = useAccountNames();
 	const toggle = useSaveClassification();
 	const [refusal, setRefusal] = useState<unknown>(null);
 	const ids = useId();
 	const configured = settings.state === "Configured";
 	const on = configured && settings.enabled;
-	const capped = on && settings.usage.some(isCapped);
+	const capped = on ? settings.usage.filter(isCapped) : [];
+	const [firstCapped] = capped;
 
 	const flip = () => {
 		setRefusal(null);
@@ -187,7 +170,7 @@ function StatusCard({
 						{switchNote(settings)}
 					</span>
 				</span>
-				<StatusBadge settings={settings} capped={capped} />
+				<StatusBadge on={on} capped={firstCapped !== undefined} />
 				<Switch
 					checked={on}
 					aria-labelledby={`${ids}-label`}
@@ -197,16 +180,17 @@ function StatusCard({
 					onToggle={flip}
 				/>
 			</div>
-			{capped && (
+			{firstCapped && (
 				<CapBanner
-					settings={settings}
+					first={firstCapped}
+					capped={capped}
 					nameOf={nameOf}
 					onRaiseLimit={onRaiseLimit}
 				/>
 			)}
 			{configured && (
 				<UsageRows
-					settings={settings}
+					usage={settings.usage}
 					preset={presets.find(
 						(preset) => preset.presetId === settings.presetId,
 					)}
@@ -227,8 +211,23 @@ function StatusCard({
 	);
 }
 
+function LoadingSkeleton() {
+	return (
+		// biome-ignore lint/a11y/useAriaPropsSupportedByRole: aria-label on a loading skeleton is what assistive tech has to go on
+		<div
+			className="h-48 animate-pulse rounded-sm border border-line bg-surface"
+			aria-busy="true"
+			aria-label="Loading mail classification settings"
+		/>
+	);
+}
+
 export function ClassificationPanel() {
 	const query = useClassificationSettings();
+	const config = useQuery({
+		...configOperationsGetConfigOptions(),
+		staleTime: Infinity,
+	});
 	const [announcement, setAnnouncement] = useState("");
 	const limitRef = useRef<HTMLInputElement>(null);
 
@@ -240,16 +239,7 @@ export function ClassificationPanel() {
 		input.scrollIntoView({ block: "center" });
 	};
 
-	if (query.isPending) {
-		return (
-			// biome-ignore lint/a11y/useAriaPropsSupportedByRole: aria-label on a loading skeleton is what assistive tech has to go on
-			<div
-				className="h-48 animate-pulse rounded-sm border border-line bg-surface"
-				aria-busy="true"
-				aria-label="Loading mail classification settings"
-			/>
-		);
-	}
+	if (query.isPending) return <LoadingSkeleton />;
 
 	if (query.signedOut) return null;
 
@@ -262,12 +252,24 @@ export function ClassificationPanel() {
 		);
 	}
 
+	if (config.isPending) return <LoadingSkeleton />;
+
+	if (config.isError) {
+		return (
+			<FailureBanner
+				failure={{ title: LOAD_FAILED, error: config.error }}
+				onRetry={() => void config.refetch()}
+			/>
+		);
+	}
+
 	const { classification, classificationPresets } = query.data;
 	return (
 		<div className="max-w-xl space-y-8">
 			<StatusCard
 				settings={classification}
 				presets={classificationPresets}
+				nameOf={namesOf(config.data.accounts)}
 				onRaiseLimit={raiseLimit}
 			/>
 			<ProviderCard
