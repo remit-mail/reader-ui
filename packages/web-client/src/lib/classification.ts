@@ -6,6 +6,7 @@ import type {
 	RemitImapClassificationPresetId,
 	RemitImapClassificationSettings,
 	RemitImapClassificationTestFailed,
+	RemitImapClassificationUsage,
 	RemitImapUpdateUserSettingsInput,
 } from "@remit/api-http-client/types.gen.ts";
 import { buildBugReportContext, buildGitHubIssueUrl } from "./bug-report";
@@ -14,6 +15,7 @@ import {
 	ownsServerErrorsMeta,
 	softErrorStatuses,
 } from "./error-classifier";
+import { formatDate } from "./format";
 
 export const classificationQueryMeta = softErrorStatuses(403);
 
@@ -183,3 +185,51 @@ export const presetNote = (preset: RemitImapClassificationPreset): string => {
 	}).format(preset.price.perMillionInputTokens);
 	return `${key} ${price} per million input tokens.`;
 };
+
+export const LIMIT_INVALID = "Enter a whole number of 1 or more.";
+
+const INT32_MAX = 2_147_483_647;
+
+export type DailyLimitInput =
+	| { ok: true; limit: number }
+	| { ok: false; message: string };
+
+export const parseDailyLimit = (value: string): DailyLimitInput => {
+	const trimmed = value.trim();
+	if (!/^\d+$/.test(trimmed)) return { ok: false, message: LIMIT_INVALID };
+	const limit = Number(trimmed);
+	if (limit < 1 || limit > INT32_MAX) {
+		return { ok: false, message: LIMIT_INVALID };
+	}
+	return { ok: true, limit };
+};
+
+export const isCapped = (usage: RemitImapClassificationUsage): boolean =>
+	usage.calls >= usage.dailyLimit;
+
+export const usageCost = (
+	usage: RemitImapClassificationUsage,
+	preset: RemitImapClassificationPreset | undefined,
+): string => {
+	const { cost } = usage;
+	if (cost.state === "Priced") {
+		const format = new Intl.NumberFormat("en", {
+			style: "currency",
+			currency: cost.currency,
+			maximumFractionDigits: 2,
+		});
+		if (cost.amount > 0 && cost.amount < 0.01) {
+			return `under ${format.format(0.01)}`;
+		}
+		if (cost.amount === 0) return format.format(0);
+		return `about ${format.format(cost.amount)}`;
+	}
+	return preset?.group === "Local" ? "no price, self-hosted" : "no price";
+};
+
+export const resetTime = (resetsAt: string): string =>
+	formatDate(resetsAt, {
+		hour: "2-digit",
+		minute: "2-digit",
+		timeZoneName: "shortOffset",
+	});

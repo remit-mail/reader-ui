@@ -3,6 +3,7 @@ import type {
 	RemitImapClassificationPreset,
 	RemitImapClassificationSettings,
 	RemitImapClassificationTestResponse,
+	RemitImapClassificationUsage,
 	RemitImapUpdateUserSettingsInput,
 	RemitImapUserSettingsResponse,
 } from "@remit/api-http-client/types.gen.ts";
@@ -11,7 +12,13 @@ import { type HttpHandler, HttpResponse, http } from "msw";
 import { expect, userEvent, waitFor, within } from "storybook/test";
 import { AppStory } from "../../mocks/story-frame/AppStory";
 import { mailHandlers } from "../../mocks/story-frame/mail-handlers";
-import { DAY, mailWorld, NOW } from "../../mocks/story-frame/mail-world";
+import {
+	DAY,
+	mailWorld,
+	NOW,
+	PERSONAL,
+	WORK,
+} from "../../mocks/story-frame/mail-world";
 
 const PRESETS: RemitImapClassificationPreset[] = [
 	{
@@ -54,6 +61,37 @@ const PRESETS: RemitImapClassificationPreset[] = [
 	},
 ];
 
+const RESETS_AT = new Date(NOW + DAY)
+	.toISOString()
+	.replace(/T.*$/, "T00:00:00.000Z");
+
+const pricedUsage = (
+	accountId: string,
+	calls: number,
+	dailyLimit = 500,
+): RemitImapClassificationUsage => ({
+	accountId,
+	calls,
+	dailyLimit,
+	resetsAt: RESETS_AT,
+	cost: {
+		state: "Priced",
+		currency: "USD",
+		amount: (calls * 1500 * 0.1) / 1_000_000,
+	},
+});
+
+const localUsage = (
+	accountId: string,
+	calls: number,
+): RemitImapClassificationUsage => ({
+	accountId,
+	calls,
+	dailyLimit: 500,
+	resetsAt: RESETS_AT,
+	cost: { state: "NoPrice" },
+});
+
 const mistral: RemitImapClassificationConfigured = {
 	state: "Configured",
 	presetId: "Mistral",
@@ -63,6 +101,19 @@ const mistral: RemitImapClassificationConfigured = {
 	enabled: false,
 	dailyLimit: 500,
 	savedAt: NOW - 3 * DAY,
+	usage: [pricedUsage(PERSONAL, 0), pricedUsage(WORK, 0)],
+};
+
+const mistralOn: RemitImapClassificationConfigured = {
+	...mistral,
+	enabled: true,
+	usage: [pricedUsage(PERSONAL, 142), pricedUsage(WORK, 246)],
+};
+
+const mistralCapped: RemitImapClassificationConfigured = {
+	...mistral,
+	enabled: true,
+	usage: [pricedUsage(PERSONAL, 212), pricedUsage(WORK, 500)],
 };
 
 const local: RemitImapClassificationConfigured = {
@@ -74,6 +125,7 @@ const local: RemitImapClassificationConfigured = {
 	enabled: true,
 	dailyLimit: 500,
 	savedAt: NOW - DAY,
+	usage: [localUsage(PERSONAL, 31), localUsage(WORK, 12)],
 };
 
 const passed: RemitImapClassificationTestResponse = {
@@ -124,6 +176,11 @@ const settingsHandlers = (
 					body.classificationApiKey !== undefined ||
 					(body.classificationPresetId === undefined && previous.apiKeySaved),
 				enabled: body.classificationEnabled ?? previous.enabled,
+				dailyLimit: body.classificationDailyLimit ?? previous.dailyLimit,
+				usage: previous.usage.map((usage) => ({
+					...usage,
+					dailyLimit: body.classificationDailyLimit ?? usage.dailyLimit,
+				})),
 				savedAt: NOW,
 			};
 			return HttpResponse.json(settings());
@@ -271,6 +328,57 @@ export const LocalProvider: Story = {
 		);
 		await expect(canvas.queryByLabelText("API key")).toBeNull();
 		await expect(canvas.queryByText("set")).toBeNull();
+		await expect(canvas.getAllByText("no price, self-hosted")).toHaveLength(2);
+	},
+};
+
+export const EnabledHealthy: Story = {
+	parameters: { msw: { handlers: settingsHandlers(mistralOn) } },
+	play: async ({ canvasElement }) => {
+		const canvas = within(canvasElement);
+		await expect(await canvas.findByText("142 / 500 calls")).toBeVisible();
+		await expect(canvas.getByText("on")).toBeVisible();
+		await expect(canvas.getByText("about $0.02")).toBeVisible();
+		await expect(canvas.getByText("246 / 500 calls")).toBeVisible();
+		await expect(canvas.getByText("about $0.04")).toBeVisible();
+		await expect(
+			canvas.getByLabelText("Calls per account per day"),
+		).toHaveValue("500");
+		await expect(canvas.queryByText("cap reached")).toBeNull();
+	},
+};
+
+export const EnabledHealthyDesktop: Story = {
+	...EnabledHealthy,
+	globals: { viewport: { value: "desktop", isRotated: false } },
+};
+
+export const CapReached: Story = {
+	parameters: { msw: { handlers: settingsHandlers(mistralCapped) } },
+	play: async ({ canvasElement }) => {
+		const canvas = within(canvasElement);
+		await expect(await canvas.findByText("cap reached")).toBeVisible();
+		const banner = await canvas.findByText(
+			"Work reached the daily limit of 500 calls",
+		);
+		await expect(banner.closest("[role=alert]")).not.toBeNull();
+		await expect(canvas.getByText("500 / 500 calls")).toBeVisible();
+		await expect(canvas.getByText(/limit reached/)).toBeVisible();
+		await userEvent.click(
+			canvas.getByRole("button", { name: "Raise the limit" }),
+		);
+		const limit = canvas.getByLabelText("Calls per account per day");
+		await expect(limit).toHaveFocus();
+		await userEvent.keyboard("0");
+		await userEvent.click(canvas.getByRole("button", { name: "Save limit" }));
+		await expect(
+			canvas.getByText("Enter a whole number of 1 or more."),
+		).toBeVisible();
+		await userEvent.clear(limit);
+		await userEvent.type(limit, "1000");
+		await userEvent.click(canvas.getByRole("button", { name: "Save limit" }));
+		await waitFor(() => expect(canvas.queryByText("cap reached")).toBeNull());
+		await expect(canvas.getByText("500 / 1000 calls")).toBeVisible();
 	},
 };
 
