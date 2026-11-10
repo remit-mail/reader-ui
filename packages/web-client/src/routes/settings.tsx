@@ -16,6 +16,7 @@ import {
 	FolderTree,
 	Inbox,
 	Palette,
+	Sparkles,
 	Tag,
 	UserCog,
 	Users,
@@ -50,6 +51,11 @@ export const SETTINGS_NAV_ITEMS: SettingsNavItem[] = [
 		id: "labels",
 		label: "Labels",
 		icon: <Tag className="size-4" />,
+	},
+	{
+		id: "classification",
+		label: "Mail classification",
+		icon: <Sparkles className="size-4" />,
 	},
 	{
 		id: "calendars",
