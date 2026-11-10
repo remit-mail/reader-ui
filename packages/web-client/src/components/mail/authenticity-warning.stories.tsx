@@ -1,6 +1,9 @@
+import { DisplayNameCorrespondence, SenderTrust } from "@remit/domain-enums";
 import { type IntelligenceData, IntelligencePanel } from "@remit/ui";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useState } from "react";
+import { buildAuthenticityIntel } from "../../hooks/useIntelligenceData";
+import { makeThreadMessage } from "../../test-support/fixtures";
 import { Drawer } from "../layout/Drawer";
 import { AuthenticityBanner } from "./AuthenticityBanner";
 import { quietCalendar } from "./intelligence-story-calendar";
@@ -113,4 +116,47 @@ export const TwoPaneDesktopDark: Story = {
 	name: "Two Pane Desktop (dark)",
 	parameters: { theme: "dark" },
 	render: () => <TwoPaneReading />,
+};
+
+const vipThread = makeThreadMessage({
+	threadMessageId: "tm-vip",
+	threadId: "t-vip",
+	messageId: "m-vip",
+	accountConfigId: "ac-1",
+	mailboxId: "mb-1",
+	fromEmail: "billing@acme.example",
+	fromName: "Acme Billing",
+	subject: "Your invoice",
+	senderTrust: SenderTrust.Vip,
+	sentDate: 1_736_942_400_000,
+	authenticity: {
+		fromDomain: "acme.example",
+		dkimDomain: "acme.example",
+		dkimMismatch: false,
+		displayNameCorrespondence: DisplayNameCorrespondence.Unrelated,
+		offDomainLinkDomains: [],
+	},
+});
+
+/** A VIP sender whose display name does not match its domain reads aligned. */
+export const VipUnrelatedDisplayName: Story = {
+	render: () => (
+		<IntelligencePanel
+			data={{
+				sender: {
+					name: "Acme Billing",
+					email: "billing@acme.example",
+					trust: "vip",
+					firstSeenLabel: "last year",
+					inboundCount: 12,
+					replyCount: 5,
+				},
+				authenticity: buildAuthenticityIntel(vipThread),
+				category: { value: "automated" },
+				flags: { vip: true },
+			}}
+			calendar={quietCalendar}
+			hideCloseButton
+		/>
+	),
 };

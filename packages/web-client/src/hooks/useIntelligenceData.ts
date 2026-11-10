@@ -3,7 +3,7 @@ import type {
 	RemitImapAddressResponse,
 	RemitImapThreadMessageResponse,
 } from "@remit/api-http-client/types.gen.ts";
-import { DisplayNameCorrespondence } from "@remit/domain-enums";
+import { DisplayNameCorrespondence, SenderTrust } from "@remit/domain-enums";
 import type {
 	AuthenticityIntel,
 	IntelligenceData,
@@ -148,12 +148,15 @@ function joinDomains(domains: readonly string[]): string {
 function describeSenderMismatch(
 	auth: NonNullable<RemitImapThreadMessageResponse["authenticity"]>,
 	claimedBrand: string | undefined,
+	senderTrust: RemitImapThreadMessageResponse["senderTrust"],
 ): string[] {
+	const trusted =
+		senderTrust === SenderTrust.Vip || senderTrust === SenderTrust.Wellknown;
 	const clauses: string[] = [];
 	const correspondence = auth.displayNameCorrespondence;
 
 	if (claimedBrand) {
-		if (correspondence === DisplayNameCorrespondence.Unrelated) {
+		if (correspondence === DisplayNameCorrespondence.Unrelated && !trusted) {
 			clauses.push(
 				`The name it shows, "${claimedBrand}", has nothing to do with ${auth.fromDomain}.`,
 			);
@@ -169,7 +172,7 @@ function describeSenderMismatch(
 	}
 
 	const linkDomains = readDomainList(auth.offDomainLinkDomains);
-	if (linkDomains.length > 0) {
+	if (linkDomains.length > 0 && !trusted) {
 		clauses.push(`Its links go to ${joinDomains(linkDomains.slice(0, 3))}.`);
 	}
 
@@ -211,7 +214,7 @@ export function buildAuthenticityIntel(
 	}
 	if (!auth.dkimMismatch) {
 		const claimed = claimedBrandOf(thread);
-		const unlike = describeSenderMismatch(auth, claimed);
+		const unlike = describeSenderMismatch(auth, claimed, thread.senderTrust);
 		if (unlike.length > 0) {
 			return {
 				verdict: "caution",
