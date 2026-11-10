@@ -4,6 +4,7 @@ import type {
 	RemitImapAddressResponse,
 	RemitImapThreadMessageResponse,
 } from "@remit/api-http-client/types.gen.ts";
+import { DisplayNameCorrespondence, SenderTrust } from "@remit/domain-enums";
 import {
 	buildAuthenticityIntel,
 	buildCategoryIntel,
@@ -399,5 +400,70 @@ describe("buildAuthenticityIntel", () => {
 			assert.equal(result.verdict, "mismatch");
 			assert.equal(result.addressUnreadable, true);
 		});
+	});
+});
+
+describe("buildAuthenticityIntel by sender trust", () => {
+	function threadWith(
+		senderTrust: RemitImapThreadMessageResponse["senderTrust"],
+		authenticity: Record<string, unknown>,
+	): RemitImapThreadMessageResponse {
+		return makeThread({
+			fromEmail: "billing@acme.example",
+			fromName: "Acme Billing",
+			senderTrust,
+			authenticity: {
+				fromDomain: "acme.example",
+				dkimDomain: "acme.example",
+				dkimMismatch: false,
+				offDomainLinkDomains: [],
+				...authenticity,
+			},
+		} as Partial<RemitImapThreadMessageResponse>);
+	}
+
+	test("an unknown sender with an unrelated display name warns", () => {
+		const result = buildAuthenticityIntel(
+			threadWith(SenderTrust.Unknown, {
+				displayNameCorrespondence: DisplayNameCorrespondence.Unrelated,
+			}),
+		);
+		assert.equal(result.verdict, "caution");
+	});
+
+	test("a vip sender with an unrelated display name reads aligned", () => {
+		const result = buildAuthenticityIntel(
+			threadWith(SenderTrust.Vip, {
+				displayNameCorrespondence: DisplayNameCorrespondence.Unrelated,
+			}),
+		);
+		assert.equal(result.verdict, "aligned");
+	});
+
+	test("a wellknown sender with an off-domain link reads aligned", () => {
+		const result = buildAuthenticityIntel(
+			threadWith(SenderTrust.Wellknown, {
+				offDomainLinkDomains: ["tracker.example"],
+			}),
+		);
+		assert.equal(result.verdict, "aligned");
+	});
+
+	test("a vip sender with a lookalike display name warns", () => {
+		const result = buildAuthenticityIntel(
+			threadWith(SenderTrust.Vip, {
+				displayNameCorrespondence: DisplayNameCorrespondence.Lookalike,
+			}),
+		);
+		assert.equal(result.verdict, "caution");
+	});
+
+	test("a vip sender with a foreign address display name warns", () => {
+		const result = buildAuthenticityIntel(
+			threadWith(SenderTrust.Vip, {
+				displayNameCorrespondence: DisplayNameCorrespondence.ForeignAddress,
+			}),
+		);
+		assert.equal(result.verdict, "caution");
 	});
 });

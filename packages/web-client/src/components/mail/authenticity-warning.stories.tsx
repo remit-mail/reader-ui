@@ -1,6 +1,9 @@
+import type { RemitImapThreadMessageResponse } from "@remit/api-http-client/types.gen.ts";
+import { DisplayNameCorrespondence, SenderTrust } from "@remit/domain-enums";
 import { type IntelligenceData, IntelligencePanel } from "@remit/ui";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useState } from "react";
+import { buildAuthenticityIntel } from "../../hooks/useIntelligenceData";
 import { Drawer } from "../layout/Drawer";
 import { AuthenticityBanner } from "./AuthenticityBanner";
 import { quietCalendar } from "./intelligence-story-calendar";
@@ -113,4 +116,51 @@ export const TwoPaneDesktopDark: Story = {
 	name: "Two Pane Desktop (dark)",
 	parameters: { theme: "dark" },
 	render: () => <TwoPaneReading />,
+};
+
+const vipThread = {
+	threadMessageId: "tm-vip",
+	threadId: "t-vip",
+	messageId: "m-vip",
+	accountConfigId: "ac-1",
+	mailboxId: "mb-1",
+	fromEmail: "billing@acme.example",
+	fromName: "Acme Billing",
+	subject: "Your invoice",
+	senderTrust: SenderTrust.Vip,
+	isRead: false,
+	hasAttachment: false,
+	hasStars: false,
+	sentDate: "2025-01-15T12:00:00Z",
+	snippet: "",
+	authenticity: {
+		fromDomain: "acme.example",
+		dkimDomain: "acme.example",
+		dkimMismatch: false,
+		displayNameCorrespondence: DisplayNameCorrespondence.Unrelated,
+		offDomainLinkDomains: [],
+	},
+} as RemitImapThreadMessageResponse;
+
+/** A VIP sender whose display name does not match its domain reads aligned. */
+export const VipUnrelatedDisplayName: Story = {
+	render: () => (
+		<IntelligencePanel
+			data={{
+				sender: {
+					name: "Acme Billing",
+					email: "billing@acme.example",
+					trust: "vip",
+					firstSeenLabel: "last year",
+					inboundCount: 12,
+					replyCount: 5,
+				},
+				authenticity: buildAuthenticityIntel(vipThread),
+				category: { value: "automated" },
+				flags: { vip: true },
+			}}
+			calendar={quietCalendar}
+			hideCloseButton
+		/>
+	),
 };
