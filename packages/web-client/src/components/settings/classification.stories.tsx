@@ -55,6 +55,7 @@ const PRESETS: RemitImapClassificationPreset[] = [
 		label: "Local",
 		group: "Local",
 		adapterShape: "ChatJsonSchema",
+		defaultBaseUrl: "http://localhost:8080",
 		defaultModel: "llama3.1:8b",
 		needsKey: false,
 		price: { state: "NoPrice" },
@@ -329,6 +330,22 @@ export const LocalProvider: Story = {
 		await expect(canvas.queryByLabelText("API key")).toBeNull();
 		await expect(canvas.queryByText("set")).toBeNull();
 		await expect(canvas.getAllByText("no price, self-hosted")).toHaveLength(2);
+	},
+};
+
+export const LocalProviderDefaultBaseUrl: Story = {
+	parameters: {
+		msw: { handlers: settingsHandlers({ state: "NotConfigured" }) },
+	},
+	play: async ({ canvasElement }) => {
+		const canvas = within(canvasElement);
+		await userEvent.selectOptions(
+			await canvas.findByLabelText("Provider"),
+			"Local",
+		);
+		await expect(await canvas.findByLabelText("Base URL")).toHaveValue(
+			"http://localhost:8080",
+		);
 	},
 };
 

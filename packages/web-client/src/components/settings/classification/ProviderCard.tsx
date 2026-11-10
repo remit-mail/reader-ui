@@ -111,7 +111,7 @@ function PresetForm({ preset, settings, onAnnounce }: PresetFormProps) {
 	const clear = useClearClassification();
 	const test = useTestClassification();
 	const [draft, setDraft] = useState<ProviderDraft>(() =>
-		draftForPreset(preset.presetId, settings),
+		draftForPreset(preset, settings),
 	);
 	const [fieldError, setFieldError] = useState<FieldError | null>(null);
 	const [testResult, setTestResult] =
@@ -148,11 +148,10 @@ function PresetForm({ preset, settings, onAnnounce }: PresetFormProps) {
 			? settings
 			: undefined;
 	const showKeyInput = preset.needsKey && (savedKey === undefined || replacing);
-	const showBaseUrl = needsBaseUrl(preset);
 	const shown: Record<RemitImapClassificationField, boolean> = {
 		ApiKey: preset.needsKey,
 		Model: true,
-		BaseUrl: showBaseUrl,
+		BaseUrl: true,
 	};
 	const errorFor = (field: RemitImapClassificationField) =>
 		fieldError?.field === field ? fieldError.message : undefined;
@@ -285,7 +284,7 @@ function PresetForm({ preset, settings, onAnnounce }: PresetFormProps) {
 					onChange={(event) => edit("Model", { model: event.target.value })}
 				/>
 			</Field>
-			{showBaseUrl && (
+			{
 				<Field
 					id={baseUrlId}
 					label="Base URL"
@@ -299,10 +298,10 @@ function PresetForm({ preset, settings, onAnnounce }: PresetFormProps) {
 						type="url"
 						inputMode="url"
 						value={draft.baseUrl}
-						placeholder="http://localhost:11434/v1"
+						placeholder={preset.defaultBaseUrl ?? "http://localhost:11434/v1"}
 						autoComplete="off"
 						spellCheck={false}
-						required
+						required={needsBaseUrl(preset)}
 						aria-invalid={invalid("BaseUrl")}
 						aria-describedby={describedBy(
 							baseUrlId,
@@ -314,7 +313,7 @@ function PresetForm({ preset, settings, onAnnounce }: PresetFormProps) {
 						}
 					/>
 				</Field>
-			)}
+			}
 			{savedKey && !replacing && (
 				<div>
 					<p className="mb-1 text-xs font-medium text-fg-muted">API key</p>
