@@ -9,7 +9,7 @@
  */
 
 import assert from "node:assert/strict";
-import { describe, test } from "node:test";
+import { afterEach, describe, test } from "node:test";
 import type {
 	RemitImapThreadMessageResponse,
 	RemitImapThreadSearchResponse,
@@ -18,6 +18,7 @@ import type { RescueCandidate } from "@remit/ui";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createElement } from "react";
 import { renderToString } from "react-dom/server";
+import { createDomHarness, type DomHarness } from "../test-support/dom";
 import {
 	rescueCandidatesQueryKey,
 	useRescueCandidates,
@@ -180,5 +181,58 @@ describe("useRescueCandidates: candidate mapping from real hook output", () => {
 		assert.equal(candidates.length, 2);
 		assert.equal(candidates[0].id, "m1");
 		assert.equal(candidates[1].id, "m2");
+	});
+});
+
+describe("useRescueCandidates: paging through the whole Junk mailbox", () => {
+	const originalFetch = globalThis.fetch;
+	let harness: DomHarness | undefined;
+
+	afterEach(() => {
+		globalThis.fetch = originalFetch;
+		harness?.close();
+		harness = undefined;
+	});
+
+	test("returns the union of every page and stops after the last", async () => {
+		const pages: Record<string, RemitImapThreadSearchResponse> = {
+			first: {
+				items: [makeThread({ messageId: "m1", senderTrust: "vip" })],
+				continuationToken: "second",
+			},
+			second: {
+				items: [makeThread({ messageId: "m2", senderTrust: "wellknown" })],
+				continuationToken: "third",
+			},
+			third: {
+				items: [makeThread({ messageId: "m3", senderTrust: "vip" })],
+			},
+		};
+		const tokensRequested: string[] = [];
+
+		globalThis.fetch = (async (input: RequestInfo | URL): Promise<Response> => {
+			const request = input instanceof Request ? input : undefined;
+			const url = new URL(request ? request.url : String(input), "http://x");
+			const token = url.searchParams.get("continuationToken") ?? "first";
+			tokensRequested.push(token);
+			return Response.json(pages[token]);
+		}) as typeof globalThis.fetch;
+
+		let captured: { candidates: RescueCandidate[] } = { candidates: [] };
+		function Capture() {
+			captured = useRescueCandidates(JUNK_MAILBOX_ID);
+			return null;
+		}
+		harness = createDomHarness();
+		harness.renderApp(createElement(Capture));
+
+		await harness.waitFor(() => captured.candidates.length === 3);
+		await harness.flush();
+
+		assert.deepEqual(
+			captured.candidates.map((candidate) => candidate.id),
+			["m1", "m2", "m3"],
+		);
+		assert.deepEqual(tokensRequested, ["first", "second", "third"]);
 	});
 });
