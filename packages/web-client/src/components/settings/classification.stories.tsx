@@ -1,0 +1,298 @@
+import type {
+	RemitImapClassificationConfigured,
+	RemitImapClassificationPreset,
+	RemitImapClassificationSettings,
+	RemitImapClassificationTestResponse,
+	RemitImapUpdateUserSettingsInput,
+	RemitImapUserSettingsResponse,
+} from "@remit/api-http-client/types.gen.ts";
+import type { Meta, StoryObj } from "@storybook/react-vite";
+import { type HttpHandler, HttpResponse, http } from "msw";
+import { expect, userEvent, waitFor, within } from "storybook/test";
+import { AppStory } from "../../mocks/story-frame/AppStory";
+import { mailHandlers } from "../../mocks/story-frame/mail-handlers";
+import { DAY, mailWorld, NOW } from "../../mocks/story-frame/mail-world";
+
+const PRESETS: RemitImapClassificationPreset[] = [
+	{
+		presetId: "Jev",
+		label: "Jev",
+		group: "Hosted",
+		adapterShape: "DecisionApi",
+		defaultBaseUrl: "https://api.jev.dev/v1",
+		defaultModel: "jev-mail-1",
+		needsKey: true,
+		price: { state: "Priced", currency: "USD", perMillionInputTokens: 0.05 },
+	},
+	{
+		presetId: "Mistral",
+		label: "Mistral",
+		group: "Hosted",
+		adapterShape: "ChatJsonSchema",
+		defaultBaseUrl: "https://api.mistral.ai/v1",
+		defaultModel: "mistral-small-latest",
+		needsKey: true,
+		price: { state: "Priced", currency: "USD", perMillionInputTokens: 0.1 },
+	},
+	{
+		presetId: "OpenAiCompatible",
+		label: "OpenAI-compatible",
+		group: "Custom",
+		adapterShape: "ChatJsonSchema",
+		defaultModel: "gpt-4o-mini",
+		needsKey: true,
+		price: { state: "NoPrice" },
+	},
+	{
+		presetId: "Local",
+		label: "Local",
+		group: "Local",
+		adapterShape: "ChatJsonSchema",
+		defaultModel: "llama3.1:8b",
+		needsKey: false,
+		price: { state: "NoPrice" },
+	},
+];
+
+const mistral: RemitImapClassificationConfigured = {
+	state: "Configured",
+	presetId: "Mistral",
+	model: "mistral-small-latest",
+	baseUrl: "",
+	apiKeySaved: true,
+	enabled: false,
+	dailyLimit: 500,
+	savedAt: NOW - 3 * DAY,
+};
+
+const local: RemitImapClassificationConfigured = {
+	state: "Configured",
+	presetId: "Local",
+	model: "llama3.1:8b",
+	baseUrl: "http://gpu-box.lan:11434/v1",
+	apiKeySaved: false,
+	enabled: true,
+	dailyLimit: 500,
+	savedAt: NOW - DAY,
+};
+
+const passed: RemitImapClassificationTestResponse = {
+	state: "Passed",
+	latencyMs: 840,
+	label: "Newsletter",
+	confidence: 0.92,
+};
+
+const rejectedKey: RemitImapClassificationTestResponse = {
+	state: "Failed",
+	latencyMs: 312,
+	status: 401,
+	kind: "Unauthorized",
+	field: "ApiKey",
+	fix: "Mistral rejected the API key. Replace the key, save, and test again.",
+};
+
+type TestAnswer = RemitImapClassificationTestResponse | "hold";
+
+const settingsHandlers = (
+	initial: RemitImapClassificationSettings,
+	answer: TestAnswer = passed,
+): HttpHandler[] => {
+	let classification = initial;
+	const settings = (): RemitImapUserSettingsResponse => ({
+		defaultInvitationSenderChosen: false,
+		classificationPresets: PRESETS,
+		classification,
+	});
+	return [
+		http.get("/api/settings", () => HttpResponse.json(settings())),
+		http.patch("/api/settings", async ({ request }) => {
+			const body = (await request.json()) as RemitImapUpdateUserSettingsInput;
+			const presetId =
+				body.classificationPresetId ??
+				(classification.state === "Configured"
+					? classification.presetId
+					: "Mistral");
+			const previous =
+				classification.state === "Configured" ? classification : mistral;
+			classification = {
+				...previous,
+				presetId,
+				model: body.classificationModel ?? previous.model,
+				baseUrl: body.classificationBaseUrl ?? previous.baseUrl,
+				apiKeySaved:
+					body.classificationApiKey !== undefined ||
+					(body.classificationPresetId === undefined && previous.apiKeySaved),
+				enabled: body.classificationEnabled ?? previous.enabled,
+				savedAt: NOW,
+			};
+			return HttpResponse.json(settings());
+		}),
+		http.delete("/api/settings/classification-provider", () => {
+			classification = { state: "NotConfigured" };
+			return HttpResponse.json(settings());
+		}),
+		http.post("/api/settings/classification-test", () =>
+			answer === "hold"
+				? new Promise<never>(() => undefined)
+				: HttpResponse.json(answer),
+		),
+		...mailHandlers(mailWorld()),
+	];
+};
+
+const meta = {
+	title: "Playground/Shipped/Settings/Mail classification",
+	component: AppStory,
+	args: { url: "/settings/classification" },
+	parameters: {
+		layout: "fullscreen",
+		msw: { handlers: settingsHandlers({ state: "NotConfigured" }) },
+	},
+	globals: { viewport: { value: "mobile", isRotated: false } },
+} satisfies Meta<typeof AppStory>;
+export default meta;
+
+type Story = StoryObj<typeof meta>;
+
+const useTheModel = (canvasElement: HTMLElement) =>
+	within(canvasElement).findByRole("switch", { name: "Use the model" });
+
+export const NotConfigured: Story = {
+	play: async ({ canvasElement }) => {
+		const canvas = within(canvasElement);
+		const toggle = await useTheModel(canvasElement);
+		await expect(toggle).toHaveAttribute("aria-disabled", "true");
+		await expect(toggle).toHaveAttribute("aria-checked", "false");
+		await expect(canvas.getByText(/Save a provider below first/)).toBeVisible();
+		await userEvent.selectOptions(canvas.getByLabelText("Provider"), "Mistral");
+		await userEvent.click(canvas.getByRole("button", { name: "Save" }));
+		await expect(canvas.getByLabelText("API key")).toHaveFocus();
+		await expect(canvas.getByText("Paste an API key")).toBeVisible();
+	},
+};
+
+export const KeySavedDisabled: Story = {
+	parameters: { msw: { handlers: settingsHandlers(mistral) } },
+	play: async ({ canvasElement }) => {
+		const canvas = within(canvasElement);
+		await expect(await canvas.findByText("set")).toBeVisible();
+		await expect(canvas.getByRole("button", { name: "Replace" })).toBeVisible();
+		await expect(canvas.getByRole("button", { name: "Clear" })).toBeVisible();
+		await userEvent.click(
+			canvas.getByRole("button", { name: "Test connection" }),
+		);
+		await expect(
+			await canvas.findByText("Test passed in 840 ms"),
+		).toBeVisible();
+	},
+};
+
+export const TestRunning: Story = {
+	parameters: { msw: { handlers: settingsHandlers(mistral, "hold") } },
+	play: async ({ canvasElement }) => {
+		const canvas = within(canvasElement);
+		await userEvent.click(
+			await canvas.findByRole("button", { name: "Test connection" }),
+		);
+		const button = await canvas.findByRole("button", { name: "Testing…" });
+		await expect(button).toHaveAttribute("aria-busy", "true");
+		await expect(
+			canvas.getByText("Sending one sample message to Mistral"),
+		).toBeVisible();
+	},
+};
+
+export const TestConnectionError: Story = {
+	parameters: { msw: { handlers: settingsHandlers(mistral, rejectedKey) } },
+	play: async ({ canvasElement }) => {
+		const canvas = within(canvasElement);
+		await userEvent.click(
+			await canvas.findByRole("button", { name: "Test connection" }),
+		);
+		const alert = await canvas.findByText("Test failed after 312 ms: 401");
+		await expect(alert.closest("[role=alert]")).not.toBeNull();
+		await expect(
+			canvas.getByText(/Mistral rejected the API key/),
+		).toBeVisible();
+		await expect(
+			canvas.getByRole("button", { name: "Replace" }),
+		).toHaveAttribute("aria-invalid", "true");
+		await expect(
+			canvas.getByRole("link", { name: "Report an issue" }),
+		).toBeVisible();
+	},
+};
+
+export const ReplacingKey: Story = {
+	parameters: { msw: { handlers: settingsHandlers(mistral) } },
+	play: async ({ canvasElement }) => {
+		const canvas = within(canvasElement);
+		await userEvent.click(
+			await canvas.findByRole("button", { name: "Replace" }),
+		);
+		await waitFor(() =>
+			expect(canvas.getByLabelText("New API key")).toHaveFocus(),
+		);
+		await userEvent.keyboard("{Escape}");
+		await waitFor(() =>
+			expect(canvas.getByRole("button", { name: "Replace" })).toHaveFocus(),
+		);
+		await userEvent.click(canvas.getByRole("button", { name: "Replace" }));
+	},
+};
+
+export const ClearKeyConfirm: Story = {
+	parameters: {
+		msw: { handlers: settingsHandlers({ ...mistral, enabled: true }) },
+	},
+	play: async ({ canvasElement }) => {
+		const canvas = within(canvasElement);
+		await userEvent.click(await canvas.findByRole("button", { name: "Clear" }));
+		const dialog = within(await canvas.findByRole("dialog"));
+		await expect(dialog.getByText("Clear the Mistral key?")).toBeVisible();
+		await expect(dialog.getByRole("button", { name: "Cancel" })).toHaveFocus();
+		await userEvent.click(dialog.getByRole("button", { name: "Clear key" }));
+		await waitFor(() => expect(canvas.queryByRole("dialog")).toBeNull());
+		await expect(await useTheModel(canvasElement)).toHaveAttribute(
+			"aria-disabled",
+			"true",
+		);
+		await expect(canvas.getByText(/Save a provider below first/)).toBeVisible();
+	},
+};
+
+export const LocalProvider: Story = {
+	parameters: { msw: { handlers: settingsHandlers(local) } },
+	play: async ({ canvasElement }) => {
+		const canvas = within(canvasElement);
+		await expect(await canvas.findByLabelText("Base URL")).toHaveValue(
+			"http://gpu-box.lan:11434/v1",
+		);
+		await expect(canvas.queryByLabelText("API key")).toBeNull();
+		await expect(canvas.queryByText("set")).toBeNull();
+	},
+};
+
+export const SignedOut: Story = {
+	parameters: {
+		msw: {
+			handlers: [
+				http.get("/api/settings", () =>
+					HttpResponse.json(
+						{ code: "forbidden", message: "Forbidden" },
+						{ status: 403 },
+					),
+				),
+				...mailHandlers(mailWorld()),
+			],
+		},
+	},
+	play: async ({ canvasElement }) => {
+		const canvas = within(canvasElement);
+		await expect(
+			await canvas.findByRole("alertdialog", { name: "You're signed out" }),
+		).toBeVisible();
+		await expect(canvas.queryByLabelText("Provider")).toBeNull();
+	},
+};

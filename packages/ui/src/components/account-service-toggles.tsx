@@ -1,9 +1,9 @@
 import { useId } from "react";
-import { cn } from "../lib/cn.js";
 import {
 	ACCOUNT_SERVICE_ROWS,
 	type AccountService,
 } from "./account-service-choice.js";
+import { Switch } from "./switch.js";
 
 /**
  * A service switch on the account settings screen. Switching off always asks,
@@ -29,47 +29,6 @@ export interface AccountServiceTogglesProps {
 		service: AccountService,
 		intent: AccountServiceIntent,
 	) => void;
-}
-
-function ServiceSwitch({
-	checked,
-	label,
-	describedBy,
-	disabled,
-	onToggle,
-}: {
-	checked: boolean;
-	label: string;
-	describedBy: string;
-	disabled: boolean;
-	onToggle: () => void;
-}) {
-	return (
-		<button
-			type="button"
-			role="switch"
-			aria-checked={checked}
-			aria-label={label}
-			aria-describedby={describedBy}
-			disabled={disabled}
-			onClick={onToggle}
-			className={cn(
-				"relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border transition-colors",
-				"outline-none disabled:cursor-not-allowed disabled:opacity-60 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-surface",
-				checked
-					? "border-positive bg-positive"
-					: "border-line-strong bg-surface-sunken",
-			)}
-		>
-			<span
-				aria-hidden
-				className={cn(
-					"size-4 rounded-full bg-canvas transition-transform",
-					checked ? "translate-x-6" : "translate-x-1",
-				)}
-			/>
-		</button>
-	);
 }
 
 /**
@@ -116,10 +75,10 @@ export function AccountServiceToggles({
 										: row.description}
 								</span>
 							</span>
-							<ServiceSwitch
+							<Switch
 								checked={on}
-								label={`Sync ${row.label.toLowerCase()}`}
-								describedBy={noteId}
+								aria-label={`Sync ${row.label.toLowerCase()}`}
+								aria-describedby={noteId}
 								disabled={disabled}
 								onToggle={() => onRequestChange(row.id, on ? "off" : "on")}
 							/>

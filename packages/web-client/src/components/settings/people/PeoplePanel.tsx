@@ -20,6 +20,7 @@ import {
 	peopleReportHref,
 	personActionCopy,
 } from "../../../lib/people";
+import { ReportLink } from "../ReportLink";
 import { PersonActionDialog } from "./PersonActionDialog";
 import { ResetLinkDialog } from "./ResetLinkDialog";
 
@@ -40,19 +41,6 @@ interface ResetLink {
 }
 
 const LIST_FAILED = "The list of people did not load";
-
-function ReportLink({ href }: { href: string }) {
-	return (
-		<a
-			href={href}
-			target="_blank"
-			rel="noreferrer"
-			className="font-medium text-accent hover:underline"
-		>
-			Report an issue
-		</a>
-	);
-}
 
 function ActionFailedBanner({ failure }: { failure: ActionFailure }) {
 	const ref = useRef<HTMLDivElement>(null);
