@@ -212,6 +212,23 @@ const settingsHandlers = (
 		http.get("/api/settings", () => HttpResponse.json(settings())),
 		http.patch("/api/settings", async ({ request }) => {
 			const body = (await request.json()) as RemitImapUpdateUserSettingsInput;
+			if (
+				classification.state === "Configured" &&
+				classification.sources.apiKey ===
+					ClassificationValueSource.Deployment &&
+				body.classificationApiKey === undefined &&
+				body.classificationBaseUrl !== undefined &&
+				body.classificationBaseUrl !== ""
+			) {
+				return HttpResponse.json(
+					{
+						code: "ClassificationApiKeyRequired",
+						message:
+							"classificationApiKey is required for Mistral: no key is saved, and the deployment's key only applies to its own preset and base URL",
+					},
+					{ status: 400 },
+				);
+			}
 			const presetId =
 				body.classificationPresetId ??
 				(classification.state === "Configured"
@@ -318,18 +335,8 @@ export const AllInheritedFromDeployment: Story = {
 			"https://proxy.example.com/v1",
 		);
 		await userEvent.click(canvas.getByRole("button", { name: "Save" }));
-		await expect(
-			await canvas.findByText("Paste an API key for this base URL"),
-		).toBeVisible();
-	},
-};
-
-export const AllSavedByYou: Story = {
-	parameters: { msw: { handlers: settingsHandlers(mistral) } },
-	play: async ({ canvasElement }) => {
-		const canvas = within(canvasElement);
-		await expect(await canvas.findByText("set")).toBeVisible();
-		await expect(canvas.queryByText("provided by the deployment")).toBeNull();
+		await expect(await canvas.findByText("Paste an API key")).toBeVisible();
+		await expect(canvas.getByLabelText("New API key")).toHaveFocus();
 	},
 };
 
@@ -342,6 +349,11 @@ export const MixedSources: Story = {
 		).toBeVisible();
 		await expect(
 			canvas.getByRole("button", { name: "Use your own key" }),
+		).toBeVisible();
+		await userEvent.click(canvas.getByRole("button", { name: "Clear" }));
+		const dialog = within(await canvas.findByRole("dialog"));
+		await expect(
+			dialog.getByText("Clear the provider settings?"),
 		).toBeVisible();
 	},
 };
@@ -423,9 +435,11 @@ export const ClearKeyConfirm: Story = {
 		const canvas = within(canvasElement);
 		await userEvent.click(await canvas.findByRole("button", { name: "Clear" }));
 		const dialog = within(await canvas.findByRole("dialog"));
-		await expect(dialog.getByText("Clear the Mistral key?")).toBeVisible();
+		await expect(
+			dialog.getByText("Clear the provider settings?"),
+		).toBeVisible();
 		await expect(dialog.getByRole("button", { name: "Cancel" })).toHaveFocus();
-		await userEvent.click(dialog.getByRole("button", { name: "Clear key" }));
+		await userEvent.click(dialog.getByRole("button", { name: "Clear" }));
 		await waitFor(() => expect(canvas.queryByRole("dialog")).toBeNull());
 		await expect(await useTheModel(canvasElement)).toHaveAttribute(
 			"aria-disabled",
@@ -458,7 +472,10 @@ export const LocalProviderDefaultBaseUrl: Story = {
 			await canvas.findByLabelText("Provider"),
 			"Local",
 		);
-		await expect(await canvas.findByLabelText("Base URL")).toHaveValue(
+		const baseUrl = await canvas.findByLabelText("Base URL");
+		await expect(baseUrl).toHaveValue("");
+		await expect(baseUrl).toHaveAttribute(
+			"placeholder",
 			"http://localhost:8080",
 		);
 	},

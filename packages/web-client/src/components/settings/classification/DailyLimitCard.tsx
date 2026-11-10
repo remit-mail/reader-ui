@@ -5,7 +5,7 @@ import { useSaveClassification } from "../../../hooks/useClassificationSettings"
 import {
 	parseDailyLimit,
 	resetTime,
-	sourceNote,
+	withSourceNote,
 } from "../../../lib/classification";
 import { type ClassificationFailure, FailureBanner } from "./FailureBanner";
 import { describedBy, Field } from "./Field";
@@ -59,7 +59,10 @@ export function DailyLimitCard({
 			<Field
 				id={inputId}
 				label="Calls per account per day"
-				hint={`${reset}Past the limit, that account's new mail uses built-in rules. ${sourceNote(settings.sources.dailyLimit)}`}
+				hint={withSourceNote(
+					`${reset}Past the limit, that account's new mail uses built-in rules.`,
+					settings.sources.dailyLimit,
+				)}
 				error={error}
 			>
 				<Input

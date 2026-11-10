@@ -6,10 +6,7 @@ import type {
 	RemitImapClassificationUnrunnable,
 	RemitImapClassificationUsage,
 } from "@remit/api-http-client/types.gen.ts";
-import {
-	ClassificationUnrunnableReason,
-	ClassificationValueSource,
-} from "@remit/domain-enums";
+import { ClassificationUnrunnableReason } from "@remit/domain-enums";
 import { Badge, Banner, Button, Switch } from "@remit/ui";
 import { useQuery } from "@tanstack/react-query";
 import { useId, useRef, useState } from "react";
@@ -20,8 +17,8 @@ import {
 import {
 	isCapped,
 	resetTime,
-	sourceNote,
 	usageCost,
+	withSourceNote,
 } from "../../../lib/classification";
 import { DailyLimitCard } from "./DailyLimitCard";
 import { FailureBanner } from "./FailureBanner";
@@ -47,9 +44,7 @@ const switchNote = (settings: RemitImapClassificationSettings): string => {
 	const base = settings.enabled
 		? "New mail goes to the model. A failed call falls back to built-in rules."
 		: "Provider saved. Built-in rules label your mail until you switch this on.";
-	return settings.sources.enabled === ClassificationValueSource.Default
-		? base
-		: `${base} ${sourceNote(settings.sources.enabled)}`;
+	return withSourceNote(base, settings.sources.enabled);
 };
 
 function UnrunnableNotice({

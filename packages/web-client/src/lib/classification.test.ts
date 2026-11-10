@@ -7,10 +7,10 @@ import type {
 import { ClassificationValueSource } from "@remit/domain-enums";
 import {
 	BAD_URL,
+	draftFromSettings,
 	groupPresets,
 	LIMIT_INVALID,
 	PASTE_KEY,
-	PASTE_KEY_FOR_NEW_URL,
 	parseDailyLimit,
 	providerSave,
 } from "./classification.js";
@@ -95,19 +95,6 @@ describe("providerSave", () => {
 		});
 	});
 
-	test("asks for a key when an inherited key would go to a different base URL", () => {
-		const result = providerSave(
-			draft({ presetId: "Mistral", baseUrl: "https://proxy.example.com/v1" }),
-			mistral,
-			savedMistral,
-		);
-		assert.deepStrictEqual(result, {
-			ok: false,
-			field: "ApiKey",
-			message: PASTE_KEY_FOR_NEW_URL,
-		});
-	});
-
 	test("names the preset and its key when switching", () => {
 		const result = providerSave(
 			draft({ presetId: "Jina", apiKey: "jina-key" }),
@@ -166,6 +153,27 @@ describe("providerSave", () => {
 				classificationModel: "",
 				classificationBaseUrl: "http://gpu-box.lan:11434/v1",
 			},
+		});
+	});
+});
+
+describe("draftFromSettings", () => {
+	test("fills only the values the reader saved, so a save keeps inheriting the rest", () => {
+		const result = draftFromSettings({
+			...savedMistral,
+			model: "mistral-large",
+			baseUrl: "https://api.mistral.ai/v1",
+			sources: {
+				...savedMistral.sources,
+				model: ClassificationValueSource.Saved,
+				baseUrl: ClassificationValueSource.Deployment,
+			},
+		});
+		assert.deepStrictEqual(result, {
+			presetId: "Mistral",
+			model: "mistral-large",
+			baseUrl: "",
+			apiKey: "",
 		});
 	});
 });
