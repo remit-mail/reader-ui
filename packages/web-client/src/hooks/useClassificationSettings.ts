@@ -35,6 +35,8 @@ export const useClassificationSettings = () => {
 	const query = useQuery({
 		...userSettingsOperationsGetUserSettingsOptions(),
 		meta: classificationQueryMeta,
+		refetchOnWindowFocus: true,
+		refetchInterval: 60_000,
 	});
 	const signedOut = query.isError && isClassificationSignedOut(query.error);
 	useEffect(() => {

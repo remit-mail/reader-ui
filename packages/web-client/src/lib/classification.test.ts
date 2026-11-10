@@ -7,7 +7,9 @@ import type {
 import {
 	BAD_URL,
 	groupPresets,
+	LIMIT_INVALID,
 	PASTE_KEY,
+	parseDailyLimit,
 	providerSave,
 } from "./classification.js";
 
@@ -47,6 +49,7 @@ const savedMistral: RemitImapClassificationConfigured = {
 	enabled: false,
 	dailyLimit: 500,
 	savedAt: 0,
+	usage: [],
 };
 
 const draft = (
@@ -158,5 +161,21 @@ describe("groupPresets", () => {
 				["Local", ["Local"]],
 			],
 		);
+	});
+});
+
+describe("parseDailyLimit", () => {
+	test("accepts a whole number of 1 or more", () => {
+		assert.deepStrictEqual(parseDailyLimit(" 750 "), { ok: true, limit: 750 });
+		assert.deepStrictEqual(parseDailyLimit("1"), { ok: true, limit: 1 });
+	});
+
+	test("refuses zero, fractions, signs, empty and past int32", () => {
+		for (const value of ["0", "1.5", "-3", "+3", "", "1e3", "2147483648"]) {
+			assert.deepStrictEqual(parseDailyLimit(value), {
+				ok: false,
+				message: LIMIT_INVALID,
+			});
+		}
 	});
 });

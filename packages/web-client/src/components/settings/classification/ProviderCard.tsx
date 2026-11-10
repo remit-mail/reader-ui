@@ -100,7 +100,7 @@ function TestOutcome({
 	);
 }
 
-function Field({
+export function Field({
 	id,
 	label,
 	hint,
@@ -131,7 +131,7 @@ function Field({
 	);
 }
 
-const describedBy = (id: string, hint: boolean, error: boolean) =>
+export const describedBy = (id: string, hint: boolean, error: boolean) =>
 	[error ? `${id}-error` : "", hint ? `${id}-hint` : ""]
 		.filter(Boolean)
 		.join(" ") || undefined;
