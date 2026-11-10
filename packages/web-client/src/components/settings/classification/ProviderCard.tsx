@@ -4,6 +4,7 @@ import type {
 	RemitImapClassificationSettings,
 	RemitImapClassificationTestResponse,
 } from "@remit/api-http-client/types.gen.ts";
+import { ClassificationValueSource } from "@remit/domain-enums";
 import {
 	Banner,
 	Button,
@@ -22,16 +23,21 @@ import {
 	classificationReportHref,
 	draftForPreset,
 	draftFromSettings,
+	effectiveValue,
 	groupPresets,
-	hasSavedKey,
+	hasSavedProvider,
+	isKeyRequiredRefusal,
 	needsBaseUrl,
+	PASTE_KEY,
 	type ProviderDraft,
 	presetNote,
 	providerSave,
+	settingsSources,
+	sourcesFor,
 	switchingFrom,
 	testFailureHeadline,
+	withSourceNote,
 } from "../../../lib/classification";
-import { formatDatePreset } from "../../../lib/format";
 import { ReportLink } from "../ReportLink";
 import { type ClassificationFailure, FailureBanner } from "./FailureBanner";
 import { describedBy, Field } from "./Field";
@@ -108,7 +114,6 @@ interface PresetFormProps {
 
 function PresetForm({ preset, settings, onAnnounce }: PresetFormProps) {
 	const save = useSaveClassification();
-	const clear = useClearClassification();
 	const test = useTestClassification();
 	const [draft, setDraft] = useState<ProviderDraft>(() =>
 		draftForPreset(preset, settings),
@@ -117,7 +122,6 @@ function PresetForm({ preset, settings, onAnnounce }: PresetFormProps) {
 	const [testResult, setTestResult] =
 		useState<RemitImapClassificationTestResponse | null>(null);
 	const [replacing, setReplacing] = useState(false);
-	const [confirmClear, setConfirmClear] = useState(false);
 	const [failure, setFailure] = useState<ClassificationFailure | null>(null);
 	const [focusTarget, setFocusTarget] = useState<{
 		target: FocusTarget;
@@ -143,11 +147,12 @@ function PresetForm({ preset, settings, onAnnounce }: PresetFormProps) {
 		refs[focusTarget.target].current?.focus();
 	}, [focusTarget]);
 
-	const savedKey =
-		preset.needsKey && hasSavedKey(settings, preset.presetId)
-			? settings
-			: undefined;
-	const showKeyInput = preset.needsKey && (savedKey === undefined || replacing);
+	const sources = sourcesFor(settings, preset.presetId);
+	const keySource = sources?.apiKey ?? ClassificationValueSource.Default;
+	const keyInUse =
+		preset.needsKey && keySource !== ClassificationValueSource.Default;
+	const keyInherited = keySource === ClassificationValueSource.Deployment;
+	const showKeyInput = preset.needsKey && (!keyInUse || replacing);
 	const shown: Record<RemitImapClassificationField, boolean> = {
 		ApiKey: preset.needsKey,
 		Model: true,
@@ -184,7 +189,7 @@ function PresetForm({ preset, settings, onAnnounce }: PresetFormProps) {
 	};
 
 	const fixField = (field: RemitImapClassificationField) => {
-		if (field === "ApiKey" && savedKey) {
+		if (field === "ApiKey" && keyInUse) {
 			startReplace();
 			return;
 		}
@@ -195,7 +200,7 @@ function PresetForm({ preset, settings, onAnnounce }: PresetFormProps) {
 		const result = providerSave(draft, preset, settings);
 		if (!result.ok) {
 			setFieldError({ field: result.field, message: result.message });
-			focus(result.field);
+			fixField(result.field);
 			return;
 		}
 		setFailure(null);
@@ -210,8 +215,14 @@ function PresetForm({ preset, settings, onAnnounce }: PresetFormProps) {
 					onAnnounce("Saved");
 					if (wasReplacing) focus("Replace");
 				},
-				onError: (error) =>
-					setFailure({ title: `${preset.label} was not saved`, error }),
+				onError: (error) => {
+					if (isKeyRequiredRefusal(error)) {
+						setFieldError({ field: "ApiKey", message: PASTE_KEY });
+						fixField("ApiKey");
+						return;
+					}
+					setFailure({ title: `${preset.label} was not saved`, error });
+				},
 			},
 		);
 	};
@@ -241,22 +252,12 @@ function PresetForm({ preset, settings, onAnnounce }: PresetFormProps) {
 		);
 	};
 
-	const onClear = () => {
-		clear.mutate(
-			{},
-			{
-				onError: (error) => {
-					setConfirmClear(false);
-					setFailure({
-						title: `The ${preset.label} key was not cleared`,
-						error,
-					});
-				},
-			},
-		);
-	};
-
-	const enabled = settings.state === "Configured" && settings.enabled;
+	const modelPlaceholder =
+		effectiveValue(settings, preset.presetId, "model") ?? preset.defaultModel;
+	const baseUrlPlaceholder =
+		effectiveValue(settings, preset.presetId, "baseUrl") ??
+		preset.defaultBaseUrl ??
+		"http://localhost:11434/v1";
 	const keyError = errorFor("ApiKey");
 
 	return (
@@ -264,7 +265,7 @@ function PresetForm({ preset, settings, onAnnounce }: PresetFormProps) {
 			<Field
 				id={modelId}
 				label="Model"
-				hint={`Empty uses ${preset.defaultModel}.`}
+				hint={withSourceNote(`Empty uses ${modelPlaceholder}.`, sources?.model)}
 				error={errorFor("Model")}
 			>
 				<Input
@@ -272,7 +273,7 @@ function PresetForm({ preset, settings, onAnnounce }: PresetFormProps) {
 					ref={modelRef}
 					className="h-11"
 					value={draft.model}
-					placeholder={preset.defaultModel}
+					placeholder={modelPlaceholder}
 					autoComplete="off"
 					spellCheck={false}
 					aria-invalid={invalid("Model")}
@@ -288,7 +289,10 @@ function PresetForm({ preset, settings, onAnnounce }: PresetFormProps) {
 				<Field
 					id={baseUrlId}
 					label="Base URL"
-					hint="Remit's server calls this URL."
+					hint={withSourceNote(
+						"Remit's server calls this URL.",
+						sources?.baseUrl,
+					)}
 					error={errorFor("BaseUrl")}
 				>
 					<Input
@@ -298,7 +302,7 @@ function PresetForm({ preset, settings, onAnnounce }: PresetFormProps) {
 						type="url"
 						inputMode="url"
 						value={draft.baseUrl}
-						placeholder={preset.defaultBaseUrl ?? "http://localhost:11434/v1"}
+						placeholder={baseUrlPlaceholder}
 						autoComplete="off"
 						spellCheck={false}
 						required={needsBaseUrl(preset)}
@@ -314,20 +318,29 @@ function PresetForm({ preset, settings, onAnnounce }: PresetFormProps) {
 					/>
 				</Field>
 			}
-			{savedKey && !replacing && (
+			{keyInUse && !replacing && (
 				<div>
 					<p className="mb-1 text-xs font-medium text-fg-muted">API key</p>
 					<div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-						<span
-							className={
-								invalid("ApiKey") ? "text-sm text-danger" : "text-sm text-fg"
-							}
-						>
-							set
-						</span>
-						<span className="text-sm text-fg-muted">
-							saved {formatDatePreset(savedKey.savedAt, "short")}
-						</span>
+						{keyInherited ? (
+							<span
+								className={
+									invalid("ApiKey")
+										? "text-sm text-danger"
+										: "text-sm text-fg-muted"
+								}
+							>
+								provided by the deployment
+							</span>
+						) : (
+							<span
+								className={
+									invalid("ApiKey") ? "text-sm text-danger" : "text-sm text-fg"
+								}
+							>
+								set
+							</span>
+						)}
 						<span className="flex-1" />
 						<Button
 							ref={replaceRef}
@@ -336,14 +349,7 @@ function PresetForm({ preset, settings, onAnnounce }: PresetFormProps) {
 							aria-invalid={invalid("ApiKey")}
 							onClick={startReplace}
 						>
-							Replace
-						</Button>
-						<Button
-							variant="secondary"
-							className="min-h-11"
-							onClick={() => setConfirmClear(true)}
-						>
-							Clear
+							{keyInherited ? "Use your own key" : "Replace"}
 						</Button>
 					</div>
 				</div>
@@ -353,9 +359,7 @@ function PresetForm({ preset, settings, onAnnounce }: PresetFormProps) {
 					id={keyId}
 					label={replacing ? "New API key" : "API key"}
 					hint={
-						replacing
-							? "The saved key stays in use until you press Save."
-							: undefined
+						replacing ? "The key in use stays until you press Save." : undefined
 					}
 					error={keyError}
 				>
@@ -430,20 +434,6 @@ function PresetForm({ preset, settings, onAnnounce }: PresetFormProps) {
 				/>
 			)}
 			{failure && <FailureBanner failure={failure} />}
-			<ConfirmDialog
-				isOpen={confirmClear}
-				title={`Clear the ${preset.label} key?`}
-				description={
-					enabled
-						? `Classification is on. Clearing the key switches it off, and new mail goes back to built-in rules. To use ${preset.label} again you paste the key again.`
-						: `To use ${preset.label} again you paste the key again.`
-				}
-				confirmLabel="Clear key"
-				destructive
-				isBusy={clear.isPending}
-				onConfirm={onClear}
-				onCancel={() => setConfirmClear(false)}
-			/>
 		</>
 	);
 }
@@ -462,15 +452,54 @@ export function ProviderCard({
 	const [presetId, setPresetId] = useState(
 		() => draftFromSettings(settings).presetId,
 	);
+	const clear = useClearClassification();
+	const [confirmClear, setConfirmClear] = useState(false);
+	const [cleared, setCleared] = useState(0);
+	const [clearFailure, setClearFailure] =
+		useState<ClassificationFailure | null>(null);
 	const presetFieldId = useId();
 	const preset = presets.find((entry) => entry.presetId === presetId);
 	const from = switchingFrom(settings, presetId, presets);
+	const enabled = settings.state === "Configured" && settings.enabled;
+
+	const onClear = () => {
+		setClearFailure(null);
+		clear.mutate(
+			{},
+			{
+				onSuccess: (response) => {
+					setConfirmClear(false);
+					setPresetId(draftFromSettings(response.classification).presetId);
+					setCleared((count) => count + 1);
+				},
+				onError: (error) => {
+					setConfirmClear(false);
+					setClearFailure({
+						title: "The provider settings were not cleared",
+						error,
+					});
+				},
+			},
+		);
+	};
 
 	return (
 		<section className="space-y-4">
-			<h2 className="text-xs font-semibold uppercase tracking-wider text-fg-subtle">
-				Provider
-			</h2>
+			<div className="flex min-h-11 items-center gap-3">
+				<h2 className="flex-1 text-xs font-semibold uppercase tracking-wider text-fg-subtle">
+					Provider
+				</h2>
+				{hasSavedProvider(settings) && (
+					<Button
+						variant="secondary"
+						className="min-h-11"
+						onClick={() => setConfirmClear(true)}
+					>
+						Clear
+					</Button>
+				)}
+			</div>
+			{clearFailure && <FailureBanner failure={clearFailure} />}
 			<Field
 				id={presetFieldId}
 				label="Provider"
@@ -509,19 +538,34 @@ export function ProviderCard({
 			{from && (
 				<p className="text-sm text-warning">
 					Saving switches from {from.label}
-					{settings.state === "Configured" && settings.apiKeySaved
+					{settingsSources(settings).sources?.apiKey ===
+					ClassificationValueSource.Saved
 						? " and deletes its saved key."
 						: "."}
 				</p>
 			)}
 			{preset && (
 				<PresetForm
-					key={preset.presetId}
+					key={`${preset.presetId}-${cleared}`}
 					preset={preset}
 					settings={settings}
 					onAnnounce={onAnnounce}
 				/>
 			)}
+			<ConfirmDialog
+				isOpen={confirmClear}
+				title="Clear the provider settings?"
+				description={
+					enabled
+						? "Classification is on. Clearing the provider switches it off, and new mail goes back to built-in rules. Every field returns to the deployment default."
+						: "Clearing the provider returns every field to the deployment default."
+				}
+				confirmLabel="Clear"
+				destructive
+				isBusy={clear.isPending}
+				onConfirm={onClear}
+				onCancel={() => setConfirmClear(false)}
+			/>
 		</section>
 	);
 }

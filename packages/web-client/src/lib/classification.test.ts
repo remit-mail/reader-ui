@@ -4,8 +4,10 @@ import type {
 	RemitImapClassificationConfigured,
 	RemitImapClassificationPreset,
 } from "@remit/api-http-client/types.gen.ts";
+import { ClassificationValueSource } from "@remit/domain-enums";
 import {
 	BAD_URL,
+	draftFromSettings,
 	groupPresets,
 	LIMIT_INVALID,
 	PASTE_KEY,
@@ -48,7 +50,14 @@ const savedMistral: RemitImapClassificationConfigured = {
 	apiKeySaved: true,
 	enabled: false,
 	dailyLimit: 500,
-	savedAt: 0,
+	sources: {
+		presetId: ClassificationValueSource.Saved,
+		model: ClassificationValueSource.Default,
+		baseUrl: ClassificationValueSource.Default,
+		apiKey: ClassificationValueSource.Deployment,
+		enabled: ClassificationValueSource.Default,
+		dailyLimit: ClassificationValueSource.Default,
+	},
 	usage: [],
 };
 
@@ -144,6 +153,27 @@ describe("providerSave", () => {
 				classificationModel: "",
 				classificationBaseUrl: "http://gpu-box.lan:11434/v1",
 			},
+		});
+	});
+});
+
+describe("draftFromSettings", () => {
+	test("fills only the values the reader saved, so a save keeps inheriting the rest", () => {
+		const result = draftFromSettings({
+			...savedMistral,
+			model: "mistral-large",
+			baseUrl: "https://api.mistral.ai/v1",
+			sources: {
+				...savedMistral.sources,
+				model: ClassificationValueSource.Saved,
+				baseUrl: ClassificationValueSource.Deployment,
+			},
+		});
+		assert.deepStrictEqual(result, {
+			presetId: "Mistral",
+			model: "mistral-large",
+			baseUrl: "",
+			apiKey: "",
 		});
 	});
 });

@@ -2,11 +2,16 @@ import type {
 	RemitImapClassificationConfigured,
 	RemitImapClassificationPreset,
 	RemitImapClassificationSettings,
+	RemitImapClassificationSources,
 	RemitImapClassificationTestResponse,
 	RemitImapClassificationUsage,
 	RemitImapUpdateUserSettingsInput,
 	RemitImapUserSettingsResponse,
 } from "@remit/api-http-client/types.gen.ts";
+import {
+	ClassificationUnrunnableReason,
+	ClassificationValueSource,
+} from "@remit/domain-enums";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { type HttpHandler, HttpResponse, http } from "msw";
 import { expect, userEvent, waitFor, within } from "storybook/test";
@@ -93,6 +98,33 @@ const localUsage = (
 	cost: { state: "NoPrice" },
 });
 
+const allSaved: RemitImapClassificationSources = {
+	presetId: ClassificationValueSource.Saved,
+	model: ClassificationValueSource.Saved,
+	baseUrl: ClassificationValueSource.Saved,
+	apiKey: ClassificationValueSource.Saved,
+	enabled: ClassificationValueSource.Saved,
+	dailyLimit: ClassificationValueSource.Saved,
+};
+
+const allDeployment: RemitImapClassificationSources = {
+	presetId: ClassificationValueSource.Deployment,
+	model: ClassificationValueSource.Deployment,
+	baseUrl: ClassificationValueSource.Deployment,
+	apiKey: ClassificationValueSource.Deployment,
+	enabled: ClassificationValueSource.Deployment,
+	dailyLimit: ClassificationValueSource.Deployment,
+};
+
+const mixedSources: RemitImapClassificationSources = {
+	presetId: ClassificationValueSource.Saved,
+	model: ClassificationValueSource.Saved,
+	baseUrl: ClassificationValueSource.Deployment,
+	apiKey: ClassificationValueSource.Deployment,
+	enabled: ClassificationValueSource.Default,
+	dailyLimit: ClassificationValueSource.Default,
+};
+
 const mistral: RemitImapClassificationConfigured = {
 	state: "Configured",
 	presetId: "Mistral",
@@ -101,7 +133,7 @@ const mistral: RemitImapClassificationConfigured = {
 	apiKeySaved: true,
 	enabled: false,
 	dailyLimit: 500,
-	savedAt: NOW - 3 * DAY,
+	sources: allSaved,
 	usage: [pricedUsage(PERSONAL, 0), pricedUsage(WORK, 0)],
 };
 
@@ -125,8 +157,27 @@ const local: RemitImapClassificationConfigured = {
 	apiKeySaved: false,
 	enabled: true,
 	dailyLimit: 500,
-	savedAt: NOW - DAY,
+	sources: {
+		...allSaved,
+		apiKey: ClassificationValueSource.Default,
+	},
 	usage: [localUsage(PERSONAL, 31), localUsage(WORK, 12)],
+};
+
+const mistralDeployment: RemitImapClassificationConfigured = {
+	...mistral,
+	sources: allDeployment,
+};
+
+const mistralMixed: RemitImapClassificationConfigured = {
+	...mistral,
+	sources: mixedSources,
+};
+
+const unrunnableNoApiKey: RemitImapClassificationSettings = {
+	state: "Unrunnable",
+	presetId: "Mistral",
+	reason: ClassificationUnrunnableReason.NoApiKey,
 };
 
 const passed: RemitImapClassificationTestResponse = {
@@ -161,6 +212,23 @@ const settingsHandlers = (
 		http.get("/api/settings", () => HttpResponse.json(settings())),
 		http.patch("/api/settings", async ({ request }) => {
 			const body = (await request.json()) as RemitImapUpdateUserSettingsInput;
+			if (
+				classification.state === "Configured" &&
+				classification.sources.apiKey ===
+					ClassificationValueSource.Deployment &&
+				body.classificationApiKey === undefined &&
+				body.classificationBaseUrl !== undefined &&
+				body.classificationBaseUrl !== ""
+			) {
+				return HttpResponse.json(
+					{
+						code: "ClassificationApiKeyRequired",
+						message:
+							"classificationApiKey is required for Mistral: no key is saved, and the deployment's key only applies to its own preset and base URL",
+					},
+					{ status: 400 },
+				);
+			}
 			const presetId =
 				body.classificationPresetId ??
 				(classification.state === "Configured"
@@ -176,13 +244,19 @@ const settingsHandlers = (
 				apiKeySaved:
 					body.classificationApiKey !== undefined ||
 					(body.classificationPresetId === undefined && previous.apiKeySaved),
+				sources: {
+					...previous.sources,
+					apiKey:
+						body.classificationApiKey !== undefined
+							? ClassificationValueSource.Saved
+							: previous.sources.apiKey,
+				},
 				enabled: body.classificationEnabled ?? previous.enabled,
 				dailyLimit: body.classificationDailyLimit ?? previous.dailyLimit,
 				usage: previous.usage.map((usage) => ({
 					...usage,
 					dailyLimit: body.classificationDailyLimit ?? usage.dailyLimit,
 				})),
-				savedAt: NOW,
 			};
 			return HttpResponse.json(settings());
 		}),
@@ -243,6 +317,59 @@ export const KeySavedDisabled: Story = {
 		await expect(
 			await canvas.findByText("Test passed in 840 ms"),
 		).toBeVisible();
+	},
+};
+
+export const AllInheritedFromDeployment: Story = {
+	parameters: { msw: { handlers: settingsHandlers(mistralDeployment) } },
+	play: async ({ canvasElement }) => {
+		const canvas = within(canvasElement);
+		await expect(
+			await canvas.findByText("provided by the deployment"),
+		).toBeVisible();
+		await expect(canvas.queryByText("set")).toBeNull();
+		await expect(canvas.queryByRole("button", { name: "Clear" })).toBeNull();
+		await userEvent.clear(await canvas.findByLabelText("Base URL"));
+		await userEvent.type(
+			canvas.getByLabelText("Base URL"),
+			"https://proxy.example.com/v1",
+		);
+		await userEvent.click(canvas.getByRole("button", { name: "Save" }));
+		await expect(await canvas.findByText("Paste an API key")).toBeVisible();
+		await expect(canvas.getByLabelText("New API key")).toHaveFocus();
+	},
+};
+
+export const MixedSources: Story = {
+	parameters: { msw: { handlers: settingsHandlers(mistralMixed) } },
+	play: async ({ canvasElement }) => {
+		const canvas = within(canvasElement);
+		await expect(
+			await canvas.findByText("provided by the deployment"),
+		).toBeVisible();
+		await expect(
+			canvas.getByRole("button", { name: "Use your own key" }),
+		).toBeVisible();
+		await userEvent.click(canvas.getByRole("button", { name: "Clear" }));
+		const dialog = within(await canvas.findByRole("dialog"));
+		await expect(
+			dialog.getByText("Clear the provider settings?"),
+		).toBeVisible();
+	},
+};
+
+export const UnrunnableNoApiKey: Story = {
+	parameters: { msw: { handlers: settingsHandlers(unrunnableNoApiKey) } },
+	play: async ({ canvasElement }) => {
+		const canvas = within(canvasElement);
+		await expect(
+			await canvas.findByText("Classification cannot run without an API key"),
+		).toBeVisible();
+		await expect(await useTheModel(canvasElement)).toHaveAttribute(
+			"aria-disabled",
+			"true",
+		);
+		await expect(canvas.getByLabelText("Provider")).toHaveValue("Mistral");
 	},
 };
 
@@ -308,9 +435,11 @@ export const ClearKeyConfirm: Story = {
 		const canvas = within(canvasElement);
 		await userEvent.click(await canvas.findByRole("button", { name: "Clear" }));
 		const dialog = within(await canvas.findByRole("dialog"));
-		await expect(dialog.getByText("Clear the Mistral key?")).toBeVisible();
+		await expect(
+			dialog.getByText("Clear the provider settings?"),
+		).toBeVisible();
 		await expect(dialog.getByRole("button", { name: "Cancel" })).toHaveFocus();
-		await userEvent.click(dialog.getByRole("button", { name: "Clear key" }));
+		await userEvent.click(dialog.getByRole("button", { name: "Clear" }));
 		await waitFor(() => expect(canvas.queryByRole("dialog")).toBeNull());
 		await expect(await useTheModel(canvasElement)).toHaveAttribute(
 			"aria-disabled",
@@ -343,7 +472,10 @@ export const LocalProviderDefaultBaseUrl: Story = {
 			await canvas.findByLabelText("Provider"),
 			"Local",
 		);
-		await expect(await canvas.findByLabelText("Base URL")).toHaveValue(
+		const baseUrl = await canvas.findByLabelText("Base URL");
+		await expect(baseUrl).toHaveValue("");
+		await expect(baseUrl).toHaveAttribute(
+			"placeholder",
 			"http://localhost:8080",
 		);
 	},

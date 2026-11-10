@@ -2,7 +2,11 @@ import type { RemitImapClassificationConfigured } from "@remit/api-http-client/t
 import { Button, Input } from "@remit/ui";
 import { type Ref, useId, useState } from "react";
 import { useSaveClassification } from "../../../hooks/useClassificationSettings";
-import { parseDailyLimit, resetTime } from "../../../lib/classification";
+import {
+	parseDailyLimit,
+	resetTime,
+	withSourceNote,
+} from "../../../lib/classification";
 import { type ClassificationFailure, FailureBanner } from "./FailureBanner";
 import { describedBy, Field } from "./Field";
 
@@ -55,7 +59,10 @@ export function DailyLimitCard({
 			<Field
 				id={inputId}
 				label="Calls per account per day"
-				hint={`${reset}Past the limit, that account's new mail uses built-in rules.`}
+				hint={withSourceNote(
+					`${reset}Past the limit, that account's new mail uses built-in rules.`,
+					settings.sources.dailyLimit,
+				)}
 				error={error}
 			>
 				<Input

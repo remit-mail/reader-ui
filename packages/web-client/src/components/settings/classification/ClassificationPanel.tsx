@@ -3,8 +3,10 @@ import type {
 	RemitImapAccountResponse,
 	RemitImapClassificationPreset,
 	RemitImapClassificationSettings,
+	RemitImapClassificationUnrunnable,
 	RemitImapClassificationUsage,
 } from "@remit/api-http-client/types.gen.ts";
+import { ClassificationUnrunnableReason } from "@remit/domain-enums";
 import { Badge, Banner, Button, Switch } from "@remit/ui";
 import { useQuery } from "@tanstack/react-query";
 import { useId, useRef, useState } from "react";
@@ -12,22 +14,56 @@ import {
 	useClassificationSettings,
 	useSaveClassification,
 } from "../../../hooks/useClassificationSettings";
-import { isCapped, resetTime, usageCost } from "../../../lib/classification";
+import {
+	isCapped,
+	resetTime,
+	usageCost,
+	withSourceNote,
+} from "../../../lib/classification";
 import { DailyLimitCard } from "./DailyLimitCard";
 import { FailureBanner } from "./FailureBanner";
 import { ProviderCard } from "./ProviderCard";
 
 const LOAD_FAILED = "Mail classification settings did not load";
 
+const UNRUNNABLE_PIECE: Record<
+	RemitImapClassificationUnrunnable["reason"],
+	string
+> = {
+	[ClassificationUnrunnableReason.NoBaseUrl]: "a base URL",
+	[ClassificationUnrunnableReason.NoApiKey]: "an API key",
+};
+
 const switchNote = (settings: RemitImapClassificationSettings): string => {
 	if (settings.state === "NotConfigured") {
 		return "Save a provider below first. Until then, built-in rules label your mail.";
 	}
-	if (settings.enabled) {
-		return "New mail goes to the model. A failed call falls back to built-in rules.";
+	if (settings.state === "Unrunnable") {
+		return "The provider cannot run yet. Built-in rules label your mail.";
 	}
-	return "Provider saved. Built-in rules label your mail until you switch this on.";
+	const base = settings.enabled
+		? "New mail goes to the model. A failed call falls back to built-in rules."
+		: "Provider saved. Built-in rules label your mail until you switch this on.";
+	return withSourceNote(base, settings.sources.enabled);
 };
+
+function UnrunnableNotice({
+	settings,
+}: {
+	settings: RemitImapClassificationUnrunnable;
+}) {
+	return (
+		<Banner tone="warning" variant="soft">
+			<p className="font-medium">
+				Classification cannot run without {UNRUNNABLE_PIECE[settings.reason]}
+			</p>
+			<p className="mt-0.5 text-fg-muted">
+				Add {UNRUNNABLE_PIECE[settings.reason]} below and save. Until then,
+				built-in rules label your mail.
+			</p>
+		</Banner>
+	);
+}
 
 type NameOf = (accountId: string) => string;
 
@@ -180,6 +216,9 @@ function StatusCard({
 					onToggle={flip}
 				/>
 			</div>
+			{settings.state === "Unrunnable" && (
+				<UnrunnableNotice settings={settings} />
+			)}
 			{firstCapped && (
 				<CapBanner
 					first={firstCapped}
