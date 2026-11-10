@@ -81,6 +81,7 @@ function StatusCard({
 
 export function ClassificationPanel() {
 	const query = useClassificationSettings();
+	const [announcement, setAnnouncement] = useState("");
 
 	if (query.isPending) {
 		return (
@@ -112,7 +113,11 @@ export function ClassificationPanel() {
 				key={classification.state}
 				presets={classificationPresets}
 				settings={classification}
+				onAnnounce={setAnnouncement}
 			/>
+			<p aria-live="polite" className="text-sm text-fg-muted">
+				{announcement}
+			</p>
 		</div>
 	);
 }

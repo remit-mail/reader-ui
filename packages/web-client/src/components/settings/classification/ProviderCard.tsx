@@ -139,9 +139,10 @@ const describedBy = (id: string, hint: boolean, error: boolean) =>
 interface PresetFormProps {
 	preset: RemitImapClassificationPreset;
 	settings: RemitImapClassificationSettings;
+	onAnnounce: (text: string) => void;
 }
 
-function PresetForm({ preset, settings }: PresetFormProps) {
+function PresetForm({ preset, settings, onAnnounce }: PresetFormProps) {
 	const save = useSaveClassification();
 	const clear = useClearClassification();
 	const test = useTestClassification();
@@ -154,7 +155,6 @@ function PresetForm({ preset, settings }: PresetFormProps) {
 	const [replacing, setReplacing] = useState(false);
 	const [confirmClear, setConfirmClear] = useState(false);
 	const [failure, setFailure] = useState<ClassificationFailure | null>(null);
-	const [announcement, setAnnouncement] = useState("");
 	const [focusTarget, setFocusTarget] = useState<{
 		target: FocusTarget;
 	} | null>(null);
@@ -205,7 +205,7 @@ function PresetForm({ preset, settings }: PresetFormProps) {
 		setDraft((current) => ({ ...current, ...value }));
 		setTestResult((current) => (current?.state === "Passed" ? null : current));
 		setFieldError((current) => (current?.field === field ? null : current));
-		setAnnouncement("");
+		onAnnounce("");
 	};
 
 	const startReplace = () => {
@@ -244,7 +244,7 @@ function PresetForm({ preset, settings }: PresetFormProps) {
 					setDraft((current) => ({ ...current, apiKey: "" }));
 					setReplacing(false);
 					setFieldError(null);
-					setAnnouncement("Saved");
+					onAnnounce("Saved");
 					if (wasReplacing) focus("Replace");
 				},
 				onError: (error) =>
@@ -257,7 +257,7 @@ function PresetForm({ preset, settings }: PresetFormProps) {
 		if (test.isPending) return;
 		setTestResult(null);
 		setFailure(null);
-		setAnnouncement("");
+		onAnnounce("");
 		test.mutate(
 			{
 				body: {
@@ -456,9 +456,7 @@ function PresetForm({ preset, settings }: PresetFormProps) {
 				</Button>
 			</div>
 			<p aria-live="polite" className="text-sm text-fg-muted empty:hidden">
-				{test.isPending
-					? `Sending one sample message to ${preset.label}`
-					: announcement}
+				{test.isPending ? `Sending one sample message to ${preset.label}` : ""}
 			</p>
 			{testResult && (
 				<TestOutcome
@@ -490,9 +488,14 @@ function PresetForm({ preset, settings }: PresetFormProps) {
 export interface ProviderCardProps {
 	presets: RemitImapClassificationPreset[];
 	settings: RemitImapClassificationSettings;
+	onAnnounce: (text: string) => void;
 }
 
-export function ProviderCard({ presets, settings }: ProviderCardProps) {
+export function ProviderCard({
+	presets,
+	settings,
+	onAnnounce,
+}: ProviderCardProps) {
 	const [presetId, setPresetId] = useState(
 		() => draftFromSettings(settings).presetId,
 	);
@@ -549,7 +552,12 @@ export function ProviderCard({ presets, settings }: ProviderCardProps) {
 				</p>
 			)}
 			{preset && (
-				<PresetForm key={preset.presetId} preset={preset} settings={settings} />
+				<PresetForm
+					key={preset.presetId}
+					preset={preset}
+					settings={settings}
+					onAnnounce={onAnnounce}
+				/>
 			)}
 		</section>
 	);
