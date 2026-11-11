@@ -5,6 +5,7 @@
 	"sideEffects": ["**/*.css", "./src/components/rich-text-spellcheck-worker.ts", "./dist/components/rich-text-spellcheck-worker.js"],
 	"exports": {
 		".": "./src/index.ts",
+		"./auth": "./src/auth.ts",
 		"./icons": "./src/icons.ts",
 		"./mcp-pages": "./src/mcp-pages.ts",
 		"./rich-text": "./src/rich-text.ts",
@@ -84,6 +85,10 @@
 			".": {
 				"types": "./dist/index.d.ts",
 				"default": "./dist/index.js"
+			},
+			"./auth": {
+				"types": "./dist/auth.d.ts",
+				"default": "./dist/auth.js"
 			},
 			"./icons": {
 				"types": "./dist/icons.d.ts",
