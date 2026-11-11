@@ -12,13 +12,4 @@ describe("mergeProps", () => {
 		merged.onClick();
 		assert.deepEqual(calls, ["first", "second"]);
 	});
-
-	it("joins class names and merges styles", () => {
-		const merged = mergeProps(
-			{ className: "a", style: { color: "red" } },
-			{ className: "b", style: { margin: 1 } },
-		);
-		assert.equal(merged.className, "a b");
-		assert.deepEqual(merged.style, { color: "red", margin: 1 });
-	});
 });

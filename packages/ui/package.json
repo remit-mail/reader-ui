@@ -34,7 +34,6 @@
 		"@lexical/selection": "0.49.0",
 		"@lexical/table": "0.49.0",
 		"@lexical/utils": "0.49.0",
-		"@react-types/shared": "3.36.0",
 		"@use-gesture/react": "10.3.1",
 		"@use-gesture/vanilla": "10.3.1",
 		"clsx": "2.1.1",

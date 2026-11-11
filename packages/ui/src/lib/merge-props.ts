@@ -1,5 +1,3 @@
-import { cn } from "./cn.js";
-
 type Props = object;
 type MergedRecord = Record<string, unknown>;
 
@@ -44,20 +42,6 @@ export function mergeProps<T extends readonly (Props | null | undefined)[]>(
 			const previous = merged[key];
 			if (isEventHandlerKey(key) && isHandler(previous) && isHandler(value)) {
 				merged[key] = chainHandlers(previous, value);
-			} else if (
-				key === "className" &&
-				typeof previous === "string" &&
-				typeof value === "string"
-			) {
-				merged[key] = cn(previous, value);
-			} else if (
-				key === "style" &&
-				typeof previous === "object" &&
-				typeof value === "object" &&
-				previous !== null &&
-				value !== null
-			) {
-				merged[key] = { ...previous, ...value };
 			} else if (value !== undefined || !(key in merged)) {
 				merged[key] = value;
 			}
