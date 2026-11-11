@@ -1,4 +1,3 @@
-export { mergeProps } from "react-aria";
 export {
 	type BriefCategoryFilter,
 	CATEGORY_PRESENTATION,
@@ -1196,6 +1195,7 @@ export {
 	DESKTOP_MEDIA_QUERY,
 	DESKTOP_MIN_WIDTH,
 } from "./lib/layout-breakpoints.js";
+export { mergeProps } from "./lib/merge-props.js";
 export { miniMonthWeeks, shiftMonth } from "./lib/mini-month.js";
 export {
 	type OverlayAnswers,

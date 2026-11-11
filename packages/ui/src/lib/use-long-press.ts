@@ -1,6 +1,6 @@
 import { type FullGestureState, useDrag } from "@use-gesture/react";
 import type { HTMLAttributes, PointerEvent } from "react";
-import { mergeProps } from "react-aria";
+import { mergeProps } from "./merge-props.js";
 
 /**
  * Suppression lives on the document, not on the row.
