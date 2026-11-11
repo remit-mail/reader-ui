@@ -34,6 +34,7 @@ const baseData: IntelligenceData = {
 		summary: "This message was signed by example.com.",
 	},
 	category: { value: "personal" },
+	spamAction: "reportSpam",
 };
 
 const ReportHarness = () => {
@@ -48,7 +49,7 @@ const ReportHarness = () => {
 const UndoHarness = () => {
 	const { notSpam, isRestoring } = useReportSpam({ mailboxId: "mbx-junk" });
 	return createElement(IntelligencePanel, {
-		data: baseData,
+		data: { ...baseData, spamAction: "undoSpamReport" },
 		actions: { onNotSpam: () => notSpam(["msg-1"]) },
 		notSpamPending: isRestoring,
 	});

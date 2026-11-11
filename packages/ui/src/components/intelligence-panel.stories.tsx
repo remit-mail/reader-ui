@@ -16,6 +16,7 @@ const base: IntelligenceData = {
 		summary: "This message was signed by example.com.",
 	},
 	category: { value: "personal" },
+	spamAction: "reportSpam",
 };
 
 const meta: Meta<typeof IntelligencePanel> = {
@@ -146,13 +147,6 @@ export const UnreadableSender: Story = {
 	},
 };
 
-/**
- * The spam quick actions are a contextual pair, decided by whether the message
- * carries a spam report — never by the mailbox it happens to sit in, since a
- * report on a message already in Junk (the provider's own filter put it there)
- * is a real, no-op-move case (issue #648). A reportable message offers
- * "Report spam".
- */
 export const Reportable: Story = {
 	args: {
 		data: base,
@@ -160,46 +154,13 @@ export const Reportable: Story = {
 	},
 };
 
-/**
- * Already reported: "Not spam" (the undo) is offered instead of "Report
- * spam", and the panel names the message as reported. Driven by
- * `actions.onNotSpam` being present, not by `flags.blocked` — a sender can be
- * blocked manually, with no report on this particular message, and that must
- * not read as "you reported this" (issue #648 review).
- */
 export const Reported: Story = {
 	args: {
-		data: base,
+		data: { ...base, spamAction: "undoSpamReport" },
 		actions: { onNotSpam: () => {} },
 	},
 };
 
-/**
- * Neither action is offered. The panel hides the pair rather than disabling
- * it — unlike VIP/Mute, which always render and go visibly
- * unavailable with no handler (issue #51). The host's own wiring never
- * actually reaches this: `resolveSpamAction` always returns one of the two,
- * since every message either carries a spam report or doesn't. Kept as a
- * defensive state for a host that doesn't wire the pair at all.
- */
-export const SpamActionUnavailable: Story = {
-	args: {
-		data: base,
-		actions: {},
-	},
-};
-
-/**
- * A "Report spam" press in flight. There's no optimistic update for this
- * action (a report against a message already in Junk is a real no-op-move,
- * issue #648), so without a pending label the button gives no visible
- * response at all until the request lands — the dead-button failure the
- * coding standards call the worst outcome. The button is disabled for the
- * duration: the server dedupes message ids only within a single request, so
- * a second press mid-flight would fire a second, concurrent request rather
- * than join the first (issue #648 review). Still visibly a button, never
- * dead — the "Reporting…" label carries that.
- */
 export const ReportSpamPending: Story = {
 	args: {
 		data: base,
@@ -208,10 +169,60 @@ export const ReportSpamPending: Story = {
 	},
 };
 
-/** The undo direction's equivalent — "Undoing…" while `notSpam` is in flight. */
-export const NotSpamPending: Story = {
+const unknownSender: IntelligenceData["sender"] = {
+	name: "Weekly Deals",
+	email: "news@deals.example",
+	trust: "unknown",
+	firstSeenLabel: "today",
+};
+
+export const MovedOutOfJunkUnsure: Story = {
+	args: {
+		data: {
+			...base,
+			sender: unknownSender,
+			category: { value: "newsletter" },
+			placement: {
+				action: "MoveToInbox",
+				confidence: "Unsure",
+				fromPlacement: "junk",
+				reasons: ["no-confident-signal", "newer-server-code"],
+				dryRun: false,
+			},
+		},
+		actions: { onReportSpam: () => {} },
+	},
+};
+
+export const KeptInJunkByClassifier: Story = {
+	args: {
+		data: {
+			...base,
+			sender: unknownSender,
+			category: { value: "automated" },
+			placement: {
+				action: "MoveToJunk",
+				confidence: "Confident",
+				fromPlacement: "junk",
+				reasons: ["classifier=spam"],
+				dryRun: false,
+			},
+			spamAction: "notSpam",
+		},
+		actions: { onNotSpam: () => {} },
+	},
+};
+
+export const LeftInInboxNoVerdict: Story = {
 	args: {
 		data: base,
+		actions: { onReportSpam: () => {} },
+	},
+};
+
+export const NotSpamPending: Story = {
+	args: {
+		data: { ...base, spamAction: "undoSpamReport" },
 		actions: { onNotSpam: () => {} },
 		notSpamPending: true,
 	},

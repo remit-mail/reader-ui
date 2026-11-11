@@ -24,6 +24,7 @@ import {
 	type IntelligenceCalendarActions,
 	type IntelligenceCalendarData,
 } from "./intelligence-calendar.js";
+import { Placement, type PlacementIntel } from "./intelligence-placement.js";
 import { IntelligenceSection } from "./intelligence-section.js";
 import { SegmentedControl } from "./segmented-control.js";
 
@@ -102,17 +103,19 @@ export interface IntelligenceData {
 	authenticity: AuthenticityIntel;
 	category: { value: ThreadCategory; overridden?: boolean };
 	flags?: SenderFlagsIntel;
+	/** Where Remit placed this message and why. Absent when Remit recorded no verdict. */
+	placement?: PlacementIntel;
+	spamAction: SpamAction;
 }
+
+/** Which spam control the message offers: undo its spam report, move it out of Junk, or report it. */
+export type SpamAction = "undoSpamReport" | "notSpam" | "reportSpam";
 
 export interface IntelligenceQuickActions {
 	onToggleVip?: () => void;
 	onToggleMute?: () => void;
 	onReclassify?: () => void;
-	/**
-	 * "Not spam": undo a spam report — clears the sender block and moves the
-	 * message back where it came from (issue #648). Wired only when the
-	 * message currently carries a spam report.
-	 */
+	/** "Not spam": wired only when `spamAction` is not "reportSpam". */
 	onNotSpam?: () => void;
 	/**
 	 * "Report spam": move the message into Junk and block the sender (the
@@ -338,7 +341,16 @@ export function IntelligencePanel({
 	defaultTab = "sender",
 	touch,
 }: IntelligencePanelProps) {
-	const { sender, authenticity, category, flags = {} } = data;
+	const {
+		sender,
+		authenticity,
+		category,
+		flags = {},
+		placement,
+		spamAction,
+	} = data;
+	const notSpamPendingLabel =
+		spamAction === "undoSpamReport" ? "Undoing…" : "Moving…";
 	const [ownTab, setOwnTab] = useState<IntelligenceTabId>(defaultTab);
 	const tabStripName = useId();
 	const activeTab = tab ?? ownTab;
@@ -426,6 +438,12 @@ export function IntelligencePanel({
 						</div>
 					</IntelligenceSection>
 
+					{placement && (
+						<IntelligenceSection label="Placement">
+							<Placement placement={placement} />
+						</IntelligenceSection>
+					)}
+
 					<IntelligenceSection label="Quick actions">
 						<div className="flex flex-wrap gap-1.5">
 							<QuickAction
@@ -443,7 +461,7 @@ export function IntelligencePanel({
 							{actions?.onNotSpam && (
 								<QuickAction
 									icon={<MailCheck className="size-3.5" />}
-									label={notSpamPending ? "Undoing…" : "Not spam"}
+									label={notSpamPending ? notSpamPendingLabel : "Not spam"}
 									active
 									onClick={actions.onNotSpam}
 									pending={notSpamPending}
@@ -459,7 +477,7 @@ export function IntelligencePanel({
 								/>
 							)}
 						</div>
-						{actions?.onNotSpam && (
+						{actions?.onNotSpam && spamAction === "undoSpamReport" && (
 							<p className="mt-1.5 text-2xs text-fg-subtle">
 								You reported this message as spam
 							</p>

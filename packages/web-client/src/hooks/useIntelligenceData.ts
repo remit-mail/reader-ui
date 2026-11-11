@@ -7,6 +7,7 @@ import { DisplayNameCorrespondence, SenderTrust } from "@remit/domain-enums";
 import type {
 	AuthenticityIntel,
 	IntelligenceData,
+	PlacementIntel,
 	SenderFlagsIntel,
 	SenderIntel,
 } from "@remit/ui";
@@ -257,8 +258,22 @@ export function buildAuthenticityIntel(
 	};
 }
 
+export function buildPlacementIntel(
+	thread: RemitImapThreadMessageResponse,
+): PlacementIntel | undefined {
+	const verdict = thread.placementVerdict;
+	if (!verdict) return undefined;
+	return {
+		action: verdict.action,
+		confidence: verdict.confidence,
+		fromPlacement: verdict.fromPlacement,
+		reasons: verdict.reasons,
+		dryRun: verdict.dryRun,
+	};
+}
+
 export interface UseIntelligenceDataResult {
-	data: IntelligenceData | null;
+	data: Omit<IntelligenceData, "spamAction"> | null;
 	/**
 	 * True when the address lookup failed with a fatal first-party 5xx. The panel
 	 * must not silently render the sender's flags (VIP/muted/blocked) as absent —
@@ -305,7 +320,7 @@ export function useIntelligenceData(
 		senderEmail ?? undefined,
 	);
 
-	const data = useMemo((): IntelligenceData | null => {
+	const data = useMemo((): Omit<IntelligenceData, "spamAction"> | null => {
 		if (!thread) return null;
 
 		const sender = buildSenderIntel(thread, address);
@@ -316,7 +331,13 @@ export function useIntelligenceData(
 
 		const flags = buildSenderFlags(address);
 
-		return { sender, authenticity, category, flags };
+		return {
+			sender,
+			authenticity,
+			category,
+			flags,
+			placement: buildPlacementIntel(thread),
+		};
 	}, [thread, address]);
 
 	return {

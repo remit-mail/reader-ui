@@ -32,6 +32,7 @@ const sender: IntelligenceData = {
 		summary: "Nothing looks unusual about this sender.",
 	},
 	category: { value: "personal" },
+	spamAction: "reportSpam",
 	flags: {},
 };
 

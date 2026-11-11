@@ -1,3 +1,4 @@
+import { threadDetailOperationsListThreadMessagesOptions } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
 import type { RemitImapThreadMessageResponse } from "@remit/api-http-client/types.gen.ts";
 import {
 	CATEGORY_PRESENTATION,
@@ -5,11 +6,14 @@ import {
 	DialogBackdrop,
 	IntelligencePanel,
 	type IntelligenceQuickActions,
+	type SpamAction,
 	type ThreadCategory,
 	useModalFocus,
 } from "@remit/ui";
+import { useQueryClient } from "@tanstack/react-query";
 import { Sparkles } from "lucide-react";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { useJunkMailbox } from "../../hooks/useArchiveMailbox";
 import { useIntelligenceCalendar } from "../../hooks/useIntelligenceCalendar";
 import { useIntelligenceData } from "../../hooks/useIntelligenceData";
 import { useReportSpam } from "../../hooks/useReportSpam";
@@ -72,18 +76,21 @@ const CATEGORY_OVERRIDES: readonly CategoryOverride[] =
 	);
 
 /**
- * Decide which spam quick-action to offer for the current message (issue #648).
+ * Decide which spam quick-action to offer for the current message.
  *
- * Driven entirely by `Message.spamReport`, never by which mailbox the message
- * is currently in: reporting a message that's already in Junk (the provider's
- * own filter put it there) is a real, no-op-move case, so mailbox membership
- * cannot stand in for "has this been reported". A message that carries a
- * report offers the undo ("Not spam"); everything else offers "Report spam".
- * Pure so the wiring decision can be unit-tested without rendering.
+ * A message that carries a spam report offers the undo (issue #648). An
+ * unreported message in Junk offers "Not spam", which moves the thread's Junk
+ * messages out and trusts the sender (reader#1553). Everything else offers
+ * "Report spam".
  */
-export const resolveSpamAction = (thread: {
-	spamReport?: unknown;
-}): "notSpam" | "reportSpam" => (thread.spamReport ? "notSpam" : "reportSpam");
+export const resolveSpamAction = (
+	thread: { spamReport?: unknown },
+	inJunk: boolean,
+): SpamAction => {
+	if (thread.spamReport) return "undoSpamReport";
+	if (inJunk) return "notSpam";
+	return "reportSpam";
+};
 
 function IntelligenceSkeleton() {
 	return (
@@ -232,7 +239,9 @@ function WiredPanel({
 	onReplyWithText,
 	onOpenThread,
 }: WiredPanelProps) {
-	const { data, address, addressId } = useIntelligenceData(thread);
+	const { data: threadData, address, addressId } = useIntelligenceData(thread);
+	const { junkMailboxId } = useJunkMailbox(accountId);
+	const queryClient = useQueryClient();
 	const calendar = useIntelligenceCalendar(
 		thread,
 		onReplyWithText,
@@ -246,20 +255,50 @@ function WiredPanel({
 		senderEmail,
 	});
 
-	// "Report spam" / "Not spam" are a contextual pair, decided by whether the
-	// message carries a spam report — never by the mailbox it's in (issue #648).
-	const { reportSpam, notSpam, isReporting, isRestoring } = useReportSpam({
-		mailboxId: thread.mailboxId,
-		threadId: thread.threadId,
-		accountId,
-		onAfterOptimisticRemove,
-	});
+	const { reportSpam, notSpam, moveOutOfSpam, isReporting, isRestoring } =
+		useReportSpam({
+			mailboxId: thread.mailboxId,
+			threadId: thread.threadId,
+			accountId,
+			onAfterOptimisticRemove,
+		});
 	const telemetry = useTelemetry();
-	const spamAction = resolveSpamAction(thread);
+	const spamAction = resolveSpamAction(
+		thread,
+		junkMailboxId !== undefined && thread.mailboxId === junkMailboxId,
+	);
+	const data = useMemo(
+		() => (threadData ? { ...threadData, spamAction } : null),
+		[threadData, spamAction],
+	);
 
 	const handleNotSpam = useCallback(() => {
-		notSpam([thread.messageId]);
-	}, [notSpam, thread.messageId]);
+		if (spamAction === "undoSpamReport") {
+			notSpam([thread.messageId]);
+			return;
+		}
+		void queryClient
+			.ensureQueryData(
+				threadDetailOperationsListThreadMessagesOptions({
+					path: { threadId: thread.threadId },
+				}),
+			)
+			.then(({ items }) => {
+				const ids = new Set([thread.messageId]);
+				for (const message of items) {
+					if (message.mailboxId === junkMailboxId) ids.add(message.messageId);
+				}
+				moveOutOfSpam([...ids]);
+			});
+	}, [
+		notSpam,
+		moveOutOfSpam,
+		queryClient,
+		spamAction,
+		thread.messageId,
+		thread.threadId,
+		junkMailboxId,
+	]);
 
 	const handleReportSpam = useCallback(() => {
 		recordRescueSentToJunk(telemetry, {
@@ -302,7 +341,7 @@ function WiredPanel({
 		onToggleVip: canUpdateFlags ? handleToggleVip : undefined,
 		onToggleMute: canUpdateFlags ? handleToggleMute : undefined,
 		onReclassify: canUpdateFlags ? () => setReclassifyOpen(true) : undefined,
-		onNotSpam: spamAction === "notSpam" ? handleNotSpam : undefined,
+		onNotSpam: spamAction === "reportSpam" ? undefined : handleNotSpam,
 		onReportSpam: spamAction === "reportSpam" ? handleReportSpam : undefined,
 	};
 

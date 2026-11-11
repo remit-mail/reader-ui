@@ -47,7 +47,6 @@ const savedMistral: RemitImapClassificationConfigured = {
 	presetId: "Mistral",
 	model: "",
 	baseUrl: "",
-	apiKeySaved: true,
 	enabled: false,
 	dailyLimit: 500,
 	sources: {

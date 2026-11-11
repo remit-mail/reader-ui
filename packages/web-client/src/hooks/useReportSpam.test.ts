@@ -3,6 +3,7 @@ import { describe, test } from "node:test";
 import {
 	GENERIC_SPAM_ACTION_FAILURE,
 	humanizeSpamFailureReason,
+	SpamBulkFailureError,
 	throwOnBulkFailure,
 } from "./useReportSpam.js";
 
@@ -47,16 +48,22 @@ describe("throwOnBulkFailure (#648)", () => {
 	});
 
 	test("throws on a partial batch, not just a total failure", () => {
-		// This hook is always called with exactly one message today, but the
-		// check itself must not treat "some succeeded" as "nothing to report".
 		assert.throws(
 			() =>
 				throwOnBulkFailure({
 					successCount: 2,
-					failureCount: 1,
-					failures: [{ messageId: "m3", reason: "boom" }],
+					failureCount: 2,
+					failures: [
+						{ messageId: "m3", reason: "boom" },
+						{ messageId: "m4", reason: "bang" },
+					],
 				}),
-			/boom/,
+			(error: unknown) => {
+				assert.ok(error instanceof SpamBulkFailureError);
+				assert.equal(error.message, "boom");
+				assert.equal(error.failureCount, 2);
+				return true;
+			},
 		);
 	});
 
