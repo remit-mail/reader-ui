@@ -1,5 +1,5 @@
 import { AttentionDot } from "@remit/ui";
-import { TriangleAlert } from "lucide-react";
+import { TriangleAlert } from "@remit/ui/icons";
 import { useWarningsAttention } from "../../hooks/useWarningsAttention";
 
 export function WarningsNavIcon() {

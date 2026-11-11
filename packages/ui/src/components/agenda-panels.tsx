@@ -1,5 +1,5 @@
-import { Clock, Radio, Sun } from "lucide-react";
 import { type ReactNode, useMemo } from "react";
+import { Clock, Radio, Sun } from "../icons.js";
 import {
 	addDays,
 	formatMinute,

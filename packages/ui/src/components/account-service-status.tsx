@@ -1,4 +1,4 @@
-import { PauseCircle } from "lucide-react";
+import { CirclePause } from "../icons.js";
 import { cn } from "../lib/cn.js";
 import type { AccountService } from "./account-service-choice.js";
 import { Badge } from "./badge.js";
@@ -49,7 +49,7 @@ export function AccountServiceOffBadge({
 }: AccountServiceOffBadgeProps) {
 	return (
 		<Badge tone="neutral" className={className}>
-			<PauseCircle className="size-3 shrink-0" aria-hidden />
+			<CirclePause className="size-3 shrink-0" aria-hidden />
 			{ACCOUNT_SERVICE_OFF_LABEL[service]}
 		</Badge>
 	);

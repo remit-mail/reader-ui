@@ -24,7 +24,7 @@ import {
 	weekStart,
 	zonedMoment,
 } from "@remit/ui";
-import { Loader2 } from "lucide-react";
+import { LoaderCircle } from "@remit/ui/icons";
 import { type ReactNode, useCallback, useMemo, useRef, useState } from "react";
 import {
 	calendarInstanceId,
@@ -294,7 +294,7 @@ export function CalendarScreen({ isPhone, detail }: CalendarScreenProps) {
 			aria-label="Loading the calendar"
 			className="flex h-full items-center justify-center bg-surface"
 		>
-			<Loader2 className="size-6 animate-spin text-fg-subtle" />
+			<LoaderCircle className="size-6 animate-spin text-fg-subtle" />
 		</div>
 	) : shown === "year" ? (
 		<CalendarYear

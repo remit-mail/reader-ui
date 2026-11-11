@@ -1,5 +1,5 @@
 import { useOverlayScope } from "@remit/ui";
-import { AlertOctagon } from "lucide-react";
+import { OctagonAlert } from "@remit/ui/icons";
 import { useEffect, useState } from "react";
 import {
 	type BugReportSeed,
@@ -110,7 +110,7 @@ export const FatalErrorScreen = ({ fatal, onRetry }: FatalErrorScreenProps) => {
 			data-testid="fatal-error-overlay"
 			className="fixed inset-0 z-[1000] flex flex-col items-center justify-center gap-6 bg-red-700 p-6 text-center text-white"
 		>
-			<AlertOctagon className="size-16 shrink-0" aria-hidden="true" />
+			<OctagonAlert className="size-16 shrink-0" aria-hidden="true" />
 			<div className="max-w-lg space-y-3">
 				<h1 className="text-2xl font-bold tracking-tight">Something broke</h1>
 				<p className="text-base text-red-50">{description}</p>

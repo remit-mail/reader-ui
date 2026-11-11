@@ -1,10 +1,12 @@
-import { Loader2 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useState } from "react";
+import { LoaderCircle } from "../icons.js";
 import { cn } from "../lib/cn.js";
 import { Button } from "./button.js";
 
-const spinner = (): ReactNode => <Loader2 className="size-3.5 animate-spin" />;
+const spinner = (): ReactNode => (
+	<LoaderCircle className="size-3.5 animate-spin" />
+);
 
 export interface RowAction {
 	label: string;

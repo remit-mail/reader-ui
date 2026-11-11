@@ -1,5 +1,5 @@
-import { ChevronLeft, CircleHelp, Menu, X } from "lucide-react";
 import { type ReactNode, useState } from "react";
+import { ChevronLeft, CircleQuestionMark, Menu, X } from "../icons.js";
 import { cn } from "../lib/cn.js";
 import { Avatar } from "./avatar.js";
 import { Badge } from "./badge.js";
@@ -187,7 +187,7 @@ export function SettingsShell({
 						<Button
 							variant="ghost"
 							size="sm"
-							icon={<CircleHelp className="size-4" />}
+							icon={<CircleQuestionMark className="size-4" />}
 							className="ml-auto lg:hidden"
 							onClick={() => setMobileHelpOpen((v) => !v)}
 							aria-label="Tips"
@@ -198,7 +198,7 @@ export function SettingsShell({
 						<Button
 							variant="ghost"
 							size="sm"
-							icon={<CircleHelp className="size-4" />}
+							icon={<CircleQuestionMark className="size-4" />}
 							className="hidden ml-auto lg:inline-flex"
 							onClick={onToggleHelp}
 							aria-label="Show tips"

@@ -1,5 +1,5 @@
-import { BadgeCheck, ChevronDown, ChevronRight } from "lucide-react";
 import { useState } from "react";
+import { BadgeCheck, ChevronDown, ChevronRight } from "../icons.js";
 
 /**
  * Minimal address shape the display needs. Structurally compatible with the

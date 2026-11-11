@@ -1,4 +1,4 @@
-import { Undo2 } from "lucide-react";
+import { Undo2 } from "../icons.js";
 import { cn } from "../lib/cn.js";
 import { Badge } from "./badge.js";
 

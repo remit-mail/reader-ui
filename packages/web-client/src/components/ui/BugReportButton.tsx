@@ -1,4 +1,4 @@
-import { Bug } from "lucide-react";
+import { Bug } from "@remit/ui/icons";
 import { openBugReport } from "../../lib/bug-report";
 
 /**

@@ -17,9 +17,9 @@ import {
 	RowActions,
 	SettingsShell,
 } from "@remit/ui";
+import { LoaderCircle, Plus, Trash, TriangleAlert, X } from "@remit/ui/icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { AlertTriangle, Loader2, Plus, Trash2, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { z } from "zod";
 import {
@@ -546,7 +546,7 @@ function AccountsSettings() {
 								destructive={{
 									label: "Delete account",
 									iconOnly: true,
-									icon: <Trash2 className="size-3.5" />,
+									icon: <Trash className="size-3.5" />,
 									onClick: () => setDeletingAccountId(account.accountId),
 								}}
 							/>
@@ -626,7 +626,7 @@ function AccountsSettings() {
 				title="Delete account"
 			>
 				<header className="flex items-center gap-2 border-b border-line px-5 py-3">
-					<AlertTriangle className="size-4 shrink-0 text-danger" />
+					<TriangleAlert className="size-4 shrink-0 text-danger" />
 					<span className="flex-1 text-sm font-semibold text-fg">
 						Delete account
 					</span>
@@ -667,7 +667,7 @@ function AccountsSettings() {
 						aria-busy={deleteMutation.isPending}
 						icon={
 							deleteMutation.isPending ? (
-								<Loader2 className="size-3.5 animate-spin" />
+								<LoaderCircle className="size-3.5 animate-spin" />
 							) : undefined
 						}
 						onClick={() => {

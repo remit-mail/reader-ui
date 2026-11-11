@@ -5,6 +5,7 @@
 	"sideEffects": ["**/*.css", "./src/components/rich-text-spellcheck-worker.ts", "./dist/components/rich-text-spellcheck-worker.js"],
 	"exports": {
 		".": "./src/index.ts",
+		"./icons": "./src/icons.ts",
 		"./mcp-pages": "./src/mcp-pages.ts",
 		"./rich-text": "./src/rich-text.ts",
 		"./spellcheck-worker": "./src/components/rich-text-spellcheck-worker-provider.ts",
@@ -40,7 +41,7 @@
 		"dompurify": "3.4.17",
 		"franc-min": "6.2.0",
 		"lexical": "0.49.0",
-		"lucide-react": "0.468.0",
+		"lucide-react": "1.62.0",
 		"react-resizable-panels": "2.1.9",
 		"react-simple-pull-to-refresh": "1.3.4",
 		"tailwind-merge": "2.6.1",
@@ -83,6 +84,10 @@
 			".": {
 				"types": "./dist/index.d.ts",
 				"default": "./dist/index.js"
+			},
+			"./icons": {
+				"types": "./dist/icons.d.ts",
+				"default": "./dist/icons.js"
 			},
 			"./mcp-pages": {
 				"types": "./dist/mcp-pages.d.ts",

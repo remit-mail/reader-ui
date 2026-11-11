@@ -1,5 +1,5 @@
-import { CalendarDays, Mail } from "lucide-react";
 import { type MouseEvent, useRef } from "react";
+import { CalendarDays, Mail } from "../icons.js";
 import { cn } from "../lib/cn.js";
 import { useRovingFocus } from "../lib/roving-focus.js";
 

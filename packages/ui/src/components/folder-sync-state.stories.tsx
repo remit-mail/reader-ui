@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { Folder } from "lucide-react";
+import { Folder } from "../icons.js";
 import { cn } from "../lib/cn.js";
 import {
 	FolderSyncBadge,

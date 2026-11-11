@@ -1,4 +1,4 @@
-import { Check, TriangleAlert } from "lucide-react";
+import { Check, TriangleAlert } from "../icons.js";
 import { cn } from "../lib/cn.js";
 import type { CalendarClash } from "./calendar-types.js";
 

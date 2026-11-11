@@ -1,5 +1,5 @@
-import { X } from "lucide-react";
 import { Fragment, useRef } from "react";
+import { X } from "../icons.js";
 import { cn } from "../lib/cn.js";
 import { KEY_HINT_GROUPS } from "../lib/keymap.js";
 import { useOverlayScope } from "../lib/overlay-scope.js";

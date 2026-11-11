@@ -3,8 +3,8 @@ import {
 	meOperationsDeleteMeMutation,
 } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
 import { Button, Dialog, Input } from "@remit/ui";
+import { Download, TriangleAlert, X } from "@remit/ui/icons";
 import { useMutation } from "@tanstack/react-query";
-import { AlertTriangle, Download, X } from "lucide-react";
 import { useState } from "react";
 import { useAuthProvider } from "../../auth/provider";
 
@@ -60,7 +60,7 @@ function DeleteAccountDialogView({
 	return (
 		<Dialog open={open} onClose={handleClose} title="Delete your Remit account">
 			<header className="flex items-center gap-2 border-b border-line px-5 py-3">
-				<AlertTriangle className="size-4 shrink-0 text-danger" />
+				<TriangleAlert className="size-4 shrink-0 text-danger" />
 				<span className="flex-1 text-sm font-semibold text-fg">
 					Delete your Remit account
 				</span>

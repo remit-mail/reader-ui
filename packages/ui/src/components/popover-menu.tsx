@@ -1,4 +1,3 @@
-import { EllipsisVertical } from "lucide-react";
 import type { CSSProperties, Ref, RefObject } from "react";
 import {
 	type ReactNode,
@@ -8,6 +7,7 @@ import {
 	useState,
 } from "react";
 import { createPortal } from "react-dom";
+import { EllipsisVertical } from "../icons.js";
 import { cn } from "../lib/cn.js";
 import { useOverlayScope } from "../lib/overlay-scope.js";
 import { Button } from "./button.js";

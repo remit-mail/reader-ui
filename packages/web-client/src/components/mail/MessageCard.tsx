@@ -12,8 +12,8 @@ import {
 	ErrorState,
 	ExpandedMessage,
 } from "@remit/ui";
+import { BadgeCheck, Paperclip, Star } from "@remit/ui/icons";
 import { useQuery } from "@tanstack/react-query";
-import { BadgeCheck, Paperclip, Star } from "lucide-react";
 import { useState } from "react";
 import { toDisplayCategory } from "../../lib/display-category";
 import { formatDatePreset } from "../../lib/format";

@@ -1,20 +1,20 @@
-import {
-	BellOff,
-	MailCheck,
-	ShieldAlert,
-	ShieldCheck,
-	ShieldQuestion,
-	ShieldX,
-	Sparkles,
-	Star,
-	X,
-} from "lucide-react";
 import { type ReactNode, useId, useState } from "react";
 import {
 	categoryLabels,
 	categoryTone,
 	type ThreadCategory,
 } from "../category-presentation.js";
+import {
+	BellOff,
+	MailCheck,
+	ShieldAlert,
+	ShieldCheck,
+	ShieldQuestionMark,
+	ShieldX,
+	Sparkles,
+	Star,
+	X,
+} from "../icons.js";
 import { cn } from "../lib/cn.js";
 import { Avatar } from "./avatar.js";
 import { Badge } from "./badge.js";
@@ -253,7 +253,7 @@ function Authenticity({ auth }: { auth: AuthenticityIntel }) {
 	if (auth.verdict === "caution") {
 		return (
 			<div className="flex items-start gap-2 rounded-md bg-warning/10 p-3 text-warning">
-				<ShieldQuestion className="mt-0.5 size-4 shrink-0" />
+				<ShieldQuestionMark className="mt-0.5 size-4 shrink-0" />
 				<p className="text-xs leading-relaxed">{auth.summary}</p>
 			</div>
 		);

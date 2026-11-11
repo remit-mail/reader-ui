@@ -53,7 +53,7 @@ import {
 	useAppShellLayout,
 	useSuggestList,
 } from "@remit/ui";
-import { Menu, Search, X } from "lucide-react";
+import { Menu, Search, X } from "@remit/ui/icons";
 import {
 	createContext,
 	type ReactNode,

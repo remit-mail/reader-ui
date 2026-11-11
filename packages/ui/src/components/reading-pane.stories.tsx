@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { Paperclip, Star } from "lucide-react";
 import { useState } from "react";
 import { expect } from "storybook/test";
+import { Paperclip, Star } from "../icons.js";
 import type { ThreadData, ThreadMessageData } from "./app-shell-types.js";
 import {
 	type AttachmentDownloadState,

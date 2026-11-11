@@ -9,7 +9,7 @@ import {
 	DropdownMenuItem,
 	DropdownMenuSeparator,
 } from "@remit/ui";
-import { MoreHorizontal } from "lucide-react";
+import { Ellipsis } from "@remit/ui/icons";
 import { useEffect, useRef, useState } from "react";
 import { usePeople } from "../../../hooks/usePeople";
 import type { PersonActionResult } from "../../../hooks/usePersonAction";
@@ -74,7 +74,7 @@ function PersonMenu({
 		<DropdownMenu
 			trigger={
 				<>
-					<MoreHorizontal className="size-4" aria-hidden="true" />
+					<Ellipsis className="size-4" aria-hidden="true" />
 					<span className="sr-only">Actions for {person.email}</span>
 				</>
 			}

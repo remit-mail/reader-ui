@@ -1,4 +1,4 @@
-import { Copy, ExternalLink } from "lucide-react";
+import { Copy, ExternalLink } from "../icons.js";
 import { Button, ButtonLink } from "./button.js";
 import { Dialog } from "./dialog.js";
 

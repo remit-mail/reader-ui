@@ -1,6 +1,6 @@
 import type { Decorator, Meta, StoryObj } from "@storybook/react";
-import { ArrowLeft, Menu } from "lucide-react";
 import { expect, within } from "storybook/test";
+import { ArrowLeft, Menu } from "../icons.js";
 import { Button } from "./button.js";
 import { PaneHeader } from "./pane-header.js";
 

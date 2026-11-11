@@ -4,7 +4,7 @@ import {
 	CalendarSuggestionList,
 	EventSuggestionCard,
 } from "@remit/ui";
-import { Sparkles } from "lucide-react";
+import { Sparkles } from "@remit/ui/icons";
 import type { ReactNode } from "react";
 
 /**

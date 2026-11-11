@@ -1,5 +1,5 @@
-import { X } from "lucide-react";
 import { forwardRef } from "react";
+import { X } from "../icons.js";
 import { cn } from "../lib/cn.js";
 
 /**

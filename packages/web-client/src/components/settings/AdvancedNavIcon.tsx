@@ -6,7 +6,7 @@
  * stays silent.
  */
 import { AttentionDot } from "@remit/ui";
-import { Wrench } from "lucide-react";
+import { Wrench } from "@remit/ui/icons";
 import { useOptionalSelfUpdate } from "../../hooks/use-system-update";
 
 export function AdvancedNavIcon() {

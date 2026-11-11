@@ -1,4 +1,4 @@
-import { AlertCircle, X } from "lucide-react";
+import { CircleAlert, X } from "@remit/ui/icons";
 import { useState } from "react";
 import { useAuthProvider } from "../../auth/provider";
 import {
@@ -45,7 +45,7 @@ export const MessageBodyErrorBanner = ({
 			data-reason={reason}
 			className="flex items-start gap-2 rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-sm"
 		>
-			<AlertCircle
+			<CircleAlert
 				className="size-4 shrink-0 text-danger mt-0.5"
 				aria-hidden="true"
 			/>

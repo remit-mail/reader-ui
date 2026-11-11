@@ -1,5 +1,5 @@
 import type { RemitImapMessageAuthenticity } from "@remit/api-http-client/types.gen.ts";
-import { ShieldAlert } from "lucide-react";
+import { ShieldAlert } from "@remit/ui/icons";
 
 /**
  * Danger banner rendered above the thread body when DKIM mismatch is detected.

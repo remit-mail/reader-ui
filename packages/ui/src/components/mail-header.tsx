@@ -1,5 +1,5 @@
-import { Menu, Search, X } from "lucide-react";
 import type { ReactNode } from "react";
+import { Menu, Search, X } from "../icons.js";
 import { cn } from "../lib/cn.js";
 import { Button } from "./button.js";
 import { SearchBar } from "./search-bar.js";

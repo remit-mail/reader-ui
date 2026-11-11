@@ -1,10 +1,10 @@
 import {
-	AlertCircle,
-	AlertTriangle,
-	CheckCircle,
+	CircleAlert,
+	CircleCheckBig,
 	Clock,
-	Loader2,
-} from "lucide-react";
+	LoaderCircle,
+	TriangleAlert,
+} from "../icons.js";
 import { cn } from "../lib/cn.js";
 
 /** The non-draft outbox lifecycle states (drafts live in a separate view). */
@@ -26,19 +26,19 @@ interface StatusConfig {
 export const outboxStatusConfig: Record<OutboxStatus, StatusConfig> = {
 	queued: { icon: Clock, label: "Queued", className: "text-warning" },
 	sending: {
-		icon: Loader2,
+		icon: LoaderCircle,
 		label: "Sending…",
 		className: "text-accent-2",
 		spin: true,
 	},
-	sent: { icon: CheckCircle, label: "Sent", className: "text-positive" },
+	sent: { icon: CircleCheckBig, label: "Sent", className: "text-positive" },
 	unfiled: {
-		icon: AlertTriangle,
+		icon: TriangleAlert,
 		label: "Sent, not filed",
 		className: "text-warning",
 	},
-	failed: { icon: AlertCircle, label: "Failed", className: "text-danger" },
-	blocked: { icon: AlertTriangle, label: "Blocked", className: "text-warning" },
+	failed: { icon: CircleAlert, label: "Failed", className: "text-danger" },
+	blocked: { icon: TriangleAlert, label: "Blocked", className: "text-warning" },
 };
 
 export interface OutboxStatusBadgeProps {

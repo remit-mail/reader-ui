@@ -1,11 +1,11 @@
+import { useState } from "react";
 import {
-	AlertTriangle,
 	Check,
 	ChevronDown,
 	ChevronRight,
-	PauseCircle,
-} from "lucide-react";
-import { useState } from "react";
+	CirclePause,
+	TriangleAlert,
+} from "../icons.js";
 import { calendarColorClasses } from "../lib/calendar-color.js";
 import { cn } from "../lib/cn.js";
 import { ACCOUNT_SERVICE_OFF_LABEL } from "./account-service-status.js";
@@ -231,13 +231,13 @@ function CalendarListRow({
 					{calendar.name}
 				</span>
 				{paused && (
-					<PauseCircle
+					<CirclePause
 						className="size-3.5 shrink-0 text-fg-subtle"
 						aria-hidden
 					/>
 				)}
 				{syncError !== "" && (
-					<AlertTriangle
+					<TriangleAlert
 						className="size-3.5 shrink-0 text-danger"
 						aria-hidden
 					/>

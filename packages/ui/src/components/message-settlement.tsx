@@ -1,5 +1,5 @@
-import { CloudOff } from "lucide-react";
 import type { ReactNode } from "react";
+import { CloudOff } from "../icons.js";
 import { cn } from "../lib/cn.js";
 import { Badge } from "./badge.js";
 

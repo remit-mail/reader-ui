@@ -1,4 +1,4 @@
-import { AlertCircle, CheckCircle, RefreshCw } from "lucide-react";
+import { CircleAlert, CircleCheckBig, RefreshCw } from "../icons.js";
 import { cn } from "../lib/cn.js";
 import { Button, type ButtonProps } from "./button.js";
 
@@ -52,9 +52,9 @@ export function RefreshButton({
 	const succeeded = state === "success";
 
 	const icon = failed ? (
-		<AlertCircle className="size-4 text-danger" />
+		<CircleAlert className="size-4 text-danger" />
 	) : succeeded ? (
-		<CheckCircle className="size-4 text-positive" />
+		<CircleCheckBig className="size-4 text-positive" />
 	) : (
 		<RefreshCw className={cn("size-4", busy && "animate-spin")} />
 	);

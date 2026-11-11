@@ -1,9 +1,8 @@
-import { ChevronDown } from "lucide-react";
 import type { ReactNode, Ref, SelectHTMLAttributes } from "react";
+import { ChevronDown } from "../icons.js";
 import { cn } from "../lib/cn.js";
 
 export interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
-	/** Optional leading icon (lucide-react element). */
 	icon?: ReactNode;
 	/** So a surface blocked on this choice can put the cursor on it. */
 	ref?: Ref<HTMLSelectElement>;

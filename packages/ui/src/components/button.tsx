@@ -12,7 +12,6 @@ type Size = "sm" | "md" | "touch";
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 	variant?: Variant;
 	size?: Size;
-	/** Optional leading icon (lucide-react element). */
 	icon?: ReactNode;
 	ref?: Ref<HTMLButtonElement>;
 }

@@ -1,4 +1,4 @@
-import { CheckCircle2 } from "lucide-react";
+import { CircleCheck } from "../icons.js";
 import type { SyncWarningEntry } from "./sync-warning-report.js";
 import { SyncWarningRow } from "./sync-warning-row.js";
 
@@ -27,7 +27,7 @@ export function SyncWarningSection({
 
 			{entries.length === 0 && (
 				<div className="flex items-center gap-2 rounded-sm border border-line bg-surface px-row-inset py-3">
-					<CheckCircle2 className="size-4 shrink-0 text-positive" aria-hidden />
+					<CircleCheck className="size-4 shrink-0 text-positive" aria-hidden />
 					<p className="text-sm text-fg-muted">
 						Every message is syncing. Nothing has failed.
 					</p>

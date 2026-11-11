@@ -4,7 +4,7 @@ import {
 	useModalFocus,
 	useOverlayScope,
 } from "@remit/ui";
-import { X } from "lucide-react";
+import { X } from "@remit/ui/icons";
 import { type ReactNode, useEffect, useRef } from "react";
 
 interface DrawerProps {

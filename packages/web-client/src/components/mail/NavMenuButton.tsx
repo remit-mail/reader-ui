@@ -7,7 +7,7 @@
  * where the nav is a persistent pane, there is nothing to open.
  */
 import { Button, useAppShellLayout } from "@remit/ui";
-import { Menu } from "lucide-react";
+import { Menu } from "@remit/ui/icons";
 
 export function NavMenuButton() {
 	const layout = useAppShellLayout();

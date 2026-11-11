@@ -1,4 +1,4 @@
-import { Info } from "lucide-react";
+import { Info } from "../icons.js";
 import { cn } from "../lib/cn.js";
 import { Button } from "./button.js";
 

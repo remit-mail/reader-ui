@@ -1,5 +1,5 @@
-import { AlertCircle, Loader2 } from "lucide-react";
 import type { ReactNode } from "react";
+import { CircleAlert, LoaderCircle } from "../icons.js";
 import { Button } from "./button.js";
 
 /** Non-ready states the flat mailbox list can be in. "ready" renders rows. */
@@ -176,7 +176,7 @@ export function MessageListLoadingMore() {
 			role="status"
 			aria-live="polite"
 		>
-			<Loader2 className="size-4 animate-spin" aria-hidden="true" />
+			<LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
 			<span>Loading more&hellip;</span>
 		</div>
 	);
@@ -203,7 +203,7 @@ export function MessageListError({
 				role="alert"
 				className="flex max-w-sm flex-col items-center justify-center gap-3 text-center"
 			>
-				<AlertCircle className="size-8 text-danger" aria-hidden="true" />
+				<CircleAlert className="size-8 text-danger" aria-hidden="true" />
 				<div>
 					<p className="font-medium text-danger">Couldn't load messages</p>
 					<p className="mt-1 break-words text-sm text-fg-muted">{message}</p>

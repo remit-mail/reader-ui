@@ -1,4 +1,4 @@
-import { Sparkles } from "lucide-react";
+import { Sparkles } from "../icons.js";
 import { cn } from "../lib/cn.js";
 
 export type SenderTrust = "unknown" | "wellknown" | "vip";

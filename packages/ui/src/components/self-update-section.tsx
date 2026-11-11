@@ -1,14 +1,14 @@
+import { type ReactNode, useState } from "react";
 import {
-	CheckCircle2,
+	CircleCheck,
 	Clock,
 	CloudOff,
 	Download,
 	ExternalLink,
-	Loader2,
+	LoaderCircle,
 	RotateCcw,
 	TriangleAlert,
-} from "lucide-react";
-import { type ReactNode, useState } from "react";
+} from "../icons.js";
 import { cn } from "../lib/cn.js";
 import { Badge } from "./badge.js";
 import { Banner } from "./banner.js";
@@ -114,7 +114,7 @@ export function SelfUpdateSection({
 					<SectionRow>
 						<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 							<div className="flex min-w-0 items-center gap-2">
-								<CheckCircle2
+								<CircleCheck
 									className="size-4 shrink-0 text-positive"
 									aria-hidden
 								/>
@@ -143,7 +143,7 @@ export function SelfUpdateSection({
 					<SectionRow>
 						<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 							<div className="flex min-w-0 items-center gap-2">
-								<Loader2
+								<LoaderCircle
 									className="size-4 shrink-0 animate-spin text-fg-subtle"
 									aria-hidden
 								/>
@@ -277,7 +277,7 @@ export function SelfUpdateSection({
 				return (
 					<SectionRow>
 						<div className="flex min-w-0 items-center gap-2">
-							<Loader2
+							<LoaderCircle
 								className="size-4 shrink-0 animate-spin text-accent-2"
 								aria-hidden
 							/>
@@ -314,7 +314,7 @@ export function SelfUpdateSection({
 						<SectionRow>
 							<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 								<div className="flex min-w-0 items-center gap-2">
-									<CheckCircle2
+									<CircleCheck
 										className="size-4 shrink-0 text-positive"
 										aria-hidden
 									/>

@@ -1,5 +1,5 @@
-import { AlertTriangle, Loader2 } from "lucide-react";
 import { useEffect, useRef } from "react";
+import { LoaderCircle, TriangleAlert } from "../icons.js";
 import type { FolderTreeNode } from "../lib/folder-tree.js";
 import { Banner } from "./banner.js";
 import { Button } from "./button.js";
@@ -258,7 +258,7 @@ export const RoleAppointmentPrompt = ({
 					tabIndex={-1}
 					className="flex flex-col items-center gap-3 px-5 py-10 text-center outline-none"
 				>
-					<Loader2 className="size-8 animate-spin text-accent-2" />
+					<LoaderCircle className="size-8 animate-spin text-accent-2" />
 					<p className="text-sm font-medium text-fg">{words.headline}</p>
 					<p className="text-xs text-fg-muted" role="status" aria-live="polite">
 						{words.status}
@@ -274,7 +274,7 @@ export const RoleAppointmentPrompt = ({
 			    the picker's filter field as the dialog's first focusable — initial
 			    focus belongs there, never on a confirm that erases mail. */}
 			<header className="flex items-center gap-2 border-b border-line px-5 py-3">
-				<AlertTriangle
+				<TriangleAlert
 					className={`size-4 shrink-0 ${expunges ? "text-danger" : "text-warning"}`}
 				/>
 				<span className="flex-1 text-sm font-semibold text-fg">

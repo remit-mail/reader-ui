@@ -1,5 +1,5 @@
-import { Check, CircleHelp, Clock3, Crown, X } from "lucide-react";
 import { useId, useState } from "react";
+import { Check, CircleQuestionMark, Clock3, Crown, X } from "../icons.js";
 import { cn } from "../lib/cn.js";
 import { type GuestEntry, parseGuest, withGuest } from "../lib/guest-list.js";
 import {
@@ -207,7 +207,12 @@ const answerMark = (rsvp: RsvpState) => {
 	if (rsvp === "declined")
 		return <X className="size-3.5 text-danger" aria-label="No" />;
 	if (rsvp === "tentative")
-		return <CircleHelp className="size-3.5 text-fg-muted" aria-label="Maybe" />;
+		return (
+			<CircleQuestionMark
+				className="size-3.5 text-fg-muted"
+				aria-label="Maybe"
+			/>
+		);
 	return <Clock3 className="size-3.5 text-fg-subtle" aria-label="Awaiting" />;
 };
 

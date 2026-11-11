@@ -1,4 +1,4 @@
-import { Code2, FileText, TextSearch } from "lucide-react";
+import { CodeXml, FileText, TextSearch } from "../icons.js";
 import { cn } from "../lib/cn.js";
 import type { CalendarParseMethod } from "./calendar-types.js";
 
@@ -24,7 +24,7 @@ export const calendarParseNote: Record<CalendarParseMethod, string> = {
 
 const icons: Record<CalendarParseMethod, typeof FileText> = {
 	ics: FileText,
-	markup: Code2,
+	markup: CodeXml,
 	pattern: TextSearch,
 };
 

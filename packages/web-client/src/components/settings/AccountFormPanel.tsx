@@ -16,8 +16,8 @@ import {
 	SlidePanel,
 	securityToApi,
 } from "@remit/ui";
+import { Check, LoaderCircle, X } from "@remit/ui/icons";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Check, Loader2, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -729,7 +729,7 @@ export const AccountFormPanel = ({
 							className="w-full"
 							icon={
 								testMutation.isPending ? (
-									<Loader2 className="size-4 animate-spin" />
+									<LoaderCircle className="size-4 animate-spin" />
 								) : undefined
 							}
 						>
@@ -885,7 +885,7 @@ export const AccountFormPanel = ({
 							className="w-full"
 							icon={
 								testMutation.isPending ? (
-									<Loader2 className="size-4 animate-spin" />
+									<LoaderCircle className="size-4 animate-spin" />
 								) : undefined
 							}
 						>

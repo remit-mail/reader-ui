@@ -1,5 +1,5 @@
 import { useModalFocus, useOverlayScope } from "@remit/ui";
-import { LogIn } from "lucide-react";
+import { LogIn } from "@remit/ui/icons";
 import { useEffect, useRef, useState } from "react";
 import { useAuthProvider } from "../../auth/provider";
 import {

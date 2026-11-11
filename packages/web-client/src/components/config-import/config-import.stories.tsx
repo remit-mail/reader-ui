@@ -1,5 +1,5 @@
+import { Server } from "@remit/ui/icons";
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { Server } from "lucide-react";
 import { useState } from "react";
 import {
 	groupReportSections,

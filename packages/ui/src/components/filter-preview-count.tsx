@@ -1,4 +1,4 @@
-import { AlertTriangle, Loader2 } from "lucide-react";
+import { LoaderCircle, TriangleAlert } from "../icons.js";
 import { cn } from "../lib/cn.js";
 import { type PreviewCount, previewCountSummary } from "./filter-rule.js";
 
@@ -20,7 +20,7 @@ export function FilterPreviewCount({ preview }: FilterPreviewCountProps) {
 				className="flex items-center gap-2 text-xs text-fg-muted"
 				aria-live="polite"
 			>
-				<Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
+				<LoaderCircle className="size-3.5 animate-spin" aria-hidden="true" />
 				{summary}
 			</p>
 		);
@@ -29,7 +29,7 @@ export function FilterPreviewCount({ preview }: FilterPreviewCountProps) {
 	if (preview.status === "error") {
 		return (
 			<p className="flex items-center gap-2 text-xs text-danger" role="alert">
-				<AlertTriangle className="size-3.5 shrink-0" aria-hidden="true" />
+				<TriangleAlert className="size-3.5 shrink-0" aria-hidden="true" />
 				{summary}
 			</p>
 		);
@@ -49,7 +49,7 @@ export function FilterPreviewCount({ preview }: FilterPreviewCountProps) {
 			aria-live="polite"
 		>
 			{preview.stale && (
-				<Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
+				<LoaderCircle className="size-3.5 animate-spin" aria-hidden="true" />
 			)}
 			{summary}
 		</p>

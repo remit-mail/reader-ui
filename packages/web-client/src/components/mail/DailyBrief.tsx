@@ -89,8 +89,8 @@ import {
 	type ThreadSection,
 	toggleBriefFilterInQuery,
 } from "@remit/ui";
+import { CircleAlert, RefreshCw } from "@remit/ui/icons";
 import { useQueries } from "@tanstack/react-query";
-import { AlertCircle, RefreshCw } from "lucide-react";
 import {
 	type ReactNode,
 	type RefObject,
@@ -210,7 +210,7 @@ const ErrorBanner = ({ accountEmail }: ErrorBannerProps) => {
 	const goToSection = useGoToSection();
 	return (
 		<div className="flex items-center gap-2 px-row-inset py-2 border-b border-line bg-danger-soft/40 text-xs text-danger">
-			<AlertCircle className="size-3.5 shrink-0" />
+			<CircleAlert className="size-3.5 shrink-0" />
 			<span className="flex-1 truncate">{accountEmail} can't connect</span>
 			<button
 				type="button"
@@ -1017,7 +1017,7 @@ export function DailyBrief({
 		briefSkeleton
 	) : isError ? (
 		<div className="flex h-full flex-col items-center justify-center gap-3 py-12 text-sm text-fg-muted">
-			<AlertCircle className="size-8 text-danger" />
+			<CircleAlert className="size-8 text-danger" />
 			<p>Couldn't load your messages</p>
 			<button
 				type="button"

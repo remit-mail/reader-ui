@@ -3,8 +3,8 @@ import {
 	threadDetailOperationsListThreadMessagesQueryKey,
 } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
 import { MobileMessageActionBar, type PopoverMenuItem } from "@remit/ui";
+import { BadgeCheck, Check, Code } from "@remit/ui/icons";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { BadgeCheck, Check, Code } from "lucide-react";
 import { useCallback } from "react";
 import { useDeleteMessages } from "../../hooks/useDeleteMessages";
 import { useMoveMessages } from "../../hooks/useMoveMessages";

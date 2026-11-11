@@ -1,6 +1,6 @@
 import type { RemitImapLabelResponse } from "@remit/api-http-client/types.gen.ts";
 import { Button, Input, LabelChip, labelColorOptions, Select } from "@remit/ui";
-import { Trash2 } from "lucide-react";
+import { Trash } from "@remit/ui/icons";
 import { useState } from "react";
 
 interface LabelsListProps {
@@ -100,7 +100,7 @@ export function LabelsList({
 					<Button
 						variant="ghost"
 						size="sm"
-						icon={<Trash2 className="size-4 text-danger" />}
+						icon={<Trash className="size-4 text-danger" />}
 						onClick={() => onDelete(label)}
 						disabled={deletingLabelId === label.labelId}
 						aria-label={`Delete label ${label.name}`}

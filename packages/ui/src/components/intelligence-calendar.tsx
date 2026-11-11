@@ -1,5 +1,5 @@
-import { CalendarDays, Reply } from "lucide-react";
 import { type ReactNode, useState } from "react";
+import { CalendarDays, Reply } from "../icons.js";
 import { cn } from "../lib/cn.js";
 import { Button } from "./button.js";
 import { CalendarEventChip } from "./calendar-event-chip.js";

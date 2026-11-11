@@ -1,5 +1,5 @@
-import { ChevronDown, ChevronRight, Repeat } from "lucide-react";
 import { type ReactNode, useId } from "react";
+import { ChevronDown, ChevronRight, Repeat } from "../icons.js";
 import { addDays, daysFrom } from "../lib/agenda-time.js";
 import { calendarColorClasses } from "../lib/calendar-color.js";
 import { cn } from "../lib/cn.js";

@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { Lock, Mail, Search } from "lucide-react";
+import { Lock, Mail, Search } from "../icons.js";
 import { Avatar } from "./avatar.js";
 import { Badge } from "./badge.js";
 import { Button } from "./button.js";

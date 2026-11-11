@@ -1,5 +1,5 @@
-import { ChevronDown, ChevronRight } from "lucide-react";
 import { useState } from "react";
+import { ChevronDown, ChevronRight } from "../icons.js";
 
 export interface QuotedTextProps {
 	/** Plain-text quote, used when no `html` is supplied. */

@@ -1,5 +1,5 @@
-import { X } from "lucide-react";
 import type { HTMLAttributes } from "react";
+import { X } from "../icons.js";
 import { cn } from "../lib/cn.js";
 import { Button } from "./button.js";
 

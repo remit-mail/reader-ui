@@ -9,15 +9,15 @@
  * callbacks belong to whoever drives it, and nothing touches history.
  */
 
+import { Fragment, type ReactNode, useEffect, useId, useRef } from "react";
 import {
-	AlertTriangle,
 	ArrowLeft,
 	ArrowRight,
 	Check,
-	Loader2,
+	LoaderCircle,
+	TriangleAlert,
 	X,
-} from "lucide-react";
-import { Fragment, type ReactNode, useEffect, useId, useRef } from "react";
+} from "../icons.js";
 import { cn } from "../lib/cn.js";
 import {
 	backExits,
@@ -815,7 +815,7 @@ export function ReviewStepBody({
 				</p>
 				{widened && (
 					<p className="mt-2 flex items-start gap-1.5 text-xs text-warning">
-						<AlertTriangle className="mt-px size-3.5 shrink-0" />
+						<TriangleAlert className="mt-px size-3.5 shrink-0" />
 						{mode === "escalated"
 							? ESCALATED_REVIEW_WARNING
 							: "This covers messages not shown in the list."}
@@ -905,12 +905,12 @@ const runOutcomeOf = (props: RunStepProps): RunOutcome => ({
 
 const runIcon = (tone: RunCopy["tone"]): ReactNode => {
 	if (tone === "progress") {
-		return <Loader2 className="size-10 animate-spin text-accent" />;
+		return <LoaderCircle className="size-10 animate-spin text-accent" />;
 	}
 	if (tone === "warning")
-		return <AlertTriangle className="size-10 text-warning" />;
+		return <TriangleAlert className="size-10 text-warning" />;
 	if (tone === "danger")
-		return <AlertTriangle className="size-10 text-danger" />;
+		return <TriangleAlert className="size-10 text-danger" />;
 	return (
 		<span className="flex size-12 items-center justify-center rounded-full bg-accent-soft text-accent">
 			<Check className="size-6" />

@@ -4,7 +4,6 @@ import { cn } from "../lib/cn.js";
 export type InputVariant = "default" | "inline";
 
 export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
-	/** Optional leading icon (lucide-react element). */
 	icon?: ReactNode;
 	/**
 	 * `default` renders the boxed field (border, sunken surface, focus ring).

@@ -9,18 +9,18 @@
  * them from this file, keeping a single source of truth for nav shape.
  */
 import type { SettingsNavItem } from "@remit/ui";
-import { createFileRoute, Outlet } from "@tanstack/react-router";
 import {
 	CalendarDays,
-	Filter,
 	FolderTree,
+	Funnel,
 	Inbox,
 	Palette,
 	Sparkles,
 	Tag,
 	UserCog,
 	Users,
-} from "lucide-react";
+} from "@remit/ui/icons";
+import { createFileRoute, Outlet } from "@tanstack/react-router";
 import { AdvancedNavIcon } from "../components/settings/AdvancedNavIcon";
 import { WarningsNavIcon } from "../components/settings/WarningsNavIcon";
 import { usePeople } from "../hooks/usePeople";
@@ -45,7 +45,7 @@ export const SETTINGS_NAV_ITEMS: SettingsNavItem[] = [
 	{
 		id: "filters",
 		label: "Filters",
-		icon: <Filter className="size-4" />,
+		icon: <Funnel className="size-4" />,
 	},
 	{
 		id: "labels",

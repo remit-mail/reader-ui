@@ -36,8 +36,8 @@ import {
 	type ThreadRowData,
 	type ThreadSection,
 } from "@remit/ui";
+import { FileText, Inbox, Trash } from "@remit/ui/icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { FileText, Inbox, Trash2 } from "lucide-react";
 import { useMemo } from "react";
 
 import { groupDraftSections } from "../../lib/drafts";
@@ -94,7 +94,7 @@ const RemitDraftRow = ({
 				className="p-1.5 rounded-md text-fg-muted hover:text-danger hover:bg-surface-raised transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
 				title="Delete draft"
 			>
-				<Trash2 className="size-3.5" />
+				<Trash className="size-3.5" />
 			</button>
 		</div>
 	</button>

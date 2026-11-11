@@ -1,4 +1,3 @@
-import { Search } from "lucide-react";
 import {
 	type KeyboardEvent as ReactKeyboardEvent,
 	type ReactNode,
@@ -8,6 +7,7 @@ import {
 	useRef,
 	useState,
 } from "react";
+import { Search } from "../icons.js";
 import { isAbortError } from "../lib/abort.js";
 import {
 	collapseFolderTree,

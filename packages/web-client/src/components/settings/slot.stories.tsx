@@ -1,5 +1,5 @@
+import { Puzzle } from "@remit/ui/icons";
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { Puzzle } from "lucide-react";
 import { expect, userEvent, within } from "storybook/test";
 import { AppStory } from "../../mocks/story-frame/AppStory";
 import { mailHandlers } from "../../mocks/story-frame/mail-handlers";

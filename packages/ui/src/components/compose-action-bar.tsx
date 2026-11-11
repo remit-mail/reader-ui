@@ -1,5 +1,5 @@
-import { Loader2, Paperclip, Send, Trash2 } from "lucide-react";
 import { useRef } from "react";
+import { LoaderCircle, Paperclip, Send, Trash } from "../icons.js";
 import { Button } from "./button.js";
 
 /**
@@ -130,7 +130,7 @@ export function ComposeActionBar({
 					data-testid="compose-send"
 					icon={
 						sending ? (
-							<Loader2 className="size-4 animate-spin" />
+							<LoaderCircle className="size-4 animate-spin" />
 						) : (
 							<Send className="size-4" />
 						)
@@ -155,7 +155,7 @@ export function ComposeActionBar({
 				aria-busy={sending}
 				aria-label="Discard"
 				className="min-h-11 min-w-11 px-2 hover:text-danger"
-				icon={<Trash2 className="size-4" />}
+				icon={<Trash className="size-4" />}
 				onClick={() => {
 					if (sending) return;
 					onDiscard();

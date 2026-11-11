@@ -1,5 +1,5 @@
-import { ArrowLeft, Info } from "lucide-react";
 import { type ReactNode, useState } from "react";
+import { ArrowLeft, Info } from "../icons.js";
 import { cn } from "../lib/cn.js";
 import {
 	SwipeSurface,

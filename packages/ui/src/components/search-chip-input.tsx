@@ -1,5 +1,5 @@
-import { Search, X } from "lucide-react";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { Search, X } from "../icons.js";
 import { cn } from "../lib/cn.js";
 import { resolveAgainstOverlays } from "../lib/overlay-scope.js";
 import type { ComboboxProps } from "../lib/use-suggest-list.js";

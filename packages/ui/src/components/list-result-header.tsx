@@ -1,4 +1,4 @@
-import { Search } from "lucide-react";
+import { Search } from "../icons.js";
 
 /**
  * How many rows match a search, as the server answered it.

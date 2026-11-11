@@ -1,23 +1,23 @@
+import type { ReactNode } from "react";
+import { useRef, useState } from "react";
 import {
-	AlertCircle,
-	AlertOctagon,
 	Archive,
 	BellOff,
 	CalendarDays,
 	ChevronDown,
 	ChevronRight,
+	CircleAlert,
+	CirclePause,
 	FileText,
 	Folder,
 	Inbox,
 	Mails,
-	PauseCircle,
+	OctagonAlert,
 	Send,
 	Sparkles,
 	Star,
-	Trash2,
-} from "lucide-react";
-import type { ReactNode } from "react";
-import { useRef, useState } from "react";
+	Trash,
+} from "../icons.js";
 import { cn } from "../lib/cn.js";
 import { useRovingFocus } from "../lib/roving-focus.js";
 import { ACCOUNT_SERVICE_OFF_LABEL } from "./account-service-status.js";
@@ -87,7 +87,7 @@ function NavItemInner({
 			)}
 			<span className="flex-1 truncate">{label}</span>
 			{failure && (
-				<AlertCircle
+				<CircleAlert
 					className="size-3.5 shrink-0 text-danger"
 					aria-hidden="true"
 				/>
@@ -207,9 +207,9 @@ function roleIcon(role: NavMailboxRole): ReactNode {
 		case "all":
 			return <Mails className="size-4" />;
 		case "junk":
-			return <AlertOctagon className="size-4" />;
+			return <OctagonAlert className="size-4" />;
 		case "trash":
-			return <Trash2 className="size-4" />;
+			return <Trash className="size-4" />;
 	}
 }
 
@@ -329,7 +329,7 @@ function AccountNav({
 				)}
 				{mailOff && (
 					<>
-						<PauseCircle className="size-3 shrink-0 text-fg-subtle" />
+						<CirclePause className="size-3 shrink-0 text-fg-subtle" />
 						<span className="text-2xs text-fg-subtle">
 							{ACCOUNT_SERVICE_OFF_LABEL.Mail}
 						</span>
@@ -348,7 +348,7 @@ function AccountNav({
 							role="alert"
 							className="mx-2 my-1 flex items-start gap-2 rounded-md border border-danger/40 bg-danger-soft px-2 py-1.5 text-sm"
 						>
-							<AlertCircle
+							<CircleAlert
 								className="mt-0.5 size-4 shrink-0 text-danger"
 								aria-hidden="true"
 							/>

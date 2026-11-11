@@ -4,8 +4,8 @@
  * surface on a phone is this shape, so there is one implementation of it.
  */
 
-import { ArrowLeft, X } from "lucide-react";
 import { type ReactNode, useRef } from "react";
+import { ArrowLeft, X } from "../icons.js";
 import { cn } from "../lib/cn.js";
 import { useModalFocus } from "../lib/use-modal-focus.js";
 

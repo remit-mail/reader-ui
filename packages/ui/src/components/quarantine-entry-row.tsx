@@ -1,4 +1,4 @@
-import { Bug } from "lucide-react";
+import { Bug } from "../icons.js";
 import { folderLeaf } from "../lib/folder-tree.js";
 import { Badge } from "./badge.js";
 import { Button } from "./button.js";

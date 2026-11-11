@@ -1,5 +1,5 @@
-import { Check, Clock, Minus, X } from "lucide-react";
 import { Fragment, type ReactNode, useId } from "react";
+import { Check, Clock, Minus, X } from "../icons.js";
 import { cn } from "../lib/cn.js";
 import { Avatar } from "./avatar.js";
 import type { CalendarAttendee, RsvpState } from "./calendar-types.js";

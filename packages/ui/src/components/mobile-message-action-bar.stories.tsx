@@ -1,5 +1,5 @@
 import type { Decorator, Meta, StoryObj } from "@storybook/react";
-import { FolderInput } from "lucide-react";
+import { FolderInput } from "../icons.js";
 import { Button } from "./button.js";
 import { MobileMessageActionBar } from "./mobile-message-action-bar.js";
 

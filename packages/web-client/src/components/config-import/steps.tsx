@@ -16,15 +16,15 @@ import {
 	WizardShell,
 } from "@remit/ui";
 import {
-	FileJson,
+	FileBraces,
 	FolderClock,
 	Inbox,
 	KeyRound,
-	Loader2,
+	LoaderCircle,
 	Merge,
 	Upload,
 	X,
-} from "lucide-react";
+} from "@remit/ui/icons";
 import type { DragEvent, ReactNode } from "react";
 import { useId, useRef } from "react";
 import {
@@ -116,7 +116,9 @@ export function StepChooseFile({
 						variant="primary"
 						disabled={busy || !ready}
 						icon={
-							busy ? <Loader2 className="size-3.5 animate-spin" /> : undefined
+							busy ? (
+								<LoaderCircle className="size-3.5 animate-spin" />
+							) : undefined
 						}
 						onClick={onNext}
 					>
@@ -183,7 +185,7 @@ export function StepChooseFile({
 				</div>
 				{file && (
 					<div className="flex items-start gap-3 rounded-sm border border-line px-3 py-2.5">
-						<FileJson className="mt-0.5 size-4 shrink-0 text-fg-muted" />
+						<FileBraces className="mt-0.5 size-4 shrink-0 text-fg-muted" />
 						<div className="min-w-0">
 							<p className="truncate text-sm text-fg">{file.name}</p>
 							<p className="mt-0.5 text-xs text-fg-subtle">
@@ -310,7 +312,7 @@ export function StepDryRunReport({
 						disabled={applying}
 						icon={
 							applying ? (
-								<Loader2 className="size-3.5 animate-spin" />
+								<LoaderCircle className="size-3.5 animate-spin" />
 							) : undefined
 						}
 						onClick={onNext}
@@ -474,7 +476,7 @@ export function AccountCredentialsList({
 							disabled={busyAccountId === account.accountId}
 							icon={
 								busyAccountId === account.accountId ? (
-									<Loader2 className="size-3.5 animate-spin" />
+									<LoaderCircle className="size-3.5 animate-spin" />
 								) : account.connector === "microsoft" ? (
 									<Inbox className="size-3.5" />
 								) : (
@@ -581,7 +583,9 @@ export function StepAccountReconnectMicrosoft({
 						variant="primary"
 						disabled={busy}
 						icon={
-							busy ? <Loader2 className="size-3.5 animate-spin" /> : undefined
+							busy ? (
+								<LoaderCircle className="size-3.5 animate-spin" />
+							) : undefined
 						}
 						onClick={onNext}
 					>

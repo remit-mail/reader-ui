@@ -1,4 +1,4 @@
-import { TriangleAlert } from "lucide-react";
+import { TriangleAlert } from "../icons.js";
 import { cn } from "../lib/cn.js";
 
 export interface CalendarFailureNoteProps {

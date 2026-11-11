@@ -1,5 +1,5 @@
-import { Check } from "lucide-react";
 import { type ReactNode, useId, useState } from "react";
+import { Check } from "../icons.js";
 import { cn } from "../lib/cn.js";
 import { Badge, type BadgeProps } from "./badge.js";
 import { Card } from "./card.js";

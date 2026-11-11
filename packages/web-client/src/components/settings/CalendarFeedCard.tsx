@@ -18,7 +18,7 @@ import {
 	ErrorState,
 	formatErrorMessage,
 } from "@remit/ui";
-import { Check, Copy, Link2, RefreshCw, Trash2 } from "lucide-react";
+import { Check, Copy, Link2, RefreshCw, Trash } from "@remit/ui/icons";
 import { type ReactNode, useEffect, useId, useRef, useState } from "react";
 import type { CalendarFeedState } from "../../hooks/calendar/useCalendarFeed";
 import {
@@ -158,7 +158,7 @@ function ActiveFeed({
 					variant="danger"
 					size="sm"
 					disabled={isBusy}
-					icon={<Trash2 className="size-3.5" />}
+					icon={<Trash className="size-3.5" />}
 					onClick={onRevoke}
 				>
 					Stop sharing

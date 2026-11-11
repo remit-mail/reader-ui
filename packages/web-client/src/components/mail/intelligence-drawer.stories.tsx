@@ -5,8 +5,8 @@ import {
 	RefreshButton,
 	ShellTopBar,
 } from "@remit/ui";
+import { ChevronLeft, Info } from "@remit/ui/icons";
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { ChevronLeft, Info } from "lucide-react";
 import { useState } from "react";
 import { expect, userEvent, within } from "storybook/test";
 import { useIntelligenceDrawer } from "../../hooks/useIntelligenceDrawer";

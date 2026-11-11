@@ -1,5 +1,5 @@
-import { Check, Folder } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
+import { Check, Folder } from "../icons.js";
 import { folderLeaf } from "../lib/folder-tree.js";
 import { Banner } from "./banner.js";
 import { Button } from "./button.js";

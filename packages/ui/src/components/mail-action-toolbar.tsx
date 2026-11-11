@@ -1,12 +1,12 @@
+import type { ReactNode } from "react";
 import {
 	FolderInput,
 	Forward,
 	Reply,
 	ReplyAll,
 	Star,
-	Trash2,
-} from "lucide-react";
-import type { ReactNode } from "react";
+	Trash,
+} from "../icons.js";
 import { cn } from "../lib/cn.js";
 import { Button } from "./button.js";
 
@@ -143,7 +143,7 @@ export function MailActionToolbar({
 						<Button
 							variant="ghost"
 							size="sm"
-							icon={<Trash2 className="size-4" />}
+							icon={<Trash className="size-4" />}
 							title={deleteTitle}
 							aria-label="Move to Trash"
 							onClick={act("delete", onDelete)}

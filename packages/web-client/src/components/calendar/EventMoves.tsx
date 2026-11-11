@@ -7,7 +7,7 @@ import {
 	type RecurrenceScope,
 	RecurrenceScopePrompt,
 } from "@remit/ui";
-import { X } from "lucide-react";
+import { X } from "@remit/ui/icons";
 import { type ReactNode, useCallback, useMemo, useRef, useState } from "react";
 import {
 	deviceTimeZone,

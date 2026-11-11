@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import {
 	Forward,
 	Mail,
@@ -5,9 +6,8 @@ import {
 	Reply,
 	ReplyAll,
 	Star,
-	Trash2,
-} from "lucide-react";
-import type { ReactNode } from "react";
+	Trash,
+} from "../icons.js";
 import { cn } from "../lib/cn.js";
 import { Button } from "./button.js";
 import { PopoverMenu, type PopoverMenuItem } from "./popover-menu.js";
@@ -166,7 +166,7 @@ export function MobileMessageActionBar({
 					<Button
 						variant="ghost"
 						size="sm"
-						icon={<Trash2 className="size-5" />}
+						icon={<Trash className="size-5" />}
 						onClick={act("delete", onDelete)}
 						aria-label="Move to Trash"
 						title="Move to Trash"

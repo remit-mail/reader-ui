@@ -15,8 +15,8 @@ import {
 	SELECTION_CHANGE_COMMAND,
 	UNDO_COMMAND,
 } from "lexical";
-import { Bold, Italic, Link, Quote, Redo2, Undo2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Bold, Italic, Link, Quote, Redo2, Undo2 } from "../icons.js";
 
 const ToolbarButton = ({
 	isActive,

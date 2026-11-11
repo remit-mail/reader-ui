@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { Menu, Search, Tag } from "lucide-react";
+import { Menu, Search, Tag } from "../icons.js";
 import { Button } from "./button.js";
 import { PopoverMenu } from "./popover-menu.js";
 import { SearchBar } from "./search-bar.js";

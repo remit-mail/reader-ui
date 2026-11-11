@@ -1,4 +1,4 @@
-import { Loader2, Sparkles } from "lucide-react";
+import { LoaderCircle, Sparkles } from "../icons.js";
 
 /**
  * How far the mail sync has got, for the accounts feeding the brief. `total` is
@@ -33,7 +33,7 @@ export function BriefEmpty({ sync }: BriefEmptyProps) {
 				role="status"
 				aria-live="polite"
 			>
-				<Loader2
+				<LoaderCircle
 					className="size-8 animate-spin text-fg-subtle"
 					aria-hidden="true"
 				/>

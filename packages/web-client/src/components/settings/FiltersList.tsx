@@ -1,6 +1,6 @@
 import type { RemitImapFilterResponse } from "@remit/api-http-client/types.gen.ts";
 import { Badge, Button, LabelChip, type LabelOption } from "@remit/ui";
-import { Trash2 } from "lucide-react";
+import { Trash } from "@remit/ui/icons";
 import type { FilterRunStatus } from "../../lib/organize/filter-run";
 import {
 	disabledReasonCopy,
@@ -178,7 +178,7 @@ export function FiltersList({
 						<Button
 							variant="ghost"
 							size="sm"
-							icon={<Trash2 className="size-4 text-danger" />}
+							icon={<Trash className="size-4 text-danger" />}
 							onClick={() => onDelete(filter.filterId)}
 							disabled={deletingFilterId === filter.filterId}
 							aria-label={`Delete filter ${filter.name}`}

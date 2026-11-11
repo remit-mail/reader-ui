@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { Mail, MailOpen, Tag } from "lucide-react";
 import { useState } from "react";
+import { Mail, MailOpen, Tag } from "../icons.js";
 import { PopoverMenu, PopoverMenuRow } from "./popover-menu.js";
 
 const meta: Meta<typeof PopoverMenu> = {
