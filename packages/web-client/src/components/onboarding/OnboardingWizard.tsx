@@ -44,9 +44,9 @@ import {
 } from "@remit/ui";
 import {
 	AtSign,
-	FileJson,
+	FileBraces,
 	Inbox,
-	Loader2,
+	LoaderCircle,
 	Mail,
 	Server,
 } from "@remit/ui/icons";
@@ -178,7 +178,7 @@ export function StepWelcome({
 					{onImportConfig ? (
 						<Button
 							variant="secondary"
-							icon={<FileJson className="size-4" />}
+							icon={<FileBraces className="size-4" />}
 							onClick={onImportConfig}
 						>
 							Import a config file
@@ -451,7 +451,7 @@ export function StepMicrosoftEmail({
 						disabled={redirecting}
 						icon={
 							redirecting ? (
-								<Loader2 className="size-4 animate-spin" />
+								<LoaderCircle className="size-4 animate-spin" />
 							) : undefined
 						}
 					>
@@ -569,7 +569,7 @@ export function StepMicrosoftGranted({
 				}
 			>
 				<div className="flex items-center gap-2 py-4 text-sm text-fg-muted">
-					<Loader2 className="size-4 animate-spin text-accent" />
+					<LoaderCircle className="size-4 animate-spin text-accent" />
 					Loading the account…
 				</div>
 			</WizardShell>
@@ -774,7 +774,7 @@ function StepAddress({
 				</div>
 				{discovering && (
 					<div className="mt-3 flex items-center gap-2 text-xs text-fg-muted">
-						<Loader2 className="size-3.5 animate-spin text-accent" />
+						<LoaderCircle className="size-3.5 animate-spin text-accent" />
 						{statusMsg}
 					</div>
 				)}
@@ -1239,7 +1239,7 @@ function StepSync({
 						<Button
 							variant="primary"
 							disabled
-							icon={<Loader2 className="size-3.5 animate-spin" />}
+							icon={<LoaderCircle className="size-3.5 animate-spin" />}
 						>
 							Getting your mail…
 						</Button>
@@ -1249,7 +1249,7 @@ function StepSync({
 		>
 			{createMutation.isPending ? (
 				<div className="flex items-center gap-2 py-4 text-sm text-fg-muted">
-					<Loader2 className="size-4 animate-spin text-accent" />
+					<LoaderCircle className="size-4 animate-spin text-accent" />
 					Creating your account…
 				</div>
 			) : (

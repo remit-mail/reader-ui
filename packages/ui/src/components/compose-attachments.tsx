@@ -1,4 +1,4 @@
-import { AlertCircle, Loader2, Paperclip, X } from "../icons.js";
+import { CircleAlert, LoaderCircle, Paperclip, X } from "../icons.js";
 import { formatByteSize } from "../lib/attachment-file.js";
 import { cn } from "../lib/cn.js";
 
@@ -29,14 +29,14 @@ export interface ComposeAttachmentsProps {
 const StateIcon = ({ state }: { state: ComposeAttachmentState }) => {
 	if (state.status === "uploading") {
 		return (
-			<Loader2
+			<LoaderCircle
 				className="size-4 shrink-0 animate-spin text-fg-subtle"
 				aria-hidden
 			/>
 		);
 	}
 	if (state.status === "failed") {
-		return <AlertCircle className="size-4 shrink-0 text-danger" aria-hidden />;
+		return <CircleAlert className="size-4 shrink-0 text-danger" aria-hidden />;
 	}
 	return <Paperclip className="size-4 shrink-0 text-fg-subtle" aria-hidden />;
 };

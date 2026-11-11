@@ -152,16 +152,6 @@ const backendProxy = (): Record<string, ProxyOptions> => {
 const allowedHosts = (): string[] | undefined =>
 	process.env.VITE_ALLOWED_HOST ? [process.env.VITE_ALLOWED_HOST] : undefined;
 
-/**
- * Rollup keeps up to `maxParallelFileOps` module reads in flight, and each one
- * holds a file descriptor. Its default of 1000 is above the 1024 `RLIMIT_NOFILE`
- * soft limit that container runtimes hand a build step, and the icon barrels this
- * app imports (lucide-react re-exports ~1500 single-icon modules) give rollup
- * enough sibling modules to saturate the ceiling, so the default reliably fails
- * with EMFILE inside an image build while passing on a developer machine.
- */
-const MAX_PARALLEL_FILE_OPS = 64;
-
 export const webClientPreset = ({
 	entry,
 	runtimeConfig,
@@ -181,7 +171,6 @@ export const webClientPreset = ({
 		__APP_SHA__: JSON.stringify(commit ?? resolveGitSha()),
 		__APP_BUILD_TIME__: JSON.stringify(new Date().toISOString()),
 	},
-	build: { rollupOptions: { maxParallelFileOps: MAX_PARALLEL_FILE_OPS } },
 	server: {
 		host: "0.0.0.0",
 		allowedHosts: allowedHosts(),

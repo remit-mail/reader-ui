@@ -1,10 +1,10 @@
 import type { ReactNode } from "react";
 import {
-	AlertCircle,
 	ChevronDown,
 	ChevronRight,
+	CircleAlert,
 	Download,
-	Loader2,
+	LoaderCircle,
 	Mail,
 	Paperclip,
 } from "../icons.js";
@@ -67,7 +67,7 @@ function DownloadFailure({
 			data-testid="attachment-error"
 			className="flex items-start gap-2 border-t border-danger/30 bg-danger-soft px-2 py-2 text-xs"
 		>
-			<AlertCircle
+			<CircleAlert
 				className="mt-0.5 size-3.5 shrink-0 text-danger"
 				aria-hidden
 			/>
@@ -117,7 +117,7 @@ function AttachmentLabel({ attachment }: { attachment: AttachmentItem }) {
 
 function DownloadGlyph({ isDownloading }: { isDownloading: boolean }) {
 	return isDownloading ? (
-		<Loader2
+		<LoaderCircle
 			className="size-4 shrink-0 animate-spin text-fg-subtle"
 			aria-hidden
 		/>

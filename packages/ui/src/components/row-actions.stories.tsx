@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { RotateCcw, Send, Trash2 } from "../icons.js";
+import { RotateCcw, Send, Trash } from "../icons.js";
 import { RowActions } from "./row-actions.js";
 
 const meta: Meta<typeof RowActions> = {
@@ -17,7 +17,7 @@ export const SecondaryWithDestructiveConfirm: Story = {
 		actions: [{ label: "Manage", onClick: () => undefined }],
 		destructive: {
 			label: "Delete",
-			icon: <Trash2 className="size-3.5" />,
+			icon: <Trash className="size-3.5" />,
 			iconOnly: true,
 			onClick: () => undefined,
 			confirm: {
@@ -35,7 +35,7 @@ export const Reconnect: Story = {
 		],
 		destructive: {
 			label: "Delete",
-			icon: <Trash2 className="size-3.5" />,
+			icon: <Trash className="size-3.5" />,
 			iconOnly: true,
 			onClick: () => undefined,
 			confirm: {
@@ -79,7 +79,7 @@ export const OutboxFailedRow: Story = {
 		],
 		destructive: {
 			label: "Delete message",
-			icon: <Trash2 className="size-3.5" />,
+			icon: <Trash className="size-3.5" />,
 			iconOnly: true,
 			onClick: () => undefined,
 		},

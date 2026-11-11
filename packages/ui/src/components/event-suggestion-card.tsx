@@ -1,10 +1,10 @@
 import { useId, useState } from "react";
 import {
-	AlertTriangle,
 	Globe,
 	Mail,
 	Plus,
 	SlidersHorizontal,
+	TriangleAlert,
 	X,
 } from "../icons.js";
 import { cn } from "../lib/cn.js";
@@ -174,7 +174,7 @@ export function EventSuggestionCard({
 
 			{suggestion.ambiguity !== "" && (
 				<p className="flex items-start gap-1.5 text-2xs text-warning">
-					<AlertTriangle className="mt-0.5 size-3 shrink-0" aria-hidden />
+					<TriangleAlert className="mt-0.5 size-3 shrink-0" aria-hidden />
 					{suggestion.ambiguity}
 				</p>
 			)}

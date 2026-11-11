@@ -1,5 +1,5 @@
 import type { Ref } from "react";
-import { AlertTriangle, ArrowRight } from "../icons.js";
+import { ArrowRight, TriangleAlert } from "../icons.js";
 
 /**
  * The one sentence this failure gets. The banner states it, and Send refuses
@@ -30,7 +30,7 @@ export const ComposeSmtpMissingBanner = ({
 		data-testid="compose-smtp-missing-banner"
 		className="flex items-start gap-3 border-b border-warning/50 bg-warning/10 px-3 py-2"
 	>
-		<AlertTriangle
+		<TriangleAlert
 			className="size-5 shrink-0 mt-0.5 text-warning"
 			aria-hidden="true"
 		/>

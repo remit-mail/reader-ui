@@ -10,10 +10,10 @@ import {
 	FolderTreePicker,
 } from "@remit/ui";
 import {
-	AlertTriangle,
 	FolderInput,
-	Loader2,
-	Trash2,
+	LoaderCircle,
+	Trash,
+	TriangleAlert,
 	X,
 } from "@remit/ui/icons";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -164,7 +164,7 @@ export function DeleteFolderDialog({
 		if (phase === "moving") {
 			return (
 				<div className="flex flex-col items-center gap-3 px-5 py-10 text-center">
-					<Loader2 className="size-8 animate-spin text-accent-2" />
+					<LoaderCircle className="size-8 animate-spin text-accent-2" />
 					<p className="text-sm font-medium text-fg">Moving emails…</p>
 					<p className="text-xs text-fg-muted" role="status" aria-live="polite">
 						{progress ? moveProgressLabel(progress) : "Moved 0 of 0"}
@@ -176,7 +176,7 @@ export function DeleteFolderDialog({
 		if (phase === "checking") {
 			return (
 				<div className="flex flex-col items-center gap-3 px-5 py-10 text-center">
-					<Loader2 className="size-8 animate-spin text-accent-2" />
+					<LoaderCircle className="size-8 animate-spin text-accent-2" />
 					<p className="text-sm font-medium text-fg">
 						Checking the folder on the mail server…
 					</p>
@@ -212,7 +212,7 @@ export function DeleteFolderDialog({
 		if (phase === "deleting" || phase === "done") {
 			return (
 				<div className="flex flex-col items-center gap-3 px-5 py-10 text-center">
-					<Loader2 className="size-8 animate-spin text-accent-2" />
+					<LoaderCircle className="size-8 animate-spin text-accent-2" />
 					<p className="text-sm font-medium text-fg">Deleting folder…</p>
 				</div>
 			);
@@ -255,7 +255,7 @@ export function DeleteFolderDialog({
 						<Button
 							variant="danger"
 							size="sm"
-							icon={<Trash2 className="size-3.5" />}
+							icon={<Trash className="size-3.5" />}
 							onClick={() => handleDeleteEmpty()}
 						>
 							Delete folder
@@ -284,7 +284,7 @@ export function DeleteFolderDialog({
 								onClick={() => setStage("confirm-delete-all")}
 								className="flex w-full items-center gap-3 rounded-sm border border-line px-3 py-2.5 text-left hover:bg-surface-raised"
 							>
-								<Trash2 className="size-4 shrink-0 text-danger" />
+								<Trash className="size-4 shrink-0 text-danger" />
 								<span className="flex-1">
 									<span className="block text-sm font-medium text-fg">
 										Delete them with the folder
@@ -342,7 +342,7 @@ export function DeleteFolderDialog({
 						<Button
 							variant="danger"
 							size="sm"
-							icon={<Trash2 className="size-3.5" />}
+							icon={<Trash className="size-3.5" />}
 							onClick={() => deleteMailbox()}
 						>
 							Delete folder and emails
@@ -396,7 +396,7 @@ export function DeleteFolderDialog({
 	return (
 		<Dialog open={open} onClose={handleClose} title={title}>
 			<header className="flex items-center gap-2 border-b border-line px-5 py-3">
-				<AlertTriangle className="size-4 shrink-0 text-danger" />
+				<TriangleAlert className="size-4 shrink-0 text-danger" />
 				<span className="flex-1 text-sm font-semibold text-fg">{title}</span>
 				<Button
 					variant="ghost"

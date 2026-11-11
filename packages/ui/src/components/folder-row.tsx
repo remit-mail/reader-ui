@@ -1,5 +1,5 @@
 import type { ReactNode, Ref } from "react";
-import { AlertCircle, Check, ChevronRight, Folder } from "../icons.js";
+import { Check, ChevronRight, CircleAlert, Folder } from "../icons.js";
 import { cn } from "../lib/cn.js";
 
 export const FOLDER_ROW_BASE =
@@ -117,7 +117,7 @@ export const FolderRow = ({
 			<span className="block truncate">{label}</span>
 			{failure && (
 				<span className="flex items-center gap-1 text-2xs text-danger">
-					<AlertCircle className="size-3 shrink-0" aria-hidden="true" />
+					<CircleAlert className="size-3 shrink-0" aria-hidden="true" />
 					<span className="truncate">{failure}</span>
 				</span>
 			)}

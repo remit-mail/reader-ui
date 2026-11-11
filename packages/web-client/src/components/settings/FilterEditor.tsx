@@ -11,7 +11,7 @@ import {
 	previewCountSummary,
 	type RuleScope,
 } from "@remit/ui";
-import { CheckCircle2, Loader2 } from "@remit/ui/icons";
+import { CircleCheck, LoaderCircle } from "@remit/ui/icons";
 import { useMemo, useRef, useState } from "react";
 import { useCreateMailbox } from "../../hooks/useCreateMailbox";
 import { useCreateLabel } from "../../hooks/useLabels";
@@ -239,7 +239,7 @@ export function FilterEditor({
 function SavingState() {
 	return (
 		<div className="flex flex-col items-center gap-3 px-5 py-10 text-center">
-			<Loader2 className="size-8 animate-spin text-accent-2" />
+			<LoaderCircle className="size-8 animate-spin text-accent-2" />
 			<p className="text-sm font-medium text-fg">Saving changes…</p>
 		</div>
 	);
@@ -248,7 +248,7 @@ function SavingState() {
 function FilterUpdated({ onClose }: { onClose: () => void }) {
 	return (
 		<div className="flex flex-col items-center gap-3 px-5 py-8 text-center">
-			<CheckCircle2 className="size-8 text-positive" />
+			<CircleCheck className="size-8 text-positive" />
 			<p className="text-sm font-medium text-fg">Filter updated</p>
 			<Button variant="primary" onClick={onClose} className="mt-2">
 				Done
@@ -270,7 +270,7 @@ function ReapplyOffer({
 }) {
 	return (
 		<div className="flex flex-col items-center gap-3 px-5 py-8 text-center">
-			<CheckCircle2 className="size-8 text-positive" />
+			<CircleCheck className="size-8 text-positive" />
 			<p className="text-sm font-medium text-fg">Rule saved</p>
 			<p className="max-w-xs text-xs text-fg-muted">
 				New mail follows the rule automatically. {preview} — move the mail
@@ -301,11 +301,11 @@ function ReapplyProgress({
 	return (
 		<div className="flex flex-col items-center gap-3 px-5 py-8 text-center">
 			{!isDone ? (
-				<Loader2 className="size-8 animate-spin text-accent-2" />
+				<LoaderCircle className="size-8 animate-spin text-accent-2" />
 			) : failed ? (
 				<span className="text-sm font-semibold text-danger">Move failed</span>
 			) : (
-				<CheckCircle2 className="size-8 text-positive" />
+				<CircleCheck className="size-8 text-positive" />
 			)}
 
 			{!isDone && (

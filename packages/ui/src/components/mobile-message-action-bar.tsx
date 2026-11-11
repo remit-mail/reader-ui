@@ -6,7 +6,7 @@ import {
 	Reply,
 	ReplyAll,
 	Star,
-	Trash2,
+	Trash,
 } from "../icons.js";
 import { cn } from "../lib/cn.js";
 import { Button } from "./button.js";
@@ -166,7 +166,7 @@ export function MobileMessageActionBar({
 					<Button
 						variant="ghost"
 						size="sm"
-						icon={<Trash2 className="size-5" />}
+						icon={<Trash className="size-5" />}
 						onClick={act("delete", onDelete)}
 						aria-label="Move to Trash"
 						title="Move to Trash"

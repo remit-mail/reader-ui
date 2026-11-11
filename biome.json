@@ -42,7 +42,8 @@
 					"level": "error",
 					"options": {
 						"paths": {
-							"lucide-react": "Import the icon from @remit/ui/icons (packages/ui/src/icons.ts inside the ui package). The lucide-react barrel loads every icon."
+							"lucide-react": "Import the icon from @remit/ui/icons (packages/ui/src/icons.ts inside the ui package). The lucide-react barrel loads every icon.",
+							"lucide-react/icons": "Import the icon from @remit/ui/icons (packages/ui/src/icons.ts inside the ui package). The lucide-react barrel loads every icon."
 						}
 					}
 				}
@@ -99,7 +100,8 @@
 											"useSearch"
 										],
 										"message": "Reach for @/routing. NavLink and the routing hooks carry the route table's own type inference, so an illegal route or param set fails to compile; a hook that names what the caller wants belongs there too."
-									}
+									},
+									"lucide-react/icons": "Import the icon from @remit/ui/icons (packages/ui/src/icons.ts inside the ui package). The lucide-react barrel loads every icon."
 								}
 							}
 						}
@@ -143,7 +145,8 @@
 									}
 								],
 								"paths": {
-									"lucide-react": "Import the icon from @remit/ui/icons (packages/ui/src/icons.ts inside the ui package). The lucide-react barrel loads every icon."
+									"lucide-react": "Import the icon from @remit/ui/icons (packages/ui/src/icons.ts inside the ui package). The lucide-react barrel loads every icon.",
+									"lucide-react/icons": "Import the icon from @remit/ui/icons (packages/ui/src/icons.ts inside the ui package). The lucide-react barrel loads every icon."
 								}
 							}
 						}
@@ -187,7 +190,8 @@
 									}
 								],
 								"paths": {
-									"lucide-react": "Import the icon from @remit/ui/icons (packages/ui/src/icons.ts inside the ui package). The lucide-react barrel loads every icon."
+									"lucide-react": "Import the icon from @remit/ui/icons (packages/ui/src/icons.ts inside the ui package). The lucide-react barrel loads every icon.",
+									"lucide-react/icons": "Import the icon from @remit/ui/icons (packages/ui/src/icons.ts inside the ui package). The lucide-react barrel loads every icon."
 								}
 							}
 						}
@@ -231,7 +235,8 @@
 									}
 								],
 								"paths": {
-									"lucide-react": "Import the icon from @remit/ui/icons (packages/ui/src/icons.ts inside the ui package). The lucide-react barrel loads every icon."
+									"lucide-react": "Import the icon from @remit/ui/icons (packages/ui/src/icons.ts inside the ui package). The lucide-react barrel loads every icon.",
+									"lucide-react/icons": "Import the icon from @remit/ui/icons (packages/ui/src/icons.ts inside the ui package). The lucide-react barrel loads every icon."
 								}
 							}
 						}
@@ -275,7 +280,8 @@
 									}
 								],
 								"paths": {
-									"lucide-react": "Import the icon from @remit/ui/icons (packages/ui/src/icons.ts inside the ui package). The lucide-react barrel loads every icon."
+									"lucide-react": "Import the icon from @remit/ui/icons (packages/ui/src/icons.ts inside the ui package). The lucide-react barrel loads every icon.",
+									"lucide-react/icons": "Import the icon from @remit/ui/icons (packages/ui/src/icons.ts inside the ui package). The lucide-react barrel loads every icon."
 								}
 							}
 						}

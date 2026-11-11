@@ -1,5 +1,5 @@
 import { formatErrorMessage } from "@remit/ui";
-import { AlertCircle } from "@remit/ui/icons";
+import { CircleAlert } from "@remit/ui/icons";
 import { calendarEventReportHref } from "../../lib/calendar-report";
 
 export interface CalendarLoadFailedProps {
@@ -27,7 +27,7 @@ export function CalendarLoadFailed({
 			}
 		>
 			{!compact && (
-				<AlertCircle className="size-8 text-danger" aria-hidden="true" />
+				<CircleAlert className="size-8 text-danger" aria-hidden="true" />
 			)}
 			<div>
 				<p className="font-medium text-danger">{title}</p>

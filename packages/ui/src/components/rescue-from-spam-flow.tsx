@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CheckCircle2, HelpCircle, ShieldCheck } from "../icons.js";
+import { CircleCheck, CircleQuestionMark, ShieldCheck } from "../icons.js";
 import { Banner } from "./banner.js";
 import { BottomSheet } from "./bottom-sheet.js";
 import { Button } from "./button.js";
@@ -93,7 +93,7 @@ function ReviewStep({
 					<Button
 						variant="ghost"
 						size="sm"
-						icon={<HelpCircle className="size-3.5" />}
+						icon={<CircleQuestionMark className="size-3.5" />}
 						onClick={() => setShowWhy((v) => !v)}
 						className="-mr-1.5 -mt-0.5"
 					>
@@ -244,7 +244,7 @@ function DoneStep({
 	return (
 		<div className="flex min-h-0 flex-col">
 			<div className="flex flex-1 flex-col items-center justify-center gap-3 px-row-inset py-10 text-center">
-				<CheckCircle2 className="size-10 text-positive" aria-hidden />
+				<CircleCheck className="size-10 text-positive" aria-hidden />
 				<p className="text-base font-semibold text-fg">
 					{`Moved ${count} ${plural(count)} out of Spam.`}
 				</p>

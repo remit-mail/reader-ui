@@ -31,13 +31,13 @@ import {
 	useRovingFocus,
 } from "@remit/ui";
 import {
-	AlertCircle,
-	AlertTriangle,
 	ArrowLeft,
-	CheckCircle,
+	CircleAlert,
+	CircleCheckBig,
 	Clock,
-	Loader2,
+	LoaderCircle,
 	Send,
+	TriangleAlert,
 } from "@remit/ui/icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -82,27 +82,27 @@ const STATUS_CONFIG: Record<
 		className: "text-warning",
 	},
 	sending: {
-		icon: Loader2,
+		icon: LoaderCircle,
 		label: "Sending…",
 		className: "text-accent-2",
 	},
 	sent: {
-		icon: CheckCircle,
+		icon: CircleCheckBig,
 		label: "Sent",
 		className: "text-positive",
 	},
 	unfiled: {
-		icon: AlertTriangle,
+		icon: TriangleAlert,
 		label: "Sent, not filed",
 		className: "text-warning",
 	},
 	failed: {
-		icon: AlertCircle,
+		icon: CircleAlert,
 		label: "Failed",
 		className: "text-danger",
 	},
 	blocked: {
-		icon: AlertTriangle,
+		icon: TriangleAlert,
 		label: "Blocked",
 		className: "text-warning",
 	},

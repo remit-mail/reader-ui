@@ -1,4 +1,4 @@
-import { AlertTriangle, Loader2 } from "../icons.js";
+import { LoaderCircle, TriangleAlert } from "../icons.js";
 import { Button } from "./button.js";
 import { Dialog } from "./dialog.js";
 
@@ -76,9 +76,9 @@ export function FolderMutationDialog({
 	const body = dialogBody(intent, folderName, targetName, phase);
 	const icon =
 		phase.kind === "waiting" ? (
-			<Loader2 className="size-4 shrink-0 animate-spin text-accent-2" />
+			<LoaderCircle className="size-4 shrink-0 animate-spin text-accent-2" />
 		) : phase.kind === "failed" || phase.kind === "conflict" ? (
-			<AlertTriangle className="size-4 shrink-0 text-danger" />
+			<TriangleAlert className="size-4 shrink-0 text-danger" />
 		) : null;
 
 	return (

@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import { AlertOctagon, Check, Loader2 } from "../icons.js";
+import { Check, LoaderCircle, OctagonAlert } from "../icons.js";
 import { cn } from "../lib/cn.js";
 import { useOverlayScope } from "../lib/overlay-scope.js";
 import { useModalFocus } from "../lib/use-modal-focus.js";
@@ -80,7 +80,7 @@ export function SelfUpdateProgressOverlay({
 							{done ? (
 								<Check className="size-4 shrink-0 text-positive" aria-hidden />
 							) : active ? (
-								<Loader2
+								<LoaderCircle
 									className="size-4 shrink-0 animate-spin text-accent-2"
 									aria-hidden
 								/>
@@ -134,7 +134,7 @@ export function SelfUpdateUnreachableScreen({
 			tabIndex={-1}
 			className={overlayShell}
 		>
-			<AlertOctagon className="size-12 shrink-0 text-danger" aria-hidden />
+			<OctagonAlert className="size-12 shrink-0 text-danger" aria-hidden />
 			<div className="max-w-lg space-y-3">
 				<h1
 					id="self-update-unreachable-title"

@@ -17,7 +17,6 @@
 	"dependencies": {
 		"@aws-amplify/ui-react": "6.15.4",
 		"@remit/ui": "*",
-		"lucide-react": "1.62.0",
 		"temporal-polyfill": "1.0.6"
 	},
 	"devDependencies": {

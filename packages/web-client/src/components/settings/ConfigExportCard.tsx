@@ -16,7 +16,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@remit/ui";
-import { Download, FileJson, Loader2 } from "@remit/ui/icons";
+import { Download, FileBraces, LoaderCircle } from "@remit/ui/icons";
 
 export interface ConfigExportCardProps {
 	fileName: string;
@@ -73,7 +73,7 @@ export function ConfigExportCard({
 						disabled={downloading}
 						icon={
 							downloading ? (
-								<Loader2 className="size-3.5 animate-spin" />
+								<LoaderCircle className="size-3.5 animate-spin" />
 							) : (
 								<Download className="size-3.5" />
 							)
@@ -102,7 +102,7 @@ export function ConfigExportCard({
 						className="mt-3"
 						variant="secondary"
 						size="sm"
-						icon={<FileJson className="size-3.5" />}
+						icon={<FileBraces className="size-3.5" />}
 						onClick={onImport}
 					>
 						Import a config file

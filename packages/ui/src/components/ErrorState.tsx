@@ -1,4 +1,4 @@
-import { AlertCircle } from "../icons.js";
+import { CircleAlert } from "../icons.js";
 
 interface ErrorStateProps {
 	title?: string;
@@ -35,7 +35,7 @@ export const ErrorState = ({
 				role="alert"
 				className="flex items-start gap-2 rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-sm"
 			>
-				<AlertCircle
+				<CircleAlert
 					className="size-4 shrink-0 text-danger mt-0.5"
 					aria-hidden="true"
 				/>
@@ -61,7 +61,7 @@ export const ErrorState = ({
 			role="alert"
 			className="flex flex-col items-center justify-center gap-3 p-8 text-center"
 		>
-			<AlertCircle className="size-8 text-danger" aria-hidden="true" />
+			<CircleAlert className="size-8 text-danger" aria-hidden="true" />
 			<div>
 				<p className="font-medium text-danger">{title}</p>
 				<p className="text-sm text-fg-muted mt-1 break-words">{message}</p>

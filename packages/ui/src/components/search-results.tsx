@@ -1,5 +1,5 @@
 import { useId, useState } from "react";
-import { ChevronDown, Clock, Filter } from "../icons.js";
+import { ChevronDown, Clock, Funnel } from "../icons.js";
 import { cn } from "../lib/cn.js";
 import { BlockedReason } from "./blocked-reason.js";
 import type { FolderRole } from "./folder-role.js";
@@ -147,7 +147,7 @@ export function MakeFilterAction({
 						: "text-accent hover:bg-surface-sunken",
 				)}
 			>
-				<Filter className="size-3.5 shrink-0" aria-hidden="true" />
+				<Funnel className="size-3.5 shrink-0" aria-hidden="true" />
 				<span>Make this a filter</span>
 			</button>
 			{blockedReason && (

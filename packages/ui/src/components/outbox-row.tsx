@@ -1,4 +1,4 @@
-import { RotateCcw, Send, Trash2 } from "../icons.js";
+import { RotateCcw, Send, Trash } from "../icons.js";
 import { cn } from "../lib/cn.js";
 import { LIST_ROW_ATTRIBUTE } from "../lib/roving-focus.js";
 import type { OutboxStatus } from "./outbox-status-badge.js";
@@ -107,7 +107,7 @@ export function OutboxRow({
 						destructive={{
 							label: "Delete message",
 							iconOnly: true,
-							icon: <Trash2 className="size-3.5" />,
+							icon: <Trash className="size-3.5" />,
 							busy: deleting,
 							confirm: {
 								prompt: "Delete this message?",

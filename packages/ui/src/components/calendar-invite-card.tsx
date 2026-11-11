@@ -4,9 +4,9 @@ import {
 	Calendar,
 	Check,
 	Clock,
-	History,
 	MapPin,
-	Trash2,
+	RotateCcwClock,
+	Trash,
 	X,
 } from "../icons.js";
 import { calendarColorClasses } from "../lib/calendar-color.js";
@@ -175,7 +175,7 @@ export function CalendarInviteCard({
 
 			{invite.state === "superseded" && (
 				<div className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning-soft p-2">
-					<History
+					<RotateCcwClock
 						className="mt-0.5 size-4 shrink-0 text-warning"
 						aria-hidden
 					/>
@@ -217,7 +217,7 @@ export function CalendarInviteCard({
 								<Button
 									variant="primary"
 									size={touch ? "md" : "sm"}
-									icon={<Trash2 className="size-3.5" />}
+									icon={<Trash className="size-3.5" />}
 									onClick={onRemove}
 									disabled={busy || addBlocked !== undefined}
 									className={cn(touch && "min-h-11 flex-1")}

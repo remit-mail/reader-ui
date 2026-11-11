@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { AlertCircle, Loader2 } from "../icons.js";
+import { CircleAlert, LoaderCircle } from "../icons.js";
 import { formatByteSize } from "../lib/attachment-file.js";
 import { languageLabel } from "../lib/compose-language.js";
 import type { ProviderStatus } from "./rich-text-spellcheck.js";
@@ -104,7 +104,7 @@ export function RichTextSpellcheckNotice({
 	if (status.state === "failed") {
 		return (
 			<Row tone="danger">
-				<AlertCircle
+				<CircleAlert
 					className="mt-0.5 size-3.5 shrink-0 text-danger"
 					aria-hidden
 				/>
@@ -143,7 +143,7 @@ export function RichTextSpellcheckNotice({
 
 	return (
 		<Row tone="quiet">
-			<Loader2
+			<LoaderCircle
 				className="mt-0.5 size-3.5 shrink-0 animate-spin text-fg-subtle"
 				aria-hidden
 			/>

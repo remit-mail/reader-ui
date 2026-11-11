@@ -12,9 +12,9 @@ import {
 	BadgeCheck,
 	Check,
 	Code,
+	EllipsisVertical,
 	MailOpen,
-	MoreVertical,
-	Trash2,
+	Trash,
 } from "@remit/ui/icons";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
@@ -240,7 +240,7 @@ export const MessageActionMenu = ({
 						label="Move this message"
 					/>
 				)}
-				<DropdownMenu trigger={<MoreVertical className="size-4" />}>
+				<DropdownMenu trigger={<EllipsisVertical className="size-4" />}>
 					<DropdownMenuItem
 						onClick={handleToggleTrusted}
 						disabled={trustedItemDisabled}
@@ -273,7 +273,7 @@ export const MessageActionMenu = ({
 						disabled={isDisabled}
 						destructive
 					>
-						<Trash2 className="size-4" />
+						<Trash className="size-4" />
 						Delete
 					</DropdownMenuItem>
 				</DropdownMenu>

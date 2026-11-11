@@ -1,4 +1,4 @@
-import { AlertCircle, AlertTriangle, Info, X } from "../icons.js";
+import { CircleAlert, Info, TriangleAlert, X } from "../icons.js";
 import { cn } from "../lib/cn.js";
 
 export type ErrorBannerSeverity = "error" | "warning" | "info";
@@ -53,10 +53,10 @@ const SEVERITY_STYLES: Record<
 
 const SEVERITY_ICONS: Record<
 	ErrorBannerSeverity,
-	typeof AlertCircle | typeof AlertTriangle | typeof Info
+	typeof CircleAlert | typeof TriangleAlert | typeof Info
 > = {
-	error: AlertCircle,
-	warning: AlertTriangle,
+	error: CircleAlert,
+	warning: TriangleAlert,
 	info: Info,
 };
 

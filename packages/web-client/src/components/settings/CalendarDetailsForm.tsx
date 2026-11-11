@@ -8,7 +8,7 @@
  * from a full one without reading all of its time.
  */
 import { Banner, Button, ConfirmDialog, Input } from "@remit/ui";
-import { Save, Trash2 } from "@remit/ui/icons";
+import { Save, Trash } from "@remit/ui/icons";
 import { useId, useState } from "react";
 import { deleteCalendarConfirmCopy } from "../../lib/calendar-collection-copy";
 import { TimeZoneSelect } from "./TimeZoneSelect";
@@ -111,7 +111,7 @@ export function CalendarDetailsForm({
 						variant="danger"
 						size="sm"
 						disabled={isBusy}
-						icon={<Trash2 className="size-3.5" />}
+						icon={<Trash className="size-3.5" />}
 						onClick={() => setConfirming(true)}
 					>
 						Delete calendar

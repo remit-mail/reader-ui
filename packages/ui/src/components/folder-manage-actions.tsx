@@ -1,4 +1,4 @@
-import { Pencil, Trash2 } from "../icons.js";
+import { Pencil, Trash } from "../icons.js";
 import { Button } from "./button.js";
 
 export interface FolderManageActionsProps {
@@ -43,7 +43,7 @@ export const FolderManageActions = ({
 				<Button
 					variant="ghost"
 					size="sm"
-					icon={<Trash2 className="size-3.5" />}
+					icon={<Trash className="size-3.5" />}
 					aria-label={deleteName}
 					disabled={deleteBlockedReason !== undefined}
 					onClick={onDelete}

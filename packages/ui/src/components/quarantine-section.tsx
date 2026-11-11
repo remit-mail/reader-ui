@@ -1,4 +1,4 @@
-import { CheckCircle2, TriangleAlert } from "../icons.js";
+import { CircleCheck, TriangleAlert } from "../icons.js";
 import { Banner } from "./banner.js";
 import { QuarantineEntryRow } from "./quarantine-entry-row.js";
 import type { QuarantineEntry } from "./quarantine-report.js";
@@ -33,7 +33,7 @@ export function QuarantineSection({
 
 			{entries.length === 0 && (
 				<div className="flex items-center gap-2 rounded-sm border border-line bg-surface px-row-inset py-3">
-					<CheckCircle2 className="size-4 shrink-0 text-positive" aria-hidden />
+					<CircleCheck className="size-4 shrink-0 text-positive" aria-hidden />
 					<p className="text-sm text-fg-muted">
 						Every message has been read successfully. Nothing is set aside.
 					</p>

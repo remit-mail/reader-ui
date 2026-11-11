@@ -9,7 +9,7 @@ import {
 	MailCheck,
 	ShieldAlert,
 	ShieldCheck,
-	ShieldQuestion,
+	ShieldQuestionMark,
 	ShieldX,
 	Sparkles,
 	Star,
@@ -253,7 +253,7 @@ function Authenticity({ auth }: { auth: AuthenticityIntel }) {
 	if (auth.verdict === "caution") {
 		return (
 			<div className="flex items-start gap-2 rounded-md bg-warning/10 p-3 text-warning">
-				<ShieldQuestion className="mt-0.5 size-4 shrink-0" />
+				<ShieldQuestionMark className="mt-0.5 size-4 shrink-0" />
 				<p className="text-xs leading-relaxed">{auth.summary}</p>
 			</div>
 		);

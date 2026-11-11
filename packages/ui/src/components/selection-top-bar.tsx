@@ -2,11 +2,11 @@ import type { ReactNode } from "react";
 import {
 	ArrowLeft,
 	FolderInput,
-	Loader2,
+	LoaderCircle,
 	MailOpen,
 	ShieldAlert,
 	Sparkles,
-	Trash2,
+	Trash,
 } from "../icons.js";
 import { Banner, type BannerTone } from "./banner.js";
 import { Button } from "./button.js";
@@ -261,9 +261,9 @@ export function SelectionTopBar({
 							size="touch"
 							icon={
 								isBusy ? (
-									<Loader2 className="size-5 animate-spin" />
+									<LoaderCircle className="size-5 animate-spin" />
 								) : (
-									<Trash2 className="size-5 text-danger" />
+									<Trash className="size-5 text-danger" />
 								)
 							}
 							onClick={isBusy ? undefined : onDelete}

@@ -7,7 +7,7 @@ import {
 	OctagonAlert,
 	Send,
 	Star,
-	Trash2,
+	Trash,
 } from "../icons.js";
 import { folderLeaf, folderPathSegments } from "../lib/folder-tree.js";
 
@@ -126,7 +126,7 @@ export function roleIcon(role: FolderRole): ReactNode {
 	if (role === "sent") return <Send className="size-4" />;
 	if (role === "archive") return <Archive className="size-4" />;
 	if (role === "junk") return <OctagonAlert className="size-4" />;
-	if (role === "trash") return <Trash2 className="size-4" />;
+	if (role === "trash") return <Trash className="size-4" />;
 	if (role === "flagged") return <Star className="size-4" />;
 	return <Mails className="size-4" />;
 }

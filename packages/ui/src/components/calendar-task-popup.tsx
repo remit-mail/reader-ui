@@ -1,5 +1,5 @@
 import { type Ref, useState } from "react";
-import { CalendarDays, CheckSquare, Square, Trash2, X } from "../icons.js";
+import { CalendarDays, Square, SquareCheckBig, Trash, X } from "../icons.js";
 import { cn } from "../lib/cn.js";
 import {
 	type CalendarFailure,
@@ -73,7 +73,7 @@ export function CalendarTaskPopupCard({
 					disabled={busy}
 					className={iconButton}
 				>
-					<Trash2 className="size-4" />
+					<Trash className="size-4" />
 				</button>
 				<button
 					type="button"
@@ -188,7 +188,7 @@ export function CalendarTaskPopupCard({
 						{completed ? (
 							<Square className="size-4" aria-hidden="true" />
 						) : (
-							<CheckSquare className="size-4" aria-hidden="true" />
+							<SquareCheckBig className="size-4" aria-hidden="true" />
 						)}
 						{completed ? "Mark not done" : "Mark done"}
 					</button>

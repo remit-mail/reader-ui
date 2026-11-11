@@ -1,6 +1,6 @@
 import { type FullGestureState, useDrag } from "@use-gesture/react";
 import { useRef, useState } from "react";
-import { Check, Mail, MailOpen, Trash2 } from "../icons.js";
+import { Check, Mail, MailOpen, Trash } from "../icons.js";
 import { cn } from "../lib/cn.js";
 import { mergeProps } from "../lib/merge-props.js";
 import {
@@ -233,7 +233,7 @@ export function SwipeableRow({
 					aria-label="Delete message"
 					className="absolute inset-y-0 right-0 flex items-center justify-end bg-danger px-6 text-canvas"
 				>
-					<Trash2 className="size-6" />
+					<Trash className="size-6" />
 				</button>
 			)}
 

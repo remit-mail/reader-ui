@@ -11,8 +11,8 @@
 import type { SettingsNavItem } from "@remit/ui";
 import {
 	CalendarDays,
-	Filter,
 	FolderTree,
+	Funnel,
 	Inbox,
 	Palette,
 	Sparkles,
@@ -45,7 +45,7 @@ export const SETTINGS_NAV_ITEMS: SettingsNavItem[] = [
 	{
 		id: "filters",
 		label: "Filters",
-		icon: <Filter className="size-4" />,
+		icon: <Funnel className="size-4" />,
 	},
 	{
 		id: "labels",
