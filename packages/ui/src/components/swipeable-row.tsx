@@ -1,8 +1,8 @@
 import { type FullGestureState, useDrag } from "@use-gesture/react";
 import { Check, Mail, MailOpen, Trash2 } from "lucide-react";
 import { useRef, useState } from "react";
-import { mergeProps } from "react-aria";
 import { cn } from "../lib/cn.js";
+import { mergeProps } from "../lib/merge-props.js";
 import {
 	SWIPE_AXIS_THRESHOLD,
 	SWIPE_DRAG_CONFIG,
