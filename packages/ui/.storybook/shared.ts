@@ -34,6 +34,7 @@ export const withUiVite = async (
 		// Ordered before the bare package alias: Vite matches string aliases by
 		// prefix, so "@remit/ui" alone would rewrite this subpath into
 		// index.ts/rich-text.
+		"@remit/ui/auth": fromUi("../src/auth.ts"),
 		"@remit/ui/icons": fromUi("../src/icons.ts"),
 		"@remit/ui/rich-text": fromUi("../src/rich-text.ts"),
 		"@remit/ui/spellcheck-worker": fromUi(
