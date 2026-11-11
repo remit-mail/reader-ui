@@ -1,4 +1,4 @@
-import { ShieldCheck } from "lucide-react";
+import { ShieldCheck } from "../icons.js";
 import { Banner } from "./banner.js";
 import { Button } from "./button.js";
 

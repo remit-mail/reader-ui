@@ -1,4 +1,4 @@
-import { AlertCircle, Loader2, Paperclip, X } from "lucide-react";
+import { AlertCircle, Loader2, Paperclip, X } from "../icons.js";
 import { formatByteSize } from "../lib/attachment-file.js";
 import { cn } from "../lib/cn.js";
 

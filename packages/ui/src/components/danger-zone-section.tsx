@@ -1,5 +1,5 @@
-import { AlertTriangle } from "lucide-react";
 import type { ReactNode } from "react";
+import { AlertTriangle } from "../icons.js";
 
 export interface DangerZoneSectionProps {
 	title: string;

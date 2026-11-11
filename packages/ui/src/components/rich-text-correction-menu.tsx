@@ -1,5 +1,5 @@
-import { BookPlus, EyeOff } from "lucide-react";
 import { useEffect, useRef } from "react";
+import { BookPlus, EyeOff } from "../icons.js";
 import { DESKTOP_MEDIA_QUERY } from "../lib/layout-breakpoints.js";
 import { useOverlayScope } from "../lib/overlay-scope.js";
 import { useRovingFocus } from "../lib/roving-focus.js";

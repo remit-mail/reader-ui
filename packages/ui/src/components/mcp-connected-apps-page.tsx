@@ -1,4 +1,4 @@
-import { Unplug } from "lucide-react";
+import { Unplug } from "../icons.js";
 import { Banner } from "./banner.js";
 import { Button } from "./button.js";
 import { McpErrorNotice } from "./mcp-error-notice.js";

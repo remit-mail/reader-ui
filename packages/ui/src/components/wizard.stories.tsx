@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { AtSign, Inbox, Server } from "lucide-react";
 import { useState } from "react";
+import { AtSign, Inbox, Server } from "../icons.js";
 import { Button } from "./button.js";
 import type { ServerSecurity } from "./security-select.js";
 import { ConnectorTile, ServerFields, WizardShell } from "./wizard.js";

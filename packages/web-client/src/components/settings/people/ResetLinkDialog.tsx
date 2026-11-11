@@ -1,5 +1,5 @@
 import { Button, Dialog } from "@remit/ui";
-import { Check, Copy } from "lucide-react";
+import { Check, Copy } from "@remit/ui/icons";
 import { useState } from "react";
 
 interface ResetLinkDialogProps {

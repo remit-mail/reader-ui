@@ -27,9 +27,9 @@ import {
 	SenderGroupSwitch,
 	SettingsShell,
 } from "@remit/ui";
+import { Search, Star, X } from "@remit/ui/icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Search, Star, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 import { formatDate } from "../../lib/format";

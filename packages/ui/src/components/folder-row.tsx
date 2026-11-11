@@ -1,5 +1,5 @@
-import { AlertCircle, Check, ChevronRight, Folder } from "lucide-react";
 import type { ReactNode, Ref } from "react";
+import { AlertCircle, Check, ChevronRight, Folder } from "../icons.js";
 import { cn } from "../lib/cn.js";
 
 export const FOLDER_ROW_BASE =

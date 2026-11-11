@@ -1,5 +1,5 @@
-import { ChevronDown } from "lucide-react";
 import type { ReactNode } from "react";
+import { ChevronDown } from "../icons.js";
 import type { AddressEntry } from "./compose-address-field.js";
 
 export interface ComposeHeaderProps {

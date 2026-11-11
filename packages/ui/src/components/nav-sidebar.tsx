@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+import { useRef, useState } from "react";
 import {
 	AlertCircle,
 	AlertOctagon,
@@ -15,9 +17,7 @@ import {
 	Sparkles,
 	Star,
 	Trash2,
-} from "lucide-react";
-import type { ReactNode } from "react";
-import { useRef, useState } from "react";
+} from "../icons.js";
 import { cn } from "../lib/cn.js";
 import { useRovingFocus } from "../lib/roving-focus.js";
 import { ACCOUNT_SERVICE_OFF_LABEL } from "./account-service-status.js";

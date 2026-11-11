@@ -1,11 +1,11 @@
+import { useState } from "react";
 import {
 	AlertTriangle,
 	Check,
 	ChevronDown,
 	ChevronRight,
 	PauseCircle,
-} from "lucide-react";
-import { useState } from "react";
+} from "../icons.js";
 import { calendarColorClasses } from "../lib/calendar-color.js";
 import { cn } from "../lib/cn.js";
 import { ACCOUNT_SERVICE_OFF_LABEL } from "./account-service-status.js";

@@ -1,4 +1,3 @@
-import { TriangleAlert } from "lucide-react";
 import {
 	type KeyboardEvent as ReactKeyboardEvent,
 	type ReactNode,
@@ -11,6 +10,7 @@ import {
 	useRef,
 	useState,
 } from "react";
+import { TriangleAlert } from "../icons.js";
 import { calendarColorClasses } from "../lib/calendar-color.js";
 import { calendarEventBodyClasses } from "../lib/calendar-event-shell.js";
 import {

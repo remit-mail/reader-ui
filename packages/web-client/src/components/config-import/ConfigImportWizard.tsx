@@ -27,8 +27,8 @@ import type {
 	RemitImapConfigImportReport,
 } from "@remit/api-http-client/types.gen.ts";
 import { Banner } from "@remit/ui";
+import { Server } from "@remit/ui/icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Server } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import {
 	REDIRECT_STALL_MESSAGE,

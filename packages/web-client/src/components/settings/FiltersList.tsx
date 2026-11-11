@@ -1,6 +1,6 @@
 import type { RemitImapFilterResponse } from "@remit/api-http-client/types.gen.ts";
 import { Badge, Button, LabelChip, type LabelOption } from "@remit/ui";
-import { Trash2 } from "lucide-react";
+import { Trash2 } from "@remit/ui/icons";
 import type { FilterRunStatus } from "../../lib/organize/filter-run";
 import {
 	disabledReasonCopy,

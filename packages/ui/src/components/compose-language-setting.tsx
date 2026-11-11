@@ -1,4 +1,4 @@
-import { Star, X } from "lucide-react";
+import { Star, X } from "../icons.js";
 import {
 	COMPOSE_LANGUAGE_OPTIONS,
 	languageLabel,

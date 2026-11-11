@@ -1,5 +1,5 @@
 import { AppTopBar, Button } from "@remit/ui";
-import { Settings } from "lucide-react";
+import { Settings } from "@remit/ui/icons";
 import { AccountMenu } from "../../auth/AccountMenu";
 import { useGoToSection } from "../../routing";
 

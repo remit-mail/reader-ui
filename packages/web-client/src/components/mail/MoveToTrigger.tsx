@@ -8,8 +8,8 @@ import {
 	PopoverMenuPortal,
 	useOverlayScope,
 } from "@remit/ui";
+import { FolderInput } from "@remit/ui/icons";
 import { useQuery } from "@tanstack/react-query";
-import { FolderInput } from "lucide-react";
 import {
 	useCallback,
 	useEffect,

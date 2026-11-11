@@ -1,4 +1,4 @@
-import { Pencil } from "lucide-react";
+import { Pencil } from "../icons.js";
 
 export interface ComposeFabProps {
 	onCompose: () => void;

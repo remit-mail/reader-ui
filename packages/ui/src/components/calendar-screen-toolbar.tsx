@@ -1,5 +1,5 @@
-import { ChevronLeft, ChevronRight, Menu } from "lucide-react";
 import type { ReactNode } from "react";
+import { ChevronLeft, ChevronRight, Menu } from "../icons.js";
 import { cn } from "../lib/cn.js";
 import type { CalendarViewId } from "./calendar-types.js";
 import { Select } from "./select.js";

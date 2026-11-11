@@ -1,4 +1,4 @@
-import { FolderPlus } from "lucide-react";
+import { FolderPlus } from "../icons.js";
 import { cn } from "../lib/cn.js";
 import {
 	FOLDER_ROW_BASE,

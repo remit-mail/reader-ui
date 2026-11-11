@@ -1,3 +1,4 @@
+import { type ReactNode, useState } from "react";
 import {
 	CheckCircle2,
 	Clock,
@@ -7,8 +8,7 @@ import {
 	Loader2,
 	RotateCcw,
 	TriangleAlert,
-} from "lucide-react";
-import { type ReactNode, useState } from "react";
+} from "../icons.js";
 import { cn } from "../lib/cn.js";
 import { Badge } from "./badge.js";
 import { Banner } from "./banner.js";

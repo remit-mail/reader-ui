@@ -15,7 +15,7 @@ import {
 	CardTitle,
 	Input,
 } from "@remit/ui";
-import { Plus } from "lucide-react";
+import { Plus } from "@remit/ui/icons";
 import { useId, useState } from "react";
 import { UNZONED_CALENDAR } from "../../hooks/calendar";
 import { calendarUrlSegmentFor } from "../../lib/calendar-collection-copy";

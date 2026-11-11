@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { ShieldCheck } from "lucide-react";
 import { expect, fn, userEvent, waitFor, within } from "storybook/test";
+import { ShieldCheck } from "../icons.js";
 import { AccountMenu } from "./account-menu.js";
 
 const EMAIL = "info@example.com";

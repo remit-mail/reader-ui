@@ -8,7 +8,6 @@ import {
 	DropdownMenuSeparator,
 	ErrorState,
 } from "@remit/ui";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
 	BadgeCheck,
 	Check,
@@ -16,7 +15,8 @@ import {
 	MailOpen,
 	MoreVertical,
 	Trash2,
-} from "lucide-react";
+} from "@remit/ui/icons";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
 import { useDeleteMessages } from "../../hooks/useDeleteMessages";
 import { setReadOnItems } from "../../hooks/useMarkAsRead";

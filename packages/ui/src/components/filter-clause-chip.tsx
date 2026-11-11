@@ -1,4 +1,4 @@
-import { Plus, X } from "lucide-react";
+import { Plus, X } from "../icons.js";
 import { cn } from "../lib/cn.js";
 import { useSuggestList } from "../lib/use-suggest-list.js";
 import { Button } from "./button.js";

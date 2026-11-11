@@ -1,5 +1,5 @@
-import { X } from "lucide-react";
 import type { ReactNode, Ref } from "react";
+import { X } from "../icons.js";
 import { cn } from "../lib/cn.js";
 import { invalidGuest } from "../lib/guest-list.js";
 import {

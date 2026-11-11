@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import {
 	Forward,
 	Mail,
@@ -6,8 +7,7 @@ import {
 	ReplyAll,
 	Star,
 	Trash2,
-} from "lucide-react";
-import type { ReactNode } from "react";
+} from "../icons.js";
 import { cn } from "../lib/cn.js";
 import { Button } from "./button.js";
 import { PopoverMenu, type PopoverMenuItem } from "./popover-menu.js";

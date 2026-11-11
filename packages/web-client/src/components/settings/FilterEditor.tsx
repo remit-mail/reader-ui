@@ -11,7 +11,7 @@ import {
 	previewCountSummary,
 	type RuleScope,
 } from "@remit/ui";
-import { CheckCircle2, Loader2 } from "lucide-react";
+import { CheckCircle2, Loader2 } from "@remit/ui/icons";
 import { useMemo, useRef, useState } from "react";
 import { useCreateMailbox } from "../../hooks/useCreateMailbox";
 import { useCreateLabel } from "../../hooks/useLabels";

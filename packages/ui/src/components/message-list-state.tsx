@@ -1,5 +1,5 @@
-import { AlertCircle, Loader2 } from "lucide-react";
 import type { ReactNode } from "react";
+import { AlertCircle, Loader2 } from "../icons.js";
 import { Button } from "./button.js";
 
 /** Non-ready states the flat mailbox list can be in. "ready" renders rows. */

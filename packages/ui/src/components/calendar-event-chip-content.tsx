@@ -1,5 +1,5 @@
-import { Globe, Mail, Repeat } from "lucide-react";
 import type { ReactNode } from "react";
+import { Globe, Mail, Repeat } from "../icons.js";
 import { cn } from "../lib/cn.js";
 import type { RsvpState, ZoneCertainty } from "./calendar-types.js";
 

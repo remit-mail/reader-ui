@@ -10,8 +10,8 @@ import {
 	type ThreadCategory,
 	useModalFocus,
 } from "@remit/ui";
+import { Sparkles } from "@remit/ui/icons";
 import { useQueryClient } from "@tanstack/react-query";
-import { Sparkles } from "lucide-react";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useJunkMailbox } from "../../hooks/useArchiveMailbox";
 import { useIntelligenceCalendar } from "../../hooks/useIntelligenceCalendar";

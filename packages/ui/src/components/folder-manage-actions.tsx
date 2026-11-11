@@ -1,4 +1,4 @@
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2 } from "../icons.js";
 import { Button } from "./button.js";
 
 export interface FolderManageActionsProps {

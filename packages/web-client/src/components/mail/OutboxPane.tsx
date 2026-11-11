@@ -30,7 +30,6 @@ import {
 	ReadingPaneEmpty,
 	useRovingFocus,
 } from "@remit/ui";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
 	AlertCircle,
 	AlertTriangle,
@@ -39,7 +38,8 @@ import {
 	Clock,
 	Loader2,
 	Send,
-} from "lucide-react";
+} from "@remit/ui/icons";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
 	createContext,
 	type ReactNode,

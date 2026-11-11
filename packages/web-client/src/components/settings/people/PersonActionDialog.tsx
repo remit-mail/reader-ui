@@ -3,7 +3,7 @@ import type {
 	RemitImapStepUpAction,
 } from "@remit/api-http-client/types.gen.ts";
 import { Button, Dialog, PasswordInput } from "@remit/ui";
-import { X } from "lucide-react";
+import { X } from "@remit/ui/icons";
 import { type FormEvent, useState } from "react";
 import {
 	type PersonActionResult,

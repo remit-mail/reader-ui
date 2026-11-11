@@ -1,5 +1,5 @@
 import { formatErrorMessage } from "@remit/ui";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle } from "@remit/ui/icons";
 import { calendarEventReportHref } from "../../lib/calendar-report";
 
 export interface CalendarLoadFailedProps {

@@ -1,4 +1,4 @@
-import { Loader2, Sparkles } from "lucide-react";
+import { Loader2, Sparkles } from "../icons.js";
 
 /**
  * How far the mail sync has got, for the accounts feeding the brief. `total` is

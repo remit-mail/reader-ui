@@ -10,7 +10,7 @@
  */
 import type { RemitImapAccountResponse } from "@remit/api-http-client/types.gen.ts";
 import { AttentionDot, useAppShellLayout } from "@remit/ui";
-import { LogOut, Settings } from "lucide-react";
+import { LogOut, Settings } from "@remit/ui/icons";
 import { AccountSession } from "../../auth/AccountSession";
 import { useWarningsAttention } from "../../hooks/useWarningsAttention";
 import { NavLink } from "../../routing";

@@ -36,8 +36,8 @@ import {
 	type ThreadRowData,
 	type ThreadSection,
 } from "@remit/ui";
+import { FileText, Inbox, Trash2 } from "@remit/ui/icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { FileText, Inbox, Trash2 } from "lucide-react";
 import { useMemo } from "react";
 
 import { groupDraftSections } from "../../lib/drafts";

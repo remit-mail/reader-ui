@@ -1,5 +1,5 @@
-import { Plus } from "lucide-react";
 import type { ReactNode, Ref } from "react";
+import { Plus } from "../icons.js";
 import { cn } from "../lib/cn.js";
 
 export interface CalendarSidePaneProps {

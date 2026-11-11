@@ -1,5 +1,5 @@
-import { Loader2, Paperclip, Send, Trash2 } from "lucide-react";
 import { useRef } from "react";
+import { Loader2, Paperclip, Send, Trash2 } from "../icons.js";
 import { Button } from "./button.js";
 
 /**

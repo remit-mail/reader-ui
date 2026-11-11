@@ -9,7 +9,7 @@ import {
 	DropdownMenuItem,
 	DropdownMenuSeparator,
 } from "@remit/ui";
-import { MoreHorizontal } from "lucide-react";
+import { MoreHorizontal } from "@remit/ui/icons";
 import { useEffect, useRef, useState } from "react";
 import { usePeople } from "../../../hooks/usePeople";
 import type { PersonActionResult } from "../../../hooks/usePersonAction";

@@ -1,5 +1,5 @@
-import { Inbox } from "lucide-react";
 import type { ReactNode } from "react";
+import { Inbox } from "../icons.js";
 import { cn } from "../lib/cn.js";
 import { Kbd } from "./kbd.js";
 

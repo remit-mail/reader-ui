@@ -1,3 +1,9 @@
+import { type ReactNode, useId, useState } from "react";
+import {
+	categoryLabels,
+	categoryTone,
+	type ThreadCategory,
+} from "../category-presentation.js";
 import {
 	BellOff,
 	MailCheck,
@@ -8,13 +14,7 @@ import {
 	Sparkles,
 	Star,
 	X,
-} from "lucide-react";
-import { type ReactNode, useId, useState } from "react";
-import {
-	categoryLabels,
-	categoryTone,
-	type ThreadCategory,
-} from "../category-presentation.js";
+} from "../icons.js";
 import { cn } from "../lib/cn.js";
 import { Avatar } from "./avatar.js";
 import { Badge } from "./badge.js";

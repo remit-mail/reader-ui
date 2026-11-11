@@ -16,7 +16,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@remit/ui";
-import { Download, FileJson, Loader2 } from "lucide-react";
+import { Download, FileJson, Loader2 } from "@remit/ui/icons";
 
 export interface ConfigExportCardProps {
 	fileName: string;

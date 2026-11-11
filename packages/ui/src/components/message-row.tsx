@@ -1,4 +1,3 @@
-import { Check, Paperclip, ShieldAlert, Star } from "lucide-react";
 import type {
 	ComponentType,
 	MouseEvent,
@@ -6,6 +5,7 @@ import type {
 	SyntheticEvent,
 } from "react";
 import { categoryTone, getCategoryLabel } from "../category-presentation.js";
+import { Check, Paperclip, ShieldAlert, Star } from "../icons.js";
 import { cn } from "../lib/cn.js";
 import { ROW_ATTRIBUTE } from "../lib/keymap-dispatch.js";
 import { LIST_ROW_ATTRIBUTE } from "../lib/roving-focus.js";

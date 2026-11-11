@@ -1,5 +1,5 @@
-import { AlertTriangle, ArrowRight } from "lucide-react";
 import type { Ref } from "react";
+import { AlertTriangle, ArrowRight } from "../icons.js";
 
 /**
  * The one sentence this failure gets. The banner states it, and Send refuses

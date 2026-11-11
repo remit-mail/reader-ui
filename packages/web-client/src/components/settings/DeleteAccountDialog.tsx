@@ -3,8 +3,8 @@ import {
 	meOperationsDeleteMeMutation,
 } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
 import { Button, Dialog, Input } from "@remit/ui";
+import { AlertTriangle, Download, X } from "@remit/ui/icons";
 import { useMutation } from "@tanstack/react-query";
-import { AlertTriangle, Download, X } from "lucide-react";
 import { useState } from "react";
 import { useAuthProvider } from "../../auth/provider";
 

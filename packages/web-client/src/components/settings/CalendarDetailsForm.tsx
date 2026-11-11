@@ -8,7 +8,7 @@
  * from a full one without reading all of its time.
  */
 import { Banner, Button, ConfirmDialog, Input } from "@remit/ui";
-import { Save, Trash2 } from "lucide-react";
+import { Save, Trash2 } from "@remit/ui/icons";
 import { useId, useState } from "react";
 import { deleteCalendarConfirmCopy } from "../../lib/calendar-collection-copy";
 import { TimeZoneSelect } from "./TimeZoneSelect";

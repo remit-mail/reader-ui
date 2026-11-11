@@ -1,5 +1,5 @@
-import { AlertOctagon, Check, Loader2 } from "lucide-react";
 import { useRef } from "react";
+import { AlertOctagon, Check, Loader2 } from "../icons.js";
 import { cn } from "../lib/cn.js";
 import { useOverlayScope } from "../lib/overlay-scope.js";
 import { useModalFocus } from "../lib/use-modal-focus.js";

@@ -4,7 +4,7 @@ import {
 	CheckCircle,
 	Clock,
 	Loader2,
-} from "lucide-react";
+} from "../icons.js";
 import { cn } from "../lib/cn.js";
 
 /** The non-draft outbox lifecycle states (drafts live in a separate view). */

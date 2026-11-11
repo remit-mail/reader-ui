@@ -1,6 +1,6 @@
-import { Menu } from "lucide-react";
 import type { MouseEvent, ReactNode } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Menu } from "../icons.js";
 import { defaultKeyboardHints, keyboardHintsFor } from "../lib/keymap.js";
 import { LIST_ROW_SELECTOR, useRovingFocus } from "../lib/roving-focus.js";
 import { deriveIsMultiSelectMode, modifiersOf } from "../lib/use-selection.js";

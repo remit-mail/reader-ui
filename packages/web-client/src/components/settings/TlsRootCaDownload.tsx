@@ -5,7 +5,7 @@
  * over SSH.
  */
 import { ButtonLink } from "@remit/ui";
-import { ShieldCheck } from "lucide-react";
+import { ShieldCheck } from "@remit/ui/icons";
 import { getRuntimeConfig } from "../../runtime-config";
 
 export function TlsRootCaDownload() {

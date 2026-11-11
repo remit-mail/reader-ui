@@ -1,4 +1,4 @@
-import { PauseCircle } from "lucide-react";
+import { PauseCircle } from "../icons.js";
 import { cn } from "../lib/cn.js";
 import type { AccountService } from "./account-service-choice.js";
 import { Badge } from "./badge.js";

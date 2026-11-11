@@ -1,4 +1,4 @@
-import { AlertTriangle, Loader2 } from "lucide-react";
+import { AlertTriangle, Loader2 } from "../icons.js";
 import { cn } from "../lib/cn.js";
 import { type PreviewCount, previewCountSummary } from "./filter-rule.js";
 

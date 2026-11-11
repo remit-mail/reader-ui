@@ -18,7 +18,7 @@ import {
 	ErrorState,
 	formatErrorMessage,
 } from "@remit/ui";
-import { Check, Copy, Link2, RefreshCw, Trash2 } from "lucide-react";
+import { Check, Copy, Link2, RefreshCw, Trash2 } from "@remit/ui/icons";
 import { type ReactNode, useEffect, useId, useRef, useState } from "react";
 import type { CalendarFeedState } from "../../hooks/calendar/useCalendarFeed";
 import {

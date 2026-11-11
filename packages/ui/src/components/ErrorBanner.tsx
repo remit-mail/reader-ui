@@ -1,4 +1,4 @@
-import { AlertCircle, AlertTriangle, Info, X } from "lucide-react";
+import { AlertCircle, AlertTriangle, Info, X } from "../icons.js";
 import { cn } from "../lib/cn.js";
 
 export type ErrorBannerSeverity = "error" | "warning" | "info";

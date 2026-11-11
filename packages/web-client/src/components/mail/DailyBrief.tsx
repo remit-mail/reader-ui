@@ -89,8 +89,8 @@ import {
 	type ThreadSection,
 	toggleBriefFilterInQuery,
 } from "@remit/ui";
+import { AlertCircle, RefreshCw } from "@remit/ui/icons";
 import { useQueries } from "@tanstack/react-query";
-import { AlertCircle, RefreshCw } from "lucide-react";
 import {
 	type ReactNode,
 	type RefObject,

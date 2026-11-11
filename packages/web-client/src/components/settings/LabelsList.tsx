@@ -1,6 +1,6 @@
 import type { RemitImapLabelResponse } from "@remit/api-http-client/types.gen.ts";
 import { Button, Input, LabelChip, labelColorOptions, Select } from "@remit/ui";
-import { Trash2 } from "lucide-react";
+import { Trash2 } from "@remit/ui/icons";
 import { useState } from "react";
 
 interface LabelsListProps {

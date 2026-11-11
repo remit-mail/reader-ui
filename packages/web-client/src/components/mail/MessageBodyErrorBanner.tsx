@@ -1,4 +1,4 @@
-import { AlertCircle, X } from "lucide-react";
+import { AlertCircle, X } from "@remit/ui/icons";
 import { useState } from "react";
 import { useAuthProvider } from "../../auth/provider";
 import {

@@ -1,5 +1,5 @@
-import { ChevronDown, ChevronRight } from "lucide-react";
 import { useState } from "react";
+import { ChevronDown, ChevronRight } from "../icons.js";
 import { cn } from "../lib/cn.js";
 import type { ThreadSection } from "./app-shell-types.js";
 import type { ResultCount } from "./list-result-header.js";

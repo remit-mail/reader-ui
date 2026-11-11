@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import {
 	ArrowLeft,
 	FolderInput,
@@ -6,8 +7,7 @@ import {
 	ShieldAlert,
 	Sparkles,
 	Trash2,
-} from "lucide-react";
-import type { ReactNode } from "react";
+} from "../icons.js";
 import { Banner, type BannerTone } from "./banner.js";
 import { Button } from "./button.js";
 import { Checkbox } from "./checkbox.js";

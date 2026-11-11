@@ -1,4 +1,4 @@
-import { AlertCircle, CheckCircle, RefreshCw } from "lucide-react";
+import { AlertCircle, CheckCircle, RefreshCw } from "../icons.js";
 import { cn } from "../lib/cn.js";
 import { Button, type ButtonProps } from "./button.js";
 

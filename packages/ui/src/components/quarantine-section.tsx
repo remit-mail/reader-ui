@@ -1,4 +1,4 @@
-import { CheckCircle2, TriangleAlert } from "lucide-react";
+import { CheckCircle2, TriangleAlert } from "../icons.js";
 import { Banner } from "./banner.js";
 import { QuarantineEntryRow } from "./quarantine-entry-row.js";
 import type { QuarantineEntry } from "./quarantine-report.js";

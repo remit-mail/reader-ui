@@ -1,5 +1,5 @@
-import { Sparkles } from "lucide-react";
 import type { ReactNode } from "react";
+import { Sparkles } from "../icons.js";
 import { cn } from "../lib/cn.js";
 
 export interface CalendarSuggestionListItem {

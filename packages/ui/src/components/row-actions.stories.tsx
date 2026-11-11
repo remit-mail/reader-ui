@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { RotateCcw, Send, Trash2 } from "lucide-react";
+import { RotateCcw, Send, Trash2 } from "../icons.js";
 import { RowActions } from "./row-actions.js";
 
 const meta: Meta<typeof RowActions> = {

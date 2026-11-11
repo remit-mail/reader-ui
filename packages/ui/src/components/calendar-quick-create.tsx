@@ -1,5 +1,5 @@
-import { GripHorizontal, X } from "lucide-react";
 import type { PointerEvent, Ref } from "react";
+import { GripHorizontal, X } from "../icons.js";
 import { cn } from "../lib/cn.js";
 import { type GuestEntry, invalidGuest } from "../lib/guest-list.js";
 import {

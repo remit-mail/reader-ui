@@ -1,5 +1,5 @@
-import { AlertTriangle, Loader2 } from "lucide-react";
 import { useEffect, useRef } from "react";
+import { AlertTriangle, Loader2 } from "../icons.js";
 import type { FolderTreeNode } from "../lib/folder-tree.js";
 import { Banner } from "./banner.js";
 import { Button } from "./button.js";

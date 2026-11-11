@@ -1,4 +1,4 @@
-import { Download, ExternalLink } from "lucide-react";
+import { Download, ExternalLink } from "../icons.js";
 import { Button, ButtonLink } from "./button.js";
 import { Dialog } from "./dialog.js";
 import { formatReleaseDate, type ReleaseInfo } from "./self-update.js";

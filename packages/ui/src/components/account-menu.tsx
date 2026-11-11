@@ -1,5 +1,5 @@
-import { LogOut } from "lucide-react";
 import { type ReactNode, useEffect, useRef } from "react";
+import { LogOut } from "../icons.js";
 import { Avatar } from "./avatar.js";
 import {
 	PopoverMenuPanel,

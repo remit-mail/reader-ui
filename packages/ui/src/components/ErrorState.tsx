@@ -1,4 +1,4 @@
-import { AlertCircle } from "lucide-react";
+import { AlertCircle } from "../icons.js";
 
 interface ErrorStateProps {
 	title?: string;

@@ -1,5 +1,5 @@
-import { CheckCircle2, HelpCircle, ShieldCheck } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { CheckCircle2, HelpCircle, ShieldCheck } from "../icons.js";
 import { Banner } from "./banner.js";
 import { BottomSheet } from "./bottom-sheet.js";
 import { Button } from "./button.js";

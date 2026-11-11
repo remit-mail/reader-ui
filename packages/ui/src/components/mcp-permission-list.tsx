@@ -1,4 +1,4 @@
-import { Check } from "lucide-react";
+import { Check } from "../icons.js";
 import type { McpPermission } from "./mcp-page.js";
 
 export interface McpPermissionListProps {

@@ -7,7 +7,7 @@
  * credential, so only its host is named.
  */
 import { Badge, Banner, Button, formatErrorMessage } from "@remit/ui";
-import { Pause, Play } from "lucide-react";
+import { Pause, Play } from "@remit/ui/icons";
 import { subscriptionHostOf } from "../../lib/calendar-subscription";
 import { formatDatePreset } from "../../lib/format";
 

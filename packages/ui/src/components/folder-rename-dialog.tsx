@@ -1,5 +1,5 @@
-import { X } from "lucide-react";
 import { useId } from "react";
+import { X } from "../icons.js";
 import { Button } from "./button.js";
 import { Dialog } from "./dialog.js";
 import { FieldLabel } from "./field-label.js";

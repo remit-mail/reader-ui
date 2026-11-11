@@ -1,5 +1,5 @@
-import { Check, CircleHelp, Clock3, Crown, X } from "lucide-react";
 import { useId, useState } from "react";
+import { Check, CircleHelp, Clock3, Crown, X } from "../icons.js";
 import { cn } from "../lib/cn.js";
 import { type GuestEntry, parseGuest, withGuest } from "../lib/guest-list.js";
 import {

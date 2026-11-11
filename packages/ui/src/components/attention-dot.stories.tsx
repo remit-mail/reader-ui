@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { Settings, TriangleAlert, Wrench } from "lucide-react";
+import { Settings, TriangleAlert, Wrench } from "../icons.js";
 import { AttentionDot } from "./attention-dot.js";
 
 const meta: Meta<typeof AttentionDot> = {

@@ -1,5 +1,5 @@
-import { ChevronDown, ChevronRight, ShieldAlert } from "lucide-react";
 import { type ReactNode, useState } from "react";
+import { ChevronDown, ChevronRight, ShieldAlert } from "../icons.js";
 import { cn } from "../lib/cn.js";
 import { isSelfRowActivation } from "../lib/row-keyboard.js";
 import type { ThreadData, ThreadMessageData } from "./app-shell-types.js";

@@ -24,7 +24,7 @@ import {
 	weekStart,
 	zonedMoment,
 } from "@remit/ui";
-import { Loader2 } from "lucide-react";
+import { Loader2 } from "@remit/ui/icons";
 import { type ReactNode, useCallback, useMemo, useRef, useState } from "react";
 import {
 	calendarInstanceId,

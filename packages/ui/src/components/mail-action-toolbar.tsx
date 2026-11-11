@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import {
 	FolderInput,
 	Forward,
@@ -5,8 +6,7 @@ import {
 	ReplyAll,
 	Star,
 	Trash2,
-} from "lucide-react";
-import type { ReactNode } from "react";
+} from "../icons.js";
 import { cn } from "../lib/cn.js";
 import { Button } from "./button.js";
 

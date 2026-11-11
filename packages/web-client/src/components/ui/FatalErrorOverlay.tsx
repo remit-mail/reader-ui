@@ -1,5 +1,5 @@
 import { useOverlayScope } from "@remit/ui";
-import { AlertOctagon } from "lucide-react";
+import { AlertOctagon } from "@remit/ui/icons";
 import { useEffect, useState } from "react";
 import {
 	type BugReportSeed,

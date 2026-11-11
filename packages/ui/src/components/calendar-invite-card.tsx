@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import {
 	BellOff,
 	Calendar,
@@ -7,8 +8,7 @@ import {
 	MapPin,
 	Trash2,
 	X,
-} from "lucide-react";
-import type { ReactNode } from "react";
+} from "../icons.js";
 import { calendarColorClasses } from "../lib/calendar-color.js";
 import { cn } from "../lib/cn.js";
 import { RsvpBadge } from "./attendee-row.js";

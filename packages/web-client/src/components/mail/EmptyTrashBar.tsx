@@ -1,5 +1,5 @@
 import { Banner, Button, ConfirmDialog } from "@remit/ui";
-import { Trash2 } from "lucide-react";
+import { Trash2 } from "@remit/ui/icons";
 import { type ReactNode, useState } from "react";
 import { deleteConfirmationCopy, formatNumber } from "../../lib/format";
 import type { FolderRoleRefusalReason } from "../ui/folder-role-refusal";

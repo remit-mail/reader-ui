@@ -9,7 +9,13 @@ import {
 	type FolderTreeNode,
 	FolderTreePicker,
 } from "@remit/ui";
-import { AlertTriangle, FolderInput, Loader2, Trash2, X } from "lucide-react";
+import {
+	AlertTriangle,
+	FolderInput,
+	Loader2,
+	Trash2,
+	X,
+} from "@remit/ui/icons";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useCreateMailbox } from "../../hooks/useCreateMailbox";
 import { useDeleteFolder } from "../../hooks/useDeleteFolder";

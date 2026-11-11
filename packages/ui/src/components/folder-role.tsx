@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import {
 	Archive,
 	FileText,
@@ -7,8 +8,7 @@ import {
 	Send,
 	Star,
 	Trash2,
-} from "lucide-react";
-import type { ReactNode } from "react";
+} from "../icons.js";
 import { folderLeaf, folderPathSegments } from "../lib/folder-tree.js";
 
 /* ------------------------------------------------------------------ */

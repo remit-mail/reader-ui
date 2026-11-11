@@ -1,5 +1,5 @@
-import { CalendarDays, CheckSquare, Square, Trash2, X } from "lucide-react";
 import { type Ref, useState } from "react";
+import { CalendarDays, CheckSquare, Square, Trash2, X } from "../icons.js";
 import { cn } from "../lib/cn.js";
 import {
 	type CalendarFailure,

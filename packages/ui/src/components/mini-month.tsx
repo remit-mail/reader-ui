@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "../icons.js";
 import { cn } from "../lib/cn.js";
 import { miniMonthWeeks, shiftMonth } from "../lib/mini-month.js";
 

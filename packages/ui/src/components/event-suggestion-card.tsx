@@ -1,3 +1,4 @@
+import { useId, useState } from "react";
 import {
 	AlertTriangle,
 	Globe,
@@ -5,8 +6,7 @@ import {
 	Plus,
 	SlidersHorizontal,
 	X,
-} from "lucide-react";
-import { useId, useState } from "react";
+} from "../icons.js";
 import { cn } from "../lib/cn.js";
 import { BlockedReason } from "./blocked-reason.js";
 import { Button } from "./button.js";

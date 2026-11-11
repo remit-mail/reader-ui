@@ -1,6 +1,6 @@
-import { Loader2 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useState } from "react";
+import { Loader2 } from "../icons.js";
 import { cn } from "../lib/cn.js";
 import { Button } from "./button.js";
 

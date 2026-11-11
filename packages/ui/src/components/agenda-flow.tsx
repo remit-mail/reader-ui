@@ -19,7 +19,7 @@
  * address with it, out into empty years. What asks for more days is a scroll
  * the reader drove, moving toward the end it asks about.
  */
-import { CalendarOff, ChevronRight, Layers, MapPin, Users } from "lucide-react";
+
 import {
 	type ReactNode,
 	useEffect,
@@ -28,6 +28,7 @@ import {
 	useRef,
 	useState,
 } from "react";
+import { CalendarOff, ChevronRight, Layers, MapPin, Users } from "../icons.js";
 import {
 	type AgendaRow,
 	buildAgendaRows,

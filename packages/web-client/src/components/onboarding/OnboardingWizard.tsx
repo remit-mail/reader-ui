@@ -42,8 +42,15 @@ import {
 	securityToApi,
 	WizardShell,
 } from "@remit/ui";
+import {
+	AtSign,
+	FileJson,
+	Inbox,
+	Loader2,
+	Mail,
+	Server,
+} from "@remit/ui/icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AtSign, FileJson, Inbox, Loader2, Mail, Server } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
 	REDIRECT_STALL_MESSAGE,

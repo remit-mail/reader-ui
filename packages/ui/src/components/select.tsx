@@ -1,5 +1,5 @@
-import { ChevronDown } from "lucide-react";
 import type { ReactNode, Ref, SelectHTMLAttributes } from "react";
+import { ChevronDown } from "../icons.js";
 import { cn } from "../lib/cn.js";
 
 export interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {

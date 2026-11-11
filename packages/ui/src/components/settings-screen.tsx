@@ -1,5 +1,5 @@
-import { ChevronLeft, CircleHelp, Menu, X } from "lucide-react";
 import { type ReactNode, useState } from "react";
+import { ChevronLeft, CircleHelp, Menu, X } from "../icons.js";
 import { cn } from "../lib/cn.js";
 import { Avatar } from "./avatar.js";
 import { Badge } from "./badge.js";

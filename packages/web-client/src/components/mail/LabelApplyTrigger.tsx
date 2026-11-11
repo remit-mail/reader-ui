@@ -4,7 +4,7 @@ import {
 	PopoverMenu,
 	type PopoverMenuItem,
 } from "@remit/ui";
-import { Tag } from "lucide-react";
+import { Tag } from "@remit/ui/icons";
 import { useMemo } from "react";
 import { useApplyLabel } from "../../hooks/useApplyLabel";
 import { useLabelList } from "../../hooks/useLabels";

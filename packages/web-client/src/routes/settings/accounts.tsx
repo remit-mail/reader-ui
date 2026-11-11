@@ -17,9 +17,9 @@ import {
 	RowActions,
 	SettingsShell,
 } from "@remit/ui";
+import { AlertTriangle, Loader2, Plus, Trash2, X } from "@remit/ui/icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { AlertTriangle, Loader2, Plus, Trash2, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { z } from "zod";
 import {

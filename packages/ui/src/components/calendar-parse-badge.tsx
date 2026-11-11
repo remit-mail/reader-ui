@@ -1,4 +1,4 @@
-import { Code2, FileText, TextSearch } from "lucide-react";
+import { Code2, FileText, TextSearch } from "../icons.js";
 import { cn } from "../lib/cn.js";
 import type { CalendarParseMethod } from "./calendar-types.js";
 

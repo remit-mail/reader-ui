@@ -24,7 +24,7 @@ import {
 	Merge,
 	Upload,
 	X,
-} from "lucide-react";
+} from "@remit/ui/icons";
 import type { DragEvent, ReactNode } from "react";
 import { useId, useRef } from "react";
 import {

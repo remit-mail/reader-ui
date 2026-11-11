@@ -22,8 +22,9 @@
  * Which actions, in what order, with what wording lives here and only here, so
  * the bar the prototype shows is the bar the app shows.
  */
-import { Bug, Settings, SquarePen } from "lucide-react";
+
 import type { ReactNode } from "react";
+import { Bug, Settings, SquarePen } from "../icons.js";
 import { AppTopBar } from "./app-top-bar.js";
 import { AttentionDot } from "./attention-dot.js";
 import { Button } from "./button.js";

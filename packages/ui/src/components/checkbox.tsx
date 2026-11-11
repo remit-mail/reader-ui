@@ -1,6 +1,6 @@
-import { Check, Minus } from "lucide-react";
 import type { InputHTMLAttributes, ReactNode } from "react";
 import { useEffect, useRef } from "react";
+import { Check, Minus } from "../icons.js";
 import { cn } from "../lib/cn.js";
 
 export interface CheckboxProps

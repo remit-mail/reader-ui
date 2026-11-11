@@ -15,7 +15,7 @@ import {
 	formatErrorMessage,
 	Input,
 } from "@remit/ui";
-import { CalendarPlus } from "lucide-react";
+import { CalendarPlus } from "@remit/ui/icons";
 import { type FormEvent, useId, useState } from "react";
 
 export interface CalendarSubscribeCardProps {

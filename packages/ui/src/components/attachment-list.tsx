@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import {
 	AlertCircle,
 	ChevronDown,
@@ -6,8 +7,7 @@ import {
 	Loader2,
 	Mail,
 	Paperclip,
-} from "lucide-react";
-import type { ReactNode } from "react";
+} from "../icons.js";
 import { formatByteSize } from "../lib/attachment-file.js";
 import { cn } from "../lib/cn.js";
 

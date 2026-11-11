@@ -1,5 +1,5 @@
-import { CalendarDays, MapPin, Pencil, Trash2, X } from "lucide-react";
 import type { ReactNode, Ref } from "react";
+import { CalendarDays, MapPin, Pencil, Trash2, X } from "../icons.js";
 import { calendarColorClasses } from "../lib/calendar-color.js";
 import { cn } from "../lib/cn.js";
 import type { CalendarColorId } from "./calendar-types.js";

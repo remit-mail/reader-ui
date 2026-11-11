@@ -1,6 +1,6 @@
 import { type FullGestureState, useDrag } from "@use-gesture/react";
-import { Check, Mail, MailOpen, Trash2 } from "lucide-react";
 import { useRef, useState } from "react";
+import { Check, Mail, MailOpen, Trash2 } from "../icons.js";
 import { cn } from "../lib/cn.js";
 import { mergeProps } from "../lib/merge-props.js";
 import {

@@ -1,5 +1,5 @@
-import { RefreshCw } from "lucide-react";
 import { useState } from "react";
+import { RefreshCw } from "../icons.js";
 import type { ThreadSection } from "./app-shell-types.js";
 import { SwipeableRow, type SwipePeek } from "./swipeable-row.js";
 

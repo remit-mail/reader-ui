@@ -1,4 +1,4 @@
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2 } from "../icons.js";
 import type { SyncWarningEntry } from "./sync-warning-report.js";
 import { SyncWarningRow } from "./sync-warning-row.js";
 

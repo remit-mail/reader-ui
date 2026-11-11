@@ -1,5 +1,5 @@
-import { X } from "lucide-react";
 import { type ReactNode, useRef } from "react";
+import { X } from "../icons.js";
 import { cn } from "../lib/cn.js";
 import { useOverlayScope } from "../lib/overlay-scope.js";
 import { useModalFocus } from "../lib/use-modal-focus.js";

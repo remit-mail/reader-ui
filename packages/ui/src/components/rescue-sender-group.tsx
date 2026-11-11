@@ -1,5 +1,5 @@
-import { ChevronDown, ChevronRight, ShieldCheck } from "lucide-react";
 import { useState } from "react";
+import { ChevronDown, ChevronRight, ShieldCheck } from "../icons.js";
 import { cn } from "../lib/cn.js";
 import { Avatar } from "./avatar.js";
 import { Badge } from "./badge.js";

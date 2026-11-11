@@ -1,5 +1,5 @@
-import { ChevronDown, Clock, Filter } from "lucide-react";
 import { useId, useState } from "react";
+import { ChevronDown, Clock, Filter } from "../icons.js";
 import { cn } from "../lib/cn.js";
 import { BlockedReason } from "./blocked-reason.js";
 import type { FolderRole } from "./folder-role.js";

@@ -1,4 +1,4 @@
-import { FolderInput, Info } from "lucide-react";
+import { FolderInput, Info } from "../icons.js";
 import {
 	droppedFacetsCopy,
 	hasConversionNotice,

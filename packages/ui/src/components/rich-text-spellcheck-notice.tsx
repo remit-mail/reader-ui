@@ -1,5 +1,5 @@
-import { AlertCircle, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { AlertCircle, Loader2 } from "../icons.js";
 import { formatByteSize } from "../lib/attachment-file.js";
 import { languageLabel } from "../lib/compose-language.js";
 import type { ProviderStatus } from "./rich-text-spellcheck.js";

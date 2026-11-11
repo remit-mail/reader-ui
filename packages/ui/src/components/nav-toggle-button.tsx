@@ -8,7 +8,7 @@
  *
  * Renders nothing outside an `AppShellSlotted` — there is no nav to act on.
  */
-import { Menu } from "lucide-react";
+import { Menu } from "../icons.js";
 import { useAppShellLayout } from "./app-shell-slotted.js";
 import { Button } from "./button.js";
 

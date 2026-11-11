@@ -9,6 +9,7 @@
  * callbacks belong to whoever drives it, and nothing touches history.
  */
 
+import { Fragment, type ReactNode, useEffect, useId, useRef } from "react";
 import {
 	AlertTriangle,
 	ArrowLeft,
@@ -16,8 +17,7 @@ import {
 	Check,
 	Loader2,
 	X,
-} from "lucide-react";
-import { Fragment, type ReactNode, useEffect, useId, useRef } from "react";
+} from "../icons.js";
 import { cn } from "../lib/cn.js";
 import {
 	backExits,

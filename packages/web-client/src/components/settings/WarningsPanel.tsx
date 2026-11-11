@@ -17,8 +17,8 @@ import {
 	SyncWarningSection,
 	syncWarningIssueTitle,
 } from "@remit/ui";
+import { Bug } from "@remit/ui/icons";
 import { useQuery } from "@tanstack/react-query";
-import { Bug } from "lucide-react";
 import { type ReactNode, useMemo, useState } from "react";
 import { SignInAgain } from "../../auth/SignInAgain";
 import { useResultFolderIndex } from "../../hooks/useResultFolderIndex";
