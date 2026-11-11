@@ -53,6 +53,7 @@ const sender: IntelligenceData = {
 		summary: "Signed by example.test.",
 	},
 	category: { value: "personal" },
+	spamAction: "reportSpam",
 };
 
 const calendars = [

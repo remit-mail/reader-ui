@@ -78,9 +78,9 @@ export const humanizeSpamFailureReason = (
  * call — a partial (or total) failure is not a thrown error on the wire. The
  * generated mutation helpers only ever reject on a non-2xx response, so
  * without this the hook would report success for a message whose report or
- * undo never actually happened. Every caller here sends exactly one message
- * per call, so surfacing the first failure's reason is surfacing the whole
- * story, not truncating a real batch.
+ * undo never actually happened. The thrown error carries the batch's
+ * `failureCount` for the banner title and the first failure's reason as its
+ * message.
  *
  * Throws `ApiError` — not a bare `Error` — carrying a 4xx status. The
  * client's fail-fast contract (`lib/error-classifier.ts`'s `shouldEscalate`,
@@ -96,6 +96,15 @@ export const humanizeSpamFailureReason = (
  * like this one; this is the one place synthesizing a failure from a 200
  * body, so it has to synthesize both.
  */
+export class SpamBulkFailureError extends ApiError {
+	constructor(
+		message: string,
+		readonly failureCount: number,
+	) {
+		super(message, 422);
+	}
+}
+
 export const throwOnBulkFailure = (
 	data: RemitImapSpamReportBulkResult,
 ): void => {
@@ -105,17 +114,16 @@ export const throwOnBulkFailure = (
 	const message = failure
 		? humanizeSpamFailureReason(reason, failure.messageId)
 		: reason;
-	throw new ApiError(message, 422);
+	throw new SpamBulkFailureError(message, data.failureCount);
 };
 
 /**
- * Composes `POST /messages/report-spam` and `POST /messages/not-spam`
- * (issue #648). Both fold the sender-flag write, the Junk move and the
- * `$Junk` keyword marker into one server-side operation
- * (`SpamReportService`) — the client only sends `messageIds` and reflects the
- * result, it does not sequence the three writes itself, and it never derives
- * "reported" from placement (a report on a message already in Junk — the
- * provider's own filter put it there — is a real, no-op-move case).
+ * Composes `POST /messages/report-spam` and `POST /messages/not-spam`. Both
+ * fold the sender-flag write, the mailbox move and the `$Junk` keyword marker
+ * into one server-side operation (`SpamReportService`); the client only sends
+ * `messageIds` and reflects the result. `notSpam` undoes a spam report;
+ * `moveOutOfSpam` sends the same request for unreported Junk messages and
+ * differs only in its failure copy.
  *
  * No optimistic cache patch, unlike `useMoveMessages`/`useDeleteMessages`:
  * neither endpoint's response says whether the message actually changed
@@ -123,7 +131,8 @@ export const throwOnBulkFailure = (
  * silent no-op), so predicting the row should vanish would flicker it back
  * on invalidation for a no-op — worst on `notSpam`, whose R2 wait can run
  * several seconds before the row "pops back". The list settles from
- * `onSuccess`'s invalidation instead, which is always correct. `isReporting`/
+ * `onSettled`'s invalidation instead, which also runs on a partial failure so
+ * the messages that did move leave the list. `isReporting`/
  * `isRestoring` below exist to pay for the UX this trades away: without them
  * a press produces no visible change at all until the request lands — the
  * caller wires them into the quick action's pending state.
@@ -156,21 +165,35 @@ export function useReportSpam({
 		}
 	};
 
-	const buildOnSuccess =
-		() => (_data: unknown, variables: { body: { messageIds: string[] } }) => {
-			invalidateAffectedQueries();
-			onAfterOptimisticRemove?.(variables.body.messageIds);
-		};
+	const onSuccess = (
+		_data: unknown,
+		variables: { body: { messageIds: string[] } },
+	) => {
+		onAfterOptimisticRemove?.(variables.body.messageIds);
+	};
 
 	const buildOnError =
 		(failureTitle: (count: number) => string) =>
 		(err: unknown, vars: { body: { messageIds: string[] } }) => {
+			const count =
+				err instanceof SpamBulkFailureError
+					? err.failureCount
+					: vars.body.messageIds.length;
 			pushError({
-				title: failureTitle(vars.body.messageIds.length),
+				title: failureTitle(count),
 				detail: formatErrorDetail(err),
 				error: err,
 			});
 		};
+
+	const sendNotSpam = async (variables: { body: { messageIds: string[] } }) => {
+		const { data } = await messageBulkOperationsNotSpam({
+			...variables,
+			throwOnError: true,
+		});
+		throwOnBulkFailure(data);
+		return data;
+	};
 
 	const report = useMutation({
 		mutationFn: async (variables: { body: { messageIds: string[] } }) => {
@@ -187,7 +210,8 @@ export function useReportSpam({
 		// isn't enough: `shouldEscalate` defaults to escalate for a non-5xx that
 		// doesn't opt out here.
 		meta: { softError: true },
-		onSuccess: buildOnSuccess(),
+		onSuccess,
+		onSettled: invalidateAffectedQueries,
 		onError: buildOnError((count) =>
 			count > 1
 				? `Couldn't report ${count} messages as spam`
@@ -196,20 +220,26 @@ export function useReportSpam({
 	});
 
 	const restore = useMutation({
-		mutationFn: async (variables: { body: { messageIds: string[] } }) => {
-			const { data } = await messageBulkOperationsNotSpam({
-				...variables,
-				throwOnError: true,
-			});
-			throwOnBulkFailure(data);
-			return data;
-		},
+		mutationFn: sendNotSpam,
 		meta: { softError: true },
-		onSuccess: buildOnSuccess(),
+		onSuccess,
+		onSettled: invalidateAffectedQueries,
 		onError: buildOnError((count) =>
 			count > 1
 				? `Couldn't undo the spam report for ${count} messages`
 				: "Couldn't undo the spam report",
+		),
+	});
+
+	const moveOut = useMutation({
+		mutationFn: sendNotSpam,
+		meta: { softError: true },
+		onSuccess,
+		onSettled: invalidateAffectedQueries,
+		onError: buildOnError((count) =>
+			count > 1
+				? `Couldn't move ${count} messages out of Spam`
+				: "Couldn't move this message out of Spam",
 		),
 	});
 
@@ -233,12 +263,23 @@ export function useReportSpam({
 		[restore.mutateAsync],
 	);
 
+	const moveOutOfSpam = useCallback(
+		(messageIds: string[]) => {
+			if (messageIds.length === 0) return;
+			void runChunkedMutation(messageIds, (chunk) =>
+				moveOut.mutateAsync({ body: { messageIds: chunk } }),
+			);
+		},
+		[moveOut.mutateAsync],
+	);
+
 	return {
 		reportSpam,
 		notSpam,
+		moveOutOfSpam,
 		/** True while a report is in flight — wire into the "Report spam" quick action's pending state; a press with no visible response is the dead-button failure mode. */
 		isReporting: report.isPending,
 		/** True while an undo is in flight — wire into the "Not spam" quick action's pending state. */
-		isRestoring: restore.isPending,
+		isRestoring: restore.isPending || moveOut.isPending,
 	};
 }

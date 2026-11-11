@@ -1,3 +1,4 @@
+import { threadDetailOperationsListThreadMessagesOptions } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
 import type { RemitImapThreadMessageResponse } from "@remit/api-http-client/types.gen.ts";
 import {
 	CATEGORY_PRESENTATION,
@@ -5,11 +6,14 @@ import {
 	DialogBackdrop,
 	IntelligencePanel,
 	type IntelligenceQuickActions,
+	type SpamAction,
 	type ThreadCategory,
 	useModalFocus,
 } from "@remit/ui";
+import { useQueryClient } from "@tanstack/react-query";
 import { Sparkles } from "lucide-react";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { useJunkMailbox } from "../../hooks/useArchiveMailbox";
 import { useIntelligenceCalendar } from "../../hooks/useIntelligenceCalendar";
 import { useIntelligenceData } from "../../hooks/useIntelligenceData";
 import { useReportSpam } from "../../hooks/useReportSpam";
@@ -82,7 +86,7 @@ const CATEGORY_OVERRIDES: readonly CategoryOverride[] =
 export const resolveSpamAction = (
 	thread: { spamReport?: unknown },
 	inJunk: boolean,
-): "undoSpamReport" | "notSpam" | "reportSpam" => {
+): SpamAction => {
 	if (thread.spamReport) return "undoSpamReport";
 	if (inJunk) return "notSpam";
 	return "reportSpam";
@@ -235,8 +239,9 @@ function WiredPanel({
 	onReplyWithText,
 	onOpenThread,
 }: WiredPanelProps) {
-	const { data, address, addressId, inJunk, junkMessageIds } =
-		useIntelligenceData(thread, accountId);
+	const { data: threadData, address, addressId } = useIntelligenceData(thread);
+	const { junkMailboxId } = useJunkMailbox(accountId);
+	const queryClient = useQueryClient();
 	const calendar = useIntelligenceCalendar(
 		thread,
 		onReplyWithText,
@@ -250,20 +255,50 @@ function WiredPanel({
 		senderEmail,
 	});
 
-	const { reportSpam, notSpam, isReporting, isRestoring } = useReportSpam({
-		mailboxId: thread.mailboxId,
-		threadId: thread.threadId,
-		accountId,
-		onAfterOptimisticRemove,
-	});
+	const { reportSpam, notSpam, moveOutOfSpam, isReporting, isRestoring } =
+		useReportSpam({
+			mailboxId: thread.mailboxId,
+			threadId: thread.threadId,
+			accountId,
+			onAfterOptimisticRemove,
+		});
 	const telemetry = useTelemetry();
-	const spamAction = resolveSpamAction(thread, inJunk);
+	const spamAction = resolveSpamAction(
+		thread,
+		junkMailboxId !== undefined && thread.mailboxId === junkMailboxId,
+	);
+	const data = useMemo(
+		() => (threadData ? { ...threadData, spamAction } : null),
+		[threadData, spamAction],
+	);
 
 	const handleNotSpam = useCallback(() => {
-		notSpam(
-			spamAction === "undoSpamReport" ? [thread.messageId] : junkMessageIds,
-		);
-	}, [notSpam, spamAction, thread.messageId, junkMessageIds]);
+		if (spamAction === "undoSpamReport") {
+			notSpam([thread.messageId]);
+			return;
+		}
+		void queryClient
+			.ensureQueryData(
+				threadDetailOperationsListThreadMessagesOptions({
+					path: { threadId: thread.threadId },
+				}),
+			)
+			.then(({ items }) => {
+				const ids = new Set([thread.messageId]);
+				for (const message of items) {
+					if (message.mailboxId === junkMailboxId) ids.add(message.messageId);
+				}
+				moveOutOfSpam([...ids]);
+			});
+	}, [
+		notSpam,
+		moveOutOfSpam,
+		queryClient,
+		spamAction,
+		thread.messageId,
+		thread.threadId,
+		junkMailboxId,
+	]);
 
 	const handleReportSpam = useCallback(() => {
 		recordRescueSentToJunk(telemetry, {

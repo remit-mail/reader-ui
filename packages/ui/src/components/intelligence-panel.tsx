@@ -105,20 +105,17 @@ export interface IntelligenceData {
 	flags?: SenderFlagsIntel;
 	/** Where Remit placed this message and why. Absent when Remit recorded no verdict. */
 	placement?: PlacementIntel;
-	/** True when this message carries a spam report, so "Not spam" undoes it. */
-	spamReported?: boolean;
+	spamAction: SpamAction;
 }
+
+/** Which spam control the message offers: undo its spam report, move it out of Junk, or report it. */
+export type SpamAction = "undoSpamReport" | "notSpam" | "reportSpam";
 
 export interface IntelligenceQuickActions {
 	onToggleVip?: () => void;
 	onToggleMute?: () => void;
 	onReclassify?: () => void;
-	/**
-	 * "Not spam": on a reported message, undo the report — clears the sender
-	 * block and moves the message back where it came from (issue #648). On an
-	 * unreported Junk message, move the thread out of Junk and trust the sender
-	 * (reader#1553). Wired only for a reported or a Junk message.
-	 */
+	/** "Not spam": wired only when `spamAction` is not "reportSpam". */
 	onNotSpam?: () => void;
 	/**
 	 * "Report spam": move the message into Junk and block the sender (the
@@ -350,9 +347,10 @@ export function IntelligencePanel({
 		category,
 		flags = {},
 		placement,
-		spamReported = false,
+		spamAction,
 	} = data;
-	const notSpamPendingLabel = spamReported ? "Undoing…" : "Moving…";
+	const notSpamPendingLabel =
+		spamAction === "undoSpamReport" ? "Undoing…" : "Moving…";
 	const [ownTab, setOwnTab] = useState<IntelligenceTabId>(defaultTab);
 	const tabStripName = useId();
 	const activeTab = tab ?? ownTab;
@@ -479,7 +477,7 @@ export function IntelligencePanel({
 								/>
 							)}
 						</div>
-						{actions?.onNotSpam && spamReported && (
+						{actions?.onNotSpam && spamAction === "undoSpamReport" && (
 							<p className="mt-1.5 text-2xs text-fg-subtle">
 								You reported this message as spam
 							</p>

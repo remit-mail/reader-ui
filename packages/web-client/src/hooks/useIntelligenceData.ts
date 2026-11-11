@@ -1,7 +1,4 @@
-import {
-	addressOperationsSearchAddressesOptions,
-	threadDetailOperationsListThreadMessagesOptions,
-} from "@remit/api-http-client/@tanstack/react-query.gen.ts";
+import { addressOperationsSearchAddressesOptions } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
 import type {
 	RemitImapAddressResponse,
 	RemitImapThreadMessageResponse,
@@ -23,7 +20,6 @@ import {
 	pickSenderAddress,
 	senderAddressSearchQuery,
 } from "../lib/sender-address";
-import { useJunkMailbox } from "./useArchiveMailbox";
 
 /**
  * Format a creation timestamp as a human-readable "first seen" label.
@@ -276,25 +272,8 @@ export function buildPlacementIntel(
 	};
 }
 
-/**
- * The messages "Not spam" sends for a Junk thread: every message of the thread
- * that sits in Junk, and always the open one, which the thread read may not
- * have reached yet.
- */
-function junkMessageIdsOf(
-	thread: RemitImapThreadMessageResponse,
-	threadMessages: readonly RemitImapThreadMessageResponse[] | undefined,
-	junkMailboxId: string,
-): string[] {
-	const ids = new Set([thread.messageId]);
-	for (const message of threadMessages ?? []) {
-		if (message.mailboxId === junkMailboxId) ids.add(message.messageId);
-	}
-	return [...ids];
-}
-
 export interface UseIntelligenceDataResult {
-	data: IntelligenceData | null;
+	data: Omit<IntelligenceData, "spamAction"> | null;
 	/**
 	 * True when the address lookup failed with a fatal first-party 5xx. The panel
 	 * must not silently render the sender's flags (VIP/muted/blocked) as absent —
@@ -312,10 +291,6 @@ export interface UseIntelligenceDataResult {
 	 * mutation hooks so they can optimistically patch the cache.
 	 */
 	address: RemitImapAddressResponse | undefined;
-	/** True when the message sits in the account's Junk mailbox. */
-	inJunk: boolean;
-	/** The thread's Junk messages, for "Not spam" on a Junk message. Empty outside Junk. */
-	junkMessageIds: string[];
 }
 
 /**
@@ -328,21 +303,8 @@ export interface UseIntelligenceDataResult {
  */
 export function useIntelligenceData(
 	thread: RemitImapThreadMessageResponse | null | undefined,
-	accountId?: string,
 ): UseIntelligenceDataResult {
 	const senderEmail = thread?.fromEmail ?? null;
-	const { junkMailboxId } = useJunkMailbox(accountId ?? thread?.accountId);
-	const inJunk =
-		thread != null &&
-		junkMailboxId !== undefined &&
-		thread.mailboxId === junkMailboxId;
-
-	const { data: threadMessages } = useQuery({
-		...threadDetailOperationsListThreadMessagesOptions({
-			path: { threadId: thread?.threadId ?? "" },
-		}),
-		enabled: inJunk,
-	});
 
 	// --- Address lookup: flags + first-seen timestamp ---
 	const { data: addressSearchResult, error: addressError } = useQuery({
@@ -358,7 +320,7 @@ export function useIntelligenceData(
 		senderEmail ?? undefined,
 	);
 
-	const data = useMemo((): IntelligenceData | null => {
+	const data = useMemo((): Omit<IntelligenceData, "spamAction"> | null => {
 		if (!thread) return null;
 
 		const sender = buildSenderIntel(thread, address);
@@ -375,24 +337,13 @@ export function useIntelligenceData(
 			category,
 			flags,
 			placement: buildPlacementIntel(thread),
-			spamReported: Boolean(thread.spamReport),
 		};
 	}, [thread, address]);
-
-	const junkMessageIds = useMemo(
-		() =>
-			thread && inJunk && junkMailboxId
-				? junkMessageIdsOf(thread, threadMessages?.items, junkMailboxId)
-				: [],
-		[thread, inJunk, junkMailboxId, threadMessages?.items],
-	);
 
 	return {
 		data,
 		addressErrorIsFatal: isServerError(addressError),
 		addressId: address?.addressId,
 		address,
-		inJunk,
-		junkMessageIds,
 	};
 }

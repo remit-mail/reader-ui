@@ -608,7 +608,7 @@ function MailboxPaneProvider({
 	});
 
 	const { addressId: focusedAddressId, address: focusedAddress } =
-		useIntelligenceData(focusedThread, mailboxAccountId);
+		useIntelligenceData(focusedThread);
 	const { updateFlags: updateFocusedSenderFlags } = useUpdateAddressFlags({
 		addressId: focusedAddressId,
 		senderEmail: focusedThread?.fromEmail ?? undefined,

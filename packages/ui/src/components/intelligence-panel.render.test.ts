@@ -27,6 +27,7 @@ const vipWithFailingAuthenticity: IntelligenceData = {
 		summary: "Signed by custmx.one.example instead.",
 	},
 	category: { value: "personal" },
+	spamAction: "reportSpam",
 	flags: { vip: true },
 };
 

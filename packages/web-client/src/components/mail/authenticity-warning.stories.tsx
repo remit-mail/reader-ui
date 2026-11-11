@@ -53,6 +53,7 @@ const intelligence: IntelligenceData = {
 			"The display name claims “Mondial Relay”, but the message was sent and signed by a personal gmail.example mailbox — not mondialrelay.fr. Real carriers send from their own domain.",
 	},
 	category: { value: "automated" },
+	spamAction: "reportSpam",
 	flags: {},
 };
 
@@ -153,6 +154,7 @@ export const VipUnrelatedDisplayName: Story = {
 				},
 				authenticity: buildAuthenticityIntel(vipThread),
 				category: { value: "automated" },
+				spamAction: "reportSpam",
 				flags: { vip: true },
 			}}
 			calendar={quietCalendar}

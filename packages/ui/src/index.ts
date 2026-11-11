@@ -573,6 +573,7 @@ export {
 	type SenderFlagsIntel,
 	type SenderIntel,
 	type SenderTrustLevel,
+	type SpamAction,
 } from "./components/intelligence-panel.js";
 export type { PlacementIntel } from "./components/intelligence-placement.js";
 export { IntelligenceSection } from "./components/intelligence-section.js";

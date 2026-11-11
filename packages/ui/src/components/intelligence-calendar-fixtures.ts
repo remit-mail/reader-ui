@@ -366,6 +366,7 @@ export const organiserSender: IntelligenceData = {
 		summary: "This message was signed by northwind.example.",
 	},
 	category: { value: "personal" },
+	spamAction: "reportSpam",
 	flags: { vip: true },
 };
 
@@ -385,4 +386,5 @@ export const airlineSender: IntelligenceData = {
 		summary: "This message was signed by klm.example.",
 	},
 	category: { value: "transactional" },
+	spamAction: "reportSpam",
 };

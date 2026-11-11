@@ -58,6 +58,7 @@ const intelligence: IntelligenceData = {
 			"The display name claims “Mondial Relay”, but the message was sent and signed by a personal gmail.example mailbox — not mondialrelay.fr.",
 	},
 	category: { value: "automated" },
+	spamAction: "reportSpam",
 };
 
 interface Message {
