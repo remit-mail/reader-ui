@@ -130,7 +130,6 @@ const mistral: RemitImapClassificationConfigured = {
 	presetId: "Mistral",
 	model: "mistral-small-latest",
 	baseUrl: "",
-	apiKeySaved: true,
 	enabled: false,
 	dailyLimit: 500,
 	sources: allSaved,
@@ -154,7 +153,6 @@ const local: RemitImapClassificationConfigured = {
 	presetId: "Local",
 	model: "llama3.1:8b",
 	baseUrl: "http://gpu-box.lan:11434/v1",
-	apiKeySaved: false,
 	enabled: true,
 	dailyLimit: 500,
 	sources: {
@@ -241,9 +239,6 @@ const settingsHandlers = (
 				presetId,
 				model: body.classificationModel ?? previous.model,
 				baseUrl: body.classificationBaseUrl ?? previous.baseUrl,
-				apiKeySaved:
-					body.classificationApiKey !== undefined ||
-					(body.classificationPresetId === undefined && previous.apiKeySaved),
 				sources: {
 					...previous.sources,
 					apiKey:

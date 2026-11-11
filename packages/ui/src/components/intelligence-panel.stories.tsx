@@ -169,7 +169,7 @@ export const Reportable: Story = {
  */
 export const Reported: Story = {
 	args: {
-		data: base,
+		data: { ...base, spamReported: true },
 		actions: { onNotSpam: () => {} },
 	},
 };
@@ -178,7 +178,7 @@ export const Reported: Story = {
  * Neither action is offered. The panel hides the pair rather than disabling
  * it — unlike VIP/Mute, which always render and go visibly
  * unavailable with no handler (issue #51). The host's own wiring never
- * actually reaches this: `resolveSpamAction` always returns one of the two,
+ * actually reaches this: `resolveSpamAction` always wires one of the two,
  * since every message either carries a spam report or doesn't. Kept as a
  * defensive state for a host that doesn't wire the pair at all.
  */
@@ -208,10 +208,70 @@ export const ReportSpamPending: Story = {
 	},
 };
 
+const unknownSender: IntelligenceData["sender"] = {
+	name: "Weekly Deals",
+	email: "news@deals.example",
+	trust: "unknown",
+	firstSeenLabel: "today",
+};
+
+/**
+ * Remit judged a Junk arrival as if it had reached the Inbox, found nothing
+ * that marks it as junk, and moved it out (reader#1553). The reason code the
+ * table does not know renders as the code itself.
+ */
+export const MovedOutOfJunkUnsure: Story = {
+	args: {
+		data: {
+			...base,
+			sender: unknownSender,
+			category: { value: "newsletter" },
+			placement: {
+				action: "MoveToInbox",
+				confidence: "Unsure",
+				fromPlacement: "junk",
+				reasons: ["no-confident-signal", "newer-server-code"],
+				dryRun: false,
+			},
+		},
+		actions: { onReportSpam: () => {} },
+	},
+};
+
+/**
+ * The classifier called a Junk arrival spam, so Remit kept it in Junk. "Not
+ * spam" shows although nobody reported it, and no "you reported" line follows.
+ */
+export const KeptInJunkByClassifier: Story = {
+	args: {
+		data: {
+			...base,
+			sender: unknownSender,
+			category: { value: "automated" },
+			placement: {
+				action: "MoveToJunk",
+				confidence: "Confident",
+				fromPlacement: "junk",
+				reasons: ["classifier=spam"],
+				dryRun: false,
+			},
+		},
+		actions: { onNotSpam: () => {} },
+	},
+};
+
+/** An Inbox message Remit left alone records no verdict, so no placement section shows. */
+export const LeftInInboxNoVerdict: Story = {
+	args: {
+		data: base,
+		actions: { onReportSpam: () => {} },
+	},
+};
+
 /** The undo direction's equivalent — "Undoing…" while `notSpam` is in flight. */
 export const NotSpamPending: Story = {
 	args: {
-		data: base,
+		data: { ...base, spamReported: true },
 		actions: { onNotSpam: () => {} },
 		notSpamPending: true,
 	},

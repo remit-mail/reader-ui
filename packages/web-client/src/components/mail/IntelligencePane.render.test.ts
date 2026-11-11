@@ -48,7 +48,7 @@ const ReportHarness = () => {
 const UndoHarness = () => {
 	const { notSpam, isRestoring } = useReportSpam({ mailboxId: "mbx-junk" });
 	return createElement(IntelligencePanel, {
-		data: baseData,
+		data: { ...baseData, spamReported: true },
 		actions: { onNotSpam: () => notSpam(["msg-1"]) },
 		notSpamPending: isRestoring,
 	});
