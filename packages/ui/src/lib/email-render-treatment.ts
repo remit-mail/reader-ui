@@ -28,7 +28,8 @@ export type EmailRenderCategory =
 	| "marketing"
 	| "automated"
 	| "transactional"
-	| "social";
+	| "social"
+	| "coldOutreach";
 
 export interface EmailRenderTreatment {
 	/** Designed mail: render framed + light-mode, preserve author colors. */

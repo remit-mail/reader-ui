@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
+import { expect, within } from "storybook/test";
 import type { NavAccount } from "./app-shell-types.js";
 import { NavSidebar } from "./nav-sidebar.js";
 
@@ -78,6 +79,29 @@ export const Brief: Story = { args: { selectedNavId: "brief" } };
 export const Flagged: Story = { args: { selectedNavId: "flagged" } };
 
 export const Settings: Story = { args: { selectedNavId: "settings" } };
+
+export const WithLabels: Story = {
+	args: {
+		selectedNavId: "label:priority",
+		labels: [
+			{ id: "label:priority", name: "Priority", color: "Red" },
+			{ id: "label:promoties", name: "Promoties", color: "Orange" },
+			{ id: "label:notifications", name: "Notifications", color: "Default" },
+		],
+	},
+	play: async ({ canvasElement }) => {
+		const canvas = within(canvasElement);
+		const entries = canvas
+			.getAllByRole("button")
+			.map((button) => button.textContent);
+		await expect(entries.slice(0, 4)).toEqual([
+			"Daily brief7",
+			"Priority",
+			"Promoties",
+			"Notifications",
+		]);
+	},
+};
 
 export const ManyFolders: Story = {
 	args: {

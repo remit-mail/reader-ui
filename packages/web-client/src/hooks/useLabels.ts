@@ -2,11 +2,12 @@ import {
 	labelDetailOperationsDeleteLabelMutation,
 	labelDetailOperationsUpdateLabelMutation,
 	labelOperationsCreateLabelMutation,
-	labelOperationsListLabelsOptions,
 	labelOperationsListLabelsQueryKey,
 } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
+import { labelOperationsListLabels } from "@remit/api-http-client/sdk.gen.ts";
 import type {
 	RemitImapLabelColor,
+	RemitImapLabelResponse,
 	RemitImapUpdateLabelInput,
 } from "@remit/api-http-client/types.gen.ts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -21,17 +22,39 @@ import { useCallback } from "react";
 export const buildLabelListKey = (accountId: string) =>
 	labelOperationsListLabelsQueryKey({ path: { accountId } });
 
-/** List the account's labels. */
+const listAllLabels = async (
+	accountId: string,
+): Promise<RemitImapLabelResponse[]> => {
+	const labels: RemitImapLabelResponse[] = [];
+	let continuationToken: string | undefined;
+	do {
+		const { data } = await labelOperationsListLabels({
+			path: { accountId },
+			query: { continuationToken },
+			throwOnError: true,
+		});
+		labels.push(...data.items);
+		continuationToken = data.continuationToken;
+	} while (continuationToken);
+	return labels;
+};
+
+const NO_LABELS: RemitImapLabelResponse[] = [];
+
+/**
+ * The user's labels, every page of them. Labels belong to the user rather than
+ * to one account, so any of their accounts answers for all of them.
+ */
 export const useLabelList = (accountId: string | undefined) => {
 	const query = useQuery({
-		...labelOperationsListLabelsOptions({
-			path: { accountId: accountId ?? "" },
-		}),
+		queryKey: buildLabelListKey(accountId ?? ""),
+		queryFn: () => listAllLabels(accountId ?? ""),
 		enabled: !!accountId,
 	});
 
 	return {
-		labels: query.data?.items ?? [],
+		labels: query.data ?? NO_LABELS,
+		isSuccess: query.isSuccess,
 		isPending: query.isPending,
 		isError: query.isError,
 		error: query.error,

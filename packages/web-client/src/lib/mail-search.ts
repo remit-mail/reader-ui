@@ -24,6 +24,9 @@ export const briefSearchSchema = listSearch.extend({});
 /** The same, for `/mail/flagged/<thread>/<message>`. */
 export const flaggedSearchSchema = listSearch.extend({});
 
+/** The same, for `/mail/label/<label>/<thread>/<message>`. */
+export const labelSearchSchema = listSearch.extend({});
+
 /**
  * The outbox's open message is a path segment
  * (`/mail/outbox/draft/<outboxMessageId>`), so the query carries nothing but
@@ -61,6 +64,7 @@ export const mailListSearchSchemas = {
 	"/mail/flagged": flaggedSearchSchema,
 	"/mail/outbox": outboxSearchSchema,
 	"/mail/$mailboxId": mailboxSearchSchema,
+	"/mail/label/$labelId": labelSearchSchema,
 } as const;
 
 export const composeSeedSearch = z.object({ body: z.string().optional() });
@@ -78,4 +82,5 @@ export const replySearchSchemas = {
 	brief: briefSearchSchema.extend(composeSeedSearch.shape),
 	flagged: flaggedSearchSchema.extend(composeSeedSearch.shape),
 	mailbox: mailboxSearchSchema.extend(composeSeedSearch.shape),
+	label: labelSearchSchema.extend(composeSeedSearch.shape),
 } as const;

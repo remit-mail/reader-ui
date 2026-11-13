@@ -1,6 +1,7 @@
 /**
- * The starred listing — `GET /threads?starred=true`, served by the `byStarred`
- * index — as one hook, so the Starred pane's list and its selection resolve
+ * A collection listing — `GET /threads?starred=true`, served by the
+ * `byStarred` index, or `GET /threads?labelId=…`, one label's folder in every
+ * account — as one hook, so a collection pane's list and its selection resolve
  * from the same query.
  *
  * The two are the same cache entry, not two requests: they share a query key,
@@ -27,10 +28,11 @@ import { unifiedThreadOperationsListAllThreads } from "@remit/api-http-client/sd
 import type { RemitImapThreadMessageResponse } from "@remit/api-http-client/types.gen.ts";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
+import type { ThreadCollection } from "../lib/collection-criteria";
 import type { ThreadSearchTokenParams } from "../lib/thread-search-tokens";
 
-/** The criteria the Flagged view narrows its listing by, all server-applied. */
-export interface StarredCriteria extends ThreadSearchTokenParams {
+/** The criteria a collection view narrows its listing by, all server-applied. */
+export interface CollectionCriteria extends ThreadSearchTokenParams {
 	/**
 	 * Free text, matched against subject, From and the body preview over the
 	 * whole collection.
@@ -38,21 +40,27 @@ export interface StarredCriteria extends ThreadSearchTokenParams {
 	query?: string;
 }
 
-// `starred` and `order` are the view itself, not a criterion, so they are set
-// last: no chip can widen the listing past starred mail or reorder it.
-const starredQuery = (criteria: StarredCriteria) => ({
+// The collection and `order` are the view itself, not a criterion, so they are
+// set last: no chip can widen the listing past the collection or reorder it.
+const collectionQuery = (
+	collection: ThreadCollection,
+	criteria: CollectionCriteria,
+) => ({
 	...criteria,
-	starred: true as const,
+	...collection,
 	order: "desc" as const,
 });
 
-export const starredThreadsQueryKey = (criteria: StarredCriteria = {}) =>
+export const collectionThreadsQueryKey = (
+	collection: ThreadCollection,
+	criteria: CollectionCriteria = {},
+) =>
 	unifiedThreadOperationsListAllThreadsQueryKey({
-		query: starredQuery(criteria),
+		query: collectionQuery(collection, criteria),
 	});
 
-interface StarredThreads {
-	/** Every matching starred thread across the pages loaded so far, newest first. */
+interface CollectionThreads {
+	/** Every matching thread across the pages loaded so far, newest first. */
 	threads: RemitImapThreadMessageResponse[];
 	isLoading: boolean;
 	isError: boolean;
@@ -63,9 +71,10 @@ interface StarredThreads {
 	isFetchingNextPage: boolean;
 }
 
-export function useStarredThreads(
-	criteria: StarredCriteria = {},
-): StarredThreads {
+export function useCollectionThreads(
+	collection: ThreadCollection,
+	criteria: CollectionCriteria = {},
+): CollectionThreads {
 	const {
 		data,
 		isLoading,
@@ -76,11 +85,11 @@ export function useStarredThreads(
 		hasNextPage,
 		isFetchingNextPage,
 	} = useInfiniteQuery({
-		queryKey: starredThreadsQueryKey(criteria),
+		queryKey: collectionThreadsQueryKey(collection, criteria),
 		queryFn: async ({ pageParam }) => {
 			const { data: page } = await unifiedThreadOperationsListAllThreads({
 				query: {
-					...starredQuery(criteria),
+					...collectionQuery(collection, criteria),
 					continuationToken: pageParam,
 				},
 				throwOnError: true,
@@ -110,7 +119,8 @@ export function useStarredThreads(
 }
 
 /**
- * How many of the matching starred messages are unread, counted by the server.
+ * How many of the collection's matching messages are unread, counted by the
+ * server.
  *
  * Its own request, so no cursor enters the key and pressing "load more" cannot
  * move the number — the count is over the whole collection under the active
@@ -122,11 +132,12 @@ export function useStarredThreads(
  * Undefined until the server answers, and undefined when it cannot. The header
  * shows no number rather than a made-up one.
  */
-export function useStarredUnreadCount(
-	criteria: StarredCriteria = {},
+export function useCollectionUnreadCount(
+	collection: ThreadCollection,
+	criteria: CollectionCriteria = {},
 ): number | undefined {
 	const query = {
-		...starredQuery(criteria),
+		...collectionQuery(collection, criteria),
 		unread: true,
 		count: true,
 		results: false,

@@ -30,9 +30,9 @@
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.5.4",
-		"@remit/api-http-client": "0.0.93",
-		"@remit/data-ports": "0.0.93",
-		"@remit/domain-enums": "0.0.44",
+		"@remit/api-http-client": "0.0.101",
+		"@remit/data-ports": "2.7.1",
+		"@remit/domain-enums": "0.0.52",
 		"@remit/mail-oauth-service": "0.0.9",
 		"@remit/spellcheck-engine": "0.0.1",
 		"@tanstack/react-query": "5.101.2",

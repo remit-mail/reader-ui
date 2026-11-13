@@ -18,7 +18,8 @@ export type ThreadCategory =
 	| "marketing"
 	| "automated"
 	| "transactional"
-	| "social";
+	| "social"
+	| "coldOutreach";
 
 /** "all" (no category narrowing) plus every content-type category. */
 export type BriefCategoryFilter = ThreadCategory | "all";
@@ -57,7 +58,7 @@ export const CATEGORY_PRESENTATION: readonly CategoryPresentation[] = [
 		category: "uncategorized",
 		label: "Unclassified",
 		tone: "neutral",
-		section: 7,
+		section: 8,
 	},
 	{
 		category: "transactional",
@@ -69,6 +70,12 @@ export const CATEGORY_PRESENTATION: readonly CategoryPresentation[] = [
 	{ category: "marketing", label: "Marketing", tone: "neutral", section: 4 },
 	{ category: "social", label: "Social", tone: "warning", section: 5 },
 	{ category: "automated", label: "Automated", tone: "neutral", section: 6 },
+	{
+		category: "coldOutreach",
+		label: "Cold outreach",
+		tone: "neutral",
+		section: 7,
+	},
 ];
 
 /** Every category in the brief's section order, which ends with Unclassified. */

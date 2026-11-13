@@ -43,7 +43,11 @@ export {
 	useSetOpenPanels,
 } from "./fragment";
 export { NavLink, type NavLinkProps } from "./nav-link";
-export { useSelectedNavId } from "./nav-selection";
+export {
+	labelIdOfNavId,
+	labelNavId,
+	useSelectedNavId,
+} from "./nav-selection";
 export {
 	type OpenThreadOptions,
 	type OpenThreadPath,

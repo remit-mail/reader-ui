@@ -5,6 +5,7 @@ import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { buildMailboxRoleMap, labelForMailbox } from "../lib/folder-roles";
 import { useBrowsedList } from "../routing";
+import { useLabelList } from "./useLabels";
 
 interface UseCurrentMailboxNameOptions {
 	accounts: RemitImapAccountResponse[];
@@ -17,6 +18,7 @@ interface UseCurrentMailboxNameOptions {
  *
  * Priority:
  *   - `/mail/outbox` → "Outbox"
+ *   - `/mail/label/$labelId` → the label's name
  *   - `/mail/$mailboxId` → display name from the mailbox query
  *   - everything else (e.g. `/mail` mid-redirect) → `null`
  *
@@ -27,7 +29,8 @@ interface UseCurrentMailboxNameOptions {
 export const useCurrentMailboxName = ({
 	accounts,
 }: UseCurrentMailboxNameOptions): string | null => {
-	const { list, mailboxId } = useBrowsedList();
+	const { list, mailboxId, labelId } = useBrowsedList();
+	const { labels } = useLabelList(accounts[0]?.accountId);
 	const { t } = useTranslation("mail", { useSuspense: false });
 	const translator = useCallback(
 		(key: string, fallback: string) => t(key, { defaultValue: fallback }),
@@ -44,6 +47,8 @@ export const useCurrentMailboxName = ({
 	});
 
 	if (list === "outbox") return "Outbox";
+	if (list === "label")
+		return labels.find((label) => label.labelId === labelId)?.name ?? null;
 	if (!mailboxId) return null;
 
 	for (let i = 0; i < accounts.length; i++) {

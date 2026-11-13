@@ -1,9 +1,10 @@
 /**
- * FlaggedList — a FLAT, cross-account inbox of starred mail.
+ * CollectionList — a FLAT, cross-account inbox of starred mail, or of one
+ * label's mail.
  *
- * Reads the starred listing through `useStarredThreads` — GET /threads with
- * `starred=true`, served by the `byStarred` index — which returns every starred
- * thread in the config across all non-muted mailboxes, paged. Every row names
+ * Reads the collection listing through `useCollectionThreads` — GET /threads
+ * with `starred=true`, served by the `byStarred` index, or with `labelId`,
+ * which reads the label's folder in every non-muted account — paged. Every row names
  * its thread, which is the whole address a conversation opens by, so a starred
  * message filed outside the inbox opens like any other. Starredness is decided
  * server-side from `hasStars`; the client neither re-filters nor caps the set,
@@ -36,19 +37,22 @@ import {
 	type Verb,
 } from "@remit/ui";
 import { type RefObject, useCallback, useMemo, useState } from "react";
+import {
+	useCollectionThreads,
+	useCollectionUnreadCount,
+} from "../../hooks/useCollectionThreads";
 import { useIsDesktop } from "../../hooks/useMediaQuery";
 import { useSearchTokenContext } from "../../hooks/useSearchTokenContext";
-import {
-	useStarredThreads,
-	useStarredUnreadCount,
-} from "../../hooks/useStarredThreads";
 import type { TriageContextUpdate } from "../../hooks/useTriageLayer";
 import { matchesSearchTokens, toThreadRowData } from "../../lib/brief";
 import {
 	buildBugReportContext,
 	buildGitHubIssueUrl,
 } from "../../lib/bug-report";
-import { flaggedCriteria } from "../../lib/flagged-criteria";
+import {
+	collectionCriteria,
+	type ThreadCollection,
+} from "../../lib/collection-criteria";
 import { useListHeaderChrome } from "../../lib/list-header-chrome";
 import { listNarrowing } from "../../lib/list-narrowing";
 import { useMailContext } from "../../lib/mail-context";
@@ -77,11 +81,11 @@ import {
  * offers "make this a filter" wherever a search is active, and the step that
  * affordance pushes has to be answered on the view that offered it — an
  * affordance whose press lands on nothing is the dead button clause 1.7 exists
- * to prevent. Starred spans accounts and mailboxes, so a rule made from the
+ * to prevent. A collection spans accounts and mailboxes, so a rule made from the
  * ticked rows has no single account to belong to; a rule made from the query
  * belongs to the account the query names, which the host reads for itself.
  */
-function StarredWizardHost({
+function CollectionWizardHost({
 	rows,
 	verb,
 }: {
@@ -103,10 +107,13 @@ function StarredWizardHost({
 	);
 }
 
-interface FlaggedListProps {
+interface CollectionListProps {
+	collection: ThreadCollection;
+	/** What the list header and the empty state call the collection. */
+	title: string;
 	selectedMessageId?: string;
 	/**
-	 * Opens a row. Every starred row names its thread, so a message filed outside
+	 * Opens a row. Every row names its thread, so a message filed outside
 	 * the inbox opens by exactly the same route as one inside it.
 	 */
 	onOpenThread?: (
@@ -120,13 +127,15 @@ interface FlaggedListProps {
 	onDeleteMessages: (messageIds: string[]) => void;
 }
 
-export function FlaggedList({
+export function CollectionList({
+	collection,
+	title,
 	selectedMessageId,
 	onOpenThread,
 	commandsRef,
 	onTriageContextChange,
 	onDeleteMessages,
-}: FlaggedListProps) {
+}: CollectionListProps) {
 	const { searchQuery, resultFolderIndex, onSearchClearQuery } =
 		useMailContext();
 	const tokenContext = useSearchTokenContext();
@@ -175,11 +184,12 @@ export function FlaggedList({
 	// `category:personal` narrows the request exactly as the chip does.
 	const { criteria, residual: residualTokens } = useMemo(
 		() =>
-			flaggedCriteria(
+			collectionCriteria(
+				collection,
 				{ category: selectedCategory, attributes: activeFilters },
 				queryTokens,
 			),
-		[selectedCategory, activeFilters, queryTokens],
+		[collection, selectedCategory, activeFilters, queryTokens],
 	);
 	const textCriteria = useMemo(
 		() => (sq ? { ...criteria, query: sq } : criteria),
@@ -199,7 +209,7 @@ export function FlaggedList({
 		fetchNextPage,
 		hasNextPage,
 		isFetchingNextPage,
-	} = useStarredThreads(textCriteria);
+	} = useCollectionThreads(collection, textCriteria);
 
 	const rows = useMemo<ThreadRowData[]>(
 		() =>
@@ -241,18 +251,22 @@ export function FlaggedList({
 	// The server's count over the whole collection under the active criteria.
 	// `null` while it is in flight and `null` when it cannot be had, and the
 	// header then shows no number — never a page length dressed as a total.
-	const unreadCount = useStarredUnreadCount(textCriteria) ?? null;
+	const unreadCount =
+		useCollectionUnreadCount(collection, textCriteria) ?? null;
 
 	// An empty list has to say how much was looked at, and the answer comes off
 	// the request. Every chip, the free text and every carried token is a field
 	// on the row, so the server answered each over the whole collection; only a
 	// residual token — a date, a mailbox, an account — saw the loaded pages.
 	//
-	// `is:starred` is dropped: this view is starred mail, so the token restates
-	// the collection rather than narrowing it.
+	// On Starred, `is:starred` is dropped: the token restates the collection
+	// rather than narrowing it.
 	const narrowingTokens = useMemo(
-		() => queryTokens.filter((token) => token.type !== "isStarred"),
-		[queryTokens],
+		() =>
+			"starred" in collection
+				? queryTokens.filter((token) => token.type !== "isStarred")
+				: queryTokens,
+		[collection, queryTokens],
 	);
 	const listFilter: MessageListFilter | undefined = listNarrowing({
 		chips: { category: selectedCategory, attributes: activeFilters },
@@ -304,7 +318,7 @@ export function FlaggedList({
 
 	return (
 		<MailViewChrome
-			title="Starred"
+			title={title}
 			unreadCount={unreadCount}
 			preset={preset}
 			selectedCategory={selectedCategory}
@@ -331,15 +345,15 @@ export function FlaggedList({
 				onTriageContextChange={onTriageContextChange}
 			>
 				<MessageListPane
-					listTitle="Starred"
-					sections={[{ id: "flagged", threads: rows }]}
+					listTitle={title}
+					sections={[{ id: "collection", threads: rows }]}
 					flatList
 					hideHeader
 					listState={chrome.searchResults ? "ready" : listState}
 					listFilter={listFilter}
-					// Flagged spans accounts and folders, so it is a collection and
-					// never "this mailbox". It names itself.
-					listScopeLabel="Starred"
+					// A collection spans accounts and folders, so it is never "this
+					// mailbox". It names itself.
+					listScopeLabel={title}
 					// The typed tokens narrow the list too, but `listFilter` already
 					// names them, and a headline saying one narrowing twice reads as two.
 					searchQuery={typedFreeText || undefined}
@@ -349,13 +363,13 @@ export function FlaggedList({
 					selectedThreadId={selectedMessageId}
 					onSelectThread={openRow}
 					isDesktop={isDesktop}
-					selectionBar={<ThreadListSelectionBar title="Starred" />}
+					selectionBar={<ThreadListSelectionBar title={title} />}
 					listBody={
 						chrome.searchResults ??
 						(listState === "ready" ? listBody : undefined)
 					}
 				/>
-				<StarredWizardHost rows={rows} verb={wizard.verb} />
+				<CollectionWizardHost rows={rows} verb={wizard.verb} />
 			</ThreadListInteraction>
 		</MailViewChrome>
 	);

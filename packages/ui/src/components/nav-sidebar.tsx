@@ -19,11 +19,13 @@ import {
 	Trash,
 } from "../icons.js";
 import { cn } from "../lib/cn.js";
+import { isLabelColorValue, labelDotClass } from "../lib/label-color.js";
 import { useRovingFocus } from "../lib/roving-focus.js";
 import { ACCOUNT_SERVICE_OFF_LABEL } from "./account-service-status.js";
 import type {
 	AppShellProps,
 	NavAccount,
+	NavLabel,
 	NavLinkComponent,
 	NavMailbox,
 	NavMailboxRole,
@@ -211,6 +213,17 @@ function roleIcon(role: NavMailboxRole): ReactNode {
 		case "trash":
 			return <Trash className="size-4" />;
 	}
+}
+
+function labelIcon(color: string): ReactNode {
+	const dotClass = isLabelColorValue(color)
+		? labelDotClass[color]
+		: labelDotClass.Default;
+	return (
+		<span className="flex size-4 items-center justify-center">
+			<span className={cn("size-2.5 rounded-full", dotClass)} />
+		</span>
+	);
 }
 
 const hasRole = (mb: NavMailbox): mb is NavMailbox & { role: NavMailboxRole } =>
@@ -493,6 +506,11 @@ export interface NavSidebarProps
 	 */
 	linkComponent?: NavLinkComponent;
 	/**
+	 * The labels, listed under the daily brief. Each is one entry across every
+	 * account.
+	 */
+	labels?: NavLabel[];
+	/**
 	 * Whether the calendar destination sits under the daily brief. Hidden by
 	 * default so a host with no calendar route behind it does not offer an entry
 	 * that leads nowhere.
@@ -507,6 +525,7 @@ export function NavSidebar({
 	onSelectNav,
 	variant = "desktop",
 	linkComponent,
+	labels = [],
 	calendarNav = "hidden",
 }: NavSidebarProps) {
 	const containerRef = useRef<HTMLElement>(null);
@@ -529,6 +548,19 @@ export function NavSidebar({
 				active={selectedNavId === "brief"}
 				onClick={() => onSelectNav?.("brief")}
 			/>
+
+			{labels.map((label) => (
+				<NavItem
+					key={label.id}
+					navId={label.id}
+					linkComponent={linkComponent}
+					icon={labelIcon(label.color)}
+					label={label.name}
+					ariaLabel={label.name}
+					active={selectedNavId === label.id}
+					onClick={() => onSelectNav?.(label.id)}
+				/>
+			))}
 
 			{calendarNav === "shown" && (
 				<NavItem

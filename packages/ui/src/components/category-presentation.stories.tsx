@@ -53,7 +53,7 @@ const CANONICAL: readonly CategoryPresentation[] = [
 		category: "uncategorized",
 		label: "Unclassified",
 		tone: "neutral",
-		section: 7,
+		section: 8,
 		total: 12,
 	},
 	{
@@ -90,6 +90,13 @@ const CANONICAL: readonly CategoryPresentation[] = [
 		tone: "neutral",
 		section: 6,
 		total: 2680,
+	},
+	{
+		category: "coldOutreach",
+		label: "Cold outreach",
+		tone: "neutral",
+		section: 7,
+		total: 31,
 	},
 ];
 

@@ -14,6 +14,7 @@ import { mailListSearchSchemas } from "../lib/mail-search";
 import { Route as MailboxRoute } from "../routes/mail/$mailboxId";
 import { Route as BriefRoute } from "../routes/mail/brief";
 import { Route as FlaggedRoute } from "../routes/mail/flagged";
+import { Route as LabelRoute } from "../routes/mail/label/$labelId";
 import { Route as OutboxRoute } from "../routes/mail/outbox";
 
 const routes = {
@@ -21,6 +22,7 @@ const routes = {
 	"/mail/flagged": FlaggedRoute,
 	"/mail/outbox": OutboxRoute,
 	"/mail/$mailboxId": MailboxRoute,
+	"/mail/label/$labelId": LabelRoute,
 } as const;
 
 for (const [path, route] of Object.entries(routes)) {

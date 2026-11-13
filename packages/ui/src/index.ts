@@ -83,6 +83,7 @@ export {
 	type NarrowView,
 	type NavAccount,
 	type NavAccountStatus,
+	type NavLabel,
 	type NavLinkComponent,
 	type NavLinkRenderProps,
 	type NavMailbox,

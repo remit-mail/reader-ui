@@ -12,7 +12,8 @@ import { useIsReplying } from "./reply";
  */
 export type SearchMirrorTarget =
 	| { to: "/mail/brief" | "/mail/flagged" | "/mail/outbox" }
-	| { to: "/mail/$mailboxId"; params: { mailboxId: string } };
+	| { to: "/mail/$mailboxId"; params: { mailboxId: string } }
+	| { to: "/mail/label/$labelId"; params: { labelId: string } };
 
 /**
  * Mirrors the settled search into the URL so links are shareable and a refresh
@@ -76,8 +77,15 @@ export function useSearchMirror(target: SearchMirrorTarget): void {
 	const isWriting = isComposing || isReplying;
 
 	const { to } = target;
-	const mailboxId = "params" in target ? target.params.mailboxId : undefined;
-	const listPath = mailboxId ? `/mail/${mailboxId}` : to;
+	const mailboxId =
+		target.to === "/mail/$mailboxId" ? target.params.mailboxId : undefined;
+	const labelId =
+		target.to === "/mail/label/$labelId" ? target.params.labelId : undefined;
+	const listPath = mailboxId
+		? `/mail/${mailboxId}`
+		: labelId
+			? `/mail/label/${labelId}`
+			: to;
 
 	useEffect(() => {
 		const mayWrite = shouldMirrorQuery({
@@ -115,6 +123,17 @@ export function useSearchMirror(target: SearchMirrorTarget): void {
 			});
 			return;
 		}
+		if (to === "/mail/label/$labelId") {
+			if (!labelId) return;
+			navigate({
+				to,
+				params: { labelId },
+				search,
+				hash: true,
+				replace: true,
+			});
+			return;
+		}
 		navigate({ to, search, hash: true, replace: true });
 	}, [
 		searchInput,
@@ -123,6 +142,7 @@ export function useSearchMirror(target: SearchMirrorTarget): void {
 		navigate,
 		to,
 		mailboxId,
+		labelId,
 		listPath,
 		pathname,
 		isWriting,

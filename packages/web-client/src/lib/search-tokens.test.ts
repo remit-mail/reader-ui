@@ -338,6 +338,7 @@ describe("SEARCH_TOKEN_SPECS", () => {
 		const category = SEARCH_TOKEN_SPECS.find((s) => s.name === "category");
 		assert.deepEqual(category?.options?.map((o) => o.value).sort(), [
 			"automated",
+			"coldOutreach",
 			"marketing",
 			"newsletter",
 			"personal",

@@ -78,8 +78,8 @@ export function routeMailboxId(browsed: BrowsedList): string | undefined {
 /**
  * The scope of the active route.
  *
- * `mailboxName` is the sidebar's own label for the mailbox route (resolved by
- * `useCurrentMailboxName`). Until it resolves the scope is `pending`: no chip,
+ * `mailboxName` is the sidebar's own name for the mailbox or label route
+ * (resolved by `useCurrentMailboxName`). Until it resolves the scope is `pending`: no chip,
  * because a chip reading a raw uuid is worse than none, but not `global`
  * either, because the list underneath is already narrowed.
  */
@@ -99,7 +99,7 @@ export function searchScopeForRoute(
 			chip: { id: SEARCH_SCOPE_CHIP_ID, label: "in:outbox" },
 		};
 	}
-	if (browsed.list === "mailbox") {
+	if (browsed.list === "mailbox" || browsed.list === "label") {
 		if (!mailboxName) return { kind: "pending" };
 		return {
 			kind: "scoped",
@@ -135,6 +135,7 @@ export function resultsScopeForRoute(
 	role?: FolderRole,
 ): ResultsScope {
 	if (state.kind === "global") return { kind: "global" };
-	if (browsed.list === "flagged") return { kind: "collection" };
+	if (browsed.list === "flagged" || browsed.list === "label")
+		return { kind: "collection" };
 	return { kind: "folder", ...(role ? { role } : {}) };
 }

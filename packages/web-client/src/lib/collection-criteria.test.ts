@@ -1,5 +1,5 @@
 /**
- * What the Flagged view asks the server for.
+ * What the Starred view asks the server for.
  *
  * #308: the chips became query parameters, and the tokens that ask for the same
  * thing have to travel the same way. A token evaluated over the pages loaded so
@@ -9,7 +9,7 @@
  */
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { flaggedCriteria } from "./flagged-criteria.js";
+import { collectionCriteria, STARRED } from "./collection-criteria.js";
 import type { InboxFilterCriteria } from "./inbox-filters.js";
 import { parseSearchTokens, type SearchToken } from "./search-tokens.js";
 
@@ -30,12 +30,14 @@ const tokensOf = (query: string): SearchToken[] =>
 	}).tokens;
 
 const criteriaOf = (query: string, filters = NO_CHIPS) =>
-	flaggedCriteria(filters, tokensOf(query)).criteria;
+	collectionCriteria(STARRED, filters, tokensOf(query)).criteria;
 
 const residualTypes = (query: string, filters = NO_CHIPS) =>
-	flaggedCriteria(filters, tokensOf(query)).residual.map((t) => t.type);
+	collectionCriteria(STARRED, filters, tokensOf(query)).residual.map(
+		(t) => t.type,
+	);
 
-describe("flaggedCriteria", () => {
+describe("collectionCriteria", () => {
 	test("a typed token asks for exactly what its chip asks for", () => {
 		assert.deepEqual(
 			criteriaOf("is:unread"),
@@ -97,7 +99,8 @@ describe("flaggedCriteria", () => {
 	});
 
 	test("the chip wins over a token that contradicts it", () => {
-		const { criteria, residual } = flaggedCriteria(
+		const { criteria, residual } = collectionCriteria(
+			STARRED,
 			chips("all", ["unread"]),
 			tokensOf("is:read"),
 		);

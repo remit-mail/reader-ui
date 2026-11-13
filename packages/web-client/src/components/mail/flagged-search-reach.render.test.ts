@@ -33,6 +33,7 @@ import {
 	RouterProvider,
 } from "@tanstack/react-router";
 import { createElement } from "react";
+import { STARRED } from "../../lib/collection-criteria";
 import { MailContext, type MailContextValue } from "../../lib/mail-context";
 import { MailFreshnessProvider } from "../../lib/mail-freshness";
 import { EMPTY_RESULT_FOLDER_INDEX } from "../../lib/result-folder";
@@ -46,7 +47,7 @@ import {
 	mockFetch,
 } from "../../test-support/http";
 import { ComposeProvider } from "../compose/ComposeProvider";
-import { FlaggedPane } from "./FlaggedPane";
+import { CollectionPane } from "./CollectionPane";
 
 const QUERY = "concierge";
 const DESKTOP_WIDTH = 1440;
@@ -118,10 +119,12 @@ const testRouter = (query: string): AnyRouter => {
 		getParentRoute: () => mailRoute,
 		path: "/flagged",
 		component: () =>
-			createElement(FlaggedPane, {
+			createElement(CollectionPane, {
+				collection: STARRED,
+				title: "Starred",
 				thread: useOpenThreadPath(),
 				// biome-ignore lint/correctness/noChildrenProp: no JSX in a `.ts` test, and createElement's variadic children do not satisfy a required prop
-				children: createElement(FlaggedPane.List),
+				children: createElement(CollectionPane.List),
 			}),
 	});
 	const routeTree = rootRoute.addChildren([

@@ -33,6 +33,7 @@ const makeLabel = (
 	createdAt: 0,
 	updatedAt: 0,
 	filterCount: 0,
+	folders: [],
 	...overrides,
 });
 

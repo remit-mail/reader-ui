@@ -192,6 +192,18 @@ export interface NavMailbox {
 	failure?: string;
 }
 
+/**
+ * A label, shown once whatever the number of accounts: one entry that lists the
+ * label's folder in every account.
+ */
+export interface NavLabel {
+	/** The nav id the entry links to and is selected by. */
+	id: string;
+	name: string;
+	/** The label's color name; a value the kit has no swatch for renders as Default. */
+	color: string;
+}
+
 /** Per-account mailbox-load status, so the nav can show loading/error inline. */
 export type NavAccountStatus = "loading" | "error" | "ready";
 

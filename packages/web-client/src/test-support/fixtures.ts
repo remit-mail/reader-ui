@@ -7,6 +7,7 @@
 import type {
 	RemitImapAccountResponse,
 	RemitImapConfigDescriptionResponse,
+	RemitImapLabelResponse,
 	RemitImapMailboxResponse,
 	RemitImapThreadMessageResponse,
 } from "@remit/api-http-client/types.gen.ts";
@@ -31,6 +32,21 @@ export const makeMailbox = (
 	syncFailureReason: "",
 	createdAt: 0,
 	updatedAt: 0,
+	...overrides,
+});
+
+export const makeLabel = (
+	overrides: Partial<RemitImapLabelResponse> & {
+		labelId: string;
+		name: string;
+	},
+): RemitImapLabelResponse => ({
+	accountConfigId: "cfg-1",
+	color: "Default",
+	createdAt: 0,
+	updatedAt: 0,
+	filterCount: 0,
+	folders: [],
 	...overrides,
 });
 
