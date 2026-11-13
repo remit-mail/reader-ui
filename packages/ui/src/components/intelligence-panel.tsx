@@ -105,11 +105,11 @@ export interface IntelligenceData {
 	flags?: SenderFlagsIntel;
 	/** Where Remit placed this message and why. Absent when Remit recorded no verdict. */
 	placement?: PlacementIntel;
-	spamAction: SpamAction;
+	spamAction: SpamQuickAction;
 }
 
 /** Which spam control the message offers: undo its spam report, move it out of Junk, or report it. */
-export type SpamAction = "undoSpamReport" | "notSpam" | "reportSpam";
+export type SpamQuickAction = "undoSpamReport" | "notSpam" | "reportSpam";
 
 export interface IntelligenceQuickActions {
 	onToggleVip?: () => void;

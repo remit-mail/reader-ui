@@ -327,6 +327,16 @@ export {
 	CategoryBadge,
 	type CategoryBadgeProps,
 } from "./components/category-badge.js";
+export {
+	type CheckAgainFailure,
+	type CheckAgainOutcome,
+	CheckAgainPanel,
+	type CheckAgainPanelProps,
+	CheckAgainResultTag,
+	type CheckAgainSummary,
+	checkAgainSummarySentence,
+	isRetryableCheckAgainFailure,
+} from "./components/check-again-panel.js";
 export { Checkbox, type CheckboxProps } from "./components/checkbox.js";
 export {
 	ComposeActionBar,
@@ -431,6 +441,10 @@ export {
 	ZONE_UNSETTLED_REASON,
 	type ZoneSettlement,
 } from "./components/event-suggestion-card.js";
+export {
+	FailureBanner,
+	type FailureBannerProps,
+} from "./components/failure-banner.js";
 export {
 	FieldLabel,
 	type FieldLabelProps,
@@ -573,7 +587,7 @@ export {
 	type SenderFlagsIntel,
 	type SenderIntel,
 	type SenderTrustLevel,
-	type SpamAction,
+	type SpamQuickAction,
 } from "./components/intelligence-panel.js";
 export type { PlacementIntel } from "./components/intelligence-placement.js";
 export { IntelligenceSection } from "./components/intelligence-section.js";
@@ -674,6 +688,10 @@ export {
 	type NavSidebarProps,
 } from "./components/nav-sidebar.js";
 export { NavToggleButton } from "./components/nav-toggle-button.js";
+export {
+	NeverInSpamOffer,
+	type NeverInSpamOfferProps,
+} from "./components/never-in-spam-offer.js";
 export {
 	NewFolderAction,
 	type NewFolderActionProps,
@@ -963,10 +981,73 @@ export {
 	SlidePanel,
 	type SlidePanelProps,
 } from "./components/slide-panel.js";
+export type {
+	MessageSpamVerdict,
+	SpamAction,
+	SpamChecked,
+	SpamFailed,
+	SpamFailureKind,
+	SpamKind,
+	SpamReason,
+	SpamReasonName,
+	SpamScreen,
+	SpamSenderScreenRule,
+	SpamVerdictScreenedOut,
+} from "./components/spam-contract.js";
+export {
+	BASIC_CHECKS_ONLY,
+	CHECK_AGAIN_FAILURE_SENTENCES,
+	CHECK_FAILED_HEADLINE,
+	filterScreenSentence,
+	formatSpamScore,
+	SCORE_RANGE_ERROR,
+	spamReasonSentence,
+	spamScoreSentence,
+	THRESHOLD_ORDER_ERROR,
+	type ThresholdDraft,
+	type ThresholdValidation,
+	topSpamReason,
+	topSpamReasonSentence,
+	UNKNOWN_REASON_SENTENCE,
+	validateThresholds,
+} from "./components/spam-copy.js";
+export {
+	SpamDailyChart,
+	type SpamDailyChartProps,
+	spamDayDescription,
+} from "./components/spam-daily-chart.js";
+export type {
+	CheckAgainFailureCause,
+	LabelSpamMode,
+	SpamDay,
+	SpamFlaggedMessage,
+	SpamLatestFlagged,
+	SpamModelSaid,
+	SpamModelSkip,
+	SpamOverview,
+	SpamPreviewCounts,
+	SpamThresholdPreview,
+	SpamThresholds,
+} from "./components/spam-proposed.js";
 export {
 	SpamResultsOffer,
 	type SpamResultsOfferProps,
 } from "./components/spam-results-offer.js";
+export {
+	SpamRowMarker,
+	type SpamRowMarkerProps,
+} from "./components/spam-row-marker.js";
+export {
+	SPAM_CHECK_HEADING_ID,
+	SpamVerdictPanel,
+	type SpamVerdictPanelLinks,
+	type SpamVerdictPanelProps,
+} from "./components/spam-verdict-panel.js";
+export {
+	SpamWarningBanner,
+	type SpamWarningBannerProps,
+	type SpamWarningPending,
+} from "./components/spam-warning-banner.js";
 export {
 	type Suggestion,
 	SuggestList,

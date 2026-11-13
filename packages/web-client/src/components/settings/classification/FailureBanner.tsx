@@ -1,6 +1,8 @@
-import { Banner, Button, formatErrorMessage } from "@remit/ui";
+import {
+	formatErrorMessage,
+	FailureBanner as SectionFailureBanner,
+} from "@remit/ui";
 import { classificationReportHref } from "../../../lib/classification";
-import { ReportLink } from "../ReportLink";
 
 export interface ClassificationFailure {
 	title: string;
@@ -16,17 +18,11 @@ export function FailureBanner({
 }) {
 	const message = formatErrorMessage(failure.error);
 	return (
-		<Banner tone="danger" variant="soft">
-			<p className="font-medium">{failure.title}</p>
-			<p className="mt-0.5 break-words text-fg-muted">{message}</p>
-			<p className="flex flex-wrap items-center gap-x-4">
-				{onRetry && (
-					<Button variant="secondary" className="min-h-11" onClick={onRetry}>
-						Retry
-					</Button>
-				)}
-				<ReportLink href={classificationReportHref(failure.title, message)} />
-			</p>
-		</Banner>
+		<SectionFailureBanner
+			title={failure.title}
+			message={message}
+			reportHref={classificationReportHref(failure.title, message)}
+			onRetry={onRetry}
+		/>
 	);
 }

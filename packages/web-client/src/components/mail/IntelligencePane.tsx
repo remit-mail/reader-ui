@@ -6,7 +6,7 @@ import {
 	DialogBackdrop,
 	IntelligencePanel,
 	type IntelligenceQuickActions,
-	type SpamAction,
+	type SpamQuickAction,
 	type ThreadCategory,
 	useModalFocus,
 } from "@remit/ui";
@@ -86,7 +86,7 @@ const CATEGORY_OVERRIDES: readonly CategoryOverride[] =
 export const resolveSpamAction = (
 	thread: { spamReport?: unknown },
 	inJunk: boolean,
-): SpamAction => {
+): SpamQuickAction => {
 	if (thread.spamReport) return "undoSpamReport";
 	if (inJunk) return "notSpam";
 	return "reportSpam";
