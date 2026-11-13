@@ -21,6 +21,7 @@ const baseThread = (
 		star: "None",
 		isDeleted: false,
 		senderTrust: "unknown",
+		spamVerdict: { state: "NotChecked" },
 		abandonedMutation: "none",
 		createdAt: 0,
 		updatedAt: 0,

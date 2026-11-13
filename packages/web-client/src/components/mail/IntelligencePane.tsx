@@ -2,7 +2,10 @@ import {
 	threadDetailOperationsListThreadMessagesOptions,
 	userSettingsOperationsGetUserSettingsOptions,
 } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
-import type { RemitImapThreadMessageResponse } from "@remit/api-http-client/types.gen.ts";
+import type {
+	RemitImapMessageSpamVerdict,
+	RemitImapThreadMessageResponse,
+} from "@remit/api-http-client/types.gen.ts";
 import {
 	CATEGORY_PRESENTATION,
 	categoryLabels,
@@ -241,20 +244,41 @@ function SpamCheckSection({
 	onNotSpam: () => void;
 }) {
 	const checkAgain = useCheckAgain();
-	const hrefs = useSpamHrefs();
 	const verdict =
 		checkAgain?.verdicts.get(thread.messageId) ?? thread.spamVerdict;
+	if (verdict.state === "NotChecked") return null;
+	return (
+		<SpamVerdictSection
+			thread={thread}
+			verdict={verdict}
+			accountId={accountId}
+			onNotSpam={onNotSpam}
+		/>
+	);
+}
+
+function SpamVerdictSection({
+	thread,
+	verdict,
+	accountId,
+	onNotSpam,
+}: {
+	thread: RemitImapThreadMessageResponse;
+	verdict: Exclude<RemitImapMessageSpamVerdict, { state: "NotChecked" }>;
+	accountId: string | undefined;
+	onNotSpam: () => void;
+}) {
+	const hrefs = useSpamHrefs();
 	const settings = useQuery({
 		...userSettingsOperationsGetUserSettingsOptions(),
 		meta: softErrorStatuses(403),
-		enabled: verdict.state !== "NotChecked",
 	});
 	const filterId =
 		verdict.state === "ScreenedOut" && verdict.screen.rule === "Filter"
 			? verdict.screen.filterId
 			: undefined;
 	const { filters } = useFilterList(filterId ? accountId : undefined);
-	if (verdict.state === "NotChecked" || !settings.data) return null;
+	if (!settings.data) return null;
 	const { spam } = settings.data;
 	const kind = verdict.state === "Checked" ? verdict.kind : "Spam";
 	return (
