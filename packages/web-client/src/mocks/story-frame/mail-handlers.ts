@@ -108,6 +108,7 @@ const describe = (
 		syncStatus: row.syncStatus,
 		abandonedMutation: row.abandonedMutation,
 		spamVerdict: row.spamVerdict,
+		spamCleared: row.spamCleared,
 	},
 	envelope: {
 		messageId: row.messageId,

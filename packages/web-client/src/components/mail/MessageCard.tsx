@@ -291,13 +291,10 @@ const ExpandedCard = ({
 								? () =>
 										checkAgain.checkAgain(
 											[
-												{
-													...checkAgainRequestOfThread(
-														threadMessage,
-														junkMailboxIds,
-													),
-													accountId: accountId ?? threadMessage.accountId,
-												},
+												checkAgainRequestOfThread(
+													threadMessage,
+													junkMailboxIds,
+												),
 											],
 											{ panel: false },
 										)

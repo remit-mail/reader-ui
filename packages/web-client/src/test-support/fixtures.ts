@@ -105,6 +105,7 @@ export const makeThreadMessage = (
 	senderTrust: "unknown",
 	muted: false,
 	spamVerdict: { state: "NotChecked" },
+	spamCleared: false,
 	createdAt: 0,
 	updatedAt: 0,
 	...overrides,

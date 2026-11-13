@@ -26,6 +26,7 @@ const thread = (
 	threadId: "t1",
 	threadMessageId: "tm1",
 	spamVerdict: { state: "NotChecked" },
+	spamCleared: false,
 	messageId: "m1",
 	accountConfigId: "cfg_1",
 	accountId: "acc_1",

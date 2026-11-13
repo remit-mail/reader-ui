@@ -1,8 +1,4 @@
-import {
-	configOperationsGetConfigOptions,
-	mailboxOperationsListMailboxesOptions,
-	threadDetailOperationsListThreadMessagesQueryKey,
-} from "@remit/api-http-client/@tanstack/react-query.gen.ts";
+import { threadDetailOperationsListThreadMessagesQueryKey } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
 import { accountMessageOperationsRescanMessages } from "@remit/api-http-client/sdk.gen.ts";
 import type {
 	RemitImapRescanFailureCode,
@@ -17,7 +13,7 @@ import {
 	type CheckAgainSummary,
 	type ThreadRowData,
 } from "@remit/ui";
-import { type QueryClient, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import {
 	createContext,
 	type ReactNode,
@@ -46,9 +42,7 @@ import {
 } from "../../lib/thread-list-cache";
 import { useErrorBanners } from "../ui/error-banner-context";
 
-export type CheckAgainRequest = Omit<CheckAgainTarget, "accountId"> & {
-	accountId: string | undefined;
-};
+export type CheckAgainRequest = CheckAgainTarget;
 
 export interface CheckAgainContextValue {
 	/**
@@ -83,41 +77,6 @@ type PanelRun =
 			failures: CheckAgainFailure[];
 			retry: CheckAgainTarget[];
 	  };
-
-const accountsByMailbox = async (
-	queryClient: QueryClient,
-): Promise<Map<string, string>> => {
-	const config = await queryClient.ensureQueryData(
-		configOperationsGetConfigOptions(),
-	);
-	const lists = await Promise.all(
-		config.accounts.map(async (account) => {
-			const mailboxes = await queryClient.ensureQueryData(
-				mailboxOperationsListMailboxesOptions({
-					path: { accountId: account.accountId },
-				}),
-			);
-			return mailboxes.items.map(
-				(mailbox) => [mailbox.mailboxId, account.accountId] as const,
-			);
-		}),
-	);
-	return new Map(lists.flat());
-};
-
-const resolveTargets = async (
-	queryClient: QueryClient,
-	requests: readonly CheckAgainRequest[],
-): Promise<CheckAgainTarget[]> => {
-	const unresolved = requests.some((request) => !request.accountId);
-	const index = unresolved
-		? await accountsByMailbox(queryClient)
-		: new Map<string, string>();
-	return requests.flatMap((request) => {
-		const accountId = request.accountId ?? index.get(request.mailboxId);
-		return accountId ? [{ ...request, accountId }] : [];
-	});
-};
 
 const sendBatch = async (
 	batch: RescanBatch,
@@ -266,11 +225,9 @@ export function CheckAgainProvider({ children }: { children: ReactNode }) {
 
 	const checkAgain = useCallback<CheckAgainContextValue["checkAgain"]>(
 		(requests, options) => {
-			void resolveTargets(queryClient, requests).then((targets) =>
-				start(targets, options.panel),
-			);
+			start([...requests], options.panel);
 		},
-		[queryClient, start],
+		[start],
 	);
 
 	const value = useMemo<CheckAgainContextValue>(
@@ -336,7 +293,7 @@ export const checkAgainRequestOfThread = (
 export const checkAgainRequestOfRow = (
 	row: ThreadRowData,
 ): CheckAgainRequest | undefined =>
-	row.mailboxId
+	row.mailboxId && row.accountId
 		? {
 				messageId: row.id,
 				accountId: row.accountId,

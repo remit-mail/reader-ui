@@ -62,3 +62,29 @@ export const MovedToSpam: Story = {
 		await expect(canvas.queryByText("Remit suspects this is spam")).toBeNull();
 	},
 };
+
+/** After Not spam the message keeps no banner, whatever the verdict said. */
+export const ClearedByNotSpam: Story = {
+	parameters: {
+		msw: {
+			handlers: mailHandlers(
+				spamWorld({
+					threads: spamWorld().threads.map((row) =>
+						row.messageId === PARCEL_ROW.messageId
+							? { ...row, spamCleared: true }
+							: row,
+					),
+				}),
+			),
+		},
+	},
+	play: async ({ canvasElement }) => {
+		const canvas = within(canvasElement);
+		await expect(
+			await canvas.findAllByText("Your parcel could not be delivered"),
+		).not.toHaveLength(0);
+		await expect(
+			canvas.queryByText("Remit suspects this message impersonates someone"),
+		).toBeNull();
+	},
+};

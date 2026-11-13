@@ -216,7 +216,9 @@ function LatestSection() {
 		queryFn: async () =>
 			(await Promise.all(labelIds.map(latestOf)))
 				.flat()
-				.filter((row) => remitSpamLabel(row.labels) !== undefined)
+				.filter(
+					(row) => !row.spamCleared && remitSpamLabel(row.labels) !== undefined,
+				)
 				.sort((a, b) => b.sentDate - a.sentDate)
 				.slice(0, LATEST_COUNT),
 		enabled: labelList.isSuccess,

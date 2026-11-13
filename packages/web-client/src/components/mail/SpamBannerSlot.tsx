@@ -1,7 +1,6 @@
 import type { RemitImapThreadMessageResponse } from "@remit/api-http-client/types.gen.ts";
 import { SpamWarningBanner, type SpamWarningPending } from "@remit/ui";
 import { useJunkMailbox } from "../../hooks/useArchiveMailbox";
-import { useMailboxAccount } from "../../hooks/useMailboxAccount";
 import { useMoveMessages } from "../../hooks/useMoveMessages";
 import { useReportSpam } from "../../hooks/useReportSpam";
 import { raisesSpamWarning } from "../../lib/spam";
@@ -20,8 +19,7 @@ export function SpamBannerSlot({
 	row: RemitImapThreadMessageResponse;
 	onOpenIntelligence?: () => void;
 }) {
-	const resolved = useMailboxAccount(row.accountId ? undefined : row.mailboxId);
-	const accountId = row.accountId ?? resolved.accountId;
+	const { accountId } = row;
 	const { junkMailboxId } = useJunkMailbox(accountId);
 	const checkAgain = useCheckAgain();
 	const { pushError } = useErrorBanners();
@@ -77,13 +75,10 @@ export function SpamBannerSlot({
 			onCheckAgain={() =>
 				checkAgain?.checkAgain(
 					[
-						{
-							...checkAgainRequestOfThread(
-								row,
-								junkMailboxId ? new Set([junkMailboxId]) : new Set(),
-							),
-							accountId,
-						},
+						checkAgainRequestOfThread(
+							row,
+							junkMailboxId ? new Set([junkMailboxId]) : new Set(),
+						),
 					],
 					{ panel: false },
 				)

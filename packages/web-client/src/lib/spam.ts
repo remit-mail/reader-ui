@@ -30,12 +30,17 @@ export const flaggedVerdict = (
 
 /**
  * The row's one spam mark: the Remit label it carries, suspected while the
- * message sits outside a Spam folder.
+ * message sits outside a Spam folder. A message the reader cleared carries none.
  */
 export const spamRowMark = (
-	row: { mailboxId: string; labels?: RemitImapLabelSummaryResponse[] },
+	row: {
+		mailboxId: string;
+		spamCleared: boolean;
+		labels?: RemitImapLabelSummaryResponse[];
+	},
 	junkMailboxIds: ReadonlySet<string>,
 ): ThreadRowSpam | undefined => {
+	if (row.spamCleared) return undefined;
 	const label = remitSpamLabel(row.labels);
 	if (!label) return undefined;
 	return { label, suspected: !junkMailboxIds.has(row.mailboxId) };
@@ -43,19 +48,22 @@ export const spamRowMark = (
 
 /**
  * Whether the message view raises the spam banner and the rail for it: a
- * failed check, or a Remit label on a message outside Spam.
+ * failed check, or a Remit label on a message outside Spam, unless the reader
+ * cleared it with Not spam.
  */
 export const raisesSpamWarning = (
 	row: {
 		spamVerdict: RemitImapMessageSpamVerdict;
+		spamCleared: boolean;
 		labels?: RemitImapLabelSummaryResponse[];
 	},
 	inSpamFolder: boolean,
 ): boolean =>
-	row.spamVerdict.state === "Failed" ||
-	(remitSpamLabel(row.labels) !== undefined &&
-		row.spamVerdict.state === "Checked" &&
-		!inSpamFolder);
+	!row.spamCleared &&
+	(row.spamVerdict.state === "Failed" ||
+		(remitSpamLabel(row.labels) !== undefined &&
+			row.spamVerdict.state === "Checked" &&
+			!inSpamFolder));
 
 export const spamReportHref = (title: string, detail: string): string =>
 	buildGitHubIssueUrl(

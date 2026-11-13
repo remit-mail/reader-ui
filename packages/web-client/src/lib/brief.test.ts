@@ -25,6 +25,8 @@ function threadResponse(
 		threadId: "t1",
 		threadMessageId: "tm1",
 		spamVerdict: { state: "NotChecked" },
+		spamCleared: false,
+		accountId: "acc-1",
 		messageId: "m1",
 		accountConfigId: "cfg_1",
 		mailboxId: "mb1",

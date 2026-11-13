@@ -52,6 +52,7 @@ const thread = {
 	isDeleted: false,
 	senderTrust: "unknown",
 	spamVerdict: { state: "NotChecked" },
+	spamCleared: false,
 	createdAt: 0,
 	updatedAt: 0,
 } as unknown as RemitImapThreadMessageResponse;

@@ -16,6 +16,8 @@ const make = (
 	syncStatus: "pending",
 	abandonedMutation: "none",
 	spamVerdict: { state: "NotChecked" },
+	spamCleared: false,
+	accountId: "acc-1",
 	category: "uncategorized",
 	threadId: "t1",
 	threadMessageId: `tm-${messageId}`,
