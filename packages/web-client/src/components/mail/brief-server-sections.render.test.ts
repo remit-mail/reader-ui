@@ -442,6 +442,7 @@ describe("the brief's sections come from the server (#312)", () => {
 			asked.flatMap((request) => request.categories).sort(),
 			[
 				"automated",
+				"coldOutreach",
 				"marketing",
 				"newsletter",
 				"personal",
@@ -464,7 +465,7 @@ describe("the brief's sections come from the server (#312)", () => {
 		await settled(mounted, renderedSubjects("marketing", SECTION_ROW_CAP)[0]);
 
 		const counts = countRequests();
-		assert.equal(counts.length, 7, "a section was counted more than once");
+		assert.equal(counts.length, 8, "a section was counted more than once");
 		for (const call of counts) {
 			const params = paramsOf(call);
 			assert.equal(params.get("results"), "false");

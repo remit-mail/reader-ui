@@ -47,9 +47,7 @@ const collectionQuery = (
 	criteria: CollectionCriteria,
 ) => ({
 	...criteria,
-	...(collection.kind === "starred"
-		? { starred: true as const }
-		: { labelId: collection.labelId }),
+	...collection,
 	order: "desc" as const,
 });
 

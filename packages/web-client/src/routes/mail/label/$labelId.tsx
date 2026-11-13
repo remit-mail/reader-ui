@@ -9,7 +9,7 @@ import { createFileRoute, Outlet } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { MailShell } from "../../../components/layout/MailShell";
 import { CollectionPane } from "../../../components/mail/CollectionPane";
-import { useCurrentMailboxName } from "../../../hooks/useCurrentMailboxName";
+import { useLabelList } from "../../../hooks/useLabels";
 import type { ThreadCollection } from "../../../lib/collection-criteria";
 import { useMailContext } from "../../../lib/mail-context";
 import { labelSearchSchema } from "../../../lib/mail-search";
@@ -19,19 +19,13 @@ function LabelLayout() {
 	const { labelId } = Route.useParams();
 	const { accounts } = useMailContext();
 	const thread = useOpenThreadPath();
-	const name = useCurrentMailboxName({ accounts });
+	const { labels } = useLabelList(accounts[0]?.accountId);
+	const name = labels.find((label) => label.labelId === labelId)?.name ?? "";
 	useSearchMirror({ to: "/mail/label/$labelId", params: { labelId } });
-	const collection = useMemo<ThreadCollection>(
-		() => ({ kind: "label", labelId }),
-		[labelId],
-	);
+	const collection = useMemo<ThreadCollection>(() => ({ labelId }), [labelId]);
 
 	return (
-		<CollectionPane
-			collection={collection}
-			title={name ?? "Label"}
-			thread={thread}
-		>
+		<CollectionPane collection={collection} title={name} thread={thread}>
 			<MailShell
 				phone={<CollectionPane.Phone />}
 				list={<CollectionPane.List />}

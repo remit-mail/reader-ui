@@ -24,7 +24,7 @@ import {
 	labelForMailbox,
 	shouldShowUnreadBadgeForRole,
 } from "../../lib/folder-roles";
-import { splitLabelFolders } from "../../lib/label-folders";
+import { withoutLabelFolders } from "../../lib/label-folders";
 import { useMailContext } from "../../lib/mail-context";
 import { isOutboxListRow } from "../../lib/outbox-status";
 import {
@@ -150,9 +150,14 @@ export function MailSidebarAdapter({
 		})),
 	});
 
-	// Labels belong to the user rather than to one account, so any account
-	// answers for all of them.
-	const { labels } = useLabelList(accounts[0]?.accountId);
+	// The folder tree waits for the labels, so a label folder never shows in it
+	// before its label is known. A failed label list leaves the tree whole.
+	const {
+		labels,
+		isPending: labelsPending,
+		isError: labelsFailed,
+	} = useLabelList(accounts[0]?.accountId);
+	const labelsSettled = !labelsPending || labelsFailed;
 
 	const navLabels: NavLabel[] = useMemo(
 		() =>
@@ -179,10 +184,7 @@ export function MailSidebarAdapter({
 	const navAccounts: NavAccount[] = useMemo(() => {
 		return accounts.map((account, i) => {
 			const query = mailboxQueries[i];
-			const { shown: mailboxes } = splitLabelFolders(
-				query?.data?.items ?? [],
-				labels,
-			);
+			const mailboxes = withoutLabelFolders(query?.data?.items ?? [], labels);
 			const roleMap = buildMailboxRoleMap(account.folderAppointments);
 			const { system, labels: folders } = sortMailboxes(
 				mailboxes,
@@ -192,7 +194,7 @@ export function MailSidebarAdapter({
 
 			const status: NavAccount["status"] = query?.isError
 				? "error"
-				: query?.isLoading
+				: query?.isLoading || !labelsSettled
 					? "loading"
 					: "ready";
 
@@ -211,7 +213,14 @@ export function MailSidebarAdapter({
 				),
 			};
 		});
-	}, [accounts, mailboxQueries, outboxPendingCount, translator, labels]);
+	}, [
+		accounts,
+		mailboxQueries,
+		outboxPendingCount,
+		translator,
+		labels,
+		labelsSettled,
+	]);
 
 	// Invalidate a mailbox's thread list on navigation so a re-visit always
 	// fetches fresh data (mirrors the retired MailboxItem behaviour).

@@ -28,14 +28,12 @@ import {
 } from "./thread-search-tokens.js";
 
 /**
- * A list that spans accounts and folders: the starred mail, or one label's
- * folders.
+ * A list that spans accounts and folders, as the listing parameter that names
+ * it: the starred mail, or one label's folders.
  */
-export type ThreadCollection =
-	| { kind: "starred" }
-	| { kind: "label"; labelId: string };
+export type ThreadCollection = { starred: true } | { labelId: string };
 
-export const STARRED: ThreadCollection = { kind: "starred" };
+export const STARRED: ThreadCollection = { starred: true };
 
 /**
  * The token parameters `listAllThreads` carries, which is every parameter it
@@ -53,7 +51,7 @@ export const COLLECTION_TOKEN_PARAMS: readonly ThreadSearchTokenParamName[] = [
 	"attachments",
 ];
 
-export interface CollectionCriteria {
+export interface CollectionRequest {
 	/** What the request narrows by, chips and carried tokens together. */
 	criteria: ThreadSearchTokenParams;
 	/** The tokens no parameter carries; apply these over the returned rows. */
@@ -64,13 +62,11 @@ export const collectionCriteria = (
 	collection: ThreadCollection,
 	chips: InboxFilterCriteria,
 	tokens: readonly SearchToken[],
-): CollectionCriteria => {
+): CollectionRequest => {
 	const chipParams = inboxFilterParams(chips);
 	const { params, residual } = threadSearchTokens(
 		tokens,
-		collection.kind === "starred"
-			? { ...chipParams, starred: true }
-			: chipParams,
+		{ ...chipParams, ...collection },
 		COLLECTION_TOKEN_PARAMS,
 	);
 	return { criteria: { ...params, ...chipParams }, residual };

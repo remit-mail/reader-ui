@@ -263,7 +263,7 @@ export function CollectionList({
 	// rather than narrowing it.
 	const narrowingTokens = useMemo(
 		() =>
-			collection.kind === "starred"
+			"starred" in collection
 				? queryTokens.filter((token) => token.type !== "isStarred")
 				: queryTokens,
 		[collection, queryTokens],
@@ -346,7 +346,7 @@ export function CollectionList({
 			>
 				<MessageListPane
 					listTitle={title}
-					sections={[{ id: collection.kind, threads: rows }]}
+					sections={[{ id: "collection", threads: rows }]}
 					flatList
 					hideHeader
 					listState={chrome.searchResults ? "ready" : listState}
