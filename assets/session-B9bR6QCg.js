@@ -1,0 +1,1 @@
+import{j as n}from"./iframe-fYsS-Mr7.js";import{n as i}from"./mail-world-BTJRxRCV.js";const r=o=>({...i,Account:({children:s})=>n.jsx(n.Fragment,{children:s({email:o,signOut:()=>{}})})}),e=o=>()=>{const s=globalThis.__REMIT_CONFIG__;return globalThis.__REMIT_CONFIG__=o,()=>{globalThis.__REMIT_CONFIG__=s}};export{r as s,e as w};

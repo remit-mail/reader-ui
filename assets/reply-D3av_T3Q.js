@@ -1,0 +1,1 @@
+import{c as a}from"./createLucideIcon-B5J0h_XM.js";const e={name:"reply",size:24,node:[["path",{d:"M20 18v-2a4 4 0 0 0-4-4H4",key:"5vmcpk"}],["path",{d:"m9 17-5-5 5-5",key:"nvlc11"}]]};e.node;const o=a(e);export{o as R};

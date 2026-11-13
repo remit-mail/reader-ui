@@ -1,0 +1,1 @@
+const l={Default:"bg-fg-subtle",Red:"bg-red-500",Orange:"bg-orange-500",Yellow:"bg-yellow-500",Green:"bg-green-500",Teal:"bg-teal-500",Blue:"bg-blue-500",Purple:"bg-purple-500",Gray:"bg-gray-500"},a=["Default","Red","Orange","Yellow","Green","Teal","Blue","Purple","Gray"],r=e=>Object.hasOwn(l,e);export{a,r as i,l};
