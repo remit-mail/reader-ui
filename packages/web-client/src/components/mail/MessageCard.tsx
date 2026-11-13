@@ -15,6 +15,7 @@ import {
 import { BadgeCheck, Paperclip, Star } from "@remit/ui/icons";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
+import { useJunkMailboxIds } from "../../hooks/useJunkMailboxIds";
 import { toDisplayCategory } from "../../lib/display-category";
 import { formatDatePreset } from "../../lib/format";
 import {
@@ -206,6 +207,7 @@ const ExpandedCard = ({
 	onForward?: () => void;
 }) => {
 	const checkAgain = useCheckAgain();
+	const junkMailboxIds = useJunkMailboxIds();
 	const date = formatDatePreset(threadMessage.sentDate, "long");
 	const isUnread = !threadMessage.isRead;
 	const isTrusted =
@@ -290,7 +292,10 @@ const ExpandedCard = ({
 										checkAgain.checkAgain(
 											[
 												{
-													...checkAgainRequestOfThread(threadMessage),
+													...checkAgainRequestOfThread(
+														threadMessage,
+														junkMailboxIds,
+													),
 													accountId: accountId ?? threadMessage.accountId,
 												},
 											],

@@ -32,21 +32,29 @@ import { Search, Star, X } from "@remit/ui/icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
+import { z } from "zod";
 import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 import { formatDate } from "../../lib/format";
 import { useOpenSettingsSection } from "../../routing/sections";
 import { useSettingsNavItems } from "../settings";
 import { sendersHelp } from "./-shared/help-copy";
 
+const SENDER_GROUPS = ["vip", "muted", "blocked", "neverSpam"] as const;
+
+const sendersSearchSchema = z.object({
+	group: z.enum(SENDER_GROUPS).optional(),
+});
+
 export const Route = createFileRoute("/settings/senders")({
 	component: SendersSettings,
+	validateSearch: sendersSearchSchema,
 });
 
 /* ------------------------------------------------------------------ */
 /* Types                                                              */
 /* ------------------------------------------------------------------ */
 
-type SenderGroup = "vip" | "muted" | "blocked" | "neverSpam";
+type SenderGroup = (typeof SENDER_GROUPS)[number];
 
 type SearchGroup = Exclude<SenderGroup, "vip">;
 
@@ -358,7 +366,13 @@ function SendersSettings() {
 	const navigate = useNavigate();
 	const navItems = useSettingsNavItems();
 	const openSettingsSection = useOpenSettingsSection();
-	const [group, setGroup] = useState<SenderGroup>("vip");
+	const group = Route.useSearch({ select: (search) => search.group ?? "vip" });
+	const setGroup = (next: SenderGroup) =>
+		void navigate({
+			to: "/settings/senders",
+			search: { group: next },
+			replace: true,
+		});
 	const [query, setQuery] = useState("");
 	const [helpOpen, setHelpOpen] = useState(true);
 
@@ -405,9 +419,7 @@ function SendersSettings() {
 						setGroup(g);
 						setQuery("");
 					}}
-					options={(
-						["vip", "muted", "blocked", "neverSpam"] as SenderGroup[]
-					).map((g) => ({
+					options={SENDER_GROUPS.map((g) => ({
 						id: g,
 						label: groupLabels[g],
 						count: groupCounts[g],

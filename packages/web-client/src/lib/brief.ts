@@ -58,6 +58,7 @@ import { spamRowMark } from "./spam.js";
  */
 export function toThreadRowData(
 	thread: RemitImapThreadMessageResponse,
+	junkMailboxIds: ReadonlySet<string>,
 ): ThreadRowData {
 	return {
 		id: thread.messageId,
@@ -75,7 +76,7 @@ export function toThreadRowData(
 		starred: thread.hasStars === true,
 		trust: thread.senderTrust as SenderTrustLevel,
 		category: toDisplayCategory(thread.category),
-		spam: spamRowMark(thread),
+		spam: spamRowMark(thread, junkMailboxIds),
 		...rowSettlement(thread),
 	};
 }

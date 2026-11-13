@@ -27,12 +27,6 @@ const baseData: IntelligenceData = {
 		trust: "wellknown",
 		firstSeenLabel: "Jan 2025",
 	},
-	authenticity: {
-		verdict: "aligned",
-		fromDomain: "example.com",
-		dkimDomain: "example.com",
-		summary: "This message was signed by example.com.",
-	},
 	category: { value: "personal" },
 	spamAction: "reportSpam",
 };

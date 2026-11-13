@@ -8,6 +8,7 @@ import type {
 	CheckAgainSummary,
 	ThreadRowSpam,
 } from "@remit/ui";
+import { flaggedVerdict } from "./spam";
 
 /** The most message ids one rescan call accepts. */
 export const RESCAN_BATCH_SIZE = 10;
@@ -58,21 +59,15 @@ export const EMPTY_SUMMARY: CheckAgainSummary = {
 	noLongerSuspected: 0,
 };
 
-const flaggedAction = (
-	verdict: RemitImapMessageSpamVerdict,
-): "Warn" | "Junk" | undefined =>
-	verdict.state === "Checked" && verdict.action !== "None"
-		? verdict.action
-		: undefined;
-
 /** Adds one checked message to the run's summary of what changed. */
 export const tallyOutcome = (
 	summary: CheckAgainSummary,
 	before: ThreadRowSpam | undefined,
 	after: RemitImapMessageSpamVerdict,
 ): CheckAgainSummary => {
-	const now = flaggedAction(after);
-	if (now === before?.action) return summary;
+	const now = flaggedVerdict(after)?.action;
+	const was = before ? (before.suspected ? "Warn" : "Junk") : undefined;
+	if (now === was) return summary;
 	if (now === "Junk") return { ...summary, nowSpam: summary.nowSpam + 1 };
 	if (now === "Warn")
 		return { ...summary, nowSuspected: summary.nowSuspected + 1 };
@@ -82,7 +77,6 @@ export const tallyOutcome = (
 export interface BatchOutcome {
 	summary: CheckAgainSummary;
 	failures: CheckAgainFailure[];
-	verdicts: Map<string, RemitImapMessageSpamVerdict>;
 }
 
 /** Folds one rescan answer into the run: what changed, and what failed why. */
@@ -92,16 +86,11 @@ export const applyRescanResult = (
 	result: RemitImapRescanResult,
 ): BatchOutcome => {
 	const byId = new Map(batch.targets.map((t) => [t.messageId, t]));
-	let summary = outcome.summary;
-	const verdicts = new Map(outcome.verdicts);
-	for (const success of result.successful) {
-		summary = tallyOutcome(
-			summary,
-			byId.get(success.messageId)?.before,
-			success.verdict,
-		);
-		verdicts.set(success.messageId, success.verdict);
-	}
+	const summary = result.successful.reduce(
+		(sum, success) =>
+			tallyOutcome(sum, byId.get(success.messageId)?.before, success.verdict),
+		outcome.summary,
+	);
 	const failures = [
 		...outcome.failures,
 		...result.failed.map((failure) => ({
@@ -111,7 +100,7 @@ export const applyRescanResult = (
 			retryable: failure.retryable,
 		})),
 	];
-	return { summary, failures, verdicts };
+	return { summary, failures };
 };
 
 /** A refusal of the whole call, read as the same refusal for every id in it. */

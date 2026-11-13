@@ -14,7 +14,11 @@ const row = (id: string, fromName: string): ThreadRowData => ({
 	isRead: true,
 });
 
-function RowsPreview({ action }: { action: SpamRowMarkerProps["action"] }) {
+function RowsPreview({
+	suspected,
+}: {
+	suspected: SpamRowMarkerProps["suspected"];
+}) {
 	const rows: {
 		thread: ThreadRowData;
 		marker?: SpamRowMarkerProps["label"];
@@ -31,7 +35,9 @@ function RowsPreview({ action }: { action: SpamRowMarkerProps["action"] }) {
 					<ComfortableRowBody
 						thread={thread}
 						badge={
-							marker ? <SpamRowMarker label={marker} action={action} /> : null
+							marker ? (
+								<SpamRowMarker label={marker} suspected={suspected} />
+							) : null
 						}
 					/>
 				</li>
@@ -44,8 +50,8 @@ const meta = {
 	title: "Design System/Spam/SpamRowMarker",
 	component: SpamRowMarker,
 	parameters: { layout: "centered" },
-	args: { label: spamLabelFixture, action: "Warn" },
-	render: (args) => <RowsPreview action={args.action} />,
+	args: { label: spamLabelFixture, suspected: true },
+	render: (args) => <RowsPreview suspected={args.suspected} />,
 } satisfies Meta<typeof SpamRowMarker>;
 export default meta;
 
@@ -55,4 +61,4 @@ type Story = StoryObj<typeof meta>;
 export const Warned: Story = {};
 
 /** Remit moved the message to Spam: the chip alone. */
-export const Moved: Story = { args: { action: "Junk" } };
+export const Moved: Story = { args: { suspected: false } };

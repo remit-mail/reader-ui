@@ -83,6 +83,7 @@ const row = makeThreadMessage({
 		],
 		modelOutcome: "OutOfBand",
 	},
+	labels: [{ labelId: "lbl-phishing", name: "Phishing", color: "Red" }],
 });
 
 /** The next thread the reader opens, which raised nothing of its own. */

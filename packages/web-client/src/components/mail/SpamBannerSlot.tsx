@@ -10,8 +10,8 @@ import { checkAgainRequestOfThread, useCheckAgain } from "./CheckAgainProvider";
 
 /**
  * The message view's one banner slot, between the header and the body. It
- * states the spam verdict of the row the reader opened, or the verdict a Check
- * again just returned for it, and goes when that verdict goes.
+ * warns while the message carries a Remit Spam or Phishing label outside Spam,
+ * or when the check failed, and goes when the label goes.
  */
 export function SpamBannerSlot({
 	row,
@@ -36,10 +36,10 @@ export function SpamBannerSlot({
 		accountId,
 	});
 
-	const verdict = checkAgain?.verdicts.get(row.messageId) ?? row.spamVerdict;
+	const verdict = row.spamVerdict;
 	const inSpamFolder =
 		junkMailboxId !== undefined && row.mailboxId === junkMailboxId;
-	if (!raisesSpamWarning(verdict, inSpamFolder)) return null;
+	if (!raisesSpamWarning(row, inSpamFolder)) return null;
 	if (verdict.state !== "Checked" && verdict.state !== "Failed") return null;
 
 	const pending: SpamWarningPending | undefined = checkAgain?.pendingIds.has(
@@ -76,7 +76,15 @@ export function SpamBannerSlot({
 			onWhy={() => onOpenIntelligence?.()}
 			onCheckAgain={() =>
 				checkAgain?.checkAgain(
-					[{ ...checkAgainRequestOfThread(row), accountId }],
+					[
+						{
+							...checkAgainRequestOfThread(
+								row,
+								junkMailboxId ? new Set([junkMailboxId]) : new Set(),
+							),
+							accountId,
+						},
+					],
 					{ panel: false },
 				)
 			}

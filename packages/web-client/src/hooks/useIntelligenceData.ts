@@ -4,7 +4,6 @@ import type {
 	RemitImapThreadMessageResponse,
 } from "@remit/api-http-client/types.gen.ts";
 import type {
-	AuthenticityIntel,
 	IntelligenceData,
 	PlacementIntel,
 	SenderFlagsIntel,
@@ -45,12 +44,6 @@ export function isSenderAddressUnverifiable(
 	if (!domain) return true;
 	return !domain.includes(".");
 }
-
-const NO_SIGNAL_SUMMARY =
-	"We can't verify the sender of this email, which could mean it's from an insecure source.";
-
-const UNREADABLE_SENDER_SUMMARY =
-	"We couldn't read this sender's address, so we can't confirm who really sent this message.";
 
 /**
  * Build category intel from the thread message and address lookup.
@@ -115,70 +108,6 @@ function buildSenderFlags(
 	};
 }
 
-/** The brand the display name asserts, or `undefined` when it asserts none. */
-function claimedBrandOf(
-	thread: RemitImapThreadMessageResponse,
-): string | undefined {
-	if (!thread.fromName) return undefined;
-	if (thread.fromName === thread.fromEmail) return undefined;
-	return thread.fromName;
-}
-
-/** Build authenticity intel from the thread message's authenticity field. */
-export function buildAuthenticityIntel(
-	thread: RemitImapThreadMessageResponse,
-): AuthenticityIntel {
-	if (isSenderAddressUnverifiable(thread.fromEmail)) {
-		return {
-			verdict: "mismatch",
-			fromDomain: "",
-			addressUnreadable: true,
-			summary: UNREADABLE_SENDER_SUMMARY,
-		};
-	}
-
-	const auth = thread.authenticity;
-	if (!auth) {
-		return {
-			verdict: "caution",
-			fromDomain: thread.fromEmail?.split("@")[1] ?? "",
-			summary: NO_SIGNAL_SUMMARY,
-		};
-	}
-	if (!auth.dkimMismatch) {
-		return {
-			verdict: "aligned",
-			fromDomain: auth.fromDomain,
-			dkimDomain: auth.dkimDomain,
-			summary: auth.dkimDomain
-				? `This message was signed by ${auth.dkimDomain}.`
-				: `Nothing looks unusual about this sender.`,
-		};
-	}
-
-	const fromDomain = auth.fromDomain;
-	const dkimDomain = auth.dkimDomain;
-	const claimedBrand = claimedBrandOf(thread);
-	// dkimDomain is known whenever a mismatch was named against a real
-	// domain; the fallback covers the (defensive, not currently reachable)
-	// case where a mismatch fires with none — say what actually happened
-	// (a signature failed to verify) rather than inventing a sender identity
-	// we do not have.
-	const whatHappened = dkimDomain
-		? `it was actually sent from ${dkimDomain}`
-		: "its signature failed to verify";
-	const summary = claimedBrand
-		? `The display name claims "${claimedBrand}", but ${whatHappened}${dkimDomain ? ` — not ${fromDomain}` : ""}. Real senders use their own address.`
-		: `This message claims to be from ${fromDomain}, but ${whatHappened}.`;
-	return {
-		verdict: "mismatch",
-		fromDomain,
-		dkimDomain,
-		claimedBrand,
-		summary,
-	};
-}
-
 export function buildPlacementIntel(
 	thread: RemitImapThreadMessageResponse,
 ): PlacementIntel | undefined {
@@ -218,7 +147,7 @@ export interface UseIntelligenceDataResult {
  * Maps a `RemitImapThreadMessageResponse` into `IntelligenceData` for the
  * `IntelligencePanel` component. Two data sources:
  *
- * 1. The thread row itself (already loaded) → sender basics, trust, authenticity, category.
+ * 1. The thread row itself (already loaded) → sender basics, trust, category.
  * 2. `GET /addresses/search?q=<email>` → address flags (VIP/muted/blocked/etc.)
  *    and first-seen timestamp. One round-trip per unique sender.
  */
@@ -246,15 +175,12 @@ export function useIntelligenceData(
 
 		const sender = buildSenderIntel(thread, address);
 
-		const authenticity = buildAuthenticityIntel(thread);
-
 		const category = buildCategoryIntel(thread, address);
 
 		const flags = buildSenderFlags(address);
 
 		return {
 			sender,
-			authenticity,
 			category,
 			flags,
 			placement: buildPlacementIntel(thread),

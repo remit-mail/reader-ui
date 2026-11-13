@@ -47,11 +47,6 @@ const sender: IntelligenceData = {
 		trust: "wellknown",
 		firstSeenLabel: "Jan 2025",
 	},
-	authenticity: {
-		verdict: "aligned",
-		fromDomain: "example.test",
-		summary: "Signed by example.test.",
-	},
 	category: { value: "personal" },
 	spamAction: "reportSpam",
 };

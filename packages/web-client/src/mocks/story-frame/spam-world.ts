@@ -14,7 +14,7 @@ import {
 	WORK,
 } from "./mail-world";
 
-export const SPAM_LABEL_ID = "lbl-remit-spam";
+const SPAM_LABEL_ID = "lbl-remit-spam";
 export const PHISHING_LABEL_ID = "lbl-remit-phishing";
 
 const spamLabel: RemitImapLabelSummaryResponse = {

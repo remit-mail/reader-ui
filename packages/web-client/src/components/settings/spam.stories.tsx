@@ -19,15 +19,14 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-/** Thirty days of verdicts, the latest flagged mail, and the settings in effect. */
+/** Thirty days of verdicts and the settings in effect. */
 export const Default: Story = {
 	play: async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
 		await expect(
-			await canvas.findByText("Your parcel could not be delivered"),
+			await canvas.findByText("Reached Spam 7 · Warned 5"),
 		).toBeVisible();
-		await expect(canvas.getByText("Reached Spam 7 · Warned 5")).toBeVisible();
-		await expect(canvas.getByText("0.85")).toBeVisible();
+		await expect(await canvas.findByText("0.85")).toBeVisible();
 	},
 };
 
@@ -77,9 +76,7 @@ export const LoadError: Story = {
 		await expect(
 			await canvas.findByText("Couldn't count the last 30 days"),
 		).toBeVisible();
-		await expect(
-			await canvas.findByText("Your parcel could not be delivered"),
-		).toBeVisible();
+		await expect(await canvas.findByText("0.85")).toBeVisible();
 	},
 };
 

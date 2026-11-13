@@ -29,13 +29,13 @@ const meta = {
 		label: spamLabelFixture,
 		thresholds: spamThresholdsFixture,
 		placement: "MoveToSpam",
-		links: {
-			spamSettingsHref: "/settings/spam",
-			sendersHref: "/settings/senders",
-			filterHref: (filterId) => `/settings/filters#${filterId}`,
-			reportIssueHref: (symbol) =>
-				`https://github.com/remit-mail/reader/issues/new?title=${encodeURIComponent(`Unknown spam reason ${symbol}`)}`,
-		},
+		linkComponent: ({ className, children }) => (
+			<a href="/settings/spam" className={className}>
+				{children}
+			</a>
+		),
+		reportIssueHref: (symbol) =>
+			`https://github.com/remit-mail/reader/issues/new?title=${encodeURIComponent(`Unknown spam reason ${symbol}`)}`,
 		onNotSpam: noop,
 	},
 } satisfies Meta<typeof SpamVerdictPanel>;

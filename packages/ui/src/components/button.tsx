@@ -36,6 +36,15 @@ const sizes: Record<Size, string> = {
 	touch: "h-11 w-11 text-sm",
 };
 
+/** The button look, for a router link that has to read as a button. */
+export const buttonClassName = ({
+	variant = "primary",
+	size = "md",
+}: {
+	variant?: Variant;
+	size?: Size;
+}): string => cn(base, variants[variant], sizes[size]);
+
 export function Button({
 	variant = "primary",
 	size = "md",

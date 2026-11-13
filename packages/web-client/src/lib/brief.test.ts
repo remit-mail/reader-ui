@@ -16,6 +16,8 @@ import {
 } from "./brief.js";
 import type { SearchToken } from "./search-tokens.js";
 
+const NO_JUNK: ReadonlySet<string> = new Set();
+
 function threadResponse(
 	overrides: Partial<RemitImapThreadMessageResponse> = {},
 ): RemitImapThreadMessageResponse {
@@ -72,6 +74,7 @@ describe("toThreadRowData", () => {
 	test("a message with hasStars and the default star colour is starred", () => {
 		const row = toThreadRowData(
 			threadResponse({ hasStars: true, star: "none" }),
+			NO_JUNK,
 		);
 		assert.strictEqual(row.starred, true);
 	});
@@ -79,6 +82,7 @@ describe("toThreadRowData", () => {
 	test("a message with a star colour is starred", () => {
 		const row = toThreadRowData(
 			threadResponse({ hasStars: true, star: "yellow" }),
+			NO_JUNK,
 		);
 		assert.strictEqual(row.starred, true);
 	});
@@ -86,6 +90,7 @@ describe("toThreadRowData", () => {
 	test("a message without hasStars is not starred", () => {
 		const row = toThreadRowData(
 			threadResponse({ hasStars: false, star: "yellow" }),
+			NO_JUNK,
 		);
 		assert.strictEqual(row.starred, false);
 	});

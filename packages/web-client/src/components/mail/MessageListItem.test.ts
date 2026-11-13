@@ -3,6 +3,9 @@ import { describe, it } from "node:test";
 import type { RemitImapThreadMessageResponse } from "@remit/api-http-client/types.gen.ts";
 import { toImapDraftRowData } from "../../lib/drafts";
 import { threadToRowData } from "./MessageListItem";
+
+const NO_JUNK: ReadonlySet<string> = new Set();
+
 import { swipeableRowData } from "./SwipeableMessageRow";
 
 const baseThread = (
@@ -34,6 +37,7 @@ describe("threadToRowData — labels", () => {
 			baseThread({
 				labels: [{ labelId: "l1", name: "Receipts", color: "Blue" }],
 			}),
+			NO_JUNK,
 		);
 		assert.deepEqual(row.labels, [
 			{ labelId: "l1", name: "Receipts", color: "Blue" },
@@ -41,7 +45,7 @@ describe("threadToRowData — labels", () => {
 	});
 
 	it("carries no labels when the message has none", () => {
-		const row = threadToRowData(baseThread());
+		const row = threadToRowData(baseThread(), NO_JUNK);
 		assert.equal(row.labels, undefined);
 	});
 });
@@ -54,6 +58,7 @@ describe("threadToRowData — settlement (issue #1002)", () => {
 				syncStatus: "abandoned",
 				abandonedMutation: "delete",
 			}),
+			NO_JUNK,
 		);
 		assert.equal(row.settlement, "delete_failed");
 	});
@@ -67,6 +72,7 @@ describe("threadToRowData — settlement (issue #1002)", () => {
 				syncStatus: "abandoned",
 				abandonedMutation: "move",
 			}),
+			NO_JUNK,
 		);
 		assert.equal(row.settlement, "move_failed");
 	});
@@ -78,6 +84,7 @@ describe("threadToRowData — settlement (issue #1002)", () => {
 				syncStatus: "abandoned",
 				abandonedMutation: "copy",
 			}),
+			NO_JUNK,
 		);
 		assert.equal(row.settlement, undefined);
 	});
@@ -90,6 +97,7 @@ describe("threadToRowData — settlement (issue #1002)", () => {
 				syncStatus: "synced",
 				abandonedMutation: "delete",
 			}),
+			NO_JUNK,
 		);
 		assert.equal(row.settlement, undefined);
 	});
@@ -97,6 +105,7 @@ describe("threadToRowData — settlement (issue #1002)", () => {
 	it("says nothing about a transient attempt on an active row", () => {
 		const row = threadToRowData(
 			baseThread({ status: "active", syncStatus: "failed" }),
+			NO_JUNK,
 		);
 		assert.equal(row.settlement, undefined);
 	});
@@ -104,6 +113,7 @@ describe("threadToRowData — settlement (issue #1002)", () => {
 	it("says nothing about a move mid-retry, which writes the same failed flag", () => {
 		const row = threadToRowData(
 			baseThread({ status: "moving", syncStatus: "failed" }),
+			NO_JUNK,
 		);
 		assert.equal(row.settlement, undefined);
 	});
@@ -111,6 +121,7 @@ describe("threadToRowData — settlement (issue #1002)", () => {
 	it("says nothing about a delete still being pushed", () => {
 		const row = threadToRowData(
 			baseThread({ status: "deleting", syncStatus: "pending" }),
+			NO_JUNK,
 		);
 		assert.equal(row.settlement, undefined);
 	});
@@ -118,6 +129,7 @@ describe("threadToRowData — settlement (issue #1002)", () => {
 	it("leaves an ordinary inbound row unmarked, pending and all", () => {
 		const row = threadToRowData(
 			baseThread({ status: "active", syncStatus: "pending" }),
+			NO_JUNK,
 		);
 		assert.equal(row.settlement, undefined);
 	});
@@ -131,6 +143,7 @@ describe("the mobile and drafts rows carry the same mark", () => {
 				syncStatus: "abandoned",
 				abandonedMutation: "delete",
 			}),
+			NO_JUNK,
 		);
 		assert.equal(row.settlement, "delete_failed");
 	});
@@ -148,7 +161,7 @@ describe("the mobile and drafts rows carry the same mark", () => {
 
 	it("leaves a move mid-retry unmarked on both", () => {
 		const thread = baseThread({ status: "moving", syncStatus: "failed" });
-		assert.equal(swipeableRowData(thread).settlement, undefined);
+		assert.equal(swipeableRowData(thread, NO_JUNK).settlement, undefined);
 		assert.equal(toImapDraftRowData(thread).settlement, undefined);
 	});
 });

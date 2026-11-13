@@ -1013,7 +1013,7 @@ function MailboxList() {
 		);
 
 	const spamBody =
-		isSpamFolder && mailboxAccountId ? (
+		isSpamFolder && rescueCandidates.length > 0 && mailboxAccountId ? (
 			<SpamRescue
 				accountId={mailboxAccountId}
 				currentMailboxId={mailboxId}
@@ -1107,7 +1107,7 @@ function MailboxReading() {
 	const { railFits, openRail } = intelligence;
 	const warned =
 		selectedThread !== undefined &&
-		raisesSpamWarning(selectedThread.spamVerdict, isSpamFolder);
+		raisesSpamWarning(selectedThread, isSpamFolder);
 	useEffect(() => {
 		if (!railFits) return;
 		const id = selectedThread?.messageId ?? null;

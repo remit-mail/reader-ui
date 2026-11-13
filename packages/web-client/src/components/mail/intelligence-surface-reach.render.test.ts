@@ -76,6 +76,7 @@ const row = makeThreadMessage({
 		],
 		modelOutcome: "OutOfBand",
 	},
+	labels: [{ labelId: "lbl-phishing", name: "Phishing", color: "Red" }],
 });
 
 let harness: DomHarness | undefined;

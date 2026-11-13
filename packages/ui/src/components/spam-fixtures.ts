@@ -1,16 +1,15 @@
+import type {
+	RemitImapSpamChecked,
+	RemitImapSpamFailed,
+	RemitImapSpamReason,
+	RemitImapSpamReasonName,
+	RemitImapSpamThresholdsSet,
+} from "@remit/api-http-client/types.gen.ts";
 import type { CheckAgainFailure } from "./check-again-panel.js";
 import type { LabelChipData } from "./label-chip.js";
-import type {
-	SpamChecked,
-	SpamFailed,
-	SpamReason,
-	SpamReasonName,
-	SpamThresholdsSet,
-} from "./spam-contract.js";
 import type { SpamDay } from "./spam-daily-chart.js";
-import type { SpamNotSpamDay } from "./spam-proposed.js";
 
-export const spamThresholdsFixture: SpamThresholdsSet = {
+export const spamThresholdsFixture: RemitImapSpamThresholdsSet = {
 	state: "Set",
 	cleanBelow: 0.4,
 	spamAt: 0.85,
@@ -29,12 +28,12 @@ export const phishingLabelFixture: LabelChipData = {
 };
 
 const reason = (
-	name: SpamReasonName,
+	name: RemitImapSpamReasonName,
 	score: number,
 	options: string[] = [],
-): SpamReason => ({ name, symbol: name, score, options });
+): RemitImapSpamReason => ({ name, symbol: name, score, options });
 
-export const warnSpamVerdict: SpamChecked = {
+export const warnSpamVerdict: RemitImapSpamChecked = {
 	state: "Checked",
 	score: 0.72,
 	action: "Warn",
@@ -47,7 +46,7 @@ export const warnSpamVerdict: SpamChecked = {
 	],
 };
 
-export const warnPhishingVerdict: SpamChecked = {
+export const warnPhishingVerdict: RemitImapSpamChecked = {
 	state: "Checked",
 	score: 0.68,
 	action: "Warn",
@@ -61,18 +60,18 @@ export const warnPhishingVerdict: SpamChecked = {
 	],
 };
 
-export const junkPhishingVerdict: SpamChecked = {
+export const junkPhishingVerdict: RemitImapSpamChecked = {
 	...warnPhishingVerdict,
 	score: 0.93,
 	action: "Junk",
 };
 
-export const modelSkippedVerdict: SpamChecked = {
+export const modelSkippedVerdict: RemitImapSpamChecked = {
 	...warnSpamVerdict,
 	modelOutcome: "DailyLimit",
 };
 
-export const modelJudgedVerdict: SpamChecked = {
+export const modelJudgedVerdict: RemitImapSpamChecked = {
 	state: "Checked",
 	score: 0.61,
 	action: "Warn",
@@ -86,13 +85,13 @@ export const modelJudgedVerdict: SpamChecked = {
 	],
 };
 
-export const nowJunkVerdict: SpamChecked = {
+export const nowJunkVerdict: RemitImapSpamChecked = {
 	...warnSpamVerdict,
 	score: 0.88,
 	action: "Junk",
 };
 
-export const warnOnlyAboveJunkVerdict: SpamChecked = {
+export const warnOnlyAboveJunkVerdict: RemitImapSpamChecked = {
 	state: "Checked",
 	score: 0.9,
 	action: "Warn",
@@ -104,7 +103,7 @@ export const warnOnlyAboveJunkVerdict: SpamChecked = {
 	],
 };
 
-export const unknownReasonVerdict: SpamChecked = {
+export const unknownReasonVerdict: RemitImapSpamChecked = {
 	state: "Checked",
 	score: 0.55,
 	action: "Warn",
@@ -121,7 +120,10 @@ export const unknownReasonVerdict: SpamChecked = {
 	],
 };
 
-export const failedVerdict: SpamFailed = { state: "Failed", kind: "TimedOut" };
+export const failedVerdict: RemitImapSpamFailed = {
+	state: "Failed",
+	kind: "TimedOut",
+};
 
 export const checkAgainFailuresFixture: CheckAgainFailure[] = [
 	{
@@ -167,11 +169,6 @@ export const spamDaysFixture: SpamDay[] = Array.from({ length: 30 }, (_, i) => {
 		warned: Math.ceil(n / 2),
 	};
 });
-
-export const notSpamDaysFixture: SpamNotSpamDay[] = Array.from(
-	{ length: 30 },
-	(_, i) => ({ date: isoDay(29 - i), count: i % 9 === 4 ? 1 : 0 }),
-).filter((day) => day.count > 0);
 
 export const phishingDaysFixture: SpamDay[] = Array.from(
 	{ length: 30 },

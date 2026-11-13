@@ -48,7 +48,7 @@ const suspected: ThreadRowData = {
 	isRead: false,
 	spam: {
 		label: { labelId: "label-phishing", name: "Phishing", color: "Red" },
-		action: "Warn",
+		suspected: true,
 	},
 };
 

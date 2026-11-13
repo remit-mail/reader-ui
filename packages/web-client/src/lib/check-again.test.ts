@@ -51,8 +51,8 @@ describe("applyRescanResult", () => {
 	test("counts what changed and names each failure by subject", () => {
 		const [batch] = rescanBatches([
 			target("m1", "acct"),
-			target("m2", "acct", { label: spamLabel, action: "Warn" }),
-			target("m3", "acct", { label: spamLabel, action: "Warn" }),
+			target("m2", "acct", { label: spamLabel, suspected: true }),
+			target("m3", "acct", { label: spamLabel, suspected: true }),
 			target("m4", "acct"),
 		]);
 		assert.ok(batch);
@@ -67,7 +67,7 @@ describe("applyRescanResult", () => {
 			modelOutcome: "OutOfBand",
 		});
 		const outcome = applyRescanResult(
-			{ summary: EMPTY_SUMMARY, failures: [], verdicts: new Map() },
+			{ summary: EMPTY_SUMMARY, failures: [] },
 			batch,
 			{
 				successful: [
@@ -91,6 +91,5 @@ describe("applyRescanResult", () => {
 				retryable: true,
 			},
 		]);
-		assert.strictEqual(outcome.verdicts.size, 3);
 	});
 });

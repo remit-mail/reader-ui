@@ -10,7 +10,7 @@ import type {
 	RemitImapThreadMessageResponse,
 } from "@remit/api-http-client/types.gen.ts";
 import {
-	ButtonLink,
+	buttonClassName,
 	cn,
 	FailureBanner,
 	formatErrorMessage,
@@ -23,6 +23,7 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { type ReactNode, useId, useState } from "react";
 import { useSaveClassification } from "../../../hooks/useClassificationSettings";
+import { useJunkMailboxIds } from "../../../hooks/useJunkMailboxIds";
 import { useLabelList } from "../../../hooks/useLabels";
 import {
 	isUnauthenticated,
@@ -31,7 +32,7 @@ import {
 import { formatEmailDate } from "../../../lib/format";
 import {
 	flaggedVerdict,
-	spamLabelFor,
+	remitSpamLabel,
 	spamReportHref,
 } from "../../../lib/spam";
 import {
@@ -39,7 +40,7 @@ import {
 	overviewDays,
 	spamOverviewSince,
 } from "../../../lib/spam-overview";
-import { type SpamHrefs, useSpamHrefs } from "../../../routing/spam";
+import { NavLink } from "../../../routing";
 
 const SECTION_TITLE =
 	"text-xs font-semibold uppercase tracking-wider text-fg-subtle";
@@ -196,7 +197,8 @@ const latestOf = async (
 	return data.items ?? [];
 };
 
-function LatestSection({ hrefs }: { hrefs: SpamHrefs }) {
+function LatestSection() {
+	const junkMailboxIds = useJunkMailboxIds();
 	const config = useQuery({
 		...configOperationsGetConfigOptions(),
 		staleTime: Infinity,
@@ -214,7 +216,7 @@ function LatestSection({ hrefs }: { hrefs: SpamHrefs }) {
 		queryFn: async () =>
 			(await Promise.all(labelIds.map(latestOf)))
 				.flat()
-				.filter((row) => flaggedVerdict(row.spamVerdict) !== undefined)
+				.filter((row) => remitSpamLabel(row.labels) !== undefined)
 				.sort((a, b) => b.sentDate - a.sentDate)
 				.slice(0, LATEST_COUNT),
 		enabled: labelList.isSuccess,
@@ -264,20 +266,22 @@ function LatestSection({ hrefs }: { hrefs: SpamHrefs }) {
 			aside={
 				<span className="flex gap-4 text-sm">
 					{spamLabel && (
-						<a
-							href={hrefs.labelList(spamLabel.labelId)}
-							className="text-accent-2 hover:underline"
+						<NavLink
+							to="/mail/label/$labelId"
+							params={{ labelId: spamLabel.labelId }}
+							variant="inline"
 						>
 							Review all in Spam
-						</a>
+						</NavLink>
 					)}
 					{phishingLabel && (
-						<a
-							href={hrefs.labelList(phishingLabel.labelId)}
-							className="text-accent-2 hover:underline"
+						<NavLink
+							to="/mail/label/$labelId"
+							params={{ labelId: phishingLabel.labelId }}
+							variant="inline"
 						>
 							Open Phishing
-						</a>
+						</NavLink>
 					)}
 				</span>
 			}
@@ -295,28 +299,32 @@ function LatestSection({ hrefs }: { hrefs: SpamHrefs }) {
 					</thead>
 					<tbody className="divide-y divide-line">
 						{latest.data.map((row) => {
+							const label = remitSpamLabel(row.labels);
+							if (!label) return null;
 							const verdict = flaggedVerdict(row.spamVerdict);
-							if (!verdict) return null;
-							const label = spamLabelFor(verdict.kind, row.labels);
 							return (
 								<tr key={row.messageId} className="hover:bg-surface-sunken">
 									<td className="px-3 py-2 align-top text-fg">
 										{row.fromName ?? row.fromEmail ?? "Unknown"}
 									</td>
 									<td className="px-3 py-2 align-top">
-										<a
-											href={hrefs.labelMessage(
-												label.labelId,
-												row.threadId,
-												row.messageId,
-											)}
-											className="text-fg hover:underline"
+										<NavLink
+											to="/mail/label/$labelId/$threadId/$messageId"
+											params={{
+												labelId: label.labelId,
+												threadId: row.threadId,
+												messageId: row.messageId,
+											}}
+											variant="inline"
+											className="text-fg"
 										>
 											{row.subject ?? "(No subject)"}
-										</a>
-										<p className="text-xs text-fg-muted">
-											{topSpamReasonSentence(verdict.reasons)}
-										</p>
+										</NavLink>
+										{verdict && (
+											<p className="text-xs text-fg-muted">
+												{topSpamReasonSentence(verdict.reasons)}
+											</p>
+										)}
 									</td>
 									<td className="whitespace-nowrap px-3 py-2 align-top text-fg-muted tabular-nums">
 										{formatEmailDate(row.sentDate)}
@@ -325,7 +333,7 @@ function LatestSection({ hrefs }: { hrefs: SpamHrefs }) {
 										<LabelChip label={label} />
 									</td>
 									<td className="px-3 py-2 align-top text-fg-muted">
-										{verdict.action === "Junk" ? "Reached Spam" : "Warned"}
+										{junkMailboxIds.has(row.mailboxId) ? "Moved" : "Warned"}
 									</td>
 								</tr>
 							);
@@ -476,11 +484,19 @@ function SettingsSections() {
 	);
 }
 
-function SendersSection({ hrefs }: { hrefs: SpamHrefs }) {
+function SendersSection() {
 	const groups = [
-		{ title: "Never in Spam", hint: "Their mail skips the spam check." },
-		{ title: "Reported", hint: "Their mail goes straight to Spam." },
-	];
+		{
+			title: "Never in Spam",
+			hint: "Their mail skips the spam check.",
+			group: "neverSpam",
+		},
+		{
+			title: "Reported",
+			hint: "Their mail goes straight to Spam.",
+			group: "blocked",
+		},
+	] as const;
 	return (
 		<Section title="Senders">
 			<ul className="list-none divide-y divide-line rounded-md border border-line">
@@ -493,14 +509,18 @@ function SendersSection({ hrefs }: { hrefs: SpamHrefs }) {
 							<p className="text-sm font-medium text-fg">{group.title}</p>
 							<p className="text-xs text-fg-muted">{group.hint}</p>
 						</div>
-						<ButtonLink
-							variant="secondary"
-							className="min-h-11"
-							href={hrefs.senders}
+						<NavLink
+							to="/settings/senders"
+							search={{ group: group.group }}
+							variant="inline"
+							className={cn(
+								buttonClassName({ variant: "secondary" }),
+								"min-h-11 hover:no-underline",
+							)}
 							aria-label={`Manage ${group.title}`}
 						>
 							Manage
-						</ButtonLink>
+						</NavLink>
 					</li>
 				))}
 			</ul>
@@ -514,13 +534,12 @@ function SendersSection({ hrefs }: { hrefs: SpamHrefs }) {
  * groups. Every section loads and fails on its own.
  */
 export function SpamSettingsPanel() {
-	const hrefs = useSpamHrefs();
 	return (
 		<div className="max-w-3xl space-y-8">
 			<OverviewSection />
-			<LatestSection hrefs={hrefs} />
+			<LatestSection />
 			<SettingsSections />
-			<SendersSection hrefs={hrefs} />
+			<SendersSection />
 		</div>
 	);
 }

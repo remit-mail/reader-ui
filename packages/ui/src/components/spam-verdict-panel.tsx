@@ -1,17 +1,17 @@
-import type { ReactNode } from "react";
+import type {
+	RemitImapSpamChecked,
+	RemitImapSpamFailed,
+	RemitImapSpamLabelPlacement,
+	RemitImapSpamReason,
+	RemitImapSpamThresholds,
+	RemitImapSpamThresholdsSet,
+	RemitImapSpamVerdictScreenedOut,
+} from "@remit/api-http-client/types.gen.ts";
+import type { ReactElement, ReactNode } from "react";
 import { cn } from "../lib/cn.js";
 import { Button } from "./button.js";
 import { IntelligenceSection } from "./intelligence-section.js";
 import type { LabelChipData } from "./label-chip.js";
-import type {
-	SpamChecked,
-	SpamFailed,
-	SpamLabelPlacement,
-	SpamReason,
-	SpamThresholds,
-	SpamThresholdsSet,
-	SpamVerdictScreenedOut,
-} from "./spam-contract.js";
 import {
 	BASIC_CHECKS_ONLY,
 	CHECK_FAILED_HEADLINE,
@@ -31,20 +31,35 @@ import { SpamRowMarker } from "./spam-row-marker.js";
 
 export const SPAM_CHECK_HEADING_ID = "spam-check-heading";
 
-export interface SpamVerdictPanelLinks {
-	spamSettingsHref: string;
-	sendersHref: string;
-	filterHref: (filterId: string) => string;
-	reportIssueHref: (symbol: string) => string;
+/** Where a link in the Spam check section goes; the host maps it to a route. */
+export type SpamVerdictLinkTarget =
+	| { kind: "SpamSettings" }
+	| { kind: "NeverInSpamSenders" }
+	| { kind: "Filter"; filterId: string };
+
+export interface SpamVerdictLinkProps {
+	target: SpamVerdictLinkTarget;
+	className: string;
+	children: ReactNode;
 }
 
+/** Renders an in-app link, so following it is a navigation, not a reload. */
+export type SpamVerdictLinkComponent = (
+	props: SpamVerdictLinkProps,
+) => ReactElement;
+
 export interface SpamVerdictPanelProps {
-	verdict: SpamChecked | SpamFailed | SpamVerdictScreenedOut;
-	label: LabelChipData;
-	thresholds: SpamThresholds;
-	placement: SpamLabelPlacement;
+	verdict:
+		| RemitImapSpamChecked
+		| RemitImapSpamFailed
+		| RemitImapSpamVerdictScreenedOut;
+	/** The Remit label the message carries, when it carries one. */
+	label?: LabelChipData;
+	thresholds: RemitImapSpamThresholds;
+	placement: RemitImapSpamLabelPlacement;
 	filterName?: string;
-	links: SpamVerdictPanelLinks;
+	linkComponent: SpamVerdictLinkComponent;
+	reportIssueHref: (symbol: string) => string;
 	onNotSpam: () => void;
 }
 
@@ -67,7 +82,7 @@ function ScoreBar({
 	thresholds,
 }: {
 	score: number;
-	thresholds: SpamThresholdsSet;
+	thresholds: RemitImapSpamThresholdsSet;
 }) {
 	const at = (value: number) => `${Math.min(100, Math.max(0, value * 100))}%`;
 	return (
@@ -118,7 +133,7 @@ function ReasonItem({
 	reason,
 	reportIssueHref,
 }: {
-	reason: SpamReason;
+	reason: RemitImapSpamReason;
 	reportIssueHref: (symbol: string) => string;
 }) {
 	const sentence = spamReasonSentence(reason.name);
@@ -153,9 +168,10 @@ function CheckedVerdict({
 	label,
 	thresholds,
 	placement,
-	links,
+	linkComponent: Link,
+	reportIssueHref,
 }: Omit<SpamVerdictPanelProps, "verdict" | "onNotSpam" | "filterName"> & {
-	verdict: SpamChecked;
+	verdict: RemitImapSpamChecked;
 }) {
 	const said = modelSaid(verdict);
 	const skipped = modelSkipCause(verdict);
@@ -174,8 +190,8 @@ function CheckedVerdict({
 	return (
 		<Section>
 			<Headline>{headline}</Headline>
-			{verdict.action !== "None" && (
-				<SpamRowMarker label={label} action={verdict.action} />
+			{label && verdict.action !== "None" && (
+				<SpamRowMarker label={label} suspected={verdict.action === "Warn"} />
 			)}
 			<p className="text-fg-muted">
 				{spamScoreSentence(verdict.score, thresholds)}
@@ -192,7 +208,7 @@ function CheckedVerdict({
 							<ReasonItem
 								key={reason.symbol}
 								reason={reason}
-								reportIssueHref={links.reportIssueHref}
+								reportIssueHref={reportIssueHref}
 							/>
 						))}
 				</ul>
@@ -212,9 +228,9 @@ function CheckedVerdict({
 				<p className="text-fg-muted">
 					The score reached your Spam threshold. Spam is set to Warn only, so it
 					stays here.{" "}
-					<a href={links.spamSettingsHref} className={LINK}>
+					<Link target={{ kind: "SpamSettings" }} className={LINK}>
 						Change in Spam &amp; phishing settings
-					</a>
+					</Link>
 				</p>
 			)}
 		</Section>
@@ -225,19 +241,19 @@ function ScreenedOutVerdict({
 	verdict,
 	label,
 	filterName,
-	links,
+	linkComponent: Link,
 	onNotSpam,
 }: Pick<
 	SpamVerdictPanelProps,
-	"label" | "filterName" | "links" | "onNotSpam"
-> & { verdict: SpamVerdictScreenedOut }) {
+	"label" | "filterName" | "linkComponent" | "onNotSpam"
+> & { verdict: RemitImapSpamVerdictScreenedOut }) {
 	const { screen } = verdict;
 
 	if (screen.rule === "ReportedSender") {
 		return (
 			<Section>
 				<Headline>You reported this sender</Headline>
-				<SpamRowMarker label={label} action="Junk" />
+				{label && <SpamRowMarker label={label} suspected={false} />}
 				<p className="text-fg-muted">
 					Remit sent their mail to Spam without checking it.
 				</p>
@@ -257,9 +273,12 @@ function ScreenedOutVerdict({
 						? filterScreenSentence(filterName)
 						: "One of your filters matched it."}
 				</p>
-				<a href={links.filterHref(screen.filterId)} className={LINK}>
+				<Link
+					target={{ kind: "Filter", filterId: screen.filterId }}
+					className={LINK}
+				>
 					Open the filter in Settings
-				</a>
+				</Link>
 			</Section>
 		);
 	}
@@ -269,9 +288,9 @@ function ScreenedOutVerdict({
 			<Headline>Remit skipped the spam check</Headline>
 			<p className="text-fg-muted">{SPAM_SCREEN_SENTENCES[screen.rule]}</p>
 			{screen.rule === "NeverSpam" && (
-				<a href={links.sendersHref} className={LINK}>
+				<Link target={{ kind: "NeverInSpamSenders" }} className={LINK}>
 					Manage in Senders &amp; Rules
-				</a>
+				</Link>
 			)}
 		</Section>
 	);

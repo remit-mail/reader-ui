@@ -79,6 +79,7 @@ const renderRow = (): DomHarness => {
 			children: createElement(SwipeableMessageRow, {
 				thread,
 				mailboxId: "mbx-1",
+				junkMailboxIds: new Set<string>(),
 				isSelected: false,
 				isChecked: false,
 				onToggleCheck: () => undefined,

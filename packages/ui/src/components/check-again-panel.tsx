@@ -1,13 +1,13 @@
+import type { RemitImapRescanFailureCode } from "@remit/api-http-client/types.gen.ts";
 import { type KeyboardEvent, type ReactNode, useEffect, useRef } from "react";
 import { Button, ButtonLink } from "./button.js";
 import { ProgressBar } from "./progress-bar.js";
-import type { RescanFailureCode } from "./spam-contract.js";
 import { CHECK_AGAIN_FAILURE_SENTENCES, formatSpamScore } from "./spam-copy.js";
 
 export interface CheckAgainFailure {
 	messageId: string;
 	subject: string;
-	code: RescanFailureCode;
+	code: RemitImapRescanFailureCode;
 	retryable: boolean;
 }
 

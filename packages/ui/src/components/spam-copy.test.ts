@@ -1,10 +1,13 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import type { SpamReason } from "./spam-contract.js";
+import type { RemitImapSpamReason } from "@remit/api-http-client/types.gen.ts";
 import { topSpamReason } from "./spam-copy.js";
 
 describe("topSpamReason", () => {
-	const reason = (name: SpamReason["name"], score: number): SpamReason => ({
+	const reason = (
+		name: RemitImapSpamReason["name"],
+		score: number,
+	): RemitImapSpamReason => ({
 		name,
 		symbol: name,
 		score,

@@ -3,11 +3,7 @@ import { expect, userEvent, within } from "storybook/test";
 import { AppStory } from "../../mocks/story-frame/AppStory";
 import { mailHandlers } from "../../mocks/story-frame/mail-handlers";
 import { mailboxIdFor, PERSONAL } from "../../mocks/story-frame/mail-world";
-import {
-	PARCEL_ROW,
-	SPAM_LABEL_ID,
-	spamWorld,
-} from "../../mocks/story-frame/spam-world";
+import { PARCEL_ROW, spamWorld } from "../../mocks/story-frame/spam-world";
 
 const INBOX = mailboxIdFor(PERSONAL, "Inbox");
 const JUNK = mailboxIdFor(PERSONAL, "Junk");
@@ -54,17 +50,6 @@ export const RowMarker: Story = {
 		await expect(
 			await canvas.findByText("Phishing, suspected"),
 		).toBeInTheDocument();
-	},
-};
-
-/** The Spam label lists the mail Remit labelled, wherever it sits. */
-export const SpamLabelList: Story = {
-	args: { url: `/mail/label/${SPAM_LABEL_ID}` },
-	play: async ({ canvasElement }) => {
-		const canvas = within(canvasElement);
-		await expect(
-			await canvas.findByText("Only today: 80% off everything"),
-		).toBeVisible();
 	},
 };
 

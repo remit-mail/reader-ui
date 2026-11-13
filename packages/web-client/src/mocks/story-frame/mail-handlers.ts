@@ -409,8 +409,7 @@ export const mailHandlers = (
 			);
 			const scope = world.threads.filter((row) =>
 				labelId
-					? labelFolderIds.has(row.mailboxId) ||
-						(row.labels ?? []).some((label) => label.labelId === labelId)
+					? labelFolderIds.has(row.mailboxId)
 					: searching ||
 						params.get("starred") === "true" ||
 						inboxIds.has(row.mailboxId),

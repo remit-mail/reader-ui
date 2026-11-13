@@ -18,6 +18,7 @@ import { useModifierSelect } from "./useModifierSelect";
 interface SwipeableMessageRowProps {
 	thread: RemitImapThreadMessageResponse;
 	mailboxId: string;
+	junkMailboxIds: ReadonlySet<string>;
 	isSelected: boolean;
 	/** Roving keyboard focus cursor — renders the left accent rail (#429). */
 	isFocused?: boolean;
@@ -44,6 +45,7 @@ interface SwipeableMessageRowProps {
  */
 export const swipeableRowData = (
 	thread: RemitImapThreadMessageResponse,
+	junkMailboxIds: ReadonlySet<string>,
 ): ThreadRowData => {
 	return {
 		id: thread.messageId,
@@ -58,7 +60,7 @@ export const swipeableRowData = (
 		starred: thread.hasStars === true,
 		trust: thread.senderTrust,
 		category: toDisplayCategory(thread.category),
-		spam: spamRowMark(thread),
+		spam: spamRowMark(thread, junkMailboxIds),
 		...rowSettlement(thread),
 	};
 };
@@ -66,6 +68,7 @@ export const swipeableRowData = (
 export const SwipeableMessageRow = ({
 	thread,
 	mailboxId,
+	junkMailboxIds,
 	isSelected,
 	isFocused,
 	isTabStop,
@@ -115,6 +118,7 @@ export const SwipeableMessageRow = ({
 			<MessageListItem
 				thread={thread}
 				mailboxId={mailboxId}
+				junkMailboxIds={junkMailboxIds}
 				isSelected={isSelected}
 				isFocused={isFocused}
 				isTabStop={isTabStop}
@@ -144,7 +148,7 @@ export const SwipeableMessageRow = ({
 			onContextMenu={modifierSelect.onContextMenu}
 		>
 			<SwipeableRow
-				thread={swipeableRowData(thread)}
+				thread={swipeableRowData(thread, junkMailboxIds)}
 				selectionMode={false}
 				checked={false}
 				active={isSelected}

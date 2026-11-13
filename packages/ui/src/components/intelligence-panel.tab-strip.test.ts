@@ -26,11 +26,6 @@ const sender: IntelligenceData = {
 		inboundCount: 41,
 		replyCount: 29,
 	},
-	authenticity: {
-		verdict: "aligned",
-		fromDomain: "northwind.example",
-		summary: "Nothing looks unusual about this sender.",
-	},
 	category: { value: "personal" },
 	spamAction: "reportSpam",
 	flags: {},

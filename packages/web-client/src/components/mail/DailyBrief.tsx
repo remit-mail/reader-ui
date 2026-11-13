@@ -107,6 +107,7 @@ import {
 	isSyncingPhase,
 	useInitialSyncProgress,
 } from "../../hooks/useInitialSyncProgress";
+import { useJunkMailboxIds } from "../../hooks/useJunkMailboxIds";
 import { useLabelList } from "../../hooks/useLabels";
 import { useLayoutTier } from "../../hooks/useLayoutTier";
 import { useIsDesktop } from "../../hooks/useMediaQuery";
@@ -687,6 +688,7 @@ export function DailyBrief({
 	// pill, mute, the free text, `from:` and `subject:` — was answered over the
 	// whole scope by the request itself, and the order the rows arrived in is
 	// kept: narrowing never re-sorts.
+	const spamFolderIds = useJunkMailboxIds();
 	const clientOnlyFilters = useMemo(
 		() => briefClientOnlyFilters(requestFilters),
 		[requestFilters],
@@ -698,13 +700,13 @@ export function DailyBrief({
 			// rows under a header reading one. Collapsed before anything reads a
 			// length, so the rows and the number are the same unit.
 			dedupeByThread(rows)
-				.map(toThreadRowData)
+				.map((thread) => toThreadRowData(thread, spamFolderIds))
 				.filter(
 					(t) =>
 						matchesBriefFilters(t, clientOnlyFilters) &&
 						matchesSearchTokens(t, residualTokens),
 				),
-		[clientOnlyFilters, residualTokens],
+		[clientOnlyFilters, residualTokens, spamFolderIds],
 	);
 
 	const briefRows = useMemo<BriefCategoryResult[]>(

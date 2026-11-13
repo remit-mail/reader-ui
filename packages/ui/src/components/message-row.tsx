@@ -236,7 +236,7 @@ export function ComfortableRowTextContent({
 				{thread.spam && (
 					<SpamRowMarker
 						label={thread.spam.label}
-						action={thread.spam.action}
+						suspected={thread.spam.suspected}
 					/>
 				)}
 				{thread.labels

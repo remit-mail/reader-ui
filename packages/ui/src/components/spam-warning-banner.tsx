@@ -1,13 +1,13 @@
+import type {
+	RemitImapRescanFailureCode,
+	RemitImapSpamChecked,
+	RemitImapSpamFailed,
+} from "@remit/api-http-client/types.gen.ts";
 import type { ReactNode } from "react";
 import { CircleQuestionMark, ShieldAlert, TriangleAlert } from "../icons.js";
 import { cn } from "../lib/cn.js";
 import { Banner, type BannerTone } from "./banner.js";
 import { Button } from "./button.js";
-import type {
-	RescanFailureCode,
-	SpamChecked,
-	SpamFailed,
-} from "./spam-contract.js";
 import {
 	BASIC_CHECKS_ONLY,
 	CHECK_AGAIN_FAILURE_SENTENCES,
@@ -22,10 +22,10 @@ import {
 export type SpamWarningPending = "NotSpam" | "Report" | "Move" | "CheckAgain";
 
 export interface SpamWarningBannerProps {
-	verdict: SpamChecked | SpamFailed;
+	verdict: RemitImapSpamChecked | RemitImapSpamFailed;
 	inSpamFolder: boolean;
 	pending?: SpamWarningPending;
-	checkAgainFailure?: RescanFailureCode;
+	checkAgainFailure?: RemitImapRescanFailureCode;
 	onNotSpam: () => void;
 	onReport: () => void;
 	onMove: () => void;

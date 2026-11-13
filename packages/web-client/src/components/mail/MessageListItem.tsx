@@ -23,6 +23,8 @@ import { MessageRow } from "./MessageRow";
 interface MessageListItemProps {
 	thread: RemitImapThreadMessageResponse;
 	mailboxId: string;
+	/** Every account's Spam folder, which tells a moved row from a suspected one. */
+	junkMailboxIds: ReadonlySet<string>;
 	isSelected: boolean;
 	isFocused?: boolean;
 	isTabStop?: boolean;
@@ -43,6 +45,7 @@ interface MessageListItemProps {
  */
 export const threadToRowData = (
 	thread: RemitImapThreadMessageResponse,
+	junkMailboxIds: ReadonlySet<string>,
 	messageCount?: number,
 ): ThreadRowData => ({
 	id: thread.messageId,
@@ -60,7 +63,7 @@ export const threadToRowData = (
 	trust: thread.senderTrust as SenderTrustLevel,
 	category: toDisplayCategory(thread.category),
 	messageCount,
-	spam: spamRowMark(thread),
+	spam: spamRowMark(thread, junkMailboxIds),
 	labels: thread.labels,
 	...rowSettlement(thread),
 });
@@ -68,6 +71,7 @@ export const threadToRowData = (
 const MessageListItemComponent = ({
 	thread,
 	mailboxId,
+	junkMailboxIds,
 	isSelected,
 	isFocused,
 	isTabStop,
@@ -82,7 +86,7 @@ const MessageListItemComponent = ({
 	density,
 }: MessageListItemProps) => (
 	<MessageRow
-		thread={threadToRowData(thread, messageCount)}
+		thread={threadToRowData(thread, junkMailboxIds, messageCount)}
 		link={{ mailboxId, threadId: thread.threadId }}
 		inListbox
 		active={isSelected}

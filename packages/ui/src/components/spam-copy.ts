@@ -1,17 +1,17 @@
 import type {
-	RescanFailureCode,
-	SpamChecked,
-	SpamFailureKind,
-	SpamKind,
-	SpamModelOutcome,
-	SpamReason,
-	SpamReasonName,
-	SpamSenderScreenRule,
-	SpamThresholds,
-} from "./spam-contract.js";
+	RemitImapRescanFailureCode,
+	RemitImapSpamChecked,
+	RemitImapSpamFailureKind,
+	RemitImapSpamKind,
+	RemitImapSpamModelOutcome,
+	RemitImapSpamReason,
+	RemitImapSpamReasonName,
+	RemitImapSpamSenderScreenRule,
+	RemitImapSpamThresholds,
+} from "@remit/api-http-client/types.gen.ts";
 
 const REASON_SENTENCES: Record<
-	Exclude<SpamReasonName, "BackendSymbol">,
+	Exclude<RemitImapSpamReasonName, "BackendSymbol">,
 	string
 > = {
 	DmarcFail: "It failed the sender domain's DMARC check.",
@@ -43,13 +43,13 @@ const REASON_SENTENCES: Record<
 	ListedPhishingLink: "A link in it is on a list of known phishing pages.",
 };
 
-const MODEL_REASONS: ReadonlySet<SpamReasonName> = new Set([
+const MODEL_REASONS: ReadonlySet<RemitImapSpamReasonName> = new Set([
 	"ModelImpersonation",
 	"ModelSpam",
 	"ModelClean",
 ]);
 
-export const isModelReason = (reason: SpamReason): boolean =>
+export const isModelReason = (reason: RemitImapSpamReason): boolean =>
 	MODEL_REASONS.has(reason.name);
 
 export const UNKNOWN_REASON_SENTENCE =
@@ -61,7 +61,7 @@ export const BASIC_CHECKS_ONLY = "Only the basic checks ran";
 
 const isDescribedReason = (
 	name: string,
-): name is Exclude<SpamReasonName, "BackendSymbol"> =>
+): name is Exclude<RemitImapSpamReasonName, "BackendSymbol"> =>
 	Object.hasOwn(REASON_SENTENCES, name);
 
 /**
@@ -74,22 +74,24 @@ export function spamReasonSentence(name: string): string | undefined {
 }
 
 export function topSpamReason(
-	reasons: readonly SpamReason[],
-): SpamReason | undefined {
-	return reasons.reduce<SpamReason | undefined>(
+	reasons: readonly RemitImapSpamReason[],
+): RemitImapSpamReason | undefined {
+	return reasons.reduce<RemitImapSpamReason | undefined>(
 		(top, reason) => (top && top.score >= reason.score ? top : reason),
 		undefined,
 	);
 }
 
-export function topSpamReasonSentence(reasons: readonly SpamReason[]): string {
+export function topSpamReasonSentence(
+	reasons: readonly RemitImapSpamReason[],
+): string {
 	const top = topSpamReason(reasons);
 	if (!top) return "";
 	return spamReasonSentence(top.name) ?? UNKNOWN_REASON_SENTENCE;
 }
 
 /** What the model said, quoted from its reason, when it answered. */
-export function modelSaid(verdict: SpamChecked): string | undefined {
+export function modelSaid(verdict: RemitImapSpamChecked): string | undefined {
 	if (verdict.modelOutcome !== "Answered") return undefined;
 	const reason = verdict.reasons.find(isModelReason);
 	if (!reason || reason.options.length === 0) return undefined;
@@ -97,7 +99,7 @@ export function modelSaid(verdict: SpamChecked): string | undefined {
 }
 
 export const MODEL_SKIP_CAUSES: Record<
-	Exclude<SpamModelOutcome, "Answered" | "OutOfBand">,
+	Exclude<RemitImapSpamModelOutcome, "Answered" | "OutOfBand">,
 	string
 > = {
 	NotConfigured: "this account has no model set up.",
@@ -106,31 +108,37 @@ export const MODEL_SKIP_CAUSES: Record<
 };
 
 /** Why the model did not weigh in on a message it would have helped with. */
-export function modelSkipCause(verdict: SpamChecked): string | undefined {
+export function modelSkipCause(
+	verdict: RemitImapSpamChecked,
+): string | undefined {
 	const outcome = verdict.modelOutcome;
 	if (outcome === "Answered" || outcome === "OutOfBand") return undefined;
 	return MODEL_SKIP_CAUSES[outcome];
 }
 
-export const SPAM_FAILURE_SENTENCES: Record<SpamFailureKind, string> = {
-	Unreachable: "the spam service could not be reached",
-	TimedOut: "the spam service did not answer in time",
-	ServiceError: "the spam service answered with an error",
-	Unparseable: "Remit could not read the spam service's answer",
-};
-
-export const CHECK_AGAIN_FAILURE_SENTENCES: Record<RescanFailureCode, string> =
+export const SPAM_FAILURE_SENTENCES: Record<RemitImapSpamFailureKind, string> =
 	{
-		RateLimited: "try again in a minute.",
-		DailyCap: "try again tomorrow (daily model limit).",
-		NotSettled: "a move is still settling. No retry for this one yet.",
-		NotFound: "the message is gone from the server. No retry for this one.",
-		NotPermitted:
-			"the server refused access to this message. No retry for this one.",
+		Unreachable: "the spam service could not be reached",
+		TimedOut: "the spam service did not answer in time",
+		ServiceError: "the spam service answered with an error",
+		Unparseable: "Remit could not read the spam service's answer",
 	};
 
+export const CHECK_AGAIN_FAILURE_SENTENCES: Record<
+	RemitImapRescanFailureCode,
+	string
+> = {
+	RateLimited: "try again in a minute.",
+	DailyCap: "try again tomorrow (daily model limit).",
+	NotSettled:
+		"a move is still settling. Remit will retry it once the move lands.",
+	NotFound: "the message is gone from the server. No retry for this one.",
+	NotPermitted:
+		"the server refused access to this message. No retry for this one.",
+};
+
 export const SPAM_SCREEN_SENTENCES: Record<
-	Exclude<SpamSenderScreenRule, "ReportedSender">,
+	Exclude<RemitImapSpamSenderScreenRule, "ReportedSender">,
 	string
 > = {
 	NeverSpam: "You marked this sender Never in Spam.",
@@ -142,7 +150,7 @@ export const SPAM_SCREEN_SENTENCES: Record<
 export const filterScreenSentence = (filterName: string): string =>
 	`Your filter "${filterName}" matched it.`;
 
-export const SPAM_WARN_HEADLINES: Record<SpamKind, string> = {
+export const SPAM_WARN_HEADLINES: Record<RemitImapSpamKind, string> = {
 	Spam: "Remit suspects this is spam",
 	Phishing: "Remit suspects this message impersonates someone",
 };
@@ -151,7 +159,7 @@ export const formatSpamScore = (score: number): string => score.toFixed(2);
 
 export const spamScoreSentence = (
 	score: number,
-	thresholds: SpamThresholds,
+	thresholds: RemitImapSpamThresholds,
 ): string =>
 	thresholds.state === "Set"
 		? `Score ${formatSpamScore(score)}. Remit warns from ${formatSpamScore(thresholds.cleanBelow)} and moves to Spam from ${formatSpamScore(thresholds.spamAt)}.`

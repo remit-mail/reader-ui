@@ -4,29 +4,23 @@ import type {
 	RemitImapSpamChecked,
 	RemitImapSpamKind,
 } from "@remit/api-http-client/types.gen.ts";
-import type { LabelChipData, ThreadRowSpam } from "@remit/ui";
+import type { ThreadRowSpam } from "@remit/ui";
 import { buildBugReportContext, buildGitHubIssueUrl } from "./bug-report";
 
-const KIND_COLOURS: Record<RemitImapSpamKind, string> = {
-	Spam: "Orange",
-	Phishing: "Red",
-};
+const SPAM_KINDS: readonly RemitImapSpamKind[] = ["Phishing", "Spam"];
 
 /**
- * The Remit label a verdict of this kind applies, as the message carries it.
- * A row read before the label landed still names the kind, in its own colour.
+ * The Remit Spam or Phishing label the message carries, found by name. The
+ * label, not the verdict, says Remit flagged the message: Not spam removes it.
  */
-export const spamLabelFor = (
-	kind: RemitImapSpamKind,
+export const remitSpamLabel = (
 	labels: readonly RemitImapLabelSummaryResponse[] | undefined,
-): LabelChipData =>
-	labels?.find((label) => label.name === kind) ?? {
-		labelId: `remit-${kind}`,
-		name: kind,
-		color: KIND_COLOURS[kind],
-	};
+): RemitImapLabelSummaryResponse | undefined =>
+	SPAM_KINDS.flatMap(
+		(kind) => labels?.filter((label) => label.name === kind) ?? [],
+	)[0];
 
-/** A verdict that warned about the message or sent it to Spam. */
+/** A checked verdict that warned about the message or sent it to Spam. */
 export const flaggedVerdict = (
 	verdict: RemitImapMessageSpamVerdict,
 ): (RemitImapSpamChecked & { action: "Warn" | "Junk" }) | undefined =>
@@ -34,29 +28,34 @@ export const flaggedVerdict = (
 		? { ...verdict, action: verdict.action }
 		: undefined;
 
-/** The row's one spam mark: the Remit label, and whether Remit only warned. */
-export const spamRowMark = (row: {
-	spamVerdict: RemitImapMessageSpamVerdict;
-	labels?: RemitImapLabelSummaryResponse[];
-}): ThreadRowSpam | undefined => {
-	const verdict = flaggedVerdict(row.spamVerdict);
-	if (!verdict) return undefined;
-	return {
-		label: spamLabelFor(verdict.kind, row.labels),
-		action: verdict.action,
-	};
+/**
+ * The row's one spam mark: the Remit label it carries, suspected while the
+ * message sits outside a Spam folder.
+ */
+export const spamRowMark = (
+	row: { mailboxId: string; labels?: RemitImapLabelSummaryResponse[] },
+	junkMailboxIds: ReadonlySet<string>,
+): ThreadRowSpam | undefined => {
+	const label = remitSpamLabel(row.labels);
+	if (!label) return undefined;
+	return { label, suspected: !junkMailboxIds.has(row.mailboxId) };
 };
 
-/** Whether the message view raises the spam banner and the rail for it. */
+/**
+ * Whether the message view raises the spam banner and the rail for it: a
+ * failed check, or a Remit label on a message outside Spam.
+ */
 export const raisesSpamWarning = (
-	verdict: RemitImapMessageSpamVerdict,
+	row: {
+		spamVerdict: RemitImapMessageSpamVerdict;
+		labels?: RemitImapLabelSummaryResponse[];
+	},
 	inSpamFolder: boolean,
-): boolean => {
-	if (verdict.state === "Failed") return true;
-	if (verdict.state !== "Checked") return false;
-	if (verdict.action === "Warn") return true;
-	return verdict.action === "Junk" && !inSpamFolder;
-};
+): boolean =>
+	row.spamVerdict.state === "Failed" ||
+	(remitSpamLabel(row.labels) !== undefined &&
+		row.spamVerdict.state === "Checked" &&
+		!inSpamFolder);
 
 export const spamReportHref = (title: string, detail: string): string =>
 	buildGitHubIssueUrl(

@@ -5,7 +5,6 @@ import {
 } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
 import { accountMessageOperationsRescanMessages } from "@remit/api-http-client/sdk.gen.ts";
 import type {
-	RemitImapMessageSpamVerdict,
 	RemitImapRescanFailureCode,
 	RemitImapRescanResult,
 	RemitImapThreadMessageResponse,
@@ -62,8 +61,6 @@ export interface CheckAgainContextValue {
 	) => void;
 	/** Ids in the batch in flight. */
 	pendingIds: ReadonlySet<string>;
-	/** The newest verdict a run returned, until the rows reload with it. */
-	verdicts: ReadonlyMap<string, RemitImapMessageSpamVerdict>;
 	/** Why the last run left a message unchecked. */
 	failures: ReadonlyMap<string, RemitImapRescanFailureCode>;
 }
@@ -152,9 +149,6 @@ export function CheckAgainProvider({ children }: { children: ReactNode }) {
 	const { pushError } = useErrorBanners();
 	const [panel, setPanel] = useState<PanelRun | undefined>(undefined);
 	const [pendingIds, setPendingIds] = useState<ReadonlySet<string>>(new Set());
-	const [verdicts, setVerdicts] = useState<
-		ReadonlyMap<string, RemitImapMessageSpamVerdict>
-	>(new Map());
 	const [failures, setFailures] = useState<
 		ReadonlyMap<string, RemitImapRescanFailureCode>
 	>(new Map());
@@ -185,7 +179,6 @@ export function CheckAgainProvider({ children }: { children: ReactNode }) {
 			let outcome: BatchOutcome = {
 				summary: EMPTY_SUMMARY,
 				failures: [],
-				verdicts: new Map(),
 			};
 			let checked = 0;
 			if (showPanel) setPanel({ state: "Running", checked, total });
@@ -200,7 +193,6 @@ export function CheckAgainProvider({ children }: { children: ReactNode }) {
 				}
 				outcome = applyRescanResult(outcome, batch, result);
 				checked += batch.targets.length;
-				setVerdicts((current) => new Map([...current, ...outcome.verdicts]));
 				setFailures((current) => {
 					const next = new Map(current);
 					for (const success of result.successful) {
@@ -248,7 +240,15 @@ export function CheckAgainProvider({ children }: { children: ReactNode }) {
 
 	const start = useCallback(
 		(targets: CheckAgainTarget[], showPanel: boolean) => {
-			if (runningRef.current || targets.length === 0) return;
+			if (targets.length === 0) return;
+			if (runningRef.current) {
+				pushError({
+					severity: "info",
+					title: "Check again is already running",
+					detail: "Wait for the run in progress to finish, or stop it.",
+				});
+				return;
+			}
 			runningRef.current = true;
 			stopRef.current = false;
 			void run(targets, showPanel)
@@ -261,7 +261,7 @@ export function CheckAgainProvider({ children }: { children: ReactNode }) {
 					runningRef.current = false;
 				});
 		},
-		[run],
+		[run, pushError],
 	);
 
 	const checkAgain = useCallback<CheckAgainContextValue["checkAgain"]>(
@@ -274,8 +274,8 @@ export function CheckAgainProvider({ children }: { children: ReactNode }) {
 	);
 
 	const value = useMemo<CheckAgainContextValue>(
-		() => ({ checkAgain, pendingIds, verdicts, failures }),
-		[checkAgain, pendingIds, verdicts, failures],
+		() => ({ checkAgain, pendingIds, failures }),
+		[checkAgain, pendingIds, failures],
 	);
 
 	const panelProps = ((): CheckAgainPanelProps | undefined => {
@@ -323,13 +323,14 @@ export function CheckAgainProvider({ children }: { children: ReactNode }) {
 
 export const checkAgainRequestOfThread = (
 	thread: RemitImapThreadMessageResponse,
+	junkMailboxIds: ReadonlySet<string>,
 ): CheckAgainRequest => ({
 	messageId: thread.messageId,
 	accountId: thread.accountId,
 	mailboxId: thread.mailboxId,
 	threadId: thread.threadId,
 	subject: thread.subject ?? "(No subject)",
-	before: spamRowMark(thread),
+	before: spamRowMark(thread, junkMailboxIds),
 });
 
 export const checkAgainRequestOfRow = (

@@ -27,6 +27,7 @@ import {
 	useEscalatedActions,
 } from "../../hooks/useEscalatedActions";
 import { useFollowFocusOpen } from "../../hooks/useFollowFocusOpen";
+import { useJunkMailboxIds } from "../../hooks/useJunkMailboxIds";
 import { useLabelList } from "../../hooks/useLabels";
 import { useToggleReadFor } from "../../hooks/useMarkAsRead";
 import { useIsDesktop } from "../../hooks/useMediaQuery";
@@ -524,12 +525,13 @@ export const MessageList = ({
 		return rows;
 	}, [threads, selectedIds, accountId]);
 	const checkAgain = useCheckAgain();
+	const junkMailboxIds = useJunkMailboxIds();
 	const checkAgainSelection = checkAgain
 		? () =>
 				checkAgain.checkAgain(
 					threads
 						.filter((thread) => selectedIds.has(thread.messageId))
-						.map(checkAgainRequestOfThread),
+						.map((thread) => checkAgainRequestOfThread(thread, junkMailboxIds)),
 					{ panel: true },
 				)
 		: undefined;
@@ -1307,6 +1309,7 @@ export const MessageList = ({
 								<SwipeableMessageRow
 									thread={thread}
 									mailboxId={mailboxId}
+									junkMailboxIds={junkMailboxIds}
 									isSelected={selectedMessageId === thread.messageId}
 									isFocused={focusedMessageId === thread.messageId}
 									isTabStop={tabStopMessageId === thread.messageId}

@@ -176,6 +176,7 @@ export {
 	ButtonLink,
 	type ButtonLinkProps,
 	type ButtonProps,
+	buttonClassName,
 } from "./components/button.js";
 export {
 	CalendarClashStrip,
@@ -577,7 +578,6 @@ export {
 	type IntelligenceCalendarProps,
 } from "./components/intelligence-calendar.js";
 export {
-	type AuthenticityIntel,
 	type IntelligenceCalendarSurface,
 	type IntelligenceData,
 	IntelligencePanel,
@@ -688,10 +688,6 @@ export {
 	type NavSidebarProps,
 } from "./components/nav-sidebar.js";
 export { NavToggleButton } from "./components/nav-toggle-button.js";
-export {
-	NeverInSpamOffer,
-	type NeverInSpamOfferProps,
-} from "./components/never-in-spam-offer.js";
 export {
 	NewFolderAction,
 	type NewFolderActionProps,
@@ -981,30 +977,6 @@ export {
 	SlidePanel,
 	type SlidePanelProps,
 } from "./components/slide-panel.js";
-export type {
-	MessageSpamVerdict,
-	RescanFailure,
-	RescanFailureCode,
-	RescanResult,
-	RescanSuccess,
-	SpamAction,
-	SpamChecked,
-	SpamDayCount,
-	SpamFailed,
-	SpamFailureKind,
-	SpamKind,
-	SpamLabelPlacement,
-	SpamModelOutcome,
-	SpamReason,
-	SpamReasonName,
-	SpamScoreBand,
-	SpamScreen,
-	SpamSenderScreenRule,
-	SpamSettings,
-	SpamThresholds,
-	SpamThresholdsSet,
-	SpamVerdictScreenedOut,
-} from "./components/spam-contract.js";
 export {
 	BASIC_CHECKS_ONLY,
 	CHECK_AGAIN_FAILURE_SENTENCES,
@@ -1027,7 +999,6 @@ export {
 	type SpamDay,
 	spamDayDescription,
 } from "./components/spam-daily-chart.js";
-export type { SpamNotSpamDay } from "./components/spam-proposed.js";
 export {
 	SpamResultsOffer,
 	type SpamResultsOfferProps,
@@ -1038,8 +1009,10 @@ export {
 } from "./components/spam-row-marker.js";
 export {
 	SPAM_CHECK_HEADING_ID,
+	type SpamVerdictLinkComponent,
+	type SpamVerdictLinkProps,
+	type SpamVerdictLinkTarget,
 	SpamVerdictPanel,
-	type SpamVerdictPanelLinks,
 	type SpamVerdictPanelProps,
 } from "./components/spam-verdict-panel.js";
 export {

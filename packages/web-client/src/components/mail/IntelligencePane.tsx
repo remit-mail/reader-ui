@@ -27,15 +27,13 @@ import { useIntelligenceData } from "../../hooks/useIntelligenceData";
 import { useReportSpam } from "../../hooks/useReportSpam";
 import { useUpdateAddressFlags } from "../../hooks/useUpdateAddressFlags";
 import { softErrorStatuses } from "../../lib/error-classifier";
-import { raiseNeverInSpamOffer } from "../../lib/never-in-spam-offer";
 import { isRescueCandidate } from "../../lib/rescue-candidates";
 import { recordRescueSentToJunk } from "../../lib/rescue-telemetry";
-import { spamLabelFor, unknownReasonReportHref } from "../../lib/spam";
+import { remitSpamLabel, unknownReasonReportHref } from "../../lib/spam";
 import { useTelemetry } from "../../lib/telemetry-context";
 import type { OpenThreadTarget } from "../../routing";
-import { useSpamHrefs } from "../../routing/spam";
+import { SpamVerdictLink } from "../../routing/spam-link";
 import type { ReplyWithText } from "../compose/reply-with-times";
-import { useCheckAgain } from "./CheckAgainProvider";
 
 export interface IntelligencePaneProps {
 	onClose: () => void;
@@ -243,9 +241,7 @@ function SpamCheckSection({
 	accountId: string | undefined;
 	onNotSpam: () => void;
 }) {
-	const checkAgain = useCheckAgain();
-	const verdict =
-		checkAgain?.verdicts.get(thread.messageId) ?? thread.spamVerdict;
+	const verdict = thread.spamVerdict;
 	if (verdict.state === "NotChecked") return null;
 	return (
 		<SpamVerdictSection
@@ -268,7 +264,6 @@ function SpamVerdictSection({
 	accountId: string | undefined;
 	onNotSpam: () => void;
 }) {
-	const hrefs = useSpamHrefs();
 	const settings = useQuery({
 		...userSettingsOperationsGetUserSettingsOptions(),
 		meta: softErrorStatuses(403),
@@ -284,18 +279,14 @@ function SpamVerdictSection({
 	return (
 		<SpamVerdictPanel
 			verdict={verdict}
-			label={spamLabelFor(kind, thread.labels)}
+			label={remitSpamLabel(thread.labels)}
 			thresholds={spam.thresholds}
 			placement={
 				kind === "Phishing" ? spam.phishingPlacement : spam.spamPlacement
 			}
 			filterName={filters.find((filter) => filter.filterId === filterId)?.name}
-			links={{
-				spamSettingsHref: hrefs.spamSettings,
-				sendersHref: hrefs.senders,
-				filterHref: () => hrefs.filters,
-				reportIssueHref: unknownReasonReportHref,
-			}}
+			linkComponent={SpamVerdictLink}
+			reportIssueHref={unknownReasonReportHref}
 			onNotSpam={onNotSpam}
 		/>
 	);
@@ -373,12 +364,6 @@ function WiredPanel({
 					if (message.mailboxId === junkMailboxId) ids.add(message.messageId);
 				}
 				moveOutOfSpam([...ids]);
-				if (thread.fromEmail) {
-					raiseNeverInSpamOffer({
-						name: thread.fromName ?? thread.fromEmail,
-						email: thread.fromEmail,
-					});
-				}
 			});
 	}, [
 		notSpam,
@@ -387,8 +372,6 @@ function WiredPanel({
 		spamAction,
 		thread.messageId,
 		thread.threadId,
-		thread.fromEmail,
-		thread.fromName,
 		junkMailboxId,
 	]);
 

@@ -24,6 +24,10 @@
 
 import type { RemitImapThreadMessageResponse } from "@remit/api-http-client/types.gen.ts";
 import { matchesSearchTokens, toThreadRowData } from "./brief.js";
+
+/** Search tokens read no spam mark, so the row needs no Spam folders. */
+const NO_SPAM_FOLDERS: ReadonlySet<string> = new Set();
+
 import type { InboxFilterParams, ThreadSearchQuery } from "./inbox-filters.js";
 import type { SearchToken } from "./search-tokens.js";
 
@@ -168,7 +172,7 @@ export function applyResidualTokens(
 	if (residual.length === 0) return threads;
 	const tokens = [...residual];
 	return threads.filter((thread) => {
-		const row = toThreadRowData(thread);
+		const row = toThreadRowData(thread, NO_SPAM_FOLDERS);
 		return matchesSearchTokens(
 			{ ...row, accountId: row.accountId ?? accountId },
 			tokens,
