@@ -19,25 +19,28 @@ export const MAIL_BRIEF_ROUTE_ID = "/mail/brief" as const;
 export const MAIL_MAILBOX_ROUTE_ID = "/mail/$mailboxId" as const;
 export const MAIL_OUTBOX_ROUTE_ID = "/mail/outbox" as const;
 export const MAIL_FLAGGED_ROUTE_ID = "/mail/flagged" as const;
+export const MAIL_LABEL_ROUTE_ID = "/mail/label/$labelId" as const;
 
 /**
- * The list a location is browsing. A mailbox route carries its id, which is
- * absent only in the frame before the router has resolved the param.
+ * The list a location is browsing. A mailbox or label route carries its id,
+ * which is absent only in the frame before the router has resolved the param.
  */
 export type MailListRoute =
 	| { list: "brief" }
 	| { list: "flagged" }
 	| { list: "outbox" }
-	| { list: "mailbox"; mailboxId: string | undefined };
+	| { list: "mailbox"; mailboxId: string | undefined }
+	| { list: "label"; labelId: string | undefined };
 
 /**
- * The list a caller is on, flattened to the two values a navigation to it — or
- * a decision about it — needs. Both are primitives, so a caller holding them in
- * a dependency array settles, and `list` is `undefined` outside the mail shell.
+ * The list a caller is on, flattened to the values a navigation to it — or a
+ * decision about it — needs. All are primitives, so a caller holding them in a
+ * dependency array settles, and `list` is `undefined` outside the mail shell.
  */
 export interface BrowsedList {
 	list: MailListRoute["list"] | undefined;
 	mailboxId: string | undefined;
+	labelId: string | undefined;
 }
 
 /**
@@ -54,6 +57,8 @@ export function mailListRoute(
 		if (match.routeId === MAIL_BRIEF_ROUTE_ID) return { list: "brief" };
 		if (match.routeId === MAIL_FLAGGED_ROUTE_ID) return { list: "flagged" };
 		if (match.routeId === MAIL_OUTBOX_ROUTE_ID) return { list: "outbox" };
+		if (match.routeId === MAIL_LABEL_ROUTE_ID)
+			return { list: "label", labelId: match.params?.labelId };
 		if (match.routeId === MAIL_MAILBOX_ROUTE_ID)
 			return { list: "mailbox", mailboxId: match.params?.mailboxId };
 	}
@@ -85,6 +90,7 @@ export function mailViewKey(pathname: string): string {
 	if (list === "brief") return MAIL_BRIEF_ROUTE_ID;
 	if (list === "flagged") return MAIL_FLAGGED_ROUTE_ID;
 	if (list === "outbox") return MAIL_OUTBOX_ROUTE_ID;
+	if (list === "label") return `${MAIL_LABEL_ROUTE_ID}:${segments[2] ?? ""}`;
 	return mailboxViewKey(list);
 }
 
@@ -136,5 +142,7 @@ export function locationIsOnList(pathname: string, listPath: string): boolean {
  */
 export function locationOpensDetail(pathname: string): boolean {
 	const segments = pathname.split(/[?#]/)[0].split("/").filter(Boolean);
-	return segments[0] === "mail" && segments.length > 2;
+	if (segments[0] !== "mail") return false;
+	const listSegments = segments[1] === "label" ? 3 : 2;
+	return segments.length > listSegments;
 }

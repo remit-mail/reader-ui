@@ -15,7 +15,7 @@ import { useRetainOpenPanels } from "./fragment";
 export type { BrowsedList };
 
 /**
- * The list the address is browsing, as the two values a navigation to it needs.
+ * The list the address is browsing, as the values a navigation to it needs.
  *
  * Every surface a list can open — compose, a reply, a conversation — reads the
  * same answer, so the four lists cannot disagree about which one is underneath.
@@ -28,7 +28,12 @@ export function useBrowsedList(): BrowsedList {
 	});
 	const mailbox = useParams({ from: "/mail/$mailboxId", shouldThrow: false });
 	const mailboxId = mailbox?.mailboxId;
-	return useMemo(() => ({ list, mailboxId }), [list, mailboxId]);
+	const label = useParams({ from: "/mail/label/$labelId", shouldThrow: false });
+	const labelId = label?.labelId;
+	return useMemo(
+		() => ({ list, mailboxId, labelId }),
+		[list, mailboxId, labelId],
+	);
 }
 
 /**
@@ -54,7 +59,7 @@ export function useOpensDetail(): boolean {
 export function useNavigateToBrowsedList(): () => void {
 	const navigate = useNavigate();
 	const retainPanels = useRetainOpenPanels();
-	const { list, mailboxId } = useBrowsedList();
+	const { list, mailboxId, labelId } = useBrowsedList();
 
 	return useCallback(() => {
 		const search = (prev: Record<string, unknown>) => prev;
@@ -71,6 +76,15 @@ export function useNavigateToBrowsedList(): () => void {
 			navigate({ to: "/mail/$mailboxId", params: { mailboxId }, search, hash });
 			return;
 		}
+		if (list === "label" && labelId) {
+			navigate({
+				to: "/mail/label/$labelId",
+				params: { labelId },
+				search,
+				hash,
+			});
+			return;
+		}
 		navigate({ to: "/mail/brief", search, hash });
-	}, [navigate, retainPanels, list, mailboxId]);
+	}, [navigate, retainPanels, list, mailboxId, labelId]);
 }

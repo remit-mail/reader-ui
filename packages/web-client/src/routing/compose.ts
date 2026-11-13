@@ -1,7 +1,11 @@
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { useCallback } from "react";
 import { withoutComposeSeed } from "../lib/mail-search";
-import { useBrowsedList, useNavigateToBrowsedList } from "./browsed-list";
+import {
+	type BrowsedList,
+	useBrowsedList,
+	useNavigateToBrowsedList,
+} from "./browsed-list";
 import { useRetainOpenPanels } from "./fragment";
 
 /**
@@ -13,6 +17,8 @@ const BRIEF_COMPOSE = "/mail/brief/compose/{-$outboxMessageId}" as const;
 const FLAGGED_COMPOSE = "/mail/flagged/compose/{-$outboxMessageId}" as const;
 const OUTBOX_COMPOSE = "/mail/outbox/compose/{-$outboxMessageId}" as const;
 const MAILBOX_COMPOSE = "/mail/$mailboxId/compose/{-$outboxMessageId}" as const;
+const LABEL_COMPOSE =
+	"/mail/label/$labelId/compose/{-$outboxMessageId}" as const;
 
 /**
  * The compose match, if the address has one. Each `from` names a real route, so
@@ -25,7 +31,8 @@ function useComposeParams(): { outboxMessageId?: string } | undefined {
 	const flagged = useParams({ from: FLAGGED_COMPOSE, shouldThrow: false });
 	const outbox = useParams({ from: OUTBOX_COMPOSE, shouldThrow: false });
 	const mailbox = useParams({ from: MAILBOX_COMPOSE, shouldThrow: false });
-	return brief ?? flagged ?? outbox ?? mailbox;
+	const label = useParams({ from: LABEL_COMPOSE, shouldThrow: false });
+	return brief ?? flagged ?? outbox ?? mailbox ?? label;
 }
 
 /**
@@ -62,6 +69,11 @@ interface MailboxComposeNavigation {
 	params: { mailboxId: string; outboxMessageId: string | undefined };
 }
 
+interface LabelComposeNavigation {
+	to: typeof LABEL_COMPOSE;
+	params: { labelId: string; outboxMessageId: string | undefined };
+}
+
 /**
  * Where compose opens: the list being browsed, or the brief.
  *
@@ -74,16 +86,17 @@ interface MailboxComposeNavigation {
  * a message needs no folder to be written in.
  */
 function composeTarget(
-	list: "brief" | "flagged" | "outbox" | "mailbox" | undefined,
-	mailboxId: string | undefined,
+	{ list, mailboxId, labelId }: BrowsedList,
 	outboxMessageId: string | undefined,
-): ComposeNavigation | MailboxComposeNavigation {
+): ComposeNavigation | MailboxComposeNavigation | LabelComposeNavigation {
 	if (list === "flagged")
 		return { to: FLAGGED_COMPOSE, params: { outboxMessageId } };
 	if (list === "outbox")
 		return { to: OUTBOX_COMPOSE, params: { outboxMessageId } };
 	if (list === "mailbox" && mailboxId)
 		return { to: MAILBOX_COMPOSE, params: { mailboxId, outboxMessageId } };
+	if (list === "label" && labelId)
+		return { to: LABEL_COMPOSE, params: { labelId, outboxMessageId } };
 	return { to: BRIEF_COMPOSE, params: { outboxMessageId } };
 }
 
@@ -100,7 +113,7 @@ function useComposeNavigate(): (
 ) => void {
 	const navigate = useNavigate();
 	const retainPanels = useRetainOpenPanels();
-	const { list, mailboxId } = useBrowsedList();
+	const browsed = useBrowsedList();
 
 	return useCallback(
 		(
@@ -108,7 +121,7 @@ function useComposeNavigate(): (
 			options?: { replace?: boolean; keepPanels?: boolean },
 		) => {
 			navigate({
-				...composeTarget(list, mailboxId, outboxMessageId),
+				...composeTarget(browsed, outboxMessageId),
 				search: withoutComposeSeed,
 				// Opening or closing the surface is going somewhere, so the panes the
 				// reader keeps up travel and the overlays they were reading over do
@@ -119,7 +132,7 @@ function useComposeNavigate(): (
 				replace: options?.replace ?? false,
 			});
 		},
-		[navigate, retainPanels, list, mailboxId],
+		[navigate, retainPanels, browsed],
 	);
 }
 

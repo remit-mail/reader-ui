@@ -7,20 +7,32 @@ import type {
 	RemitImapAccountResponse,
 	RemitImapMailboxResponse,
 } from "@remit/api-http-client/types.gen.ts";
-import type { NavAccount, NavLinkComponent, NavMailboxRole } from "@remit/ui";
+import type {
+	NavAccount,
+	NavLabel,
+	NavLinkComponent,
+	NavMailboxRole,
+} from "@remit/ui";
 import { NavSidebar } from "@remit/ui";
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { useLabelList } from "../../hooks/useLabels";
 import { folderFailure } from "../../lib/folder-failure";
 import {
 	buildMailboxRoleMap,
 	labelForMailbox,
 	shouldShowUnreadBadgeForRole,
 } from "../../lib/folder-roles";
+import { splitLabelFolders } from "../../lib/label-folders";
 import { useMailContext } from "../../lib/mail-context";
 import { isOutboxListRow } from "../../lib/outbox-status";
-import { NavLink, useSelectedNavId } from "../../routing";
+import {
+	labelIdOfNavId,
+	labelNavId,
+	NavLink,
+	useSelectedNavId,
+} from "../../routing";
 
 interface MailSidebarAdapterProps {
 	accounts: RemitImapAccountResponse[];
@@ -138,6 +150,20 @@ export function MailSidebarAdapter({
 		})),
 	});
 
+	// Labels belong to the user rather than to one account, so any account
+	// answers for all of them.
+	const { labels } = useLabelList(accounts[0]?.accountId);
+
+	const navLabels: NavLabel[] = useMemo(
+		() =>
+			labels.map((label) => ({
+				id: labelNavId(label.labelId),
+				name: label.name,
+				color: label.color,
+			})),
+		[labels],
+	);
+
 	const { data: outboxResponse } = useQuery(
 		outboxOperationsListOutboxMessagesOptions(),
 	);
@@ -153,9 +179,16 @@ export function MailSidebarAdapter({
 	const navAccounts: NavAccount[] = useMemo(() => {
 		return accounts.map((account, i) => {
 			const query = mailboxQueries[i];
-			const mailboxes = query?.data?.items ?? [];
+			const { shown: mailboxes } = splitLabelFolders(
+				query?.data?.items ?? [],
+				labels,
+			);
 			const roleMap = buildMailboxRoleMap(account.folderAppointments);
-			const { system, labels } = sortMailboxes(mailboxes, roleMap, translator);
+			const { system, labels: folders } = sortMailboxes(
+				mailboxes,
+				roleMap,
+				translator,
+			);
 
 			const status: NavAccount["status"] = query?.isError
 				? "error"
@@ -173,12 +206,12 @@ export function MailSidebarAdapter({
 				outboxPending: outboxPendingCount,
 				status,
 				onRetry: () => query?.refetch(),
-				mailboxes: [...system, ...labels].map((mb) =>
+				mailboxes: [...system, ...folders].map((mb) =>
 					toNavMailbox(mb, roleMap.get(mb.mailboxId), translator),
 				),
 			};
 		});
-	}, [accounts, mailboxQueries, outboxPendingCount, translator]);
+	}, [accounts, mailboxQueries, outboxPendingCount, translator, labels]);
 
 	// Invalidate a mailbox's thread list on navigation so a re-visit always
 	// fetches fresh data (mirrors the retired MailboxItem behaviour).
@@ -258,6 +291,22 @@ export function MailSidebarAdapter({
 				</NavLink>
 			);
 		}
+		const labelId = labelIdOfNavId(navId);
+		if (labelId) {
+			return (
+				<NavLink
+					to="/mail/label/$labelId"
+					params={{ labelId }}
+					search={{ q: undefined }}
+					onClick={() => onClick?.()}
+					className={className}
+					aria-label={ariaLabel}
+					title={title}
+				>
+					{children}
+				</NavLink>
+			);
+		}
 		if (navId === "settings") {
 			return (
 				<NavLink
@@ -309,6 +358,7 @@ export function MailSidebarAdapter({
 	return (
 		<NavSidebar
 			accounts={navAccounts}
+			labels={navLabels}
 			selectedNavId={selectedNavId}
 			onSelectNav={handleSelectNav}
 			linkComponent={linkComponent}

@@ -1,12 +1,13 @@
 /**
- * FlaggedPane — compound component for the Flagged virtual mailbox
- * (/mail/flagged route).
+ * CollectionPane — compound component for a list that spans accounts and
+ * folders: the Flagged virtual mailbox (/mail/flagged) and a label
+ * (/mail/label/$labelId).
  *
  * Mirrors BriefPane in shape: it resolves the open thread and owns the list /
- * reading / phone slots. The list itself is a FLAT inbox of starred mail (see
- * `FlaggedList`), not the sectioned brief.
+ * reading / phone slots. The list itself is a FLAT inbox of the collection's
+ * mail (see `CollectionList`), not the sectioned brief.
  *
- * The row prefers the starred listing, the same query that produced the rows,
+ * The row prefers the collection listing, the same query that produced the rows,
  * and falls back to resolving the thread on its own when the address names
  * one the listing doesn't hold. The unified listing is INBOX-scoped, so
  * resolving against it left every starred thread filed elsewhere — Sent, an
@@ -15,14 +16,14 @@
  *
  * Usage in the list layout route:
  *
- *   <FlaggedPane thread={useOpenThreadPath()}>
+ *   <CollectionPane collection={STARRED} title="Starred" thread={useOpenThreadPath()}>
  *     <MailShell
- *       list={<FlaggedPane.List />}
+ *       list={<CollectionPane.List />}
  *       reading={<Outlet />}
  *     />
- *   </FlaggedPane>
+ *   </CollectionPane>
  *
- * On phone, use `<FlaggedPane.Phone />` instead.
+ * On phone, use `<CollectionPane.Phone />` instead.
  */
 import type { RemitImapThreadMessageResponse } from "@remit/api-http-client/types.gen.ts";
 import { ReadingPaneEmpty } from "@remit/ui";
@@ -33,11 +34,11 @@ import {
 	useContext,
 	useMemo,
 } from "react";
+import { useCollectionThreads } from "../../hooks/useCollectionThreads";
 import { useDeleteMessages } from "../../hooks/useDeleteMessages";
 import { useIntelligenceDrawer } from "../../hooks/useIntelligenceDrawer";
 import { useIntelligenceSurface } from "../../hooks/useIntelligenceSurface";
 import { useToggleReadFor } from "../../hooks/useMarkAsRead";
-import { useStarredThreads } from "../../hooks/useStarredThreads";
 import {
 	type ThreadActions,
 	useThreadActions,
@@ -48,6 +49,7 @@ import {
 	useTriageContext,
 	useTriageLayer,
 } from "../../hooks/useTriageLayer";
+import type { ThreadCollection } from "../../lib/collection-criteria";
 import type { ConversationTarget } from "../../lib/conversation-target";
 import { useMailContext } from "../../lib/mail-context";
 import {
@@ -63,8 +65,8 @@ import {
 	useOpenThread,
 } from "../../routing";
 import { useReplyWithText } from "../compose/reply-with-times";
+import { CollectionList } from "./CollectionList";
 import { ConversationView } from "./ConversationView";
-import { FlaggedList } from "./FlaggedList";
 import { IntelligenceDrawer } from "./IntelligenceDrawer";
 import { IntelligencePane } from "./IntelligencePane";
 import { MessageToolbar } from "./MessageToolbar";
@@ -74,7 +76,10 @@ import type { OpenMessageOptions } from "./ThreadListInteraction";
 /* Context                                                              */
 /* ------------------------------------------------------------------ */
 
-interface FlaggedPaneContextValue {
+interface CollectionPaneContextValue {
+	collection: ThreadCollection;
+	/** What the list header and the empty state call the collection. */
+	title: string;
 	/** The row the reader pointed at, which is the one the list highlights. */
 	selectedMessageId: string | undefined;
 	selectedThread: RemitImapThreadMessageResponse | undefined;
@@ -90,7 +95,7 @@ interface FlaggedPaneContextValue {
 	previousThread: OpenThreadTarget | undefined;
 	/**
 	 * Toolbar verbs for the open thread, keyed by the thread's own mailbox and
-	 * account — Flagged spans accounts, so there is no route mailbox to key by.
+	 * account — a collection spans accounts, so there is no route mailbox to key by.
 	 */
 	actions: ThreadActions;
 	/**
@@ -110,11 +115,14 @@ interface FlaggedPaneContextValue {
 	handleDeselectIfRemoved: (removedIds: string[]) => void;
 }
 
-const FlaggedPaneCtx = createContext<FlaggedPaneContextValue | null>(null);
+const CollectionPaneCtx = createContext<CollectionPaneContextValue | null>(
+	null,
+);
 
-function useFlaggedPane(): FlaggedPaneContextValue {
-	const ctx = useContext(FlaggedPaneCtx);
-	if (!ctx) throw new Error("FlaggedPane.* must be used inside <FlaggedPane>");
+function useCollectionPane(): CollectionPaneContextValue {
+	const ctx = useContext(CollectionPaneCtx);
+	if (!ctx)
+		throw new Error("CollectionPane.* must be used inside <CollectionPane>");
 	return ctx;
 }
 
@@ -122,13 +130,20 @@ function useFlaggedPane(): FlaggedPaneContextValue {
 /* Provider                                                             */
 /* ------------------------------------------------------------------ */
 
-interface FlaggedPaneProps {
+interface CollectionPaneProps {
+	collection: ThreadCollection;
+	title: string;
 	/** The open conversation, as the address states it. */
 	thread: OpenThreadPath | undefined;
 	children: ReactNode;
 }
 
-function FlaggedPaneProvider({ thread, children }: FlaggedPaneProps) {
+function CollectionPaneProvider({
+	collection,
+	title,
+	thread,
+	children,
+}: CollectionPaneProps) {
 	const openThread = useOpenThread();
 	const closeThread = useCloseThread();
 	const goToSection = useGoToSection();
@@ -136,12 +151,12 @@ function FlaggedPaneProvider({ thread, children }: FlaggedPaneProps) {
 	const threadId = thread?.threadId;
 	const pointedAtMessageId = thread?.messageId;
 
-	const { threads } = useStarredThreads();
+	const { threads } = useCollectionThreads(collection);
 
-	// The row the starred listing itself holds, preferred because a mutation
+	// The row the collection listing itself holds, preferred because a mutation
 	// patches it in place. A thread reached from a cold address is in no listing
 	// here and answers for itself — the folder it is filed in is the thread's own
-	// data, so Starred spanning folders costs the URL nothing.
+	// data, so a collection spanning folders costs the URL nothing.
 	const listedThread = useMemo(() => {
 		if (!threadId) return undefined;
 		return (
@@ -189,7 +204,7 @@ function FlaggedPaneProvider({ thread, children }: FlaggedPaneProps) {
 
 	const triage = useTriageContext();
 
-	// A Flagged selection spans accounts and mailboxes, so the listings these
+	// A collection selection spans accounts and mailboxes, so the listings these
 	// patch are resolved from each message's own mailbox — the open thread's is
 	// only the fallback.
 	const { deleteMessages } = useDeleteMessages({
@@ -269,7 +284,7 @@ function FlaggedPaneProvider({ thread, children }: FlaggedPaneProps) {
 	});
 
 	// The swipe gestures open a whole conversation, so the adjacent row has to
-	// name its thread. The starred listing is where that is looked up, so a row
+	// name its thread. The collection listing is where that is looked up, so a row
 	// it does not hold offers no gesture rather than a tap that goes nowhere.
 	const adjacentThread = useCallback(
 		(messageId: string | undefined): OpenThreadTarget | undefined => {
@@ -280,7 +295,9 @@ function FlaggedPaneProvider({ thread, children }: FlaggedPaneProps) {
 		[threads],
 	);
 
-	const ctx: FlaggedPaneContextValue = {
+	const ctx: CollectionPaneContextValue = {
+		collection,
+		title,
 		selectedMessageId,
 		selectedThread,
 		conversation,
@@ -296,7 +313,9 @@ function FlaggedPaneProvider({ thread, children }: FlaggedPaneProps) {
 	};
 
 	return (
-		<FlaggedPaneCtx.Provider value={ctx}>{children}</FlaggedPaneCtx.Provider>
+		<CollectionPaneCtx.Provider value={ctx}>
+			{children}
+		</CollectionPaneCtx.Provider>
 	);
 }
 
@@ -304,12 +323,20 @@ function FlaggedPaneProvider({ thread, children }: FlaggedPaneProps) {
 /* Sub-views                                                            */
 /* ------------------------------------------------------------------ */
 
-/** Flat starred list. Mount in the `list` slot of `AppShellSlotted`. */
-function FlaggedListSlot() {
-	const { selectedMessageId, onOpenThread, triage, onDeleteMessages } =
-		useFlaggedPane();
+/** Flat collection list. Mount in the `list` slot of `AppShellSlotted`. */
+function CollectionListSlot() {
+	const {
+		collection,
+		title,
+		selectedMessageId,
+		onOpenThread,
+		triage,
+		onDeleteMessages,
+	} = useCollectionPane();
 	return (
-		<FlaggedList
+		<CollectionList
+			collection={collection}
+			title={title}
 			selectedMessageId={selectedMessageId}
 			onOpenThread={onOpenThread}
 			commandsRef={triage.listCommandsRef}
@@ -323,7 +350,7 @@ function FlaggedListSlot() {
  * Reading pane: toolbar + ConversationView.
  * Mount in the `reading` slot of `AppShellSlotted`. Only rendered ≥ 1024px.
  */
-function FlaggedReading() {
+function CollectionReading() {
 	const replyWithText = useReplyWithText();
 	const {
 		conversation,
@@ -332,7 +359,7 @@ function FlaggedReading() {
 		onReply,
 		handleDeselectIfRemoved,
 		onOpenThread,
-	} = useFlaggedPane();
+	} = useCollectionPane();
 	const hasThread = Boolean(conversation);
 	const intelligence = useIntelligenceSurface(conversation?.threadId);
 
@@ -393,10 +420,10 @@ function FlaggedReading() {
  * Intelligence pane: IntelligencePane for the open thread.
  * Mount in the `intelligence` slot of `AppShellSlotted`. Only rendered ≥ 1280px.
  */
-function FlaggedIntelligence() {
+function CollectionIntelligence() {
 	const replyWithText = useReplyWithText();
 	const { selectedThread, handleDeselectIfRemoved, onOpenThread } =
-		useFlaggedPane();
+		useCollectionPane();
 	const { onToggleIntelligence } = useMailContext();
 
 	return (
@@ -412,7 +439,7 @@ function FlaggedIntelligence() {
 }
 
 /** Phone view: ConversationView when a thread is open, else the flat list. */
-function FlaggedPhone() {
+function CollectionPhone() {
 	const replyWithText = useReplyWithText();
 	const {
 		selectedThread,
@@ -422,7 +449,7 @@ function FlaggedPhone() {
 		nextThread,
 		previousThread,
 		handleDeselectIfRemoved,
-	} = useFlaggedPane();
+	} = useCollectionPane();
 	const drawer = useIntelligenceDrawer(conversation?.threadId ?? null);
 
 	if (conversation) {
@@ -457,7 +484,7 @@ function FlaggedPhone() {
 
 	return (
 		<div className="h-full">
-			<FlaggedListSlot />
+			<CollectionListSlot />
 		</div>
 	);
 }
@@ -466,11 +493,11 @@ function FlaggedPhone() {
 /* Compound component assembly                                          */
 /* ------------------------------------------------------------------ */
 
-const FlaggedPane = Object.assign(FlaggedPaneProvider, {
-	List: FlaggedListSlot,
-	Reading: FlaggedReading,
-	Intelligence: FlaggedIntelligence,
-	Phone: FlaggedPhone,
+const CollectionPane = Object.assign(CollectionPaneProvider, {
+	List: CollectionListSlot,
+	Reading: CollectionReading,
+	Intelligence: CollectionIntelligence,
+	Phone: CollectionPhone,
 });
 
-export { FlaggedPane };
+export { CollectionPane };

@@ -23,6 +23,7 @@ import {
 	RouterProvider,
 } from "@tanstack/react-router";
 import { type ComponentType, createElement, type ReactNode } from "react";
+import { STARRED } from "../../lib/collection-criteria";
 import { MailContext, type MailContextValue } from "../../lib/mail-context";
 import { MailFreshnessProvider } from "../../lib/mail-freshness";
 import { EMPTY_RESULT_FOLDER_INDEX } from "../../lib/result-folder";
@@ -30,7 +31,7 @@ import { useOpenThreadPath } from "../../routing";
 import { createDomHarness, type DomHarness } from "../../test-support/dom";
 import { type HttpMock, mockFetch } from "../../test-support/http";
 import { ComposeProvider } from "../compose/ComposeProvider";
-import { FlaggedPane } from "./FlaggedPane";
+import { CollectionPane } from "./CollectionPane";
 import { MailboxPane } from "./MailboxPane";
 
 const MAILBOX_ID = "11111111-1111-4111-8111-111111111111";
@@ -65,9 +66,11 @@ const panes: PaneUnderTest[] = [
 		name: "Starred",
 		segment: "flagged",
 		scopeLabel: "Starred",
-		List: FlaggedPane.List,
+		List: CollectionPane.List,
 		mount: (children) =>
-			createElement(FlaggedPane, {
+			createElement(CollectionPane, {
+				collection: STARRED,
+				title: "Starred",
 				thread: useOpenThreadPath(),
 				// biome-ignore lint/correctness/noChildrenProp: no JSX in a `.ts` test, and createElement's variadic children do not satisfy a required prop
 				children,

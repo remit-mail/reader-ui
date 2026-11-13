@@ -13,7 +13,8 @@ import {
 	Outlet,
 } from "@tanstack/react-router";
 import { MailShell } from "../../components/layout/MailShell";
-import { FlaggedPane } from "../../components/mail/FlaggedPane";
+import { CollectionPane } from "../../components/mail/CollectionPane";
+import { STARRED } from "../../lib/collection-criteria";
 import { flaggedSearchSchema } from "../../lib/mail-search";
 import { useOpenThreadPath, useSearchMirror } from "../../routing";
 
@@ -32,15 +33,15 @@ function FlaggedLayout() {
 	useSearchMirror({ to: "/mail/flagged" });
 
 	return (
-		<FlaggedPane thread={thread}>
+		<CollectionPane collection={STARRED} title="Starred" thread={thread}>
 			<MailShell
-				phone={<FlaggedPane.Phone />}
-				list={<FlaggedPane.List />}
+				phone={<CollectionPane.Phone />}
+				list={<CollectionPane.List />}
 				reading={<Outlet />}
-				intelligence={<FlaggedPane.Intelligence />}
+				intelligence={<CollectionPane.Intelligence />}
 				hasThread={Boolean(thread)}
 			/>
-		</FlaggedPane>
+		</CollectionPane>
 	);
 }
 

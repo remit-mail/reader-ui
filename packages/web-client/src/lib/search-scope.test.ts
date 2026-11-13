@@ -25,6 +25,7 @@ const listFor: Record<string, BrowsedList["list"]> = {
 const browsing = (routeId: string): BrowsedList => ({
 	list: listFor[routeId],
 	mailboxId: undefined,
+	labelId: undefined,
 });
 
 describe("searchScopeForRoute", () => {

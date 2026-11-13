@@ -49,6 +49,14 @@ export function useOpenThreadPath(): OpenThreadPath | undefined {
 		from: "/mail/flagged/$threadId/$messageId",
 		shouldThrow: false,
 	});
+	const labelThread = useParams({
+		from: "/mail/label/$labelId/$threadId",
+		shouldThrow: false,
+	});
+	const labelMessage = useParams({
+		from: "/mail/label/$labelId/$threadId/$messageId",
+		shouldThrow: false,
+	});
 	const mailboxThread = useParams({
 		from: "/mail/$mailboxId/$threadId",
 		shouldThrow: false,
@@ -59,10 +67,14 @@ export function useOpenThreadPath(): OpenThreadPath | undefined {
 	});
 
 	const threadId =
-		briefThread?.threadId ?? flaggedThread?.threadId ?? mailboxThread?.threadId;
+		briefThread?.threadId ??
+		flaggedThread?.threadId ??
+		labelThread?.threadId ??
+		mailboxThread?.threadId;
 	const messageId =
 		briefMessage?.messageId ??
 		flaggedMessage?.messageId ??
+		labelMessage?.messageId ??
 		mailboxMessage?.messageId;
 
 	return useMemo(
@@ -107,7 +119,7 @@ export function useOpenThread(): (
 ) => void {
 	const navigate = useNavigate();
 	const retainPanels = useRetainOpenPanels();
-	const { list, mailboxId: browsedMailboxId } = useBrowsedList();
+	const { list, mailboxId: browsedMailboxId, labelId } = useBrowsedList();
 
 	return useCallback(
 		(target: OpenThreadTarget, options?: OpenThreadOptions) => {
@@ -127,6 +139,14 @@ export function useOpenThread(): (
 				});
 				return;
 			}
+			if (list === "label" && labelId) {
+				navigate({
+					to: "/mail/label/$labelId/$threadId/$messageId",
+					params: { labelId, ...target },
+					...rest,
+				});
+				return;
+			}
 			const mailboxId = options?.mailboxId ?? browsedMailboxId;
 			if (list === "mailbox" && mailboxId) {
 				navigate({
@@ -142,7 +162,7 @@ export function useOpenThread(): (
 				...rest,
 			});
 		},
-		[navigate, retainPanels, list, browsedMailboxId],
+		[navigate, retainPanels, list, browsedMailboxId, labelId],
 	);
 }
 

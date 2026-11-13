@@ -1,9 +1,8 @@
 import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import { useCallback, useMemo } from "react";
 import { z } from "zod";
-import type { MailListRoute } from "../lib/mail-route";
 import { type ComposeSeed, withoutComposeSeed } from "../lib/mail-search";
-import { useBrowsedList } from "./browsed-list";
+import { type BrowsedList, useBrowsedList } from "./browsed-list";
 import { useRetainOpenPanels } from "./fragment";
 
 /**
@@ -32,6 +31,8 @@ const FLAGGED_REPLY =
 	"/mail/flagged/$threadId/$messageId/$mode/{-$outboxMessageId}" as const;
 const MAILBOX_REPLY =
 	"/mail/$mailboxId/$threadId/$messageId/$mode/{-$outboxMessageId}" as const;
+const LABEL_REPLY =
+	"/mail/label/$labelId/$threadId/$messageId/$mode/{-$outboxMessageId}" as const;
 
 /** The conversation and the turn inside it that a reply answers. */
 export interface ReplyTarget {
@@ -78,14 +79,16 @@ function useReplyParams(): ReplyParams | undefined {
 	const brief = useParams({ from: BRIEF_REPLY, shouldThrow: false });
 	const flagged = useParams({ from: FLAGGED_REPLY, shouldThrow: false });
 	const mailbox = useParams({ from: MAILBOX_REPLY, shouldThrow: false });
-	return brief ?? flagged ?? mailbox;
+	const label = useParams({ from: LABEL_REPLY, shouldThrow: false });
+	return brief ?? flagged ?? mailbox ?? label;
 }
 
 function useReplySeed(): string | undefined {
 	const brief = useSearch({ from: BRIEF_REPLY, shouldThrow: false });
 	const flagged = useSearch({ from: FLAGGED_REPLY, shouldThrow: false });
 	const mailbox = useSearch({ from: MAILBOX_REPLY, shouldThrow: false });
-	return (brief ?? flagged ?? mailbox)?.body;
+	const label = useSearch({ from: LABEL_REPLY, shouldThrow: false });
+	return (brief ?? flagged ?? mailbox ?? label)?.body;
 }
 
 const seededSearch =
@@ -147,6 +150,14 @@ interface MailboxReplyNavigation {
 	};
 }
 
+interface LabelReplyNavigation {
+	to: typeof LABEL_REPLY;
+	params: ReplyTarget & {
+		labelId: string;
+		outboxMessageId: string | undefined;
+	};
+}
+
 /**
  * Where a reply opens: under the message, in the list the reader is browsing.
  *
@@ -155,17 +166,21 @@ interface MailboxReplyNavigation {
  * resolves opens a composer rather than reporting that it cannot.
  */
 function replyTarget(
-	list: MailListRoute["list"] | undefined,
-	mailboxId: string | undefined,
+	{ list, mailboxId, labelId }: BrowsedList,
 	target: ReplyTarget,
 	outboxMessageId: string | undefined,
-): ReplyNavigation | MailboxReplyNavigation {
+): ReplyNavigation | MailboxReplyNavigation | LabelReplyNavigation {
 	if (list === "flagged")
 		return { to: FLAGGED_REPLY, params: { ...target, outboxMessageId } };
 	if (list === "mailbox" && mailboxId)
 		return {
 			to: MAILBOX_REPLY,
 			params: { ...target, mailboxId, outboxMessageId },
+		};
+	if (list === "label" && labelId)
+		return {
+			to: LABEL_REPLY,
+			params: { ...target, labelId, outboxMessageId },
 		};
 	return { to: BRIEF_REPLY, params: { ...target, outboxMessageId } };
 }
@@ -207,15 +222,14 @@ export function useOpenReply(): (
 ) => void {
 	const navigate = useNavigate();
 	const retainPanels = useRetainOpenPanels();
-	const { list, mailboxId } = useBrowsedList();
+	const browsed = useBrowsedList();
 	const open = useReplySurface();
 
 	return useCallback(
 		(target: ReplyTarget, seed?: ComposeSeed) => {
 			navigate({
 				...replyTarget(
-					list,
-					mailboxId,
+					browsed,
 					target,
 					seed === undefined ? inheritedDraft(open, target) : undefined,
 				),
@@ -223,7 +237,7 @@ export function useOpenReply(): (
 				hash: retainPanels,
 			});
 		},
-		[navigate, retainPanels, list, mailboxId, open],
+		[navigate, retainPanels, browsed, open],
 	);
 }
 
@@ -263,7 +277,7 @@ export function replyToThread(
  */
 export function useAdoptReplyDraft(): (outboxMessageId: string) => void {
 	const navigate = useNavigate();
-	const { list, mailboxId } = useBrowsedList();
+	const browsed = useBrowsedList();
 	const surface = useReplySurface();
 
 	return useCallback(
@@ -271,8 +285,7 @@ export function useAdoptReplyDraft(): (outboxMessageId: string) => void {
 			if (surface?.kind !== "reply") return;
 			navigate({
 				...replyTarget(
-					list,
-					mailboxId,
+					browsed,
 					{
 						threadId: surface.threadId,
 						messageId: surface.sourceMessageId,
@@ -285,7 +298,7 @@ export function useAdoptReplyDraft(): (outboxMessageId: string) => void {
 				replace: true,
 			});
 		},
-		[navigate, list, mailboxId, surface],
+		[navigate, browsed, surface],
 	);
 }
 
@@ -299,7 +312,7 @@ export function useAdoptReplyDraft(): (outboxMessageId: string) => void {
 export function useCloseReply(): () => void {
 	const navigate = useNavigate();
 	const retainPanels = useRetainOpenPanels();
-	const { list, mailboxId } = useBrowsedList();
+	const { list, mailboxId, labelId } = useBrowsedList();
 	const params = useReplyParams();
 
 	return useCallback(() => {
@@ -325,11 +338,20 @@ export function useCloseReply(): () => void {
 			});
 			return;
 		}
+		if (list === "label" && labelId) {
+			navigate({
+				to: "/mail/label/$labelId/$threadId/$messageId",
+				params: { ...message, labelId },
+				search,
+				hash,
+			});
+			return;
+		}
 		navigate({
 			to: "/mail/brief/$threadId/$messageId",
 			params: message,
 			search,
 			hash,
 		});
-	}, [navigate, retainPanels, list, mailboxId, params]);
+	}, [navigate, retainPanels, list, mailboxId, labelId, params]);
 }

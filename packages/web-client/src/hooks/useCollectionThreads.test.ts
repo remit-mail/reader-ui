@@ -1,5 +1,5 @@
 /**
- * useStarredThreads — regression cover for issue #70.
+ * useCollectionThreads — regression cover for issue #70.
  *
  * The Starred pane rendered its rows from `GET /threads?starred=true` but
  * resolved the open thread from the unfiltered (INBOX-scoped) listing. Rows for
@@ -19,11 +19,12 @@ import type { RemitImapThreadMessageResponse } from "@remit/api-http-client/type
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createElement } from "react";
 import { renderToString } from "react-dom/server";
+import { STARRED } from "../lib/collection-criteria.js";
 import {
-	starredThreadsQueryKey,
-	useStarredThreads,
-	useStarredUnreadCount,
-} from "./useStarredThreads.js";
+	collectionThreadsQueryKey,
+	useCollectionThreads,
+	useCollectionUnreadCount,
+} from "./useCollectionThreads.js";
 
 interface Page {
 	items: RemitImapThreadMessageResponse[];
@@ -68,7 +69,7 @@ function renderHook(
 	const client = new QueryClient({
 		defaultOptions: { queries: { retry: false } },
 	});
-	client.setQueryData(starredThreadsQueryKey(), {
+	client.setQueryData(collectionThreadsQueryKey(STARRED), {
 		pages: starredPages,
 		pageParams: starredPages.map((_, index) =>
 			index === 0 ? undefined : `page-${index}`,
@@ -81,7 +82,7 @@ function renderHook(
 	let captured: RemitImapThreadMessageResponse[] = [];
 
 	function Capture() {
-		captured = useStarredThreads().threads;
+		captured = useCollectionThreads(STARRED).threads;
 		return null;
 	}
 
@@ -96,7 +97,7 @@ function renderHook(
 	return captured;
 }
 
-describe("useStarredThreads", () => {
+describe("useCollectionThreads", () => {
 	test("returns no threads when the listing is empty", () => {
 		assert.deepEqual(renderHook([{ items: [] }]), []);
 	});
@@ -137,7 +138,7 @@ describe("useStarredThreads", () => {
 // count was their length. Both are the server's answer now.
 describe("starred criteria", () => {
 	test("carries the chips as query parameters", () => {
-		const [params] = starredThreadsQueryKey({
+		const [params] = collectionThreadsQueryKey(STARRED, {
 			category: ["social"],
 			unread: true,
 			attachments: true,
@@ -158,11 +159,14 @@ describe("starred criteria", () => {
 	});
 
 	test("an unfiltered listing asks for exactly what it asked for before", () => {
-		assert.deepEqual(starredThreadsQueryKey({}), starredThreadsQueryKey());
+		assert.deepEqual(
+			collectionThreadsQueryKey(STARRED, {}),
+			collectionThreadsQueryKey(STARRED),
+		);
 	});
 });
 
-describe("useStarredUnreadCount", () => {
+describe("useCollectionUnreadCount", () => {
 	function renderCount(seed?: { count?: number }): number | undefined {
 		const client = new QueryClient({
 			defaultOptions: { queries: { retry: false } },
@@ -184,7 +188,7 @@ describe("useStarredUnreadCount", () => {
 
 		let captured: number | undefined;
 		function Capture() {
-			captured = useStarredUnreadCount();
+			captured = useCollectionUnreadCount(STARRED);
 			return null;
 		}
 		renderToString(

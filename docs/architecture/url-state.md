@@ -42,7 +42,7 @@ Any JSON in the URL validates against the same zod schema its domain already use
 
 `/mail/<list>/<thread>/<message>`, where the first segment is the list you are browsing, not the thread's home folder. `/mail/brief/<thread>/<message>` is legal, because threads are opened from the brief and from search while living in another folder.
 
-Lists are `brief`, `flagged`, `outbox` and `<mailboxId>`. Mailbox ids are UUIDs and TanStack matches literals first, so there is no collision.
+Lists are `brief`, `flagged`, `outbox`, `label/<labelId>` and `<mailboxId>`. Mailbox ids are UUIDs and TanStack matches literals first, so there is no collision. A label is one list across every account, so it is a path segment like a mailbox rather than a query param, and search inside it sends `labelId` with `query` to the same listing.
 
 Each list is a layout route whose component renders the list plus `AppShellSlotted` with `reading={<Outlet/>}`. The detail surface is a child route of the list it was opened from, so co-location comes from the router.
 
@@ -54,6 +54,11 @@ Each list is a layout route whose component renders the list plus `AppShellSlott
       $mode/{-$outboxMessageId}           reply | reply-all | forward
   compose/{-$outboxMessageId}             writing a message, on that draft once saved
 /mail/flagged
+/mail/label/$labelId                      one label across every account
+  $threadId                               thread open
+    $messageId                            that message expanded and scrolled to
+      $mode/{-$outboxMessageId}           reply | reply-all | forward
+  compose/{-$outboxMessageId}             writing a message, on that draft once saved
 /mail/outbox
   draft/$outboxMessageId                  reading an outbox message
 /mail/$mailboxId

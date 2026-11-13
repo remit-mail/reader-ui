@@ -5,6 +5,7 @@ import type {
 	RemitImapCalendarEventResponse,
 	RemitImapCalendarResponse,
 	RemitImapCanonicalMailboxRole,
+	RemitImapLabelResponse,
 	RemitImapMailboxResponse,
 	RemitImapMessageCategory,
 	RemitImapOutboxMessageResponse,
@@ -24,6 +25,7 @@ import {
 export interface MailWorld {
 	accounts: RemitImapAccountResponse[];
 	mailboxes: RemitImapMailboxResponse[];
+	labels: RemitImapLabelResponse[];
 	threads: RemitImapThreadMessageResponse[];
 	outbox: RemitImapOutboxMessageResponse[];
 	quarantine: RemitImapQuarantineResponse[];
@@ -427,6 +429,7 @@ export const mailWorld = (overrides: Partial<MailWorld> = {}): MailWorld => ({
 	mailboxes: (overrides.accounts ?? accounts).flatMap((account) =>
 		foldersOf(account.accountId),
 	),
+	labels: [],
 	threads: [...inboxThreads, ...serverDrafts],
 	outbox: [...remitDrafts, ...outboxInEveryStatus],
 	quarantine: [],

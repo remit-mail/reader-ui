@@ -35,7 +35,7 @@
  *
  * Pure functions only: no React, no fetch — the name index is injected, not
  * fetched here. `MailListHeader` renders the chips and the callers that issue
- * search requests (`MailboxPane`, `DailyBrief`, `FlaggedList`) apply the
+ * search requests (`MailboxPane`, `DailyBrief`, `CollectionList`) apply the
  * parsed tokens to the params each engine's API actually supports.
  */
 

@@ -47,6 +47,9 @@ const makeFilter = (
 	actionMailboxId: "mbx-invoices",
 	createdAt: 0,
 	updatedAt: 0,
+	priority: 0,
+	stop: false,
+	rule: { version: 1, test: { test: "allof", tests: [] } },
 	...overrides,
 });
 

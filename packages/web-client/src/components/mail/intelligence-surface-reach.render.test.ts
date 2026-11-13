@@ -27,6 +27,7 @@ import {
 	RouterProvider,
 } from "@tanstack/react-router";
 import { type ComponentType, createElement, type ReactNode } from "react";
+import { STARRED } from "../../lib/collection-criteria";
 import { type OpenThreadPath, useOpenThreadPath } from "../../routing";
 import { createDomHarness, type DomHarness } from "../../test-support/dom";
 import { makeThreadMessage } from "../../test-support/fixtures";
@@ -40,7 +41,7 @@ import {
 } from "../../test-support/intelligence-surface";
 import { ComposeProvider } from "../compose/ComposeProvider";
 import { BriefPane } from "./BriefPane";
-import { FlaggedPane } from "./FlaggedPane";
+import { CollectionPane } from "./CollectionPane";
 
 /** Below the rail's 1280px gate, above the reading pane's 1024px one. */
 const TWO_PANE_WIDTH = 1100;
@@ -99,8 +100,13 @@ const panes: PaneUnderTest[] = [
 	{
 		name: "Flagged",
 		segment: "flagged",
-		Provider: FlaggedPane,
-		Reading: FlaggedPane.Reading,
+		Provider: (props) =>
+			createElement(CollectionPane, {
+				...props,
+				collection: STARRED,
+				title: "Starred",
+			}),
+		Reading: CollectionPane.Reading,
 	},
 ];
 

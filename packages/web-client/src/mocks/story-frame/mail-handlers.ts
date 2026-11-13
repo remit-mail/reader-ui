@@ -316,7 +316,9 @@ export const mailHandlers = (
 			}),
 		),
 		http.get(`${API}/accounts/:accountId/labels`, () =>
-			HttpResponse.json<LabelOperationsListLabelsResponse>({ items: [] }),
+			HttpResponse.json<LabelOperationsListLabelsResponse>({
+				items: world.labels,
+			}),
 		),
 		http.get(`${API}/accounts/:accountId/filters`, () =>
 			HttpResponse.json<FilterOperationsListFiltersResponse>({ items: [] }),
@@ -389,11 +391,22 @@ export const mailHandlers = (
 		http.get(`${API}/threads`, ({ request }) => {
 			const params = new URL(request.url).searchParams;
 			const searching = params.has("query");
-			const scope = world.threads.filter(
-				(row) =>
-					searching ||
-					params.get("starred") === "true" ||
-					inboxIds.has(row.mailboxId),
+			const labelId = params.get("labelId");
+			const labelFolderIds = new Set(
+				world.labels
+					.filter((label) => label.labelId === labelId)
+					.flatMap((label) =>
+						label.folders.flatMap((folder) =>
+							folder.state === "Missing" ? [] : [folder.mailboxId],
+						),
+					),
+			);
+			const scope = world.threads.filter((row) =>
+				labelId
+					? labelFolderIds.has(row.mailboxId)
+					: searching ||
+						params.get("starred") === "true" ||
+						inboxIds.has(row.mailboxId),
 			);
 			if (options.holdLaterPages && params.has("continuationToken"))
 				return pending();
