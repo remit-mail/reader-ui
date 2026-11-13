@@ -206,7 +206,9 @@ export function resolveCategory(
 	const lower = value.toLowerCase();
 	const alias = CATEGORY_ALIASES[lower];
 	if (alias) return alias;
-	const known = Object.values(MessageCategory).find((c) => c === lower);
+	const known = Object.values(MessageCategory).find(
+		(c) => c.toLowerCase() === lower,
+	);
 	return known;
 }
 
