@@ -1,13 +1,8 @@
 import { type KeyboardEvent, type ReactNode, useEffect, useRef } from "react";
 import { Button, ButtonLink } from "./button.js";
 import { ProgressBar } from "./progress-bar.js";
-import { formatSpamScore } from "./spam-copy.js";
-
-export type CheckAgainFailureCause =
-	| "RateLimited"
-	| "DailyCap"
-	| "NotFound"
-	| "NotPermitted";
+import { CHECK_AGAIN_FAILURE_SENTENCES, formatSpamScore } from "./spam-copy.js";
+import type { CheckAgainFailureCause } from "./spam-proposed.js";
 
 export interface CheckAgainFailure {
 	messageId: string;
@@ -38,14 +33,6 @@ export type CheckAgainPanelProps =
 			onRetry: () => void;
 			onClose: () => void;
 	  };
-
-const FAILURE_SENTENCES: Record<CheckAgainFailureCause, string> = {
-	RateLimited: "try again in a minute.",
-	DailyCap: "try again tomorrow (daily model limit).",
-	NotFound: "the message is gone from the server. No retry for this one.",
-	NotPermitted:
-		"the server refused access to this message. No retry for this one.",
-};
 
 export const isRetryableCheckAgainFailure = (
 	cause: CheckAgainFailureCause,
@@ -166,7 +153,7 @@ export function CheckAgainPanel(props: CheckAgainPanelProps) {
 				{props.failures.map((failure) => (
 					<li key={failure.messageId}>
 						<span className="text-fg">{failure.subject}</span>:{" "}
-						{FAILURE_SENTENCES[failure.cause]}
+						{CHECK_AGAIN_FAILURE_SENTENCES[failure.cause]}
 					</li>
 				))}
 			</ul>

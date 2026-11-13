@@ -23,6 +23,7 @@ export const SPAM_REASON_NAMES = [
 	"ProviderSpam",
 	"DisplayNameForeignAddress",
 	"DisplayNameLookalike",
+	"BackendSymbol",
 ] as const;
 
 export type SpamReasonName = (typeof SPAM_REASON_NAMES)[number];
@@ -52,6 +53,7 @@ export type SpamSenderScreenRule = (typeof SPAM_SENDER_SCREEN_RULES)[number];
 
 export interface SpamReason {
 	name: SpamReasonName;
+	symbol: string;
 	score: number;
 	options: string[];
 }

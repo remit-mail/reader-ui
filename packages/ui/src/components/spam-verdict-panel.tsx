@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { cn } from "../lib/cn.js";
 import { Button } from "./button.js";
+import { IntelligenceSection } from "./intelligence-section.js";
 import type { LabelChipData } from "./label-chip.js";
 import type {
 	SpamChecked,
@@ -9,16 +10,22 @@ import type {
 	SpamVerdictScreenedOut,
 } from "./spam-contract.js";
 import {
+	BASIC_CHECKS_ONLY,
+	CHECK_FAILED_HEADLINE,
 	filterScreenSentence,
 	formatSpamScore,
 	SPAM_FAILURE_SENTENCES,
 	SPAM_SCREEN_SENTENCES,
 	SPAM_WARN_HEADLINES,
-	type SpamThresholds,
 	spamReasonSentence,
 	spamScoreSentence,
 	UNKNOWN_REASON_SENTENCE,
 } from "./spam-copy.js";
+import type {
+	LabelSpamMode,
+	SpamModelSaid,
+	SpamThresholds,
+} from "./spam-proposed.js";
 import { SpamRowMarker } from "./spam-row-marker.js";
 
 export const SPAM_CHECK_HEADING_ID = "spam-check-heading";
@@ -27,15 +34,15 @@ export interface SpamVerdictPanelLinks {
 	spamSettingsHref: string;
 	sendersHref: string;
 	filterHref: (filterId: string) => string;
-	reportIssueHref: (reasonName: string) => string;
+	reportIssueHref: (symbol: string) => string;
 }
 
 export interface SpamVerdictPanelProps {
 	verdict: SpamChecked | SpamFailed | SpamVerdictScreenedOut;
 	label: LabelChipData;
 	thresholds: SpamThresholds;
-	warnOnly: boolean;
-	modelSaid?: string;
+	labelMode: LabelSpamMode;
+	modelSaid?: SpamModelSaid;
 	filterName?: string;
 	links: SpamVerdictPanelLinks;
 	onNotSpam: () => void;
@@ -45,19 +52,9 @@ const LINK = "text-accent-2 hover:underline";
 
 function Section({ children }: { children: ReactNode }) {
 	return (
-		<section
-			aria-labelledby={SPAM_CHECK_HEADING_ID}
-			className="border-b border-line px-row-inset py-3"
-		>
-			<h3
-				id={SPAM_CHECK_HEADING_ID}
-				tabIndex={-1}
-				className="text-2xs font-semibold uppercase tracking-wider text-fg-subtle outline-none focus-visible:ring-2 focus-visible:ring-ring"
-			>
-				Spam check
-			</h3>
-			<div className="mt-2 space-y-2 text-sm">{children}</div>
-		</section>
+		<IntelligenceSection label="Spam check" headingId={SPAM_CHECK_HEADING_ID}>
+			<div className="space-y-2 text-sm">{children}</div>
+		</IntelligenceSection>
 	);
 }
 
@@ -122,16 +119,16 @@ function ReasonItem({
 	reportIssueHref,
 }: {
 	reason: SpamReason;
-	reportIssueHref: (reasonName: string) => string;
+	reportIssueHref: (symbol: string) => string;
 }) {
 	const sentence = spamReasonSentence(reason.name);
 	if (!sentence) {
 		return (
 			<li>
 				<p className="text-fg">{UNKNOWN_REASON_SENTENCE}</p>
-				<Finding text={reason.name} />
+				<Finding text={reason.symbol} />
 				<a
-					href={reportIssueHref(reason.name)}
+					href={reportIssueHref(reason.symbol)}
 					target="_blank"
 					rel="noopener noreferrer"
 					className={cn("ml-2 text-xs", LINK)}
@@ -155,7 +152,7 @@ function CheckedVerdict({
 	verdict,
 	label,
 	thresholds,
-	warnOnly,
+	labelMode,
 	modelSaid,
 	links,
 }: Omit<SpamVerdictPanelProps, "verdict" | "onNotSpam" | "filterName"> & {
@@ -168,7 +165,9 @@ function CheckedVerdict({
 				? SPAM_WARN_HEADLINES[verdict.kind]
 				: "Remit found too little to act on";
 	const keptByWarnOnly =
-		verdict.action === "Warn" && warnOnly && verdict.score >= thresholds.junk;
+		verdict.action === "Warn" &&
+		labelMode === "WarnOnly" &&
+		verdict.score >= thresholds.junk;
 
 	return (
 		<Section>
@@ -185,7 +184,7 @@ function CheckedVerdict({
 				<ul className="mt-1 list-disc space-y-1.5 pl-4 marker:text-fg-subtle">
 					{verdict.reasons.map((reason) => (
 						<ReasonItem
-							key={reason.name}
+							key={reason.symbol}
 							reason={reason}
 							reportIssueHref={links.reportIssueHref}
 						/>
@@ -202,7 +201,7 @@ function CheckedVerdict({
 					</div>
 				)
 			) : (
-				<p className="text-fg-muted">Only the basic checks ran.</p>
+				<p className="text-fg-muted">{`${BASIC_CHECKS_ONLY}.`}</p>
 			)}
 			{keptByWarnOnly && (
 				<p className="text-fg-muted">
@@ -286,7 +285,7 @@ export function SpamVerdictPanel(props: SpamVerdictPanelProps) {
 	if (verdict.state === "Failed") {
 		return (
 			<Section>
-				<Headline>Remit couldn't check this message</Headline>
+				<Headline>{CHECK_FAILED_HEADLINE}</Headline>
 				<p className="text-fg-muted">
 					{`The spam check failed: ${SPAM_FAILURE_SENTENCES[verdict.kind]}.`}
 				</p>

@@ -5,8 +5,15 @@ import type {
 	SpamReasonName,
 	SpamSenderScreenRule,
 } from "./spam-contract.js";
+import type {
+	CheckAgainFailureCause,
+	SpamThresholds,
+} from "./spam-proposed.js";
 
-const REASON_SENTENCES: Record<SpamReasonName, string> = {
+const REASON_SENTENCES: Record<
+	Exclude<SpamReasonName, "BackendSymbol">,
+	string
+> = {
 	DmarcFail: "It failed the sender domain's DMARC check.",
 	ReplyToMismatch: "Replies would go to a different domain than the sender's.",
 	LinkTextMismatch: "A link's text shows one domain and opens another.",
@@ -33,16 +40,22 @@ const REASON_SENTENCES: Record<SpamReasonName, string> = {
 export const UNKNOWN_REASON_SENTENCE =
 	"Remit ran a check this version can't describe.";
 
-const isReasonName = (name: string): name is SpamReasonName =>
+export const CHECK_FAILED_HEADLINE = "Remit couldn't check this message";
+
+export const BASIC_CHECKS_ONLY = "Only the basic checks ran";
+
+const isDescribedReason = (
+	name: string,
+): name is Exclude<SpamReasonName, "BackendSymbol"> =>
 	Object.hasOwn(REASON_SENTENCES, name);
 
 /**
- * The one sentence a reason name reads as, wherever it shows. A name this
- * version does not know yields `undefined`, so the caller can show the name
- * and a report link instead of a guess.
+ * The one sentence a reason reads as, wherever it shows. A backend symbol, or
+ * a name this version does not know, yields `undefined`: the caller shows the
+ * raw symbol and a report link instead of a guess.
  */
 export function spamReasonSentence(name: string): string | undefined {
-	return isReasonName(name) ? REASON_SENTENCES[name] : undefined;
+	return isDescribedReason(name) ? REASON_SENTENCES[name] : undefined;
 }
 
 export function topSpamReason(
@@ -67,6 +80,17 @@ export const SPAM_FAILURE_SENTENCES: Record<SpamFailureKind, string> = {
 	Unparseable: "Remit could not read the spam service's answer",
 };
 
+export const CHECK_AGAIN_FAILURE_SENTENCES: Record<
+	CheckAgainFailureCause,
+	string
+> = {
+	RateLimited: "try again in a minute.",
+	DailyCap: "try again tomorrow (daily model limit).",
+	NotFound: "the message is gone from the server. No retry for this one.",
+	NotPermitted:
+		"the server refused access to this message. No retry for this one.",
+};
+
 export const SPAM_SCREEN_SENTENCES: Record<
 	Exclude<SpamSenderScreenRule, "ReportedSender">,
 	string
@@ -87,13 +111,46 @@ export const SPAM_WARN_HEADLINES: Record<SpamKind, string> = {
 
 export const formatSpamScore = (score: number): string => score.toFixed(2);
 
-export interface SpamThresholds {
-	warn: number;
-	junk: number;
-}
-
 export const spamScoreSentence = (
 	score: number,
 	thresholds: SpamThresholds,
 ): string =>
 	`Score ${formatSpamScore(score)}. Remit warns from ${formatSpamScore(thresholds.warn)} and moves to Spam from ${formatSpamScore(thresholds.junk)}.`;
+
+export const SCORE_RANGE_ERROR = "Scores run from 0 to 1.";
+
+export const THRESHOLD_ORDER_ERROR =
+	"Warn from must be below Move to Spam from. Nothing was saved.";
+
+export interface ThresholdDraft {
+	warn: string;
+	junk: string;
+}
+
+export type ThresholdValidation =
+	| { ok: true; thresholds: SpamThresholds }
+	| { ok: false; errors: Partial<Record<keyof ThresholdDraft, string>> };
+
+const parseScore = (raw: string): number | undefined => {
+	if (raw.trim() === "") return undefined;
+	const value = Number(raw);
+	return Number.isFinite(value) && value >= 0 && value <= 1 ? value : undefined;
+};
+
+/** Checks a threshold draft the way Save does before anything is stored. */
+export function validateThresholds(draft: ThresholdDraft): ThresholdValidation {
+	const warn = parseScore(draft.warn);
+	const junk = parseScore(draft.junk);
+	if (warn === undefined || junk === undefined) {
+		return {
+			ok: false,
+			errors: {
+				...(warn === undefined ? { warn: SCORE_RANGE_ERROR } : {}),
+				...(junk === undefined ? { junk: SCORE_RANGE_ERROR } : {}),
+			},
+		};
+	}
+	if (warn >= junk)
+		return { ok: false, errors: { warn: THRESHOLD_ORDER_ERROR } };
+	return { ok: true, thresholds: { warn, junk } };
+}

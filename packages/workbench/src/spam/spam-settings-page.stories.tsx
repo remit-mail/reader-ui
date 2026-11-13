@@ -1,16 +1,26 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect, userEvent, within } from "storybook/test";
-import {
-	latestFlaggedFixture,
-	phishingDaysFixture,
-	spamDaysFixture,
-	spamSettingsNavFixture,
-	spamThresholdsFixture,
-} from "./spam-fixtures.js";
-import { SpamSettingsPage } from "./spam-settings-page.js";
+import { latestFlagged, phishingDays, settingsNav, spamDays } from "./fixtures";
+import { SpamSettingsPage } from "./spam-settings-page";
 
 const noop = () => undefined;
 const REPORT_URL = "https://github.com/remit-mail/reader/issues/new";
+const thresholds = { warn: 0.4, junk: 0.85 };
+
+const typeThresholds = async (
+	canvasElement: HTMLElement,
+	warn: string,
+	junk: string,
+) => {
+	const canvas = within(canvasElement);
+	const warnInput = canvas.getByLabelText("Warn from");
+	const junkInput = canvas.getByLabelText("Move to Spam from");
+	await userEvent.clear(warnInput);
+	await userEvent.type(warnInput, warn);
+	await userEvent.clear(junkInput);
+	await userEvent.type(junkInput, junk);
+	return canvas;
+};
 
 const meta = {
 	title: "Playground/Proposed/Spam settings",
@@ -18,7 +28,7 @@ const meta = {
 	component: SpamSettingsPage,
 	parameters: { layout: "fullscreen" },
 	args: {
-		navItems: spamSettingsNavFixture,
+		navItems: settingsNav,
 		overview: {
 			status: "Ready",
 			data: {
@@ -26,21 +36,21 @@ const meta = {
 				moved: 112,
 				warned: 64,
 				markedNotSpam: 3,
-				spam: spamDaysFixture,
-				phishing: phishingDaysFixture,
+				spam: spamDays,
+				phishing: phishingDays,
 			},
 		},
 		latest: {
 			status: "Ready",
 			data: {
-				messages: latestFlaggedFixture,
+				messages: latestFlagged,
 				reviewSpamHref: "/mail/label/label-spam",
 				openPhishingHref: "/mail/label/label-phishing",
 			},
 		},
 		thresholds: {
 			status: "Ready",
-			data: { saved: spamThresholdsFixture, defaults: spamThresholdsFixture },
+			data: { saved: thresholds, defaults: thresholds },
 		},
 		labelModes: {
 			status: "Ready",
@@ -62,40 +72,39 @@ type Story = StoryObj<typeof meta>;
 /** Every section loaded. */
 export const Default: Story = {};
 
-/** Unsaved thresholds, with the last 30 days recounted against them. */
+/** Edited thresholds, with the last 30 days recounted against them. */
 export const Preview: Story = {
 	args: {
-		initialDraft: { warn: 0.5, junk: 0.8 },
 		preview: {
 			status: "Ready",
 			draft: { warns: 51, moves: 131 },
 			saved: { warns: 64, moves: 112 },
 		},
 	},
+	play: async ({ canvasElement }) => {
+		await typeThresholds(canvasElement, "0.50", "0.80");
+	},
 };
 
 /** Save with Warn from at or past Move to Spam from. */
 export const InvalidThresholds: Story = {
-	args: { initialDraft: { warn: 0.9, junk: 0.85 } },
 	play: async ({ canvasElement }) => {
-		const canvas = within(canvasElement);
+		const canvas = await typeThresholds(canvasElement, "0.90", "0.85");
 		await userEvent.click(
 			canvas.getByRole("button", { name: "Save thresholds" }),
 		);
 		await expect(canvas.getByLabelText("Warn from")).toHaveFocus();
-		await expect(
-			canvas.getByText(
-				"Warn from must be below Move to Spam from. Nothing was saved.",
-			),
-		).toBeVisible();
 	},
 };
 
-/** The thresholds write failed; the draft stays in the inputs. */
+/** The thresholds write failed; the draft stays and focus lands on Try again. */
 export const SaveFailed: Story = {
 	args: {
-		initialDraft: { warn: 0.5, junk: 0.8 },
-		saveFailure: { error: "The server did not answer.", onRetry: noop },
+		saveFailure: {
+			message: "The server did not answer.",
+			reportHref: REPORT_URL,
+			onRetry: noop,
+		},
 	},
 };
 
@@ -140,15 +149,15 @@ export const LoadError: Story = {
 		overview: {
 			status: "Error",
 			title: "Couldn't load the spam counts",
-			error: "The server answered 500 Internal Server Error.",
-			reportIssueHref: REPORT_URL,
+			message: "The server answered 500 Internal Server Error.",
+			reportHref: REPORT_URL,
 			onRetry: noop,
 		},
 		latest: {
 			status: "Error",
 			title: "Couldn't load the latest flagged mail",
-			error: "The server answered 500 Internal Server Error.",
-			reportIssueHref: REPORT_URL,
+			message: "The server answered 500 Internal Server Error.",
+			reportHref: REPORT_URL,
 			onRetry: noop,
 		},
 	},

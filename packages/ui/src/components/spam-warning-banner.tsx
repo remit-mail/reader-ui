@@ -3,73 +3,46 @@ import { CircleQuestionMark, ShieldAlert, TriangleAlert } from "../icons.js";
 import { cn } from "../lib/cn.js";
 import { Banner, type BannerTone } from "./banner.js";
 import { Button } from "./button.js";
-import type { CheckAgainFailureCause } from "./check-again-panel.js";
 import type { SpamChecked, SpamFailed } from "./spam-contract.js";
 import {
+	BASIC_CHECKS_ONLY,
+	CHECK_AGAIN_FAILURE_SENTENCES,
+	CHECK_FAILED_HEADLINE,
 	formatSpamScore,
 	SPAM_FAILURE_SENTENCES,
 	SPAM_WARN_HEADLINES,
 	topSpamReasonSentence,
 } from "./spam-copy.js";
+import type { CheckAgainFailureCause, SpamModelSkip } from "./spam-proposed.js";
 
-export type SpamModelSkip = "DailyLimit" | "NoModel";
+export type SpamWarningPending = "NotSpam" | "Report" | "Move" | "CheckAgain";
 
-export type SpamWarningPending = "NotSpam" | "Report" | "Move";
-
-interface SpamWarnState {
-	state: "Warn";
-	verdict: SpamChecked;
+export interface SpamWarningBannerProps {
+	verdict: SpamChecked | SpamFailed;
+	inSpamFolder: boolean;
 	modelSkip?: SpamModelSkip;
-	pending?: Exclude<SpamWarningPending, "Move">;
+	pending?: SpamWarningPending;
+	checkAgainFailure?: CheckAgainFailureCause;
 	onNotSpam: () => void;
 	onReport: () => void;
-	onWhy: () => void;
-}
-
-interface SpamNowJunkState {
-	state: "NowJunk";
-	verdict: SpamChecked;
-	junkFrom: number;
-	pending?: Exclude<SpamWarningPending, "Report">;
 	onMove: () => void;
-	onNotSpam: () => void;
 	onWhy: () => void;
-}
-
-interface SpamCheckFailedState {
-	state: "Failed";
-	verdict: SpamFailed;
-	checking?: boolean;
-	recheckFailure?: CheckAgainFailureCause;
 	onCheckAgain: () => void;
 }
 
-export type SpamWarningBannerProps =
-	| SpamWarnState
-	| SpamNowJunkState
-	| SpamCheckFailedState;
-
-const MODEL_SKIP_SENTENCES: Record<SpamModelSkip, string> = {
-	DailyLimit:
-		"Only the basic checks ran: this account reached its daily model limit.",
-	NoModel: "Only the basic checks ran: this account has no model set up.",
-};
-
-const RECHECK_FAILURE_SENTENCES: Record<CheckAgainFailureCause, string> = {
-	RateLimited: "Check again was turned away. Try again in a minute.",
-	DailyCap: "Check again reached the daily model limit. Try again tomorrow.",
-	NotFound: "Check again failed: the message is gone from the server.",
-	NotPermitted:
-		"Check again failed: the server refused access to this message.",
+const MODEL_SKIP_CAUSES: Record<SpamModelSkip, string> = {
+	DailyLimit: "this account reached its daily model limit.",
+	NoModel: "this account has no model set up.",
 };
 
 const PENDING_LABELS: Record<SpamWarningPending, string> = {
 	NotSpam: "Removing label...",
 	Report: "Reporting...",
 	Move: "Moving...",
+	CheckAgain: "Checking...",
 };
 
-const ACTION_BUTTON = "h-10 flex-1 sm:flex-none";
+const ACTION_BUTTON = "h-10";
 
 function BannerAction({
 	label,
@@ -77,15 +50,17 @@ function BannerAction({
 	busy,
 	onClick,
 	variant = "secondary",
+	disabled = false,
 }: {
 	label: string;
 	pending: SpamWarningPending | undefined;
-	busy: SpamWarningPending | null;
+	busy: SpamWarningPending;
 	onClick: () => void;
-	variant?: "primary" | "secondary" | "ghost";
+	variant?: "primary" | "secondary";
+	disabled?: boolean;
 }) {
-	const pressed = pending !== undefined && pending === busy;
-	const blocked = pending !== undefined;
+	const pressed = pending === busy;
+	const blocked = pending !== undefined || disabled;
 	return (
 		<Button
 			variant={variant}
@@ -95,7 +70,15 @@ function BannerAction({
 			aria-busy={pressed || undefined}
 			onClick={blocked ? undefined : onClick}
 		>
-			{pressed && pending ? PENDING_LABELS[pending] : label}
+			{pressed ? PENDING_LABELS[busy] : label}
+		</Button>
+	);
+}
+
+function WhyButton({ onWhy }: { onWhy: () => void }) {
+	return (
+		<Button variant="ghost" size="md" className={ACTION_BUTTON} onClick={onWhy}>
+			Why
 		</Button>
 	);
 }
@@ -133,7 +116,7 @@ function BannerBody({
 							{line}
 						</p>
 					))}
-					<div className="mt-2 flex gap-2">{actions}</div>
+					<div className="mt-2 flex flex-wrap gap-2">{actions}</div>
 				</div>
 			</div>
 		</Banner>
@@ -141,40 +124,54 @@ function BannerBody({
 }
 
 /**
- * The message view's one banner slot, between the header and the body: what
- * the spam check concluded, its top reason, and what the reader can do about
- * it. It has no close control; it goes when its verdict goes.
+ * The message view's one banner slot, between the header and the body. The
+ * verdict decides what it says: a failed check, a Check again that now reaches
+ * Spam for a message outside it, or a warning. It has no close control; it
+ * goes when its verdict goes.
  */
-export function SpamWarningBanner(props: SpamWarningBannerProps) {
-	if (props.state === "Failed") {
-		const failure = props.recheckFailure;
+export function SpamWarningBanner({
+	verdict,
+	inSpamFolder,
+	modelSkip,
+	pending,
+	checkAgainFailure,
+	onNotSpam,
+	onReport,
+	onMove,
+	onWhy,
+	onCheckAgain,
+}: SpamWarningBannerProps) {
+	if (verdict.state === "Failed") {
 		return (
 			<BannerBody
 				tone="info"
 				role="status"
 				icon={<CircleQuestionMark className="size-4 text-accent-2" />}
-				headline="Remit couldn't check this message"
+				headline={CHECK_FAILED_HEADLINE}
 				lines={[
-					`The spam check failed: ${SPAM_FAILURE_SENTENCES[props.verdict.kind]}. No label was added.`,
-					...(failure ? [RECHECK_FAILURE_SENTENCES[failure]] : []),
+					`The spam check failed: ${SPAM_FAILURE_SENTENCES[verdict.kind]}. No label was added.`,
+					...(checkAgainFailure
+						? [
+								`Check again didn't finish: ${CHECK_AGAIN_FAILURE_SENTENCES[checkAgainFailure]}`,
+							]
+						: []),
 				]}
 				actions={
-					<Button
-						variant="secondary"
-						size="md"
-						className={ACTION_BUTTON}
-						disabled={failure === "DailyCap"}
-						aria-busy={props.checking || undefined}
-						onClick={props.checking ? undefined : props.onCheckAgain}
-					>
-						{props.checking ? "Checking..." : "Check again"}
-					</Button>
+					<BannerAction
+						label="Check again"
+						pending={pending}
+						busy="CheckAgain"
+						disabled={checkAgainFailure === "DailyCap"}
+						onClick={onCheckAgain}
+					/>
 				}
 			/>
 		);
 	}
 
-	const { verdict } = props;
+	if (verdict.action === "None") return null;
+	if (verdict.action === "Junk" && inSpamFolder) return null;
+
 	const phishing = verdict.kind === "Phishing";
 	const tone: BannerTone = phishing ? "danger" : "warning";
 	const role = phishing ? "alert" : "status";
@@ -184,7 +181,7 @@ export function SpamWarningBanner(props: SpamWarningBannerProps) {
 		<TriangleAlert className="size-4 text-warning" />
 	);
 
-	if (props.state === "NowJunk") {
+	if (verdict.action === "Junk") {
 		return (
 			<BannerBody
 				tone={tone}
@@ -196,31 +193,24 @@ export function SpamWarningBanner(props: SpamWarningBannerProps) {
 						: "Remit now judges this spam"
 				}
 				lines={[
-					`Check again scored it ${formatSpamScore(verdict.score)}, above Move to Spam from ${formatSpamScore(props.junkFrom)}. It stays here until you move it.`,
+					`Check again scored it ${formatSpamScore(verdict.score)}, past your Move to Spam threshold. It stays here until you move it.`,
 				]}
 				actions={
 					<>
 						<BannerAction
 							label="Move to Spam"
 							variant="primary"
-							pending={props.pending}
+							pending={pending}
 							busy="Move"
-							onClick={props.onMove}
+							onClick={onMove}
 						/>
 						<BannerAction
 							label="Not spam"
-							pending={props.pending}
+							pending={pending}
 							busy="NotSpam"
-							onClick={props.onNotSpam}
+							onClick={onNotSpam}
 						/>
-						<Button
-							variant="ghost"
-							size="md"
-							className={ACTION_BUTTON}
-							onClick={props.onWhy}
-						>
-							Why
-						</Button>
+						<WhyButton onWhy={onWhy} />
 					</>
 				}
 			/>
@@ -235,30 +225,25 @@ export function SpamWarningBanner(props: SpamWarningBannerProps) {
 			headline={SPAM_WARN_HEADLINES[verdict.kind]}
 			lines={[
 				topSpamReasonSentence(verdict.reasons),
-				...(props.modelSkip ? [MODEL_SKIP_SENTENCES[props.modelSkip]] : []),
+				...(modelSkip
+					? [`${BASIC_CHECKS_ONLY}: ${MODEL_SKIP_CAUSES[modelSkip]}`]
+					: []),
 			]}
 			actions={
 				<>
 					<BannerAction
 						label="Not spam"
-						pending={props.pending}
+						pending={pending}
 						busy="NotSpam"
-						onClick={props.onNotSpam}
+						onClick={onNotSpam}
 					/>
 					<BannerAction
 						label="Report spam"
-						pending={props.pending}
+						pending={pending}
 						busy="Report"
-						onClick={props.onReport}
+						onClick={onReport}
 					/>
-					<Button
-						variant="ghost"
-						size="md"
-						className={ACTION_BUTTON}
-						onClick={props.onWhy}
-					>
-						Why
-					</Button>
+					<WhyButton onWhy={onWhy} />
 				</>
 			}
 		/>

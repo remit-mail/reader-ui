@@ -1,15 +1,12 @@
+import type { CheckAgainOutcome } from "@remit/ui";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { userEvent, within } from "storybook/test";
-import type { CheckAgainOutcome } from "./check-again-panel.js";
+import { spamListRows } from "./fixtures";
 import {
 	SpamCheckAgainScreen,
 	type SpamListRow,
 	SpamMessageMenuPreview,
-} from "./spam-check-again-screen.js";
-import {
-	checkAgainFailuresFixture,
-	spamListRowsFixture,
-} from "./spam-fixtures.js";
+} from "./spam-check-again-screen";
 
 const noop = () => undefined;
 
@@ -19,12 +16,24 @@ const results: { outcome: CheckAgainOutcome; score: number }[] = [
 	{ outcome: "Unchanged", score: 0.51 },
 ];
 
-const withResults: SpamListRow[] = spamListRowsFixture.map((row, i) => {
+const withResults: SpamListRow[] = spamListRows.map((row, i) => {
 	const result = results[i];
 	return result ? { ...row, result } : row;
 });
 
-const allIds = spamListRowsFixture.map((row) => row.thread.id);
+const pickRows =
+	(indices: number[]) =>
+	async ({ canvasElement }: { canvasElement: HTMLElement }) => {
+		const toggles = within(canvasElement).getAllByRole("button", {
+			name: "Select message",
+		});
+		for (const index of indices) {
+			const toggle = toggles[index];
+			if (toggle) await userEvent.click(toggle);
+		}
+	};
+
+const everyRow = spamListRows.map((_, i) => i);
 
 const meta = {
 	title: "Playground/Proposed/Spam check again",
@@ -33,8 +42,7 @@ const meta = {
 	parameters: { layout: "padded" },
 	args: {
 		title: "Spam",
-		rows: spamListRowsFixture,
-		initialSelection: [],
+		rows: spamListRows,
 		settingsHref: "/settings/spam",
 		onNotSpam: noop,
 		onCheckAgain: noop,
@@ -46,17 +54,15 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 /** Picks in the Spam list put Not spam, Check again and Delete in the bar. */
-export const Selecting: Story = {
-	args: { initialSelection: allIds.filter((_, i) => i % 3 === 0) },
-};
+export const Selecting: Story = { play: pickRows([0, 3, 6]) };
 
 /** A run in flight: each row shows its new verdict as its batch lands. */
 export const Running: Story = {
 	args: {
 		rows: withResults,
-		initialSelection: allIds,
 		panel: { state: "Running", checked: 20, total: 35, onStop: noop },
 	},
+	play: pickRows(everyRow),
 };
 
 /** Every batch landed; nothing moved. */
@@ -75,17 +81,22 @@ export const Done: Story = {
 /** Some messages failed; the failed ones stay selected. */
 export const PartialFailure: Story = {
 	args: {
-		initialSelection: allIds.slice(2, 6),
 		panel: {
 			state: "PartialFailure",
 			checked: 31,
 			total: 35,
-			failures: checkAgainFailuresFixture,
+			failures: [
+				{ messageId: "m-1", subject: "Subject line", cause: "RateLimited" },
+				{ messageId: "m-2", subject: "Subject line", cause: "RateLimited" },
+				{ messageId: "m-3", subject: "Subject line", cause: "DailyCap" },
+				{ messageId: "m-4", subject: "Subject line", cause: "NotFound" },
+			],
 			reportIssueHref: "https://github.com/remit-mail/reader/issues/new",
 			onRetry: noop,
 			onClose: noop,
 		},
 	},
+	play: pickRows([2, 3, 4, 5]),
 };
 
 /**
@@ -94,9 +105,9 @@ export const PartialFailure: Story = {
  */
 export const SignedOut: Story = {
 	args: {
-		initialSelection: allIds,
 		panel: { state: "Running", checked: 20, total: 35, onStop: noop },
 	},
+	play: pickRows(everyRow),
 };
 
 /** The Spam label list with nothing in it. */
@@ -106,7 +117,8 @@ export const Empty: Story = { args: { rows: [] } };
 export const MessageMenu: Story = {
 	render: () => <SpamMessageMenuPreview onCheckAgain={noop} />,
 	play: async ({ canvasElement }) => {
-		const canvas = within(canvasElement);
-		await userEvent.click(canvas.getByRole("button", { name: "More actions" }));
+		await userEvent.click(
+			within(canvasElement).getByRole("button", { name: "More actions" }),
+		);
 	},
 };

@@ -1,24 +1,32 @@
-import { type ReactNode, useEffect, useId, useRef, useState } from "react";
-import { cn } from "../lib/cn.js";
-import { Banner } from "./banner.js";
-import { Button, ButtonLink } from "./button.js";
-import { FieldLabel } from "./field-label.js";
-import { Input } from "./input.js";
-import { LabelChip, type LabelChipData } from "./label-chip.js";
-import { SegmentedControl } from "./segmented-control.js";
-import { type SettingsNavItem, SettingsShell } from "./settings-screen.js";
-import type { SpamReason } from "./spam-contract.js";
 import {
+	Button,
+	ButtonLink,
+	cn,
+	FailureBanner,
+	FieldLabel,
 	formatSpamScore,
+	Input,
+	LabelChip,
+	type LabelSpamMode,
+	SCORE_RANGE_ERROR,
+	SegmentedControl,
+	type SettingsNavItem,
+	SettingsShell,
+	SpamDailyChart,
+	type SpamLatestFlagged,
+	type SpamOverview,
+	type SpamThresholdPreview,
 	type SpamThresholds,
+	type ThresholdDraft,
 	topSpamReasonSentence,
-} from "./spam-copy.js";
-import { SpamDailyChart, type SpamDay } from "./spam-daily-chart.js";
+	validateThresholds,
+} from "@remit/ui";
+import { type ReactNode, useEffect, useId, useRef, useState } from "react";
 
 export interface SpamSectionError {
 	title: string;
-	error: string;
-	reportIssueHref: string;
+	message: string;
+	reportHref: string;
 	onRetry: () => void;
 }
 
@@ -28,48 +36,10 @@ export type SpamSectionState<T> =
 	| ({ status: "Error" } & SpamSectionError)
 	| { status: "Ready"; data: T };
 
-export interface SpamOverview {
-	checkedAny: boolean;
-	moved: number;
-	warned: number;
-	markedNotSpam: number;
-	spam: SpamDay[];
-	phishing: SpamDay[];
-}
-
-export interface SpamFlaggedMessage {
-	messageId: string;
-	senderName: string;
-	subject: string;
-	reasons: SpamReason[];
-	date: string;
-	label: LabelChipData;
-	action: "Warn" | "Junk";
-	href: string;
-}
-
-export interface SpamLatestFlagged {
-	messages: SpamFlaggedMessage[];
-	reviewSpamHref: string;
-	openPhishingHref: string;
-}
-
 export interface SpamThresholdSettings {
 	saved: SpamThresholds;
 	defaults: SpamThresholds;
 }
-
-export interface SpamPreviewCounts {
-	warns: number;
-	moves: number;
-}
-
-export type SpamThresholdPreview =
-	| { status: "Idle" }
-	| { status: "Ready"; draft: SpamPreviewCounts; saved: SpamPreviewCounts }
-	| { status: "Failed" };
-
-export type LabelSpamMode = "WarnOnly" | "MoveToSpam";
 
 export interface SpamLabelModes {
 	spam: LabelSpamMode;
@@ -82,9 +52,8 @@ export interface SpamSettingsPageProps {
 	latest: SpamSectionState<SpamLatestFlagged>;
 	thresholds: SpamSectionState<SpamThresholdSettings>;
 	labelModes: SpamSectionState<SpamLabelModes>;
-	initialDraft?: SpamThresholds;
 	preview: SpamThresholdPreview;
-	saveFailure?: { error: string; onRetry: () => void };
+	saveFailure?: { message: string; reportHref: string; onRetry: () => void };
 	neverInSpamHref: string;
 	reportedHref: string;
 	onDraftChange: (draft: SpamThresholds) => void;
@@ -130,27 +99,12 @@ function Skeleton({ className }: { className: string }) {
 
 function SectionError({ failure }: { failure: SpamSectionError }) {
 	return (
-		<Banner tone="danger" variant="soft">
-			<p className="font-medium">{failure.title}</p>
-			<p className="mt-0.5 break-words text-fg-muted">{failure.error}</p>
-			<p className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2">
-				<Button
-					variant="secondary"
-					className="min-h-11"
-					onClick={failure.onRetry}
-				>
-					Retry
-				</Button>
-				<a
-					href={failure.reportIssueHref}
-					target="_blank"
-					rel="noopener noreferrer"
-					className="text-accent-2 underline underline-offset-2"
-				>
-					Report an issue
-				</a>
-			</p>
-		</Banner>
+		<FailureBanner
+			title={failure.title}
+			message={failure.message}
+			reportHref={failure.reportHref}
+			onRetry={failure.onRetry}
+		/>
 	);
 }
 
@@ -319,65 +273,36 @@ function LatestSection({
 	);
 }
 
-type ThresholdField = "warn" | "junk";
+type ThresholdField = keyof ThresholdDraft;
 
-type ThresholdErrors = Partial<Record<ThresholdField, string>>;
-
-const SCORE_RANGE = "Scores run from 0 to 1.";
-
-function validateThresholds(draft: Record<ThresholdField, string>): {
-	errors: ThresholdErrors;
-	values?: SpamThresholds;
-} {
-	const warn = Number(draft.warn);
-	const junk = Number(draft.junk);
-	const inRange = (value: number, raw: string) =>
-		raw.trim() !== "" && Number.isFinite(value) && value >= 0 && value <= 1;
-	const errors: ThresholdErrors = {};
-	if (!inRange(warn, draft.warn)) errors.warn = SCORE_RANGE;
-	if (!inRange(junk, draft.junk)) errors.junk = SCORE_RANGE;
-	if (!errors.warn && !errors.junk && warn >= junk) {
-		errors.warn =
-			"Warn from must be below Move to Spam from. Nothing was saved.";
-	}
-	if (errors.warn || errors.junk) return { errors };
-	return { errors, values: { warn, junk } };
-}
-
-const asDraft = (t: SpamThresholds): Record<ThresholdField, string> => ({
+const asDraft = (t: SpamThresholds): ThresholdDraft => ({
 	warn: formatSpamScore(t.warn),
 	junk: formatSpamScore(t.junk),
 });
 
 function ThresholdsSection({
 	state,
-	initialDraft,
 	preview,
 	saveFailure,
 	onDraftChange,
 	onSave,
 }: {
 	state: SpamSectionState<SpamThresholdSettings>;
-	initialDraft?: SpamThresholds;
 	preview: SpamThresholdPreview;
-	saveFailure?: { error: string; onRetry: () => void };
+	saveFailure?: { message: string; reportHref: string; onRetry: () => void };
 	onDraftChange: (draft: SpamThresholds) => void;
 	onSave: (thresholds: SpamThresholds) => void;
 }) {
 	const ids = useId();
 	const ready = state.status === "Ready" ? state.data : undefined;
-	const [draft, setDraft] = useState<Record<ThresholdField, string>>(() =>
-		initialDraft
-			? asDraft(initialDraft)
-			: ready
-				? asDraft(ready.saved)
-				: { warn: "", junk: "" },
+	const [draft, setDraft] = useState<ThresholdDraft>(() =>
+		ready ? asDraft(ready.saved) : { warn: "", junk: "" },
 	);
-	const [errors, setErrors] = useState<ThresholdErrors>({});
-	const inputRefs = {
-		warn: useRef<HTMLInputElement>(null),
-		junk: useRef<HTMLInputElement>(null),
-	};
+	const [errors, setErrors] = useState<Partial<Record<ThresholdField, string>>>(
+		{},
+	);
+	const warnRef = useRef<HTMLInputElement>(null);
+	const junkRef = useRef<HTMLInputElement>(null);
 	const retryRef = useRef<HTMLButtonElement>(null);
 
 	useEffect(() => {
@@ -397,21 +322,21 @@ function ThresholdsSection({
 
 	const save = () => {
 		const result = validateThresholds(draft);
-		setErrors(result.errors);
-		if (!result.values) {
-			const first: ThresholdField = result.errors.warn ? "warn" : "junk";
-			inputRefs[first].current?.focus();
+		if (!result.ok) {
+			setErrors(result.errors);
+			(result.errors.warn ? warnRef : junkRef).current?.focus();
 			return;
 		}
-		onSave(result.values);
+		setErrors({});
+		onSave(result.thresholds);
 	};
 
 	const edit = (field: ThresholdField, value: string) => {
 		const next = { ...draft, [field]: value };
 		setDraft(next);
 		setErrors((current) => ({ ...current, [field]: undefined }));
-		const parsed = validateThresholds(next).values;
-		if (parsed) onDraftChange(parsed);
+		const result = validateThresholds(next);
+		if (result.ok) onDraftChange(result.thresholds);
 	};
 
 	const field = (name: ThresholdField, label: string) => {
@@ -423,7 +348,7 @@ function ThresholdsSection({
 				<FieldLabel htmlFor={inputId}>{label}</FieldLabel>
 				<Input
 					id={inputId}
-					ref={inputRefs[name]}
+					ref={name === "warn" ? warnRef : junkRef}
 					className={cn("h-11 w-28", error && "border-danger")}
 					inputMode="decimal"
 					autoComplete="off"
@@ -457,8 +382,8 @@ function ThresholdsSection({
 				</div>
 				<p id={`${ids}-hint`} className="text-xs text-fg-muted">
 					{defaults
-						? `${SCORE_RANGE} The deployment default is ${formatSpamScore(defaults.warn)} and ${formatSpamScore(defaults.junk)}.`
-						: SCORE_RANGE}
+						? `${SCORE_RANGE_ERROR} The deployment default is ${formatSpamScore(defaults.warn)} and ${formatSpamScore(defaults.junk)}.`
+						: SCORE_RANGE_ERROR}
 				</p>
 				{preview.status === "Ready" && (
 					<div className="text-sm">
@@ -476,20 +401,14 @@ function ThresholdsSection({
 					</p>
 				)}
 				{saveFailure && (
-					<Banner tone="danger" variant="soft">
-						<p className="font-medium">The thresholds were not saved</p>
-						<p className="mt-0.5 break-words text-fg-muted">
-							{saveFailure.error}
-						</p>
-						<Button
-							ref={retryRef}
-							variant="secondary"
-							className="mt-2 min-h-11"
-							onClick={saveFailure.onRetry}
-						>
-							Try again
-						</Button>
-					</Banner>
+					<FailureBanner
+						title="The thresholds were not saved"
+						message={saveFailure.message}
+						reportHref={saveFailure.reportHref}
+						onRetry={saveFailure.onRetry}
+						retryLabel="Try again"
+						retryRef={retryRef}
+					/>
 				)}
 				<div className="flex flex-wrap gap-2">
 					<Button
@@ -642,7 +561,6 @@ export function SpamSettingsPage({
 	latest,
 	thresholds,
 	labelModes,
-	initialDraft,
 	preview,
 	saveFailure,
 	neverInSpamHref,
@@ -666,7 +584,6 @@ export function SpamSettingsPage({
 				<ThresholdsSection
 					key={thresholds.status}
 					state={thresholds}
-					initialDraft={initialDraft}
 					preview={preview}
 					saveFailure={saveFailure}
 					onDraftChange={onDraftChange}

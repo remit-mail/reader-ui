@@ -1,9 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import {
-	neverInSpamSendersFixture,
-	spamSettingsNavFixture,
-} from "./spam-fixtures.js";
-import { SpamSendersPage } from "./spam-senders-page.js";
+import { neverInSpamSenders, settingsNav } from "./fixtures";
+import { SpamSendersPage } from "./spam-senders-page";
 
 const noop = () => undefined;
 
@@ -13,8 +10,11 @@ const meta = {
 	component: SpamSendersPage,
 	parameters: { layout: "fullscreen" },
 	args: {
-		navItems: spamSettingsNavFixture,
-		senders: neverInSpamSendersFixture,
+		navItems: settingsNav,
+		query: "",
+		senders: neverInSpamSenders,
+		onSearch: noop,
+		onSelectGroup: noop,
 		onRemove: noop,
 		onBackToMail: noop,
 	},

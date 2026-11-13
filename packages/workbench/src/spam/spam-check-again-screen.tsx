@@ -1,4 +1,17 @@
-import { useState } from "react";
+import {
+	Button,
+	type CheckAgainOutcome,
+	CheckAgainPanel,
+	type CheckAgainPanelProps,
+	CheckAgainResultTag,
+	ComfortableRowBody,
+	comfortableRowClass,
+	type LabelChipData,
+	PaneHeader,
+	PopoverMenu,
+	SpamRowMarker,
+	type ThreadRowData,
+} from "@remit/ui";
 import {
 	FolderInput,
 	Mail,
@@ -6,19 +19,8 @@ import {
 	ShieldAlert,
 	ShieldCheck,
 	Trash,
-} from "../icons.js";
-import type { ThreadRowData } from "./app-shell-types.js";
-import { Button } from "./button.js";
-import {
-	type CheckAgainOutcome,
-	CheckAgainPanel,
-	type CheckAgainPanelProps,
-	CheckAgainResultTag,
-} from "./check-again-panel.js";
-import type { LabelChipData } from "./label-chip.js";
-import { ComfortableRowBody, comfortableRowClass } from "./message-row.js";
-import { PopoverMenu } from "./popover-menu.js";
-import { SpamRowMarker } from "./spam-row-marker.js";
+} from "@remit/ui/icons";
+import { useState } from "react";
 
 export interface SpamListRow {
 	thread: ThreadRowData;
@@ -30,7 +32,6 @@ export interface SpamListRow {
 export interface SpamCheckAgainScreenProps {
 	title: string;
 	rows: SpamListRow[];
-	initialSelection: string[];
 	panel?: CheckAgainPanelProps;
 	settingsHref: string;
 	onNotSpam: (ids: string[]) => void;
@@ -68,15 +69,13 @@ function EmptyList({
 export function SpamCheckAgainScreen({
 	title,
 	rows,
-	initialSelection,
 	panel,
 	settingsHref,
 	onNotSpam,
 	onCheckAgain,
 	onDelete,
 }: SpamCheckAgainScreenProps) {
-	const [selected, setSelected] = useState<string[]>(initialSelection);
-	const firstRow = rows[0];
+	const [selected, setSelected] = useState<string[]>([]);
 	const toggle = (id: string) =>
 		setSelected((current) =>
 			current.includes(id)
@@ -87,52 +86,36 @@ export function SpamCheckAgainScreen({
 	return (
 		<div className="flex h-[640px] w-full overflow-hidden rounded-lg border border-line bg-canvas font-sans">
 			<div className="relative flex w-[420px] shrink-0 flex-col border-r border-line">
-				<header className="flex h-pane-header shrink-0 items-center gap-2 border-b border-line px-row-inset">
-					{selected.length > 0 ? (
-						<>
-							<span className="flex-1 text-sm font-medium text-fg tabular-nums">
-								{`${selected.length} selected`}
-							</span>
-							<Button
-								variant="ghost"
-								size="sm"
-								icon={<ShieldCheck className="size-4" />}
-								onClick={() => onNotSpam(selected)}
-							>
-								Not spam
-							</Button>
-							<Button
-								variant="ghost"
-								size="sm"
-								icon={<RefreshCw className="size-4" />}
-								onClick={() => onCheckAgain(selected)}
-							>
-								Check again
-							</Button>
-							<Button
-								variant="ghost"
-								size="sm"
-								icon={<Trash className="size-4" />}
-								onClick={() => onDelete(selected)}
-							>
-								Delete
-							</Button>
-						</>
-					) : (
-						<>
-							<h2 className="flex-1 text-sm font-semibold text-fg">{title}</h2>
-							{firstRow && (
-								<Button
-									variant="ghost"
-									size="sm"
-									onClick={() => setSelected([firstRow.thread.id])}
-								>
-									Select
-								</Button>
-							)}
-						</>
-					)}
-				</header>
+				{selected.length > 0 ? (
+					<PaneHeader title={`${selected.length} selected`}>
+						<Button
+							variant="ghost"
+							size="sm"
+							icon={<ShieldCheck className="size-4" />}
+							onClick={() => onNotSpam(selected)}
+						>
+							Not spam
+						</Button>
+						<Button
+							variant="ghost"
+							size="sm"
+							icon={<RefreshCw className="size-4" />}
+							onClick={() => onCheckAgain(selected)}
+						>
+							Check again
+						</Button>
+						<Button
+							variant="ghost"
+							size="sm"
+							icon={<Trash className="size-4" />}
+							onClick={() => onDelete(selected)}
+						>
+							Delete
+						</Button>
+					</PaneHeader>
+				) : (
+					<PaneHeader title={title} />
+				)}
 				{rows.length === 0 ? (
 					<EmptyList title={title} settingsHref={settingsHref} />
 				) : (
@@ -143,7 +126,7 @@ export function SpamCheckAgainScreen({
 									thread={row.thread}
 									selection={{
 										checked: selected.includes(row.thread.id),
-										alwaysVisible: selected.length > 0,
+										alwaysVisible: true,
 										onToggle: () => toggle(row.thread.id),
 									}}
 									badge={
@@ -184,13 +167,7 @@ export function SpamMessageMenuPreview({
 	const noop = () => undefined;
 	return (
 		<div className="h-[420px] w-full max-w-2xl overflow-hidden rounded-lg border border-line bg-canvas font-sans">
-			<header className="flex items-center gap-3 border-b border-line px-5 py-3">
-				<div className="min-w-0 flex-1">
-					<p className="text-base font-semibold text-fg">Subject line</p>
-					<p className="text-xs text-fg-muted">
-						Sender name &lt;sender@example.com&gt; to me · 09:14
-					</p>
-				</div>
+			<PaneHeader title="Subject line">
 				<PopoverMenu
 					triggerLabel="More actions"
 					items={[
@@ -220,7 +197,7 @@ export function SpamMessageMenuPreview({
 						},
 					]}
 				/>
-			</header>
+			</PaneHeader>
 			<article className="px-5 py-4 text-sm text-fg">
 				The body of the message starts here.
 			</article>

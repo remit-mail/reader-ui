@@ -1,13 +1,12 @@
-import { useState } from "react";
-import { Search } from "../icons.js";
-import { Button } from "./button.js";
-import { Input } from "./input.js";
-import { SenderGroupSwitch } from "./sender-group-switch.js";
 import {
+	Button,
+	Input,
 	SenderFlagRow,
+	SenderGroupSwitch,
 	type SettingsNavItem,
 	SettingsShell,
-} from "./settings-screen.js";
+} from "@remit/ui";
+import { Search } from "@remit/ui/icons";
 
 export type SpamSenderGroup = "vip" | "muted" | "blocked" | "neverSpam";
 
@@ -17,9 +16,16 @@ export interface NeverInSpamSender {
 	since: string;
 }
 
+/**
+ * `senders` are what `searchAddresses` returns for `query` with the proposed
+ * Never in Spam flag filter (spec gap 1), so the page filters nothing itself.
+ */
 export interface SpamSendersPageProps {
 	navItems: SettingsNavItem[];
+	query: string;
 	senders: NeverInSpamSender[];
+	onSearch: (query: string) => void;
+	onSelectGroup: (group: SpamSenderGroup) => void;
 	onRemove: (email: string) => void;
 	onBackToMail: () => void;
 }
@@ -37,19 +43,13 @@ const GROUP_LABELS: Record<SpamSenderGroup, string> = {
  */
 export function SpamSendersPage({
 	navItems,
+	query,
 	senders,
+	onSearch,
+	onSelectGroup,
 	onRemove,
 	onBackToMail,
 }: SpamSendersPageProps) {
-	const [query, setQuery] = useState("");
-	const needle = query.trim().toLowerCase();
-	const shown = senders.filter(
-		(sender) =>
-			needle === "" ||
-			sender.name.toLowerCase().includes(needle) ||
-			sender.email.toLowerCase().includes(needle),
-	);
-
 	return (
 		<SettingsShell
 			items={navItems}
@@ -62,7 +62,7 @@ export function SpamSendersPage({
 			<div className="flex min-h-0 flex-1 flex-col lg:flex-row">
 				<SenderGroupSwitch<SpamSenderGroup>
 					active="neverSpam"
-					onSelect={() => undefined}
+					onSelect={onSelectGroup}
 					options={(Object.keys(GROUP_LABELS) as SpamSenderGroup[]).map(
 						(id) => ({
 							id,
@@ -79,11 +79,11 @@ export function SpamSendersPage({
 							aria-label="Search never-in-spam senders"
 							className="h-8 max-w-sm"
 							value={query}
-							onChange={(event) => setQuery(event.target.value)}
+							onChange={(event) => onSearch(event.target.value)}
 						/>
 					</div>
 					<div className="min-h-0 flex-1 divide-y divide-line overflow-y-auto">
-						{shown.map((sender) => (
+						{senders.map((sender) => (
 							<SenderFlagRow
 								key={sender.email}
 								name={sender.name}
@@ -102,10 +102,10 @@ export function SpamSendersPage({
 							/>
 						))}
 					</div>
-					<footer className="border-t border-line px-row-inset py-1 text-2xs text-fg-subtle">
+					<p className="border-t border-line px-row-inset py-1 text-2xs text-fg-subtle">
 						Remove puts the sender back through the spam check from their next
 						message.
-					</footer>
+					</p>
 				</div>
 			</div>
 		</SettingsShell>

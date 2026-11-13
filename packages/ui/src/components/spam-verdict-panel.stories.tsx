@@ -29,13 +29,13 @@ const meta = {
 		verdict: warnSpamVerdict,
 		label: spamLabelFixture,
 		thresholds: spamThresholdsFixture,
-		warnOnly: false,
+		labelMode: "MoveToSpam",
 		links: {
 			spamSettingsHref: "/settings/spam",
 			sendersHref: "/settings/senders",
 			filterHref: (filterId) => `/settings/filters#${filterId}`,
-			reportIssueHref: (reasonName) =>
-				`https://github.com/remit-mail/reader/issues/new?title=${encodeURIComponent(`Unknown spam reason ${reasonName}`)}`,
+			reportIssueHref: (symbol) =>
+				`https://github.com/remit-mail/reader/issues/new?title=${encodeURIComponent(`Unknown spam reason ${symbol}`)}`,
 		},
 		onNotSpam: noop,
 	},
@@ -75,12 +75,12 @@ export const ReportedSender: Story = {
 	},
 };
 
-/** A reason this version has no sentence for shows its name and a report link. */
+/** A backend symbol with no sentence shows the symbol and a report link. */
 export const UnknownReason: Story = {
 	args: { verdict: unknownReasonVerdict },
 };
 
 /** Warn only kept a score past the Spam threshold in place. */
 export const WarnOnlyAboveJunk: Story = {
-	args: { verdict: warnOnlyAboveJunkVerdict, warnOnly: true },
+	args: { verdict: warnOnlyAboveJunkVerdict, labelMode: "WarnOnly" },
 };

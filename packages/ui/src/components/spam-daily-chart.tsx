@@ -1,11 +1,5 @@
 import { cn } from "../lib/cn.js";
-
-export interface SpamDay {
-	date: string;
-	moved: number;
-	warned: number;
-	markedNotSpam: number;
-}
+import type { SpamDay } from "./spam-proposed.js";
 
 export interface SpamDailyChartProps {
 	title: string;
