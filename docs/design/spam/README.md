@@ -55,13 +55,14 @@ The PRD test plan names `ReadingOrder` for N2.2. That story reuses `WarnSpam` an
 6. Every list and count that fails on an expired session raises the existing `SignedOutOverlay`. The section behind it stays a skeleton and never shows an empty list or a zero (N1.8).
 7. Every other load failure shows a danger banner in that section with the error, Retry and Report an issue. Other sections keep working.
 8. Each reason name has one sentence. The banner's top reason, the rail and Latest flagged all print that sentence, from one map in `packages/ui`.
+9. Every user-facing string calls the folder Spam, as in "Move to Spam from". `Junk` stays only in code names: the RFC action, the `\Junk` role and story exports such as `NowJunk`. The two labels keep their names, `Spam` and `Phishing`.
 
 ## Message view
 
 ### 1. Warn spam
 
 - Enters: the reader opens a message with a `Checked` verdict, action `Warn`, kind `Spam`.
-- Exits: Not spam removes the label and the banner, and the message keeps its folder (S3.1). Report spam moves it to Junk with the `Spam` label and blocks the sender (S4.1), and the reading pane follows the existing move behaviour. Why opens the rail (state 10). Opening another message leaves.
+- Exits: Not spam removes the label and the banner, and the message keeps its folder (S3.1). Report spam moves it to Spam with the `Spam` label and blocks the sender (S4.1), and the reading pane follows the existing move behaviour. Why opens the rail (state 10). Opening another message leaves.
 - Dismissal: none. Esc and a click outside do nothing to it.
 - Focus: focus stays where the reader put it on open. Tab reaches Not spam, Report spam, Why in that order, each with the focus ring (N2.1). Not spam sends focus to the message header. After Why, focus moves to the rail's Spam check heading. Closing the rail returns focus to Why.
 - URL: path `/mail/<list>/<threadId>/<messageId>`. The banner holds nothing in the URL.
@@ -78,8 +79,8 @@ As state 1. The reason line names the cause of the skipped model call: the daily
 ### 4. Check again reaches the junk threshold
 
 - Enters: a Check again that returns action `Junk` for a message that stays in its folder (S10.2).
-- Exits: Move to Junk moves it to Junk and the banner goes. Not spam and Why act as in state 1.
-- Focus: Tab order Move to Junk, Not spam, Why.
+- Exits: Move to Spam moves the message and the banner goes. Not spam and Why act as in state 1.
+- Focus: Tab order Move to Spam, Not spam, Why.
 - URL: same as state 1.
 - Error: when the move fails, it shows the existing "Couldn't move message" ErrorBanner with Try again.
 
@@ -114,8 +115,8 @@ Full width on the screen, the banner keeps its three buttons in one row at 40px 
 
 The strings and the slot are the ones #612 settled.
 
-- Enters: Not spam on a message in Junk. The message returns to the Inbox without its label (S3.2), and the open message clears, so the reader lands beside the offer.
-- Shows: the banner slot above the Junk list, the one `SpamRescue` owns. It holds one banner at a time: the offer first, otherwise the rescue banner. Copy: `Moved to Inbox. Should mail from Sender name (sender@example.com) stay out of Spam from now on?` with `Never put this sender in Spam` and `No thanks`. The sender's email is always on screen. A blocked sender, as after state 14, gets #612's blocked copy and its unblock button.
+- Enters: Not spam on a message in Spam. The message returns to the Inbox without its label (S3.2), and the open message clears, so the reader lands beside the offer.
+- Shows: the banner slot above the Spam list, the one `SpamRescue` owns. It holds one banner at a time: the offer first, otherwise the rescue banner. Copy: `Moved to Inbox. Should mail from Sender name (sender@example.com) stay out of Spam from now on?` with `Never put this sender in Spam` and `No thanks`. The sender's email is always on screen. A blocked sender, as after state 14, gets #612's blocked copy and its unblock button.
 - Exits: accepting sets `neverSpam` and moves on to #612's older-mail step. `No thanks` hides the offer and stores nothing. The next Not spam replaces it.
 - Dismissal: `No thanks`, or Esc with focus inside the offer. It never times out.
 - Focus: moves to the accept button on entry, because the trigger was the reader's own press. Dismissal returns focus to the first row of the list.
@@ -124,15 +125,15 @@ The strings and the slot are the ones #612 settled.
 
 ## Why, in the intelligence rail
 
-Each state renders the Spam check section. Entry is Why on the banner, or the reader opening the rail on a flagged message. Its close control and Esc close the rail and return focus to the control that opened it. Top to bottom, the section holds a headline, the label chip, the score sentence, the score bar, then Why with one sentence per reason. Each reason shows what the check found in a code chip (S1.1). The score sentence reads "Score 0.72. Remit warns from 0.40 and moves to Junk from 0.85." (S1.2). The bar repeats it for sighted readers and is `aria-hidden`. URL: path only, as state 1. The rail holds no state of its own beyond scroll.
+Each state renders the Spam check section. Entry is Why on the banner, or the reader opening the rail on a flagged message. Its close control and Esc close the rail and return focus to the control that opened it. Top to bottom, the section holds a headline, the label chip, the score sentence, the score bar, then Why with one sentence per reason. Each reason shows what the check found in a code chip (S1.1). The score sentence reads "Score 0.72. Remit warns from 0.40 and moves to Spam from 0.85." (S1.2). The bar repeats it for sighted readers and is `aria-hidden`. URL: path only, as state 1. The rail holds no state of its own beyond scroll.
 
 ### 10. Warn spam
 
 Headline "Remit suspects this is spam", chips Spam and Suspected, score, reasons, and a model line when the model did not judge.
 
-### 11. Junk phishing
+### 11. Phishing, moved to Spam
 
-Headline "Remit moved this to Junk", Phishing chip only. Quick actions show Not spam.
+Headline "Remit moved this to Spam", Phishing chip only. Quick actions show Not spam.
 
 ### 12. Model judged
 
@@ -144,15 +145,15 @@ No score and no bar. The headline is "Remit skipped the spam check", then one se
 
 ### 14. Reported sender
 
-Headline "You reported this sender", the sentence "Remit sent their mail to Junk without checking it.", and Not spam in the section (S1.5). Not spam follows S3.2 and raises state 9.
+Headline "You reported this sender", the sentence "Remit sent their mail to Spam without checking it.", and Not spam in the section (S1.5). Not spam follows S3.2 and raises state 9.
 
 ### 15. Unknown reason
 
 A reason name the app has no sentence for reads "Remit ran a check this version can't describe", shows the name in a code chip, and links to report an issue with the name prefilled (N1.2). The other reasons render as usual.
 
-### 16. Warn only above Junk
+### 16. Warn only above the Spam threshold
 
-This state covers a Spam label on Warn only, with a score at the Junk threshold or past it. The section adds "The score reached your Junk threshold. Spam is set to Warn only, so it stays here." and links to `/settings/spam` (S7.1).
+This state covers a Spam label on Warn only, with a score at the Spam threshold or past it. The section adds "The score reached your Spam threshold. Spam is set to Warn only, so it stays here." and links to `/settings/spam` (S7.1).
 
 ## Thread rows
 
@@ -162,7 +163,7 @@ A warned row shows the label chip, then an outlined Suspected marker, after the 
 
 ### 18. Moved
 
-A row Remit moved to Junk shows the label chip alone (S2.3).
+A row Remit moved to Spam shows the label chip alone (S2.3).
 
 ## The spam settings page
 
@@ -172,8 +173,8 @@ A new settings page, "Spam & phishing", at the path `/settings/spam` (N3.1). It 
 
 - Last 30 days: one total line, then a Spam chart and a Phishing chart from a new `SpamDailyChart` component in `packages/ui`, one bar per day, stacked moved and warned. Dots under the Spam chart mark the messages the reader marked Not spam that day (S8.1, S8.2). Each bar has a text alternative: "2026-11-13: 4 moved, 2 warned, 1 marked Not spam".
 - Latest flagged: the 10 latest warned or moved messages with sender, subject, date, label and action, and the top reason on a second line under the subject (S9.1). The reason is the rail's sentence (shared rule 8). A row opens the message under its label list, `/mail/label/<labelId>/<threadId>/<messageId>`. Review all in Spam and Open Phishing go to `/mail/label/<labelId>` (S9.2).
-- Thresholds: Warn from and Move to Junk from, the deployment default named under them, Save thresholds and Reset to default (S6.1, S6.2). The note under the buttons says the values apply to mail arriving from now on, and that Check again updates older mail (S6.4).
-- Per label: a segmented control per label, Warn only or Move to Junk (S7). A change saves at once and announces "Saved".
+- Thresholds: Warn from and Move to Spam from, the deployment default named under them, Save thresholds and Reset to default (S6.1, S6.2). The note under the buttons says the values apply to mail arriving from now on, and that Check again updates older mail (S6.4).
+- Per label: a segmented control per label, Warn only or Move to Spam (S7). A change saves at once and announces "Saved".
 - Senders: Never in Spam and Reported, each with a one-line hint and Manage, which opens Senders & Rules on that group.
 - Focus: on entry the page heading takes focus, as other settings pages do. Tab runs through the section links, the two inputs, Save, Reset, the two segmented controls and the two Manage links. Enter in an input saves (N2.3).
 
@@ -187,8 +188,8 @@ A new settings page, "Spam & phishing", at the path `/settings/spam` (N3.1). It 
 
 ### 21. Invalid thresholds
 
-- Enters: Save with a Warn value at or past the Junk value, or a value outside 0 to 1 (N1.6).
-- Shows: the broken field outlined, and the rule under it: "Warn from must be below Move to Junk from. Nothing was saved." or "Scores run from 0 to 1."
+- Enters: Save with a Warn value at or past the Spam value, or a value outside 0 to 1 (N1.6).
+- Shows: the broken field outlined, and the rule under it: "Warn from must be below Move to Spam from. Nothing was saved." or "Scores run from 0 to 1."
 - Focus: moves to the first broken field. The message is linked with `aria-describedby`.
 - Exits: editing the field clears the message.
 
@@ -229,7 +230,7 @@ Check again sits in the bulk action bar of every list, and in the message action
 
 ### 28. Running
 
-- Shows: a progress panel, "Checked 20 of 35", with a bar, the note that Remit sends ten at a time, and Stop. Each row shows its new verdict as a dashed tag as its batch lands: "Now: Junk 0.88", "Now: clean 0.12", "Unchanged 0.51" (S10.1).
+- Shows: a progress panel, "Checked 20 of 35", with a bar, the note that Remit sends ten at a time, and Stop. Each row shows its new verdict as a dashed tag as its batch lands: "Now: Spam 0.88", "Now: clean 0.12", "Unchanged 0.51" (S10.1).
 - Exits: the last batch lands (state 29), Stop ends the run after the batch in flight, a failure (state 30), or the session expires (state 31).
 - Dismissal: Esc presses Stop. The panel has no close control while it runs.
 - Focus: moves to Stop. A polite live region reads the count.
@@ -237,7 +238,7 @@ Check again sits in the bulk action bar of every list, and in the message action
 
 ### 29. Done
 
-"Checked 35 of 35", then a summary: "6 changed: 2 now reach Junk, 4 are no longer suspected. Nothing moved." Done closes the panel and keeps the tags until the list reloads. Messages that now reach Junk carry the Now Junk banner (state 4) when opened. Focus moves to Done. Esc and Done put focus back on the bulk action bar.
+"Checked 35 of 35", then a summary: "6 changed: 2 now reach Spam, 4 are no longer suspected. Nothing moved." Done closes the panel and keeps the tags until the list reloads. Messages that now reach Spam carry the state 4 banner when opened. Focus moves to Done. Esc and Done put focus back on the bulk action bar.
 
 ### 30. Partial failure
 
@@ -281,6 +282,6 @@ A fourth group in Settings, Senders & Rules, beside VIPs, Muted and Blocked. Blo
 
 Why put the overview in Settings and leave the Daily brief alone? PRD N3.1 places it at `/settings/spam`. The Daily brief lists mail to act on, and the overview counts what Remit did.
 
-Why no banner on mail in Junk? The PRD gives the banner to `Warn` only. The Junk folder and the label chip already say what happened, and the rail says why.
+Why no banner on mail in Spam? The PRD gives the banner to `Warn` only. The Spam folder and the label chip already say what happened, and the rail says why.
 
 Why does Why not write `#intelligence`? Rule R6 in url-state keeps a rail raised for one message out of the URL. The authenticity banner's Why works the same way.
