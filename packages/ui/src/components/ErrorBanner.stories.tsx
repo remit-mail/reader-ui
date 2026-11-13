@@ -62,6 +62,19 @@ export const NoJunkFolder: Story = {
 	},
 };
 
+/**
+ * Report spam failing on a message under the spam warning banner, which stays
+ * in place.
+ */
+export const ReportSpamFailed: Story = {
+	args: {
+		severity: "error",
+		title: "Couldn't report this message as spam",
+		detail: "The mail server did not answer.",
+		action: { label: "Report an issue", href: REPORT_URL },
+	},
+};
+
 /** Something degraded rather than broke. */
 export const Warning: Story = {
 	args: {
