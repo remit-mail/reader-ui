@@ -6,7 +6,10 @@ import type { LabelChipData } from "./label-chip.js";
 import type {
 	SpamChecked,
 	SpamFailed,
+	SpamLabelPlacement,
 	SpamReason,
+	SpamThresholds,
+	SpamThresholdsSet,
 	SpamVerdictScreenedOut,
 } from "./spam-contract.js";
 import {
@@ -14,6 +17,9 @@ import {
 	CHECK_FAILED_HEADLINE,
 	filterScreenSentence,
 	formatSpamScore,
+	isModelReason,
+	modelSaid,
+	modelSkipCause,
 	SPAM_FAILURE_SENTENCES,
 	SPAM_SCREEN_SENTENCES,
 	SPAM_WARN_HEADLINES,
@@ -21,11 +27,6 @@ import {
 	spamScoreSentence,
 	UNKNOWN_REASON_SENTENCE,
 } from "./spam-copy.js";
-import type {
-	LabelSpamMode,
-	SpamModelSaid,
-	SpamThresholds,
-} from "./spam-proposed.js";
 import { SpamRowMarker } from "./spam-row-marker.js";
 
 export const SPAM_CHECK_HEADING_ID = "spam-check-heading";
@@ -41,8 +42,7 @@ export interface SpamVerdictPanelProps {
 	verdict: SpamChecked | SpamFailed | SpamVerdictScreenedOut;
 	label: LabelChipData;
 	thresholds: SpamThresholds;
-	labelMode: LabelSpamMode;
-	modelSaid?: SpamModelSaid;
+	placement: SpamLabelPlacement;
 	filterName?: string;
 	links: SpamVerdictPanelLinks;
 	onNotSpam: () => void;
@@ -67,7 +67,7 @@ function ScoreBar({
 	thresholds,
 }: {
 	score: number;
-	thresholds: SpamThresholds;
+	thresholds: SpamThresholdsSet;
 }) {
 	const at = (value: number) => `${Math.min(100, Math.max(0, value * 100))}%`;
 	return (
@@ -75,15 +75,15 @@ function ScoreBar({
 			<div className="relative h-1.5 rounded-full bg-surface-sunken">
 				<div
 					className="absolute inset-y-0 rounded-r-full bg-warning/30"
-					style={{ left: at(thresholds.warn), right: 0 }}
+					style={{ left: at(thresholds.cleanBelow), right: 0 }}
 				/>
 				<div
 					className="absolute inset-y-0 rounded-r-full bg-danger/30"
-					style={{ left: at(thresholds.junk), right: 0 }}
+					style={{ left: at(thresholds.spamAt), right: 0 }}
 				/>
 				{[
-					{ key: "warn", value: thresholds.warn, text: "Warn" },
-					{ key: "junk", value: thresholds.junk, text: "Spam" },
+					{ key: "warn", value: thresholds.cleanBelow, text: "Warn" },
+					{ key: "junk", value: thresholds.spamAt, text: "Spam" },
 				].map((mark) => (
 					<span
 						key={mark.key}
@@ -152,12 +152,13 @@ function CheckedVerdict({
 	verdict,
 	label,
 	thresholds,
-	labelMode,
-	modelSaid,
+	placement,
 	links,
 }: Omit<SpamVerdictPanelProps, "verdict" | "onNotSpam" | "filterName"> & {
 	verdict: SpamChecked;
 }) {
+	const said = modelSaid(verdict);
+	const skipped = modelSkipCause(verdict);
 	const headline =
 		verdict.action === "Junk"
 			? "Remit moved this to Spam"
@@ -165,9 +166,10 @@ function CheckedVerdict({
 				? SPAM_WARN_HEADLINES[verdict.kind]
 				: "Remit found too little to act on";
 	const keptByWarnOnly =
-		verdict.action === "Warn" &&
-		labelMode === "WarnOnly" &&
-		verdict.score >= thresholds.junk;
+		verdict.action !== "None" &&
+		placement === "WarnOnly" &&
+		thresholds.state === "Set" &&
+		verdict.score >= thresholds.spamAt;
 
 	return (
 		<Section>
@@ -178,30 +180,33 @@ function CheckedVerdict({
 			<p className="text-fg-muted">
 				{spamScoreSentence(verdict.score, thresholds)}
 			</p>
-			<ScoreBar score={verdict.score} thresholds={thresholds} />
+			{thresholds.state === "Set" && (
+				<ScoreBar score={verdict.score} thresholds={thresholds} />
+			)}
 			<div>
 				<h4 className="text-xs font-semibold text-fg">Why</h4>
 				<ul className="mt-1 list-disc space-y-1.5 pl-4 marker:text-fg-subtle">
-					{verdict.reasons.map((reason) => (
-						<ReasonItem
-							key={reason.symbol}
-							reason={reason}
-							reportIssueHref={links.reportIssueHref}
-						/>
-					))}
+					{verdict.reasons
+						.filter((reason) => !isModelReason(reason))
+						.map((reason) => (
+							<ReasonItem
+								key={reason.symbol}
+								reason={reason}
+								reportIssueHref={links.reportIssueHref}
+							/>
+						))}
 				</ul>
 			</div>
-			{verdict.modelCalled ? (
-				modelSaid !== undefined && (
-					<div className="text-fg-muted">
-						<p>Remit asked the model. It said:</p>
-						<blockquote className="mt-0.5 border-l-2 border-line pl-2 italic">
-							{modelSaid}
-						</blockquote>
-					</div>
-				)
-			) : (
-				<p className="text-fg-muted">{`${BASIC_CHECKS_ONLY}.`}</p>
+			{said !== undefined && (
+				<div className="text-fg-muted">
+					<p>Remit asked the model. It said:</p>
+					<blockquote className="mt-0.5 border-l-2 border-line pl-2 italic">
+						{said}
+					</blockquote>
+				</div>
+			)}
+			{skipped !== undefined && (
+				<p className="text-fg-muted">{`${BASIC_CHECKS_ONLY}: ${skipped}`}</p>
 			)}
 			{keptByWarnOnly && (
 				<p className="text-fg-muted">

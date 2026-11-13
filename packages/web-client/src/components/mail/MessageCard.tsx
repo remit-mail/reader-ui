@@ -22,6 +22,7 @@ import {
 	isMessageNotFoundError,
 } from "../ui/error-banners";
 import { AutoMovedIndicator } from "./AutoMovedIndicator";
+import { checkAgainRequestOfThread, useCheckAgain } from "./CheckAgainProvider";
 import { MessageActionMenu } from "./MessageActionMenu";
 import { MessageAttachments } from "./MessageAttachments";
 import { MessageBody } from "./MessageBody";
@@ -204,6 +205,7 @@ const ExpandedCard = ({
 	onReplyAll?: () => void;
 	onForward?: () => void;
 }) => {
+	const checkAgain = useCheckAgain();
 	const date = formatDatePreset(threadMessage.sentDate, "long");
 	const isUnread = !threadMessage.isRead;
 	const isTrusted =
@@ -282,6 +284,20 @@ const ExpandedCard = ({
 						isTrusted={isTrusted}
 						showRaw={showRaw}
 						onToggleRaw={onToggleRaw}
+						onCheckAgain={
+							checkAgain
+								? () =>
+										checkAgain.checkAgain(
+											[
+												{
+													...checkAgainRequestOfThread(threadMessage),
+													accountId: accountId ?? threadMessage.accountId,
+												},
+											],
+											{ panel: false },
+										)
+								: undefined
+						}
 					/>
 				)
 			}

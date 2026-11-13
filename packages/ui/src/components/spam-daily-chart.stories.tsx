@@ -1,10 +1,13 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { SpamDailyChart } from "./spam-daily-chart.js";
-import { phishingDaysFixture, spamDaysFixture } from "./spam-fixtures.js";
+import {
+	notSpamDaysFixture,
+	phishingDaysFixture,
+	spamDaysFixture,
+} from "./spam-fixtures.js";
 
 const meta = {
 	title: "Design System/Spam/SpamDailyChart",
-	tags: ["proposed"],
 	component: SpamDailyChart,
 	parameters: { layout: "centered" },
 	decorators: [
@@ -20,8 +23,11 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-/** Thirty days of spam, moved under warned, with Not spam dots. */
+/** Thirty days of spam, moved under warned. */
 export const Spam: Story = {};
+
+/** RFC gap 8: dots mark the days the reader marked mail Not spam. */
+export const WithNotSpam: Story = { args: { notSpam: notSpamDaysFixture } };
 
 /** Phishing takes the danger tone. */
 export const Phishing: Story = {

@@ -17,6 +17,7 @@ import { memo } from "react";
 import { toDisplayCategory } from "../../lib/display-category";
 import { formatEmailDate } from "../../lib/format";
 import { rowSettlement } from "../../lib/row-settlement";
+import { spamRowMark } from "../../lib/spam";
 import { MessageRow } from "./MessageRow";
 
 interface MessageListItemProps {
@@ -59,10 +60,7 @@ export const threadToRowData = (
 	trust: thread.senderTrust as SenderTrustLevel,
 	category: toDisplayCategory(thread.category),
 	messageCount,
-	// The backend's DKIM-alignment verdict is authoritative: it already accounts
-	// for the multi-signature / alignment semantics a single string compare
-	// misses.
-	suspicious: thread.authenticity?.dkimMismatch === true,
+	spam: spamRowMark(thread),
 	labels: thread.labels,
 	...rowSettlement(thread),
 });

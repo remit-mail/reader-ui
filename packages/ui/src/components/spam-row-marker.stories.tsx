@@ -42,7 +42,6 @@ function RowsPreview({ action }: { action: SpamRowMarkerProps["action"] }) {
 
 const meta = {
 	title: "Design System/Spam/SpamRowMarker",
-	tags: ["proposed"],
 	component: SpamRowMarker,
 	parameters: { layout: "centered" },
 	args: { label: spamLabelFixture, action: "Warn" },

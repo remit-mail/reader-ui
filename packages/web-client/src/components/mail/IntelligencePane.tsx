@@ -1,4 +1,7 @@
-import { threadDetailOperationsListThreadMessagesOptions } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
+import {
+	threadDetailOperationsListThreadMessagesOptions,
+	userSettingsOperationsGetUserSettingsOptions,
+} from "@remit/api-http-client/@tanstack/react-query.gen.ts";
 import type { RemitImapThreadMessageResponse } from "@remit/api-http-client/types.gen.ts";
 import {
 	CATEGORY_PRESENTATION,
@@ -7,22 +10,29 @@ import {
 	IntelligencePanel,
 	type IntelligenceQuickActions,
 	type SpamQuickAction,
+	SpamVerdictPanel,
 	type ThreadCategory,
 	useModalFocus,
 } from "@remit/ui";
 import { Sparkles } from "@remit/ui/icons";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useJunkMailbox } from "../../hooks/useArchiveMailbox";
+import { useFilterList } from "../../hooks/useFilters";
 import { useIntelligenceCalendar } from "../../hooks/useIntelligenceCalendar";
 import { useIntelligenceData } from "../../hooks/useIntelligenceData";
 import { useReportSpam } from "../../hooks/useReportSpam";
 import { useUpdateAddressFlags } from "../../hooks/useUpdateAddressFlags";
+import { softErrorStatuses } from "../../lib/error-classifier";
+import { raiseNeverInSpamOffer } from "../../lib/never-in-spam-offer";
 import { isRescueCandidate } from "../../lib/rescue-candidates";
 import { recordRescueSentToJunk } from "../../lib/rescue-telemetry";
+import { spamLabelFor, unknownReasonReportHref } from "../../lib/spam";
 import { useTelemetry } from "../../lib/telemetry-context";
 import type { OpenThreadTarget } from "../../routing";
+import { useSpamHrefs } from "../../routing/spam";
 import type { ReplyWithText } from "../compose/reply-with-times";
+import { useCheckAgain } from "./CheckAgainProvider";
 
 export interface IntelligencePaneProps {
 	onClose: () => void;
@@ -217,6 +227,56 @@ function ReclassifyDialog({
 	);
 }
 
+/**
+ * The rail's Spam check section: the verdict the message carries, or the
+ * one a Check again just returned, against the thresholds in effect.
+ */
+function SpamCheckSection({
+	thread,
+	accountId,
+	onNotSpam,
+}: {
+	thread: RemitImapThreadMessageResponse;
+	accountId: string | undefined;
+	onNotSpam: () => void;
+}) {
+	const checkAgain = useCheckAgain();
+	const hrefs = useSpamHrefs();
+	const verdict =
+		checkAgain?.verdicts.get(thread.messageId) ?? thread.spamVerdict;
+	const settings = useQuery({
+		...userSettingsOperationsGetUserSettingsOptions(),
+		meta: softErrorStatuses(403),
+		enabled: verdict.state !== "NotChecked",
+	});
+	const filterId =
+		verdict.state === "ScreenedOut" && verdict.screen.rule === "Filter"
+			? verdict.screen.filterId
+			: undefined;
+	const { filters } = useFilterList(filterId ? accountId : undefined);
+	if (verdict.state === "NotChecked" || !settings.data) return null;
+	const { spam } = settings.data;
+	const kind = verdict.state === "Checked" ? verdict.kind : "Spam";
+	return (
+		<SpamVerdictPanel
+			verdict={verdict}
+			label={spamLabelFor(kind, thread.labels)}
+			thresholds={spam.thresholds}
+			placement={
+				kind === "Phishing" ? spam.phishingPlacement : spam.spamPlacement
+			}
+			filterName={filters.find((filter) => filter.filterId === filterId)?.name}
+			links={{
+				spamSettingsHref: hrefs.spamSettings,
+				sendersHref: hrefs.senders,
+				filterHref: () => hrefs.filters,
+				reportIssueHref: unknownReasonReportHref,
+			}}
+			onNotSpam={onNotSpam}
+		/>
+	);
+}
+
 interface WiredPanelProps {
 	thread: RemitImapThreadMessageResponse;
 	onClose: () => void;
@@ -289,6 +349,12 @@ function WiredPanel({
 					if (message.mailboxId === junkMailboxId) ids.add(message.messageId);
 				}
 				moveOutOfSpam([...ids]);
+				if (thread.fromEmail) {
+					raiseNeverInSpamOffer({
+						name: thread.fromName ?? thread.fromEmail,
+						email: thread.fromEmail,
+					});
+				}
 			});
 	}, [
 		notSpam,
@@ -297,6 +363,8 @@ function WiredPanel({
 		spamAction,
 		thread.messageId,
 		thread.threadId,
+		thread.fromEmail,
+		thread.fromName,
 		junkMailboxId,
 	]);
 
@@ -361,6 +429,13 @@ function WiredPanel({
 				actions={actions}
 				reportSpamPending={isReporting}
 				notSpamPending={isRestoring}
+				spamCheck={
+					<SpamCheckSection
+						thread={thread}
+						accountId={accountId}
+						onNotSpam={handleNotSpam}
+					/>
+				}
 				// No left border: the ResizableHandle to our left already draws the
 				// hairline seam. The remit-ui IntelligencePanel default `border-l`
 				// would double it to 2px.

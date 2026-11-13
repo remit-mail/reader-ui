@@ -1,6 +1,12 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import type { IntelligenceData } from "./intelligence-panel.js";
 import { IntelligencePanel } from "./intelligence-panel.js";
+import {
+	spamLabelFixture,
+	spamThresholdsFixture,
+	warnSpamVerdict,
+} from "./spam-fixtures.js";
+import { SpamVerdictPanel } from "./spam-verdict-panel.js";
 
 const base: IntelligenceData = {
 	sender: {
@@ -151,6 +157,30 @@ export const Reportable: Story = {
 	args: {
 		data: base,
 		actions: { onReportSpam: () => {} },
+	},
+};
+
+/** A warned message: the Spam check section sits under Sender. */
+export const WithSpamCheck: Story = {
+	args: {
+		data: base,
+		actions: { onReportSpam: () => {} },
+		spamCheck: (
+			<SpamVerdictPanel
+				verdict={warnSpamVerdict}
+				label={spamLabelFixture}
+				thresholds={spamThresholdsFixture}
+				placement="MoveToSpam"
+				links={{
+					spamSettingsHref: "/settings/spam",
+					sendersHref: "/settings/senders",
+					filterHref: () => "/settings/filters",
+					reportIssueHref: () =>
+						"https://github.com/remit-mail/reader/issues/new",
+				}}
+				onNotSpam={() => {}}
+			/>
+		),
 	},
 };
 

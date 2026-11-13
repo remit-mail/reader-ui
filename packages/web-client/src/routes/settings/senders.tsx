@@ -4,8 +4,9 @@
  *
  * Backend gap (#427): there is no "list all addresses with flag X" endpoint.
  * VIP group: served from GET /me/vip-suggestions (suggested-to-promote list).
- * Muted / Blocked groups: users search by name/email to find flagged senders
- * via GET /addresses/search; results are filtered client-side on the flag.
+ * Muted / Blocked / Never in Spam groups: users search by name/email to find
+ * flagged senders via GET /addresses/search; results are filtered client-side
+ * on the flag, because the search takes no flag filter (spam spec gap 1).
  * The real flagged-address query endpoint is tracked as a backend issue.
  */
 import {
@@ -45,13 +46,25 @@ export const Route = createFileRoute("/settings/senders")({
 /* Types                                                              */
 /* ------------------------------------------------------------------ */
 
-type SenderGroup = "vip" | "muted" | "blocked";
+type SenderGroup = "vip" | "muted" | "blocked" | "neverSpam";
+
+type SearchGroup = Exclude<SenderGroup, "vip">;
 
 const groupLabels: Record<SenderGroup, string> = {
 	vip: "VIPs",
 	muted: "Muted",
-	blocked: "Blocked",
+	blocked: "Blocked (reported)",
+	neverSpam: "Never in Spam",
 };
+
+const groupNouns: Record<SearchGroup, string> = {
+	muted: "muted",
+	blocked: "blocked",
+	neverSpam: "never-in-spam",
+};
+
+const flagOf = (address: RemitImapAddressResponse, group: SearchGroup) =>
+	address.flags?.[group];
 
 /* ------------------------------------------------------------------ */
 /* VIP group: served from suggestions endpoint                        */
@@ -180,7 +193,7 @@ export function SearchGroupPane({
 	query,
 	onCount,
 }: {
-	group: "muted" | "blocked";
+	group: SearchGroup;
 	query: string;
 	onCount?: (matched: number, total: number | null) => void;
 }) {
@@ -206,10 +219,8 @@ export function SearchGroupPane({
 		},
 	});
 
-	const items = (data?.items ?? []).filter((a: RemitImapAddressResponse) =>
-		group === "muted"
-			? (a.flags?.muted?.value ?? false)
-			: (a.flags?.blocked?.value ?? false),
+	const items = (data?.items ?? []).filter(
+		(a: RemitImapAddressResponse) => flagOf(a, group)?.value ?? false,
 	);
 
 	useEffect(() => {
@@ -223,8 +234,8 @@ export function SearchGroupPane({
 		return (
 			<div className="px-row-inset py-5 text-sm text-fg-subtle space-y-2">
 				<p>
-					Type 2+ characters to search {groupLabels[group].toLowerCase()}{" "}
-					senders by name or address.
+					Type 2+ characters to search {groupNouns[group]} senders by name or
+					address.
 				</p>
 				<p className="text-2xs text-fg-subtle">
 					Note: a dedicated flagged-address list endpoint is in the backlog.
@@ -254,7 +265,7 @@ export function SearchGroupPane({
 	if (items.length === 0) {
 		return (
 			<p className="px-row-inset py-5 text-sm text-fg-subtle">
-				No {groupLabels[group].toLowerCase()} senders matching &ldquo;
+				No {groupNouns[group]} senders matching &ldquo;
 				{debouncedQ}&rdquo;.
 			</p>
 		);
@@ -263,13 +274,13 @@ export function SearchGroupPane({
 	return (
 		<>
 			{items.map((a: RemitImapAddressResponse) => {
-				const flag = group === "muted" ? a.flags?.muted : a.flags?.blocked;
+				const flag = flagOf(a, group);
 				// The search response carries no engagement counts, so the row's
 				// info line is the flag provenance (when/why it was flagged)
 				// rather than echoing the email already in the header.
 				const meta = flag
 					? [
-							`${group}`,
+							groupNouns[group],
 							flag.setAt
 								? formatDate(flag.setAt, {
 										month: "short",
@@ -280,7 +291,7 @@ export function SearchGroupPane({
 						]
 							.filter(Boolean)
 							.join(" ")
-					: group;
+					: groupNouns[group];
 
 				const isPendingRemove =
 					removeMutation.isPending &&
@@ -318,7 +329,7 @@ export function SearchGroupPane({
 									size="sm"
 									icon={<X className="size-3.5" />}
 									aria-busy={isPendingRemove}
-									aria-label={`Remove ${group} flag`}
+									aria-label={`Remove ${groupNouns[group]} flag`}
 									onClick={() => {
 										if (isPendingRemove) return;
 										setRetryId(a.addressId);
@@ -357,7 +368,7 @@ function SendersSettings() {
 	const [matched, setMatched] = useState(0);
 	const [groupCounts, setGroupCounts] = useState<
 		Record<SenderGroup, number | null>
-	>({ vip: 0, muted: null, blocked: null });
+	>({ vip: 0, muted: null, blocked: null, neverSpam: null });
 
 	const handleVipCount = useCallback((m: number, total: number) => {
 		setMatched(m);
@@ -394,7 +405,9 @@ function SendersSettings() {
 						setGroup(g);
 						setQuery("");
 					}}
-					options={(["vip", "muted", "blocked"] as SenderGroup[]).map((g) => ({
+					options={(
+						["vip", "muted", "blocked", "neverSpam"] as SenderGroup[]
+					).map((g) => ({
 						id: g,
 						label: groupLabels[g],
 						count: groupCounts[g],

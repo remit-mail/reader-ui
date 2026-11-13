@@ -1,6 +1,7 @@
 import type { Decorator, Meta, StoryObj } from "@storybook/react-vite";
 import {
 	failedVerdict,
+	modelSkippedVerdict,
 	nowJunkVerdict,
 	warnPhishingVerdict,
 	warnSpamVerdict,
@@ -26,7 +27,6 @@ const noop = () => undefined;
 
 const meta = {
 	title: "Design System/Spam/SpamWarningBanner",
-	tags: ["proposed"],
 	component: SpamWarningBanner,
 	parameters: { layout: "padded" },
 	decorators: [readingPaneFrame],
@@ -51,7 +51,7 @@ export const WarnSpam: Story = {};
 export const WarnPhishing: Story = { args: { verdict: warnPhishingVerdict } };
 
 /** The model call was skipped; the banner names why. */
-export const ModelSkipped: Story = { args: { modelSkip: "DailyLimit" } };
+export const ModelSkipped: Story = { args: { verdict: modelSkippedVerdict } };
 
 /** Check again reached the Spam threshold for a message outside Spam. */
 export const NowJunk: Story = { args: { verdict: nowJunkVerdict } };

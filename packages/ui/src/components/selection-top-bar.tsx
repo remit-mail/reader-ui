@@ -4,6 +4,7 @@ import {
 	FolderInput,
 	LoaderCircle,
 	MailOpen,
+	RefreshCw,
 	ShieldAlert,
 	Sparkles,
 	Trash,
@@ -53,6 +54,8 @@ export interface SelectionTopBarProps {
 	onJunk?: () => void;
 	/** Optional — dropped from the overflow menu while `isBusy`. */
 	onMarkRead?: () => void;
+	/** Runs the spam check again over the selection, ten messages at a time. */
+	onCheckAgain?: () => void;
 	/**
 	 * The list header's own chrome, rendered only while nothing is ticked: the
 	 * nav button, the unread count beside the title, and the search affordance.
@@ -169,6 +172,7 @@ export function SelectionTopBar({
 	onOrganize,
 	onJunk,
 	onMarkRead,
+	onCheckAgain,
 	navSlot,
 	titleMeta,
 	searchSlot,
@@ -202,6 +206,14 @@ export function SelectionTopBar({
 			label: "Mark read",
 			icon: <MailOpen className="size-4" />,
 			onSelect: onMarkRead,
+		});
+	}
+	if (onCheckAgain && !isBusy && !isCounting) {
+		overflowItems.push({
+			key: "check-again",
+			label: "Check again",
+			icon: <RefreshCw className="size-4" />,
+			onSelect: onCheckAgain,
 		});
 	}
 	return (

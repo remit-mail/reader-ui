@@ -6,7 +6,6 @@ const noop = () => undefined;
 
 const meta = {
 	title: "Design System/Spam/CheckAgainPanel",
-	tags: ["proposed"],
 	component: CheckAgainPanel,
 	parameters: { layout: "centered" },
 } satisfies Meta<typeof CheckAgainPanel>;

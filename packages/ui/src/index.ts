@@ -94,6 +94,7 @@ export {
 	type ThreadData,
 	type ThreadMessageData,
 	type ThreadRowData,
+	type ThreadRowSpam,
 	type ThreadSection,
 	type TouchSeed,
 	useContainerWidth,
@@ -335,7 +336,6 @@ export {
 	CheckAgainResultTag,
 	type CheckAgainSummary,
 	checkAgainSummarySentence,
-	isRetryableCheckAgainFailure,
 } from "./components/check-again-panel.js";
 export { Checkbox, type CheckboxProps } from "./components/checkbox.js";
 export {
@@ -983,15 +983,26 @@ export {
 } from "./components/slide-panel.js";
 export type {
 	MessageSpamVerdict,
+	RescanFailure,
+	RescanFailureCode,
+	RescanResult,
+	RescanSuccess,
 	SpamAction,
 	SpamChecked,
+	SpamDayCount,
 	SpamFailed,
 	SpamFailureKind,
 	SpamKind,
+	SpamLabelPlacement,
+	SpamModelOutcome,
 	SpamReason,
 	SpamReasonName,
+	SpamScoreBand,
 	SpamScreen,
 	SpamSenderScreenRule,
+	SpamSettings,
+	SpamThresholds,
+	SpamThresholdsSet,
 	SpamVerdictScreenedOut,
 } from "./components/spam-contract.js";
 export {
@@ -1000,35 +1011,23 @@ export {
 	CHECK_FAILED_HEADLINE,
 	filterScreenSentence,
 	formatSpamScore,
-	SCORE_RANGE_ERROR,
+	isModelReason,
+	MODEL_SKIP_CAUSES,
+	modelSaid,
+	modelSkipCause,
 	spamReasonSentence,
 	spamScoreSentence,
-	THRESHOLD_ORDER_ERROR,
-	type ThresholdDraft,
-	type ThresholdValidation,
 	topSpamReason,
 	topSpamReasonSentence,
 	UNKNOWN_REASON_SENTENCE,
-	validateThresholds,
 } from "./components/spam-copy.js";
 export {
 	SpamDailyChart,
 	type SpamDailyChartProps,
+	type SpamDay,
 	spamDayDescription,
 } from "./components/spam-daily-chart.js";
-export type {
-	CheckAgainFailureCause,
-	LabelSpamMode,
-	SpamDay,
-	SpamFlaggedMessage,
-	SpamLatestFlagged,
-	SpamModelSaid,
-	SpamModelSkip,
-	SpamOverview,
-	SpamPreviewCounts,
-	SpamThresholdPreview,
-	SpamThresholds,
-} from "./components/spam-proposed.js";
+export type { SpamNotSpamDay } from "./components/spam-proposed.js";
 export {
 	SpamResultsOffer,
 	type SpamResultsOfferProps,

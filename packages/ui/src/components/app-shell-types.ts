@@ -258,6 +258,11 @@ export interface ThreadRowLabel {
 	color: string;
 }
 
+export interface ThreadRowSpam {
+	label: ThreadRowLabel;
+	action: "Warn" | "Junk";
+}
+
 export interface ThreadRowData {
 	id: string;
 	/**
@@ -290,8 +295,8 @@ export interface ThreadRowData {
 	category?: ThreadCategory;
 	/** Number of messages when the row is a thread. */
 	messageCount?: number;
-	/** Authenticity heuristics flagged this row (DKIM/From mismatch). */
-	suspicious?: boolean;
+	/** Remit warned about this message, or moved it to Spam, under this label. */
+	spam?: ThreadRowSpam;
 	/** Labels applied to this message (issue #26) — filter-, organize-, and manually-applied alike. */
 	labels?: ThreadRowLabel[];
 	/**

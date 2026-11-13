@@ -155,7 +155,7 @@ function BriefPaneProvider({ thread, children }: BriefPaneProps) {
 			mailboxId: selectedThread?.mailboxId ?? "",
 			subject: selectedThread?.subject,
 			messageId: selectedMessageId,
-			authenticity: selectedThread?.authenticity,
+			row: selectedThread,
 		};
 	}, [threadId, selectedThread, selectedMessageId]);
 
@@ -364,7 +364,7 @@ function BriefReading() {
 							mailboxId={conversation.mailboxId}
 							subject={conversation.subject}
 							selectedMessageId={conversation.messageId}
-							authenticity={conversation.authenticity}
+							spamRow={conversation.row}
 							onOpenIntelligence={intelligence.open}
 							listOnScreen
 						/>
@@ -432,7 +432,7 @@ function BriefPhone() {
 					mailboxId={conversation.mailboxId}
 					subject={conversation.subject}
 					selectedMessageId={conversation.messageId}
-					authenticity={conversation.authenticity}
+					spamRow={conversation.row}
 					onBack={onCloseThread}
 					onOpenIntelligence={drawer.toggle}
 					onSwipeNext={nextThread ? () => onOpenThread(nextThread) : undefined}

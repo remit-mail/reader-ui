@@ -1,5 +1,5 @@
 import { threadDetailOperationsListThreadMessagesOptions } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
-import type { RemitImapMessageAuthenticity } from "@remit/api-http-client/types.gen.ts";
+import type { RemitImapThreadMessageResponse } from "@remit/api-http-client/types.gen.ts";
 import { EmptyState, ErrorState, MobileReadingPane } from "@remit/ui";
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -10,8 +10,8 @@ import { useIsDesktop } from "../../hooks/useMediaQuery";
 import { useToggleStar } from "../../hooks/useToggleStar";
 import { type ReplyMode, useOpenReply, useReplySurface } from "../../routing";
 import { ConversationCompose } from "../compose/ConversationCompose";
-import { AuthenticityBanner } from "./AuthenticityBanner";
 import { MessageCard } from "./MessageCard";
+import { SpamBannerSlot } from "./SpamBannerSlot";
 
 interface ConversationViewProps {
 	threadId: string;
@@ -24,14 +24,13 @@ interface ConversationViewProps {
 	 */
 	selectedMessageId?: string;
 	/**
-	 * Authenticity signal from the thread row (DKIM mismatch). When present
-	 * and `dkimMismatch` is true, a danger banner renders above the message
-	 * body with a "Why?" link that opens the intelligence sidebar.
+	 * The row the reader opened. Its spam verdict decides the banner between
+	 * the header and the body.
 	 */
-	authenticity?: RemitImapMessageAuthenticity;
+	spamRow?: RemitImapThreadMessageResponse;
 	/**
-	 * Callback for the "Why?" link in the authenticity banner — opens /
-	 * focuses the intelligence sidebar.
+	 * Callback for Why on the spam banner — opens / focuses the intelligence
+	 * sidebar.
 	 */
 	onOpenIntelligence?: () => void;
 	/**
@@ -86,7 +85,7 @@ export const ConversationView = ({
 	mailboxId,
 	subject,
 	selectedMessageId,
-	authenticity,
+	spamRow,
 	onOpenIntelligence,
 	onBack,
 	onSwipeNext,
@@ -486,9 +485,9 @@ export const ConversationView = ({
 				onSwipeNext={onSwipeNext}
 				onSwipePrevious={onSwipePrevious}
 			>
-				{authenticity?.dkimMismatch && (
-					<AuthenticityBanner
-						authenticity={authenticity}
+				{spamRow && (
+					<SpamBannerSlot
+						row={spamRow}
 						onOpenIntelligence={onOpenIntelligence}
 					/>
 				)}
@@ -501,11 +500,8 @@ export const ConversationView = ({
 	return (
 		<article className="h-full flex flex-col">
 			{header}
-			{authenticity?.dkimMismatch && (
-				<AuthenticityBanner
-					authenticity={authenticity}
-					onOpenIntelligence={onOpenIntelligence}
-				/>
+			{spamRow && (
+				<SpamBannerSlot row={spamRow} onOpenIntelligence={onOpenIntelligence} />
 			)}
 			{/* The one scroller in the pane. The reply and the thread are both in
 			    it, so neither has a scrollbar of its own and neither is squeezed

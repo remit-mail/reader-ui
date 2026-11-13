@@ -14,6 +14,7 @@ import {
 	Code,
 	EllipsisVertical,
 	MailOpen,
+	RefreshCw,
 	Trash,
 } from "@remit/ui/icons";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -70,6 +71,8 @@ interface MessageActionMenuProps {
 	 * parent card so the body area and this menu stay in sync.
 	 */
 	onToggleRaw?: () => void;
+	/** Runs the spam check on this message again. */
+	onCheckAgain?: () => void;
 }
 
 export const MessageActionMenu = ({
@@ -82,6 +85,7 @@ export const MessageActionMenu = ({
 	isTrusted = false,
 	showRaw = false,
 	onToggleRaw,
+	onCheckAgain,
 }: MessageActionMenuProps) => {
 	const queryClient = useQueryClient();
 	const closeThread = useCloseThread();
@@ -259,6 +263,12 @@ export const MessageActionMenu = ({
 						>
 							<MailOpen className="size-4" />
 							Mark as unread
+						</DropdownMenuItem>
+					)}
+					{onCheckAgain && (
+						<DropdownMenuItem onClick={onCheckAgain} disabled={isDisabled}>
+							<RefreshCw className="size-4" />
+							Check again
 						</DropdownMenuItem>
 					)}
 					{onToggleRaw && (

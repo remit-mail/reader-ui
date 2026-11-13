@@ -54,7 +54,8 @@
 		"react-dom": "^19",
 		"@types/react": "^19",
 		"@types/react-dom": "^19",
-		"@remit/domain-enums": "*"
+		"@remit/domain-enums": "*",
+		"@remit/api-http-client": "*"
 	},
 	"devDependencies": {
 		"@remit/test-dom": "*",

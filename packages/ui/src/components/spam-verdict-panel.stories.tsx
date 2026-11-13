@@ -15,7 +15,6 @@ const noop = () => undefined;
 
 const meta = {
 	title: "Design System/Spam/SpamVerdictPanel",
-	tags: ["proposed"],
 	component: SpamVerdictPanel,
 	parameters: { layout: "centered" },
 	decorators: [
@@ -29,7 +28,7 @@ const meta = {
 		verdict: warnSpamVerdict,
 		label: spamLabelFixture,
 		thresholds: spamThresholdsFixture,
-		labelMode: "MoveToSpam",
+		placement: "MoveToSpam",
 		links: {
 			spamSettingsHref: "/settings/spam",
 			sendersHref: "/settings/senders",
@@ -54,11 +53,7 @@ export const JunkPhishing: Story = {
 
 /** The model judged it, and the rail quotes its reason as returned. */
 export const ModelJudged: Story = {
-	args: {
-		verdict: modelJudgedVerdict,
-		modelSaid:
-			"The message pushes an urgent payment from a domain registered last week.",
-	},
+	args: { verdict: modelJudgedVerdict },
 };
 
 /** Stage 1 let the message through without a check. */
@@ -82,5 +77,5 @@ export const UnknownReason: Story = {
 
 /** Warn only kept a score past the Spam threshold in place. */
 export const WarnOnlyAboveJunk: Story = {
-	args: { verdict: warnOnlyAboveJunkVerdict, labelMode: "WarnOnly" },
+	args: { verdict: warnOnlyAboveJunkVerdict, placement: "WarnOnly" },
 };

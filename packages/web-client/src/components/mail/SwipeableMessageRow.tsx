@@ -10,6 +10,7 @@ import { useCallback, useState } from "react";
 import { toDisplayCategory } from "../../lib/display-category";
 import { formatEmailDate } from "../../lib/format";
 import { rowSettlement } from "../../lib/row-settlement";
+import { spamRowMark } from "../../lib/spam";
 import { useOpenThread } from "../../routing";
 import { MessageListItem } from "./MessageListItem";
 import { useModifierSelect } from "./useModifierSelect";
@@ -44,7 +45,6 @@ interface SwipeableMessageRowProps {
 export const swipeableRowData = (
 	thread: RemitImapThreadMessageResponse,
 ): ThreadRowData => {
-	const suspicious = thread.authenticity?.dkimMismatch === true;
 	return {
 		id: thread.messageId,
 		accountId: thread.accountId,
@@ -58,7 +58,7 @@ export const swipeableRowData = (
 		starred: thread.hasStars === true,
 		trust: thread.senderTrust,
 		category: toDisplayCategory(thread.category),
-		suspicious,
+		spam: spamRowMark(thread),
 		...rowSettlement(thread),
 	};
 };

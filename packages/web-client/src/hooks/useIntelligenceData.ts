@@ -3,7 +3,6 @@ import type {
 	RemitImapAddressResponse,
 	RemitImapThreadMessageResponse,
 } from "@remit/api-http-client/types.gen.ts";
-import { DisplayNameCorrespondence, SenderTrust } from "@remit/domain-enums";
 import type {
 	AuthenticityIntel,
 	IntelligenceData,
@@ -125,73 +124,6 @@ function claimedBrandOf(
 	return thread.fromName;
 }
 
-function joinDomains(domains: readonly string[]): string {
-	if (domains.length === 1) return domains[0];
-	return `${domains.slice(0, -1).join(", ")} and ${domains[domains.length - 1]}`;
-}
-
-/**
- * The clauses naming what does not line up on a message whose signature checks
- * out. Empty when everything the backend compared agreed — including when it
- * compared nothing, which is every message outside Junk that the provider's
- * filter did not already call spam.
- *
- * Each clause leads with the concern and names `auth.fromDomain` — the
- * domain `classifyDisplayNameCorrespondence` actually compared the display
- * name against (`senderMismatch.ts` calls it with the From address's own
- * domain, never the DKIM signing domain). Naming `auth.dkimDomain` instead
- * would assert a comparison that was never made: on a message signed by a
- * relay or ESP infrastructure domain, the display name was checked against
- * the sender's own address, not that domain. These clauses are the caution
- * tier's entire summary: there is no separate "verified" sentence in front
- * of them for the signing fact to hide behind.
- */
-function describeSenderMismatch(
-	auth: NonNullable<RemitImapThreadMessageResponse["authenticity"]>,
-	claimedBrand: string | undefined,
-	senderTrust: RemitImapThreadMessageResponse["senderTrust"],
-): string[] {
-	const trusted =
-		senderTrust === SenderTrust.Vip || senderTrust === SenderTrust.Wellknown;
-	const clauses: string[] = [];
-	const correspondence = auth.displayNameCorrespondence;
-
-	if (claimedBrand) {
-		if (correspondence === DisplayNameCorrespondence.Unrelated && !trusted) {
-			clauses.push(
-				`The name it shows, "${claimedBrand}", has nothing to do with ${auth.fromDomain}.`,
-			);
-		} else if (correspondence === DisplayNameCorrespondence.Lookalike) {
-			clauses.push(
-				`The name it shows, "${claimedBrand}", only looks like ${auth.fromDomain}.`,
-			);
-		} else if (correspondence === DisplayNameCorrespondence.ForeignAddress) {
-			clauses.push(
-				`The name it shows, "${claimedBrand}", is an address ${auth.fromDomain} cannot send from.`,
-			);
-		}
-	}
-
-	const linkDomains = readDomainList(auth.offDomainLinkDomains);
-	if (linkDomains.length > 0 && !trusted) {
-		clauses.push(`Its links go to ${joinDomains(linkDomains.slice(0, 3))}.`);
-	}
-
-	return clauses;
-}
-
-/**
- * The field is a JSON blob on the message row, so a value written by an older
- * or drifted writer reaches here as whatever it happens to be. Anything that is
- * not a list of non-empty strings carries no destination to name.
- */
-function readDomainList(value: unknown): string[] {
-	if (!Array.isArray(value)) return [];
-	return value.filter(
-		(entry): entry is string => typeof entry === "string" && entry.length > 0,
-	);
-}
-
 /** Build authenticity intel from the thread message's authenticity field. */
 export function buildAuthenticityIntel(
 	thread: RemitImapThreadMessageResponse,
@@ -214,17 +146,6 @@ export function buildAuthenticityIntel(
 		};
 	}
 	if (!auth.dkimMismatch) {
-		const claimed = claimedBrandOf(thread);
-		const unlike = describeSenderMismatch(auth, claimed, thread.senderTrust);
-		if (unlike.length > 0) {
-			return {
-				verdict: "caution",
-				fromDomain: auth.fromDomain,
-				dkimDomain: auth.dkimDomain,
-				claimedBrand: claimed,
-				summary: unlike.join(" "),
-			};
-		}
 		return {
 			verdict: "aligned",
 			fromDomain: auth.fromDomain,

@@ -26,6 +26,7 @@ import {
 	recordRescueFlowOpened,
 } from "../../lib/rescue-telemetry";
 import { useTelemetry } from "../../lib/telemetry-context";
+import { NeverInSpamOfferSlot } from "./NeverInSpamOfferSlot";
 
 interface SpamRescueProps {
 	accountId: string;
@@ -36,10 +37,11 @@ interface SpamRescueProps {
 }
 
 /**
- * Wraps the Spam folder list with the Rescue-from-Spam call-to-action and flow.
- * Renders the banner above the list and the review sheet over it; the kit flow
- * stays presentational, this component supplies the real folders, destination
- * and move. Only mount it on the Spam folder when candidates exist.
+ * Wraps the Spam folder list with its one banner slot and the Rescue-from-Spam
+ * flow. The slot shows the Never in Spam offer a Not spam press raised, and
+ * otherwise the rescue banner while candidates exist. The kit flow stays
+ * presentational; this component supplies the real folders, destination and
+ * move.
  */
 export function SpamRescue({
 	accountId,
@@ -84,7 +86,7 @@ export function SpamRescue({
 
 	const surfacedRef = useRef(false);
 	useEffect(() => {
-		if (surfacedRef.current) return;
+		if (surfacedRef.current || candidates.length === 0) return;
 		surfacedRef.current = true;
 		recordRescueCandidatesSurfaced(telemetry, candidates.length);
 	}, [telemetry, candidates.length]);
@@ -108,9 +110,15 @@ export function SpamRescue({
 
 	return (
 		<div className="relative flex h-full min-h-0 flex-col">
-			<div className="shrink-0 px-row-inset pt-2">
-				<RescueBanner count={candidates.length} onReview={handleReview} />
-			</div>
+			<NeverInSpamOfferSlot
+				fallback={
+					candidates.length > 0 ? (
+						<div className="shrink-0 px-row-inset pt-2">
+							<RescueBanner count={candidates.length} onReview={handleReview} />
+						</div>
+					) : undefined
+				}
+			/>
 			<div className="min-h-0 flex-1">{children}</div>
 			<RescueFromSpamFlow
 				open={open}

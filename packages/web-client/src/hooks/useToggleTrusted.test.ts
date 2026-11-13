@@ -71,6 +71,7 @@ describe("patchDescribeMessage", () => {
 				status: "active",
 				syncStatus: "pending",
 				abandonedMutation: "none",
+				spamVerdict: { state: "NotChecked" },
 			},
 			envelope: {
 				messageId: "m",

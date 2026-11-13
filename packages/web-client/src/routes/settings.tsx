@@ -15,6 +15,7 @@ import {
 	Funnel,
 	Inbox,
 	Palette,
+	ShieldAlert,
 	Sparkles,
 	Tag,
 	UserCog,
@@ -56,6 +57,11 @@ export const SETTINGS_NAV_ITEMS: SettingsNavItem[] = [
 		id: "classification",
 		label: "Mail classification",
 		icon: <Sparkles className="size-4" />,
+	},
+	{
+		id: "spam",
+		label: "Spam & phishing",
+		icon: <ShieldAlert className="size-4" />,
 	},
 	{
 		id: "calendars",

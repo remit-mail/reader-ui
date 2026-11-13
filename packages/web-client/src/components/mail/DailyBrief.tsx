@@ -308,6 +308,7 @@ function BriefSelectionChrome({
 		orderedIds,
 		allSelected,
 		toggleAllLoaded,
+		checkAgainSelection,
 	} = useThreadListSelection();
 
 	const scope = useMemo(
@@ -366,6 +367,7 @@ function BriefSelectionChrome({
 			onOrganize={() => wizard.start("organize")}
 			onJunk={junkDestinationId ? () => wizard.start("junk") : undefined}
 			onMarkRead={() => wizard.start("markRead")}
+			onCheckAgain={checkAgainSelection}
 			overflowSlot={
 				scope.accountId &&
 				scope.mailboxId &&

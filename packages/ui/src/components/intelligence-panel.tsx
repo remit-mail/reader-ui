@@ -189,6 +189,8 @@ export interface IntelligencePanelProps {
 	defaultTab?: IntelligenceTabId;
 	/** Larger hit targets, for the drawer host on a touch screen. */
 	touch?: boolean;
+	/** The Spam check section, between Sender and Authenticity. */
+	spamCheck?: ReactNode;
 }
 
 const trustLabel: Record<
@@ -340,6 +342,7 @@ export function IntelligencePanel({
 	onTabChange,
 	defaultTab = "sender",
 	touch,
+	spamCheck,
 }: IntelligencePanelProps) {
 	const {
 		sender,
@@ -410,6 +413,8 @@ export function IntelligencePanel({
 					<IntelligenceSection label="Sender">
 						<SenderCard sender={sender} />
 					</IntelligenceSection>
+
+					{spamCheck}
 
 					<IntelligenceSection label="Authenticity">
 						<Authenticity auth={authenticity} />

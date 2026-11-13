@@ -5,6 +5,7 @@ import type {
 	RemitImapCalendarEventResponse,
 	RemitImapCalendarResponse,
 	RemitImapCanonicalMailboxRole,
+	RemitImapClassifierStats,
 	RemitImapLabelResponse,
 	RemitImapMailboxResponse,
 	RemitImapMessageCategory,
@@ -14,12 +15,14 @@ import type {
 	RemitImapSyncWarningResponse,
 	RemitImapSystemUpdateResponse,
 	RemitImapThreadMessageResponse,
+	RemitImapUserSettingsResponse,
 	RemitImapVipSuggestionEntry,
 } from "@remit/api-http-client/types.gen.ts";
 import {
 	makeAccount,
 	makeMailbox,
 	makeThreadMessage,
+	makeUserSettings,
 } from "../../test-support/fixtures";
 
 export interface MailWorld {
@@ -38,6 +41,8 @@ export interface MailWorld {
 	calendars: RemitImapCalendarResponse[];
 	calendarEvents: RemitImapCalendarEventInstance[];
 	calendarResources: RemitImapCalendarEventResponse[];
+	userSettings: RemitImapUserSettingsResponse;
+	classifierStats: RemitImapClassifierStats;
 }
 
 export const MINUTE = 60_000;
@@ -446,5 +451,15 @@ export const mailWorld = (overrides: Partial<MailWorld> = {}): MailWorld => ({
 	calendars: [],
 	calendarEvents: [],
 	calendarResources: [],
+	userSettings: makeUserSettings(),
+	classifierStats: {
+		since: new Date(NOW - 29 * DAY).toISOString(),
+		examined: 0,
+		byCategory: [],
+		byLabel: [],
+		corrections: { spamReportedNotJunk: 0, categoryOverridden: 0 },
+		spamByDay: [],
+		spamScoreBands: [],
+	},
 	...overrides,
 });

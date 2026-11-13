@@ -5,7 +5,6 @@ const noop = () => undefined;
 
 const meta = {
 	title: "Design System/Spam/NeverInSpamOffer",
-	tags: ["proposed"],
 	component: NeverInSpamOffer,
 	parameters: { layout: "padded" },
 	decorators: [

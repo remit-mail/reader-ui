@@ -41,6 +41,7 @@ import type { DeleteTarget } from "../../lib/format";
 import { tabStopId } from "../../lib/list-focus";
 import { useListHeaderChrome } from "../../lib/list-header-chrome";
 import { useErrorBanners } from "../ui/error-banner-context";
+import { checkAgainRequestOfRow, useCheckAgain } from "./CheckAgainProvider";
 import { DeleteConfirmDialog } from "./DeleteConfirmDialog";
 import type { MessageListCommands } from "./MessageList";
 import type { MessageRowSelection } from "./MessageRow";
@@ -79,6 +80,8 @@ interface ThreadListInteractionValue {
 	allSelected: boolean;
 	/** Select every rendered row, or clear when they already all are. */
 	toggleAllLoaded: () => void;
+	/** Checks the selection for spam again. Absent outside the app shell. */
+	checkAgainSelection: (() => void) | undefined;
 }
 
 const ThreadListInteractionCtx =
@@ -416,8 +419,25 @@ export function ThreadListInteraction({
 
 	const tabStop = tabStopId(orderedIds, focusedMessageId);
 
+	const checkAgain = useCheckAgain();
+	const checkAgainSelection = useMemo(
+		() =>
+			checkAgain
+				? () =>
+						checkAgain.checkAgain(
+							rows
+								.filter((row) => selectedIds.has(row.id))
+								.map(checkAgainRequestOfRow)
+								.filter((request) => request !== undefined),
+							{ panel: true },
+						)
+				: undefined,
+		[checkAgain, rows, selectedIds],
+	);
+
 	const value = useMemo<ThreadListInteractionValue>(
 		() => ({
+			checkAgainSelection,
 			selectedIds,
 			selectedCount,
 			exitSelection,
@@ -440,6 +460,7 @@ export function ThreadListInteraction({
 			}),
 		}),
 		[
+			checkAgainSelection,
 			selectedIds,
 			selectedCount,
 			exitSelection,
@@ -509,6 +530,7 @@ export function ThreadListSelectionBar({
 		orderedIds,
 		allSelected,
 		toggleAllLoaded,
+		checkAgainSelection,
 	} = useThreadListSelection();
 
 	return (
@@ -523,6 +545,7 @@ export function ThreadListSelectionBar({
 			onCancel={exitSelection}
 			onDelete={() => startSelectionVerb("delete")}
 			onMarkRead={() => startSelectionVerb("markRead")}
+			onCheckAgain={checkAgainSelection}
 			isBusy={isDeleting}
 			selectAll={
 				orderedIds.length > 0
