@@ -1,13 +1,14 @@
+import type { RemitImapRescanFailureCode } from "@remit/api-http-client/types.gen.ts";
 import { type KeyboardEvent, type ReactNode, useEffect, useRef } from "react";
 import { Button, ButtonLink } from "./button.js";
 import { ProgressBar } from "./progress-bar.js";
 import { CHECK_AGAIN_FAILURE_SENTENCES, formatSpamScore } from "./spam-copy.js";
-import type { CheckAgainFailureCause } from "./spam-proposed.js";
 
 export interface CheckAgainFailure {
 	messageId: string;
 	subject: string;
-	cause: CheckAgainFailureCause;
+	code: RemitImapRescanFailureCode;
+	retryable: boolean;
 }
 
 export interface CheckAgainSummary {
@@ -33,10 +34,6 @@ export type CheckAgainPanelProps =
 			onRetry: () => void;
 			onClose: () => void;
 	  };
-
-export const isRetryableCheckAgainFailure = (
-	cause: CheckAgainFailureCause,
-): boolean => cause === "RateLimited" || cause === "DailyCap";
 
 export function checkAgainSummarySentence(summary: CheckAgainSummary): string {
 	const parts = [
@@ -139,8 +136,8 @@ export function CheckAgainPanel(props: CheckAgainPanelProps) {
 		);
 	}
 
-	const retryable = props.failures.filter((failure) =>
-		isRetryableCheckAgainFailure(failure.cause),
+	const retryable = props.failures.filter(
+		(failure) => failure.retryable,
 	).length;
 
 	return (
@@ -153,7 +150,7 @@ export function CheckAgainPanel(props: CheckAgainPanelProps) {
 				{props.failures.map((failure) => (
 					<li key={failure.messageId}>
 						<span className="text-fg">{failure.subject}</span>:{" "}
-						{CHECK_AGAIN_FAILURE_SENTENCES[failure.cause]}
+						{CHECK_AGAIN_FAILURE_SENTENCES[failure.code]}
 					</li>
 				))}
 			</ul>

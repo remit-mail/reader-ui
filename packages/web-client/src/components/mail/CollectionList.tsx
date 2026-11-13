@@ -41,6 +41,7 @@ import {
 	useCollectionThreads,
 	useCollectionUnreadCount,
 } from "../../hooks/useCollectionThreads";
+import { useJunkMailboxIds } from "../../hooks/useJunkMailboxIds";
 import { useIsDesktop } from "../../hooks/useMediaQuery";
 import { useSearchTokenContext } from "../../hooks/useSearchTokenContext";
 import type { TriageContextUpdate } from "../../hooks/useTriageLayer";
@@ -211,14 +212,15 @@ export function CollectionList({
 		isFetchingNextPage,
 	} = useCollectionThreads(collection, textCriteria);
 
+	const junkMailboxIds = useJunkMailboxIds();
 	const rows = useMemo<ThreadRowData[]>(
 		() =>
 			// What is left is what no parameter can carry: `before:`, `after:`,
 			// `in:`, `account:`, and a token the chips overruled.
 			dedupeByThread(threads)
-				.map(toThreadRowData)
+				.map((thread) => toThreadRowData(thread, junkMailboxIds))
 				.filter((t) => matchesSearchTokens(t, residualTokens)),
-		[threads, residualTokens],
+		[threads, residualTokens, junkMailboxIds],
 	);
 
 	const openRow = useCallback(

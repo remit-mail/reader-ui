@@ -1,14 +1,19 @@
+import type {
+	RemitImapSpamChecked,
+	RemitImapSpamFailed,
+	RemitImapSpamReason,
+	RemitImapSpamReasonName,
+	RemitImapSpamThresholdsSet,
+} from "@remit/api-http-client/types.gen.ts";
 import type { CheckAgainFailure } from "./check-again-panel.js";
 import type { LabelChipData } from "./label-chip.js";
-import type {
-	SpamChecked,
-	SpamFailed,
-	SpamReason,
-	SpamReasonName,
-} from "./spam-contract.js";
-import type { SpamDay, SpamThresholds } from "./spam-proposed.js";
+import type { SpamDay } from "./spam-daily-chart.js";
 
-export const spamThresholdsFixture: SpamThresholds = { warn: 0.4, junk: 0.85 };
+export const spamThresholdsFixture: RemitImapSpamThresholdsSet = {
+	state: "Set",
+	cleanBelow: 0.4,
+	spamAt: 0.85,
+};
 
 export const spamLabelFixture: LabelChipData = {
 	labelId: "label-spam",
@@ -23,17 +28,17 @@ export const phishingLabelFixture: LabelChipData = {
 };
 
 const reason = (
-	name: SpamReasonName,
+	name: RemitImapSpamReasonName,
 	score: number,
 	options: string[] = [],
-): SpamReason => ({ name, symbol: name, score, options });
+): RemitImapSpamReason => ({ name, symbol: name, score, options });
 
-export const warnSpamVerdict: SpamChecked = {
+export const warnSpamVerdict: RemitImapSpamChecked = {
 	state: "Checked",
 	score: 0.72,
 	action: "Warn",
 	kind: "Spam",
-	modelCalled: false,
+	modelOutcome: "OutOfBand",
 	reasons: [
 		reason("LinkTextMismatch", 0.3, ["bank.example -> login-check.example"]),
 		reason("FirstContactDomain", 0.25, ["sender-domain.example"]),
@@ -41,12 +46,12 @@ export const warnSpamVerdict: SpamChecked = {
 	],
 };
 
-export const warnPhishingVerdict: SpamChecked = {
+export const warnPhishingVerdict: RemitImapSpamChecked = {
 	state: "Checked",
 	score: 0.68,
 	action: "Warn",
 	kind: "Phishing",
-	modelCalled: false,
+	modelOutcome: "OutOfBand",
 	reasons: [
 		reason("DisplayNameForeignAddress", 0.4, [
 			'"support@bank.example" <x@other.example>',
@@ -55,47 +60,55 @@ export const warnPhishingVerdict: SpamChecked = {
 	],
 };
 
-export const junkPhishingVerdict: SpamChecked = {
+export const junkPhishingVerdict: RemitImapSpamChecked = {
 	...warnPhishingVerdict,
 	score: 0.93,
 	action: "Junk",
 };
 
-export const modelJudgedVerdict: SpamChecked = {
+export const modelSkippedVerdict: RemitImapSpamChecked = {
+	...warnSpamVerdict,
+	modelOutcome: "DailyLimit",
+};
+
+export const modelJudgedVerdict: RemitImapSpamChecked = {
 	state: "Checked",
 	score: 0.61,
 	action: "Warn",
 	kind: "Spam",
-	modelCalled: true,
+	modelOutcome: "Answered",
 	reasons: [
 		reason("RecentlyRegisteredDomain", 0.35, ["registered 2026-11-02"]),
+		reason("ModelSpam", 0.2, [
+			"It pushes a payment link from a domain registered last week.",
+		]),
 	],
 };
 
-export const nowJunkVerdict: SpamChecked = {
+export const nowJunkVerdict: RemitImapSpamChecked = {
 	...warnSpamVerdict,
 	score: 0.88,
 	action: "Junk",
 };
 
-export const warnOnlyAboveJunkVerdict: SpamChecked = {
+export const warnOnlyAboveJunkVerdict: RemitImapSpamChecked = {
 	state: "Checked",
 	score: 0.9,
 	action: "Warn",
 	kind: "Spam",
-	modelCalled: true,
+	modelOutcome: "Answered",
 	reasons: [
 		reason("LinkTextMismatch", 0.5, ["bank.example -> login-check.example"]),
 		reason("FirstContactDomain", 0.4, ["sender-domain.example"]),
 	],
 };
 
-export const unknownReasonVerdict: SpamChecked = {
+export const unknownReasonVerdict: RemitImapSpamChecked = {
 	state: "Checked",
 	score: 0.55,
 	action: "Warn",
 	kind: "Spam",
-	modelCalled: true,
+	modelOutcome: "Answered",
 	reasons: [
 		reason("ProviderSpam", 0.3),
 		{
@@ -107,13 +120,36 @@ export const unknownReasonVerdict: SpamChecked = {
 	],
 };
 
-export const failedVerdict: SpamFailed = { state: "Failed", kind: "TimedOut" };
+export const failedVerdict: RemitImapSpamFailed = {
+	state: "Failed",
+	kind: "TimedOut",
+};
 
 export const checkAgainFailuresFixture: CheckAgainFailure[] = [
-	{ messageId: "m-1", subject: "Subject line", cause: "RateLimited" },
-	{ messageId: "m-2", subject: "Subject line", cause: "RateLimited" },
-	{ messageId: "m-3", subject: "Subject line", cause: "DailyCap" },
-	{ messageId: "m-4", subject: "Subject line", cause: "NotFound" },
+	{
+		messageId: "m-1",
+		subject: "Subject line",
+		code: "RateLimited",
+		retryable: true,
+	},
+	{
+		messageId: "m-2",
+		subject: "Subject line",
+		code: "RateLimited",
+		retryable: true,
+	},
+	{
+		messageId: "m-3",
+		subject: "Subject line",
+		code: "DailyCap",
+		retryable: true,
+	},
+	{
+		messageId: "m-4",
+		subject: "Subject line",
+		code: "NotFound",
+		retryable: false,
+	},
 ];
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -131,7 +167,6 @@ export const spamDaysFixture: SpamDay[] = Array.from({ length: 30 }, (_, i) => {
 		date: isoDay(29 - i),
 		moved: n,
 		warned: Math.ceil(n / 2),
-		markedNotSpam: i % 9 === 4 ? 1 : 0,
 	};
 });
 
@@ -141,6 +176,5 @@ export const phishingDaysFixture: SpamDay[] = Array.from(
 		date: isoDay(29 - i),
 		moved: phishingPattern[i % phishingPattern.length] ?? 0,
 		warned: i % 7 === 3 ? 1 : 0,
-		markedNotSpam: 0,
 	}),
 );

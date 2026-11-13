@@ -80,6 +80,8 @@ const describeMessage: RemitImapDescribeMessageResponse = {
 		status: "active",
 		syncStatus: "pending",
 		abandonedMutation: "none",
+		spamVerdict: { state: "NotChecked" },
+		spamCleared: false,
 	},
 	envelope: {
 		messageId: MESSAGE_ID,
@@ -167,11 +169,6 @@ const sender: IntelligenceData = {
 		email: "organizer@example.test",
 		trust: "wellknown",
 		firstSeenLabel: "Jan 2025",
-	},
-	authenticity: {
-		verdict: "aligned",
-		fromDomain: "example.test",
-		summary: "Signed by example.test.",
 	},
 	category: { value: "personal" },
 	spamAction: "reportSpam",

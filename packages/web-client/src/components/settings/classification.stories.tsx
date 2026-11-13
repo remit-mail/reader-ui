@@ -205,6 +205,11 @@ const settingsHandlers = (
 		defaultInvitationSenderChosen: false,
 		classificationPresets: PRESETS,
 		classification,
+		spam: {
+			thresholds: { state: "Set", cleanBelow: 0.4, spamAt: 0.85 },
+			spamPlacement: "MoveToSpam",
+			phishingPlacement: "MoveToSpam",
+		},
 	});
 	return [
 		http.get("/api/settings", () => HttpResponse.json(settings())),

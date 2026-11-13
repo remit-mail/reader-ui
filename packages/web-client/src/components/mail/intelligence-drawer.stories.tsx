@@ -49,14 +49,6 @@ const intelligence: IntelligenceData = {
 		inboundCount: 1,
 		replyCount: 0,
 	},
-	authenticity: {
-		verdict: "mismatch",
-		fromDomain: "mondialrelay.fr",
-		dkimDomain: "gmail.example",
-		claimedBrand: "Mondial Relay",
-		summary:
-			"The display name claims “Mondial Relay”, but the message was sent and signed by a personal gmail.example mailbox — not mondialrelay.fr.",
-	},
 	category: { value: "automated" },
 	spamAction: "reportSpam",
 };

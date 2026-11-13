@@ -1,19 +1,25 @@
-import type { ReactNode } from "react";
+import type {
+	RemitImapSpamChecked,
+	RemitImapSpamFailed,
+	RemitImapSpamLabelPlacement,
+	RemitImapSpamReason,
+	RemitImapSpamThresholds,
+	RemitImapSpamThresholdsSet,
+	RemitImapSpamVerdictScreenedOut,
+} from "@remit/api-http-client/types.gen.ts";
+import type { ReactElement, ReactNode } from "react";
 import { cn } from "../lib/cn.js";
 import { Button } from "./button.js";
 import { IntelligenceSection } from "./intelligence-section.js";
 import type { LabelChipData } from "./label-chip.js";
-import type {
-	SpamChecked,
-	SpamFailed,
-	SpamReason,
-	SpamVerdictScreenedOut,
-} from "./spam-contract.js";
 import {
 	BASIC_CHECKS_ONLY,
 	CHECK_FAILED_HEADLINE,
 	filterScreenSentence,
 	formatSpamScore,
+	isModelReason,
+	modelSaid,
+	modelSkipCause,
 	SPAM_FAILURE_SENTENCES,
 	SPAM_SCREEN_SENTENCES,
 	SPAM_WARN_HEADLINES,
@@ -21,30 +27,39 @@ import {
 	spamScoreSentence,
 	UNKNOWN_REASON_SENTENCE,
 } from "./spam-copy.js";
-import type {
-	LabelSpamMode,
-	SpamModelSaid,
-	SpamThresholds,
-} from "./spam-proposed.js";
 import { SpamRowMarker } from "./spam-row-marker.js";
 
 export const SPAM_CHECK_HEADING_ID = "spam-check-heading";
 
-export interface SpamVerdictPanelLinks {
-	spamSettingsHref: string;
-	sendersHref: string;
-	filterHref: (filterId: string) => string;
-	reportIssueHref: (symbol: string) => string;
+/** Where a link in the Spam check section goes; the host maps it to a route. */
+export type SpamVerdictLinkTarget =
+	| { kind: "SpamSettings" }
+	| { kind: "NeverInSpamSenders" }
+	| { kind: "Filter"; filterId: string };
+
+export interface SpamVerdictLinkProps {
+	target: SpamVerdictLinkTarget;
+	className: string;
+	children: ReactNode;
 }
 
+/** Renders an in-app link, so following it is a navigation, not a reload. */
+export type SpamVerdictLinkComponent = (
+	props: SpamVerdictLinkProps,
+) => ReactElement;
+
 export interface SpamVerdictPanelProps {
-	verdict: SpamChecked | SpamFailed | SpamVerdictScreenedOut;
-	label: LabelChipData;
-	thresholds: SpamThresholds;
-	labelMode: LabelSpamMode;
-	modelSaid?: SpamModelSaid;
+	verdict:
+		| RemitImapSpamChecked
+		| RemitImapSpamFailed
+		| RemitImapSpamVerdictScreenedOut;
+	/** The Remit label the message carries, when it carries one. */
+	label?: LabelChipData;
+	thresholds: RemitImapSpamThresholds;
+	placement: RemitImapSpamLabelPlacement;
 	filterName?: string;
-	links: SpamVerdictPanelLinks;
+	linkComponent: SpamVerdictLinkComponent;
+	reportIssueHref: (symbol: string) => string;
 	onNotSpam: () => void;
 }
 
@@ -67,7 +82,7 @@ function ScoreBar({
 	thresholds,
 }: {
 	score: number;
-	thresholds: SpamThresholds;
+	thresholds: RemitImapSpamThresholdsSet;
 }) {
 	const at = (value: number) => `${Math.min(100, Math.max(0, value * 100))}%`;
 	return (
@@ -75,15 +90,15 @@ function ScoreBar({
 			<div className="relative h-1.5 rounded-full bg-surface-sunken">
 				<div
 					className="absolute inset-y-0 rounded-r-full bg-warning/30"
-					style={{ left: at(thresholds.warn), right: 0 }}
+					style={{ left: at(thresholds.cleanBelow), right: 0 }}
 				/>
 				<div
 					className="absolute inset-y-0 rounded-r-full bg-danger/30"
-					style={{ left: at(thresholds.junk), right: 0 }}
+					style={{ left: at(thresholds.spamAt), right: 0 }}
 				/>
 				{[
-					{ key: "warn", value: thresholds.warn, text: "Warn" },
-					{ key: "junk", value: thresholds.junk, text: "Spam" },
+					{ key: "warn", value: thresholds.cleanBelow, text: "Warn" },
+					{ key: "junk", value: thresholds.spamAt, text: "Spam" },
 				].map((mark) => (
 					<span
 						key={mark.key}
@@ -118,7 +133,7 @@ function ReasonItem({
 	reason,
 	reportIssueHref,
 }: {
-	reason: SpamReason;
+	reason: RemitImapSpamReason;
 	reportIssueHref: (symbol: string) => string;
 }) {
 	const sentence = spamReasonSentence(reason.name);
@@ -152,12 +167,14 @@ function CheckedVerdict({
 	verdict,
 	label,
 	thresholds,
-	labelMode,
-	modelSaid,
-	links,
+	placement,
+	linkComponent: Link,
+	reportIssueHref,
 }: Omit<SpamVerdictPanelProps, "verdict" | "onNotSpam" | "filterName"> & {
-	verdict: SpamChecked;
+	verdict: RemitImapSpamChecked;
 }) {
+	const said = modelSaid(verdict);
+	const skipped = modelSkipCause(verdict);
 	const headline =
 		verdict.action === "Junk"
 			? "Remit moved this to Spam"
@@ -165,51 +182,55 @@ function CheckedVerdict({
 				? SPAM_WARN_HEADLINES[verdict.kind]
 				: "Remit found too little to act on";
 	const keptByWarnOnly =
-		verdict.action === "Warn" &&
-		labelMode === "WarnOnly" &&
-		verdict.score >= thresholds.junk;
+		verdict.action !== "None" &&
+		placement === "WarnOnly" &&
+		thresholds.state === "Set" &&
+		verdict.score >= thresholds.spamAt;
 
 	return (
 		<Section>
 			<Headline>{headline}</Headline>
-			{verdict.action !== "None" && (
-				<SpamRowMarker label={label} action={verdict.action} />
+			{label && verdict.action !== "None" && (
+				<SpamRowMarker label={label} suspected={verdict.action === "Warn"} />
 			)}
 			<p className="text-fg-muted">
 				{spamScoreSentence(verdict.score, thresholds)}
 			</p>
-			<ScoreBar score={verdict.score} thresholds={thresholds} />
+			{thresholds.state === "Set" && (
+				<ScoreBar score={verdict.score} thresholds={thresholds} />
+			)}
 			<div>
 				<h4 className="text-xs font-semibold text-fg">Why</h4>
 				<ul className="mt-1 list-disc space-y-1.5 pl-4 marker:text-fg-subtle">
-					{verdict.reasons.map((reason) => (
-						<ReasonItem
-							key={reason.symbol}
-							reason={reason}
-							reportIssueHref={links.reportIssueHref}
-						/>
-					))}
+					{verdict.reasons
+						.filter((reason) => !isModelReason(reason))
+						.map((reason) => (
+							<ReasonItem
+								key={reason.symbol}
+								reason={reason}
+								reportIssueHref={reportIssueHref}
+							/>
+						))}
 				</ul>
 			</div>
-			{verdict.modelCalled ? (
-				modelSaid !== undefined && (
-					<div className="text-fg-muted">
-						<p>Remit asked the model. It said:</p>
-						<blockquote className="mt-0.5 border-l-2 border-line pl-2 italic">
-							{modelSaid}
-						</blockquote>
-					</div>
-				)
-			) : (
-				<p className="text-fg-muted">{`${BASIC_CHECKS_ONLY}.`}</p>
+			{said !== undefined && (
+				<div className="text-fg-muted">
+					<p>Remit asked the model. It said:</p>
+					<blockquote className="mt-0.5 border-l-2 border-line pl-2 italic">
+						{said}
+					</blockquote>
+				</div>
+			)}
+			{skipped !== undefined && (
+				<p className="text-fg-muted">{`${BASIC_CHECKS_ONLY}: ${skipped}`}</p>
 			)}
 			{keptByWarnOnly && (
 				<p className="text-fg-muted">
 					The score reached your Spam threshold. Spam is set to Warn only, so it
 					stays here.{" "}
-					<a href={links.spamSettingsHref} className={LINK}>
+					<Link target={{ kind: "SpamSettings" }} className={LINK}>
 						Change in Spam &amp; phishing settings
-					</a>
+					</Link>
 				</p>
 			)}
 		</Section>
@@ -220,19 +241,19 @@ function ScreenedOutVerdict({
 	verdict,
 	label,
 	filterName,
-	links,
+	linkComponent: Link,
 	onNotSpam,
 }: Pick<
 	SpamVerdictPanelProps,
-	"label" | "filterName" | "links" | "onNotSpam"
-> & { verdict: SpamVerdictScreenedOut }) {
+	"label" | "filterName" | "linkComponent" | "onNotSpam"
+> & { verdict: RemitImapSpamVerdictScreenedOut }) {
 	const { screen } = verdict;
 
 	if (screen.rule === "ReportedSender") {
 		return (
 			<Section>
 				<Headline>You reported this sender</Headline>
-				<SpamRowMarker label={label} action="Junk" />
+				{label && <SpamRowMarker label={label} suspected={false} />}
 				<p className="text-fg-muted">
 					Remit sent their mail to Spam without checking it.
 				</p>
@@ -252,9 +273,12 @@ function ScreenedOutVerdict({
 						? filterScreenSentence(filterName)
 						: "One of your filters matched it."}
 				</p>
-				<a href={links.filterHref(screen.filterId)} className={LINK}>
+				<Link
+					target={{ kind: "Filter", filterId: screen.filterId }}
+					className={LINK}
+				>
 					Open the filter in Settings
-				</a>
+				</Link>
 			</Section>
 		);
 	}
@@ -264,9 +288,9 @@ function ScreenedOutVerdict({
 			<Headline>Remit skipped the spam check</Headline>
 			<p className="text-fg-muted">{SPAM_SCREEN_SENTENCES[screen.rule]}</p>
 			{screen.rule === "NeverSpam" && (
-				<a href={links.sendersHref} className={LINK}>
+				<Link target={{ kind: "NeverInSpamSenders" }} className={LINK}>
 					Manage in Senders &amp; Rules
-				</a>
+				</Link>
 			)}
 		</Section>
 	);

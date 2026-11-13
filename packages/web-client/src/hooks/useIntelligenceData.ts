@@ -3,9 +3,7 @@ import type {
 	RemitImapAddressResponse,
 	RemitImapThreadMessageResponse,
 } from "@remit/api-http-client/types.gen.ts";
-import { DisplayNameCorrespondence, SenderTrust } from "@remit/domain-enums";
 import type {
-	AuthenticityIntel,
 	IntelligenceData,
 	PlacementIntel,
 	SenderFlagsIntel,
@@ -46,12 +44,6 @@ export function isSenderAddressUnverifiable(
 	if (!domain) return true;
 	return !domain.includes(".");
 }
-
-const NO_SIGNAL_SUMMARY =
-	"We can't verify the sender of this email, which could mean it's from an insecure source.";
-
-const UNREADABLE_SENDER_SUMMARY =
-	"We couldn't read this sender's address, so we can't confirm who really sent this message.";
 
 /**
  * Build category intel from the thread message and address lookup.
@@ -116,148 +108,6 @@ function buildSenderFlags(
 	};
 }
 
-/** The brand the display name asserts, or `undefined` when it asserts none. */
-function claimedBrandOf(
-	thread: RemitImapThreadMessageResponse,
-): string | undefined {
-	if (!thread.fromName) return undefined;
-	if (thread.fromName === thread.fromEmail) return undefined;
-	return thread.fromName;
-}
-
-function joinDomains(domains: readonly string[]): string {
-	if (domains.length === 1) return domains[0];
-	return `${domains.slice(0, -1).join(", ")} and ${domains[domains.length - 1]}`;
-}
-
-/**
- * The clauses naming what does not line up on a message whose signature checks
- * out. Empty when everything the backend compared agreed — including when it
- * compared nothing, which is every message outside Junk that the provider's
- * filter did not already call spam.
- *
- * Each clause leads with the concern and names `auth.fromDomain` — the
- * domain `classifyDisplayNameCorrespondence` actually compared the display
- * name against (`senderMismatch.ts` calls it with the From address's own
- * domain, never the DKIM signing domain). Naming `auth.dkimDomain` instead
- * would assert a comparison that was never made: on a message signed by a
- * relay or ESP infrastructure domain, the display name was checked against
- * the sender's own address, not that domain. These clauses are the caution
- * tier's entire summary: there is no separate "verified" sentence in front
- * of them for the signing fact to hide behind.
- */
-function describeSenderMismatch(
-	auth: NonNullable<RemitImapThreadMessageResponse["authenticity"]>,
-	claimedBrand: string | undefined,
-	senderTrust: RemitImapThreadMessageResponse["senderTrust"],
-): string[] {
-	const trusted =
-		senderTrust === SenderTrust.Vip || senderTrust === SenderTrust.Wellknown;
-	const clauses: string[] = [];
-	const correspondence = auth.displayNameCorrespondence;
-
-	if (claimedBrand) {
-		if (correspondence === DisplayNameCorrespondence.Unrelated && !trusted) {
-			clauses.push(
-				`The name it shows, "${claimedBrand}", has nothing to do with ${auth.fromDomain}.`,
-			);
-		} else if (correspondence === DisplayNameCorrespondence.Lookalike) {
-			clauses.push(
-				`The name it shows, "${claimedBrand}", only looks like ${auth.fromDomain}.`,
-			);
-		} else if (correspondence === DisplayNameCorrespondence.ForeignAddress) {
-			clauses.push(
-				`The name it shows, "${claimedBrand}", is an address ${auth.fromDomain} cannot send from.`,
-			);
-		}
-	}
-
-	const linkDomains = readDomainList(auth.offDomainLinkDomains);
-	if (linkDomains.length > 0 && !trusted) {
-		clauses.push(`Its links go to ${joinDomains(linkDomains.slice(0, 3))}.`);
-	}
-
-	return clauses;
-}
-
-/**
- * The field is a JSON blob on the message row, so a value written by an older
- * or drifted writer reaches here as whatever it happens to be. Anything that is
- * not a list of non-empty strings carries no destination to name.
- */
-function readDomainList(value: unknown): string[] {
-	if (!Array.isArray(value)) return [];
-	return value.filter(
-		(entry): entry is string => typeof entry === "string" && entry.length > 0,
-	);
-}
-
-/** Build authenticity intel from the thread message's authenticity field. */
-export function buildAuthenticityIntel(
-	thread: RemitImapThreadMessageResponse,
-): AuthenticityIntel {
-	if (isSenderAddressUnverifiable(thread.fromEmail)) {
-		return {
-			verdict: "mismatch",
-			fromDomain: "",
-			addressUnreadable: true,
-			summary: UNREADABLE_SENDER_SUMMARY,
-		};
-	}
-
-	const auth = thread.authenticity;
-	if (!auth) {
-		return {
-			verdict: "caution",
-			fromDomain: thread.fromEmail?.split("@")[1] ?? "",
-			summary: NO_SIGNAL_SUMMARY,
-		};
-	}
-	if (!auth.dkimMismatch) {
-		const claimed = claimedBrandOf(thread);
-		const unlike = describeSenderMismatch(auth, claimed, thread.senderTrust);
-		if (unlike.length > 0) {
-			return {
-				verdict: "caution",
-				fromDomain: auth.fromDomain,
-				dkimDomain: auth.dkimDomain,
-				claimedBrand: claimed,
-				summary: unlike.join(" "),
-			};
-		}
-		return {
-			verdict: "aligned",
-			fromDomain: auth.fromDomain,
-			dkimDomain: auth.dkimDomain,
-			summary: auth.dkimDomain
-				? `This message was signed by ${auth.dkimDomain}.`
-				: `Nothing looks unusual about this sender.`,
-		};
-	}
-
-	const fromDomain = auth.fromDomain;
-	const dkimDomain = auth.dkimDomain;
-	const claimedBrand = claimedBrandOf(thread);
-	// dkimDomain is known whenever a mismatch was named against a real
-	// domain; the fallback covers the (defensive, not currently reachable)
-	// case where a mismatch fires with none — say what actually happened
-	// (a signature failed to verify) rather than inventing a sender identity
-	// we do not have.
-	const whatHappened = dkimDomain
-		? `it was actually sent from ${dkimDomain}`
-		: "its signature failed to verify";
-	const summary = claimedBrand
-		? `The display name claims "${claimedBrand}", but ${whatHappened}${dkimDomain ? ` — not ${fromDomain}` : ""}. Real senders use their own address.`
-		: `This message claims to be from ${fromDomain}, but ${whatHappened}.`;
-	return {
-		verdict: "mismatch",
-		fromDomain,
-		dkimDomain,
-		claimedBrand,
-		summary,
-	};
-}
-
 export function buildPlacementIntel(
 	thread: RemitImapThreadMessageResponse,
 ): PlacementIntel | undefined {
@@ -297,7 +147,7 @@ export interface UseIntelligenceDataResult {
  * Maps a `RemitImapThreadMessageResponse` into `IntelligenceData` for the
  * `IntelligencePanel` component. Two data sources:
  *
- * 1. The thread row itself (already loaded) → sender basics, trust, authenticity, category.
+ * 1. The thread row itself (already loaded) → sender basics, trust, category.
  * 2. `GET /addresses/search?q=<email>` → address flags (VIP/muted/blocked/etc.)
  *    and first-seen timestamp. One round-trip per unique sender.
  */
@@ -325,15 +175,12 @@ export function useIntelligenceData(
 
 		const sender = buildSenderIntel(thread, address);
 
-		const authenticity = buildAuthenticityIntel(thread);
-
 		const category = buildCategoryIntel(thread, address);
 
 		const flags = buildSenderFlags(address);
 
 		return {
 			sender,
-			authenticity,
 			category,
 			flags,
 			placement: buildPlacementIntel(thread),

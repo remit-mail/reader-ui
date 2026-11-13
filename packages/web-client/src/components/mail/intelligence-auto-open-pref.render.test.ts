@@ -34,7 +34,10 @@ import { MailFreshnessProvider } from "../../lib/mail-freshness";
 import { EMPTY_RESULT_FOLDER_INDEX } from "../../lib/result-folder";
 import { retainOpenPanelsAtTier, useOpenThreadPath } from "../../routing";
 import { createDomHarness, type DomHarness } from "../../test-support/dom";
-import { makeThreadMessage } from "../../test-support/fixtures";
+import {
+	makeThreadMessage,
+	makeUserSettings,
+} from "../../test-support/fixtures";
 import { type HttpMock, mockFetch } from "../../test-support/http";
 import {
 	describedMessage,
@@ -58,18 +61,29 @@ const SHOW_INTELLIGENCE = "Show intelligence sidebar";
 const HIDE_INTELLIGENCE = "Hide intelligence sidebar";
 const RENDER_AGAIN = "render again";
 
-/** Signed by another domain: what the reading pane's auto-open fires on. */
+/** Warned as phishing: what the reading pane's auto-open fires on. */
 const row = makeThreadMessage({
 	messageId: MESSAGE_ID,
 	threadId: THREAD_ID,
 	subject: "Your parcel could not be delivered",
 	fromName: "Mondial Relay",
 	fromEmail: "delivery.notice@gmail.example",
-	authenticity: {
-		dkimMismatch: true,
-		fromDomain: "mondialrelay.fr",
-		dkimDomain: "gmail.example",
+	spamVerdict: {
+		state: "Checked",
+		score: 0.72,
+		action: "Warn",
+		kind: "Phishing",
+		reasons: [
+			{
+				name: "SignerMismatch",
+				symbol: "SignerMismatch",
+				score: 0.4,
+				options: ["gmail.example"],
+			},
+		],
+		modelOutcome: "OutOfBand",
 	},
+	labels: [{ labelId: "lbl-phishing", name: "Phishing", color: "Red" }],
 });
 
 /** The next thread the reader opens, which raised nothing of its own. */
@@ -228,6 +242,7 @@ const testRouter = (hash: string): AnyRouter => {
 const mount = async (hash = ""): Promise<[DomHarness, AnyRouter]> => {
 	http = mockFetch((call) => {
 		if (call.path.endsWith("/config")) return { accounts: [] };
+		if (call.path.endsWith("/settings")) return makeUserSettings();
 		if (call.path.endsWith(`/threads/${THREAD_ID}/messages`)) {
 			return { items: [row] };
 		}
@@ -399,7 +414,7 @@ describe("the DKIM auto-open and the stored rail preference (#778)", () => {
 		mounted.click(mounted.byLabel(HIDE_INTELLIGENCE));
 		await settle(mounted);
 
-		mounted.click(mounted.byText("button", "Why?"));
+		mounted.click(mounted.byText("button", "Why"));
 		await settle(mounted);
 
 		assert.equal(railIsUp(mounted), true, "the banner's Why reached no rail");

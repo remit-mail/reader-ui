@@ -51,6 +51,8 @@ const thread = {
 	star: "None",
 	isDeleted: false,
 	senderTrust: "unknown",
+	spamVerdict: { state: "NotChecked" },
+	spamCleared: false,
 	createdAt: 0,
 	updatedAt: 0,
 } as unknown as RemitImapThreadMessageResponse;
@@ -90,6 +92,7 @@ const mountRow = (selectionTakesIt = true): Mounted => {
 			children: createElement(SwipeableMessageRow, {
 				thread,
 				mailboxId: "mbx-1",
+				junkMailboxIds: new Set<string>(),
 				isSelected: false,
 				isChecked: false,
 				onToggleCheck: () => undefined,

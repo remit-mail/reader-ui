@@ -49,6 +49,7 @@ import { toDisplayCategory } from "./display-category.js";
 import { formatEmailDate } from "./format.js";
 import { rowSettlement } from "./row-settlement.js";
 import type { SearchToken } from "./search-tokens.js";
+import { spamRowMark } from "./spam.js";
 
 /**
  * Map a `RemitImapThreadMessageResponse` to the `ThreadRowData` shape used by
@@ -57,8 +58,8 @@ import type { SearchToken } from "./search-tokens.js";
  */
 export function toThreadRowData(
 	thread: RemitImapThreadMessageResponse,
+	junkMailboxIds: ReadonlySet<string>,
 ): ThreadRowData {
-	const suspicious = thread.authenticity?.dkimMismatch === true;
 	return {
 		id: thread.messageId,
 		accountId: thread.accountId,
@@ -75,7 +76,7 @@ export function toThreadRowData(
 		starred: thread.hasStars === true,
 		trust: thread.senderTrust as SenderTrustLevel,
 		category: toDisplayCategory(thread.category),
-		suspicious,
+		spam: spamRowMark(thread, junkMailboxIds),
 		...rowSettlement(thread),
 	};
 }

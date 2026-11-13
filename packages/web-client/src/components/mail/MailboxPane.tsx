@@ -101,6 +101,7 @@ import { shouldRequestResultCount } from "../../lib/result-count";
 import { normalizeSearchQuery } from "../../lib/search-query";
 import { threadToSearchResult } from "../../lib/search-result";
 import { parseSearchTokens } from "../../lib/search-tokens";
+import { raisesSpamWarning } from "../../lib/spam";
 import { useTelemetry } from "../../lib/telemetry-context";
 import {
 	applyResidualTokens,
@@ -482,7 +483,7 @@ function MailboxPaneProvider({
 			mailboxId: selectedThread?.mailboxId ?? mailboxId,
 			subject: selectedThread?.subject,
 			messageId: selectedMessageId,
-			authenticity: selectedThread?.authenticity,
+			row: selectedThread,
 		};
 	}, [threadId, selectedThread, selectedMessageId, mailboxId]);
 
@@ -1091,32 +1092,31 @@ function MailboxReading() {
 		handleDeselectIfRemoved,
 		intelligenceRef,
 		onOpenThread,
+		isSpamFolder,
 	} = useMailboxPane();
 	const hasThread = Boolean(conversation);
 	const intelligence = useIntelligenceSurface(conversation?.threadId);
 	usePublishIntelligenceCommands(intelligenceRef, intelligence);
 
-	// The rail opens itself on a DKIM mismatch. It lives here, behind the rail's
+	// The rail opens itself on a message the spam banner warns about. It lives here, behind the rail's
 	// own width gate, because raising it writes `#intelligence` into the address
 	// — and a panel the address names with no renderer behind it is a panel that
 	// opens nothing (`docs/architecture/url-state.md`, R6). Below this width the
 	// banner is the announcement and its "Why?" is the way in.
 	const autoOpenedForRef = useRef<string | null>(null);
 	const { railFits, openRail } = intelligence;
+	const warned =
+		selectedThread !== undefined &&
+		raisesSpamWarning(selectedThread, isSpamFolder);
 	useEffect(() => {
 		if (!railFits) return;
 		const id = selectedThread?.messageId ?? null;
 		if (!id) return;
 		if (autoOpenedForRef.current === id) return;
-		if (!selectedThread?.authenticity?.dkimMismatch) return;
+		if (!warned) return;
 		autoOpenedForRef.current = id;
 		openRail();
-	}, [
-		railFits,
-		openRail,
-		selectedThread?.messageId,
-		selectedThread?.authenticity?.dkimMismatch,
-	]);
+	}, [railFits, openRail, selectedThread?.messageId, warned]);
 
 	const detailPane = conversation ? (
 		<ConversationView
@@ -1124,7 +1124,7 @@ function MailboxReading() {
 			mailboxId={conversation.mailboxId}
 			subject={conversation.subject}
 			selectedMessageId={conversation.messageId}
-			authenticity={conversation.authenticity}
+			spamRow={conversation.row}
 			onOpenIntelligence={intelligence.open}
 			listOnScreen
 		/>
@@ -1231,7 +1231,7 @@ function MailboxPhone() {
 					mailboxId={conversation.mailboxId}
 					subject={conversation.subject}
 					selectedMessageId={conversation.messageId}
-					authenticity={conversation.authenticity}
+					spamRow={conversation.row}
 					onBack={onBack}
 					onOpenIntelligence={drawer.toggle}
 					onSwipeNext={nextThread ? () => onOpenThread(nextThread) : undefined}

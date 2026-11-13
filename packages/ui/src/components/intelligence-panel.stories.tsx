@@ -1,6 +1,12 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import type { IntelligenceData } from "./intelligence-panel.js";
 import { IntelligencePanel } from "./intelligence-panel.js";
+import {
+	spamLabelFixture,
+	spamThresholdsFixture,
+	warnSpamVerdict,
+} from "./spam-fixtures.js";
+import { SpamVerdictPanel } from "./spam-verdict-panel.js";
 
 const base: IntelligenceData = {
 	sender: {
@@ -8,12 +14,6 @@ const base: IntelligenceData = {
 		email: "alex@example.com",
 		trust: "wellknown",
 		firstSeenLabel: "Jan 2025",
-	},
-	authenticity: {
-		verdict: "aligned",
-		fromDomain: "example.com",
-		dkimDomain: "example.com",
-		summary: "This message was signed by example.com.",
 	},
 	category: { value: "personal" },
 	spamAction: "reportSpam",
@@ -28,100 +28,8 @@ export default meta;
 
 type Story = StoryObj<typeof IntelligencePanel>;
 
-export const Aligned: Story = {
+export const Default: Story = {
 	args: { data: base },
-};
-
-export const CautionNoSignal: Story = {
-	args: {
-		data: {
-			...base,
-			sender: {
-				name: "Notifications",
-				email: "no-reply@unknown-source.example",
-				trust: "unknown",
-				firstSeenLabel: "today",
-			},
-			authenticity: {
-				verdict: "caution",
-				fromDomain: "unknown-source.example",
-				summary:
-					"We can't verify the sender of this email, which could mean it's from an insecure source.",
-			},
-		},
-	},
-};
-
-export const SignedButUnrecognised: Story = {
-	args: {
-		data: {
-			...base,
-			sender: {
-				name: "InfoMedics",
-				email: "jira@serviceupdatebank.atlassian.net",
-				trust: "unknown",
-				firstSeenLabel: "today",
-			},
-			category: { value: "automated" },
-			authenticity: {
-				verdict: "caution",
-				fromDomain: "serviceupdatebank.atlassian.net",
-				// Deliberately a different domain than fromDomain: the display-name
-				// check compared "InfoMedics" against the sender's own domain, never
-				// this one, so the summary must name serviceupdatebank.atlassian.net.
-				dkimDomain: "custmx.one.com",
-				claimedBrand: "InfoMedics",
-				summary:
-					'The name it shows, "InfoMedics", has nothing to do with serviceupdatebank.atlassian.net. Its links go to betaal-vordering.example.',
-			},
-		},
-	},
-};
-
-export const SignedButLookalikeName: Story = {
-	args: {
-		data: {
-			...base,
-			sender: {
-				name: "InfoMedics",
-				email: "billing@1nfomedics.nl",
-				trust: "unknown",
-				firstSeenLabel: "today",
-			},
-			category: { value: "transactional" },
-			authenticity: {
-				verdict: "caution",
-				fromDomain: "1nfomedics.nl",
-				dkimDomain: "1nfomedics.nl",
-				claimedBrand: "InfoMedics",
-				summary:
-					'The name it shows, "InfoMedics", only looks like 1nfomedics.nl.',
-			},
-		},
-	},
-};
-
-export const Impersonation: Story = {
-	args: {
-		data: {
-			...base,
-			sender: {
-				name: "Your Bank",
-				email: "security@your-bank.example",
-				trust: "unknown",
-				firstSeenLabel: "today",
-			},
-			category: { value: "automated" },
-			authenticity: {
-				verdict: "mismatch",
-				fromDomain: "your-bank.example",
-				dkimDomain: "mailer.suspicious.example",
-				claimedBrand: "Your Bank",
-				summary:
-					'The display name claims "Your Bank", but this message was actually sent from mailer.suspicious.example — not your-bank.example. Real senders use their own address.',
-			},
-		},
-	},
 };
 
 export const UnreadableSender: Story = {
@@ -136,13 +44,6 @@ export const UnreadableSender: Story = {
 				addressUnverified: true,
 			},
 			category: { value: "uncategorized" },
-			authenticity: {
-				verdict: "mismatch",
-				fromDomain: "",
-				addressUnreadable: true,
-				summary:
-					"We couldn't read this sender's address, so we can't confirm who really sent this message.",
-			},
 		},
 	},
 };
@@ -151,6 +52,31 @@ export const Reportable: Story = {
 	args: {
 		data: base,
 		actions: { onReportSpam: () => {} },
+	},
+};
+
+/** A warned message: the Spam check section sits under Sender. */
+export const WithSpamCheck: Story = {
+	args: {
+		data: base,
+		actions: { onReportSpam: () => {} },
+		spamCheck: (
+			<SpamVerdictPanel
+				verdict={warnSpamVerdict}
+				label={spamLabelFixture}
+				thresholds={spamThresholdsFixture}
+				placement="MoveToSpam"
+				linkComponent={({ className, children }) => (
+					<a href="/settings/spam" className={className}>
+						{children}
+					</a>
+				)}
+				reportIssueHref={() =>
+					"https://github.com/remit-mail/reader/issues/new"
+				}
+				onNotSpam={() => {}}
+			/>
+		),
 	},
 };
 

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { createElement } from "react";
 import { renderToString } from "react-dom/server";
-import { categoryLabels, isThreadCategory } from "../category-presentation.js";
+import { isThreadCategory } from "../category-presentation.js";
 import type { IntelligenceCalendarActions } from "./intelligence-calendar.js";
 import { inviteWithClash } from "./intelligence-calendar-fixtures.js";
 import type {
@@ -11,7 +11,7 @@ import type {
 } from "./intelligence-panel.js";
 import { IntelligencePanel } from "./intelligence-panel.js";
 
-const vipWithFailingAuthenticity: IntelligenceData = {
+const vipSender: IntelligenceData = {
 	sender: {
 		name: "Sabrina Basten",
 		email: "sabrina@sabrinabasten.example",
@@ -20,48 +20,10 @@ const vipWithFailingAuthenticity: IntelligenceData = {
 		inboundCount: 214,
 		replyCount: 188,
 	},
-	authenticity: {
-		verdict: "mismatch",
-		fromDomain: "sabrinabasten.example",
-		dkimDomain: "custmx.one.example",
-		summary: "Signed by custmx.one.example instead.",
-	},
 	category: { value: "personal" },
 	spamAction: "reportSpam",
 	flags: { vip: true },
 };
-
-/** The rendered chip in the Category section. */
-function categoryChip(data: IntelligenceData): string {
-	const html = renderToString(createElement(IntelligencePanel, { data }));
-	const label = categoryLabels[data.category.value];
-	const marker = `>${label}</span>`;
-	const end = html.indexOf(marker);
-	assert.notEqual(end, -1, `expected a chip reading '${label}'`);
-	const start = html.lastIndexOf("<span", end);
-	return html.slice(start, end + marker.length);
-}
-
-describe("IntelligencePanel category chip", () => {
-	it("takes its colour from the category, not the authenticity verdict", () => {
-		const chip = categoryChip(vipWithFailingAuthenticity);
-		assert.doesNotMatch(chip, /danger/);
-		assert.match(chip, /text-accent-2/);
-	});
-
-	it("renders the same chip for a category whatever the verdict said", () => {
-		const failing = categoryChip(vipWithFailingAuthenticity);
-		const aligned = categoryChip({
-			...vipWithFailingAuthenticity,
-			authenticity: {
-				verdict: "aligned",
-				fromDomain: "sabrinabasten.example",
-				summary: "Nothing looks unusual about this sender.",
-			},
-		});
-		assert.equal(failing, aligned);
-	});
-});
 
 const inertCalendar: IntelligenceCalendarActions = {
 	onAddInvite: () => undefined,
@@ -82,7 +44,7 @@ const inertCalendar: IntelligenceCalendarActions = {
 function panel(tab: IntelligenceTabId): string {
 	return renderToString(
 		createElement(IntelligencePanel, {
-			data: vipWithFailingAuthenticity,
+			data: vipSender,
 			calendar: { data: inviteWithClash, actions: inertCalendar },
 			tab,
 		}),
@@ -92,10 +54,10 @@ function panel(tab: IntelligenceTabId): string {
 describe("IntelligencePanel tab strip", () => {
 	it("offers no strip to a host that wired no calendar", () => {
 		const html = renderToString(
-			createElement(IntelligencePanel, { data: vipWithFailingAuthenticity }),
+			createElement(IntelligencePanel, { data: vipSender }),
 		);
 		assert.doesNotMatch(html, /radiogroup/);
-		assert.match(html, /Authenticity/);
+		assert.match(html, /Quick actions/);
 	});
 
 	it("swaps the stack for the calendar rather than stacking both", () => {

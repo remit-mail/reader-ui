@@ -13,6 +13,7 @@ const meta: Meta<typeof SelectionTopBar> = {
 		title: "Inbox",
 		onCancel: () => undefined,
 		onMarkRead: () => undefined,
+		onCheckAgain: () => undefined,
 		onJunk: () => undefined,
 		onMove: () => undefined,
 		onOrganize: () => undefined,

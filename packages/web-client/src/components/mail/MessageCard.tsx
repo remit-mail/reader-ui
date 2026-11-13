@@ -15,6 +15,7 @@ import {
 import { BadgeCheck, Paperclip, Star } from "@remit/ui/icons";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
+import { useJunkMailboxIds } from "../../hooks/useJunkMailboxIds";
 import { toDisplayCategory } from "../../lib/display-category";
 import { formatDatePreset } from "../../lib/format";
 import {
@@ -22,6 +23,7 @@ import {
 	isMessageNotFoundError,
 } from "../ui/error-banners";
 import { AutoMovedIndicator } from "./AutoMovedIndicator";
+import { checkAgainRequestOfThread, useCheckAgain } from "./CheckAgainProvider";
 import { MessageActionMenu } from "./MessageActionMenu";
 import { MessageAttachments } from "./MessageAttachments";
 import { MessageBody } from "./MessageBody";
@@ -204,6 +206,8 @@ const ExpandedCard = ({
 	onReplyAll?: () => void;
 	onForward?: () => void;
 }) => {
+	const checkAgain = useCheckAgain();
+	const junkMailboxIds = useJunkMailboxIds();
 	const date = formatDatePreset(threadMessage.sentDate, "long");
 	const isUnread = !threadMessage.isRead;
 	const isTrusted =
@@ -282,6 +286,20 @@ const ExpandedCard = ({
 						isTrusted={isTrusted}
 						showRaw={showRaw}
 						onToggleRaw={onToggleRaw}
+						onCheckAgain={
+							checkAgain
+								? () =>
+										checkAgain.checkAgain(
+											[
+												checkAgainRequestOfThread(
+													threadMessage,
+													junkMailboxIds,
+												),
+											],
+											{ panel: false },
+										)
+								: undefined
+						}
 					/>
 				)
 			}

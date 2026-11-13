@@ -10,6 +10,7 @@ import type {
 	RemitImapLabelResponse,
 	RemitImapMailboxResponse,
 	RemitImapThreadMessageResponse,
+	RemitImapUserSettingsResponse,
 } from "@remit/api-http-client/types.gen.ts";
 
 export const makeMailbox = (
@@ -103,6 +104,8 @@ export const makeThreadMessage = (
 	abandonedMutation: "none",
 	senderTrust: "unknown",
 	muted: false,
+	spamVerdict: { state: "NotChecked" },
+	spamCleared: false,
 	createdAt: 0,
 	updatedAt: 0,
 	...overrides,
@@ -122,4 +125,15 @@ export const makeConfig = (
 	accounts,
 	buildCommit: "dev",
 	...overrides,
+});
+
+export const makeUserSettings = (): RemitImapUserSettingsResponse => ({
+	defaultInvitationSenderChosen: false,
+	classificationPresets: [],
+	classification: { state: "NotConfigured" },
+	spam: {
+		thresholds: { state: "Set", cleanBelow: 0.4, spamAt: 0.85 },
+		spamPlacement: "MoveToSpam",
+		phishingPlacement: "MoveToSpam",
+	},
 });

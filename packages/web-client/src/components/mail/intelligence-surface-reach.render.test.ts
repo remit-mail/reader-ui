@@ -30,7 +30,10 @@ import { type ComponentType, createElement, type ReactNode } from "react";
 import { STARRED } from "../../lib/collection-criteria";
 import { type OpenThreadPath, useOpenThreadPath } from "../../routing";
 import { createDomHarness, type DomHarness } from "../../test-support/dom";
-import { makeThreadMessage } from "../../test-support/fixtures";
+import {
+	makeThreadMessage,
+	makeUserSettings,
+} from "../../test-support/fixtures";
 import { type HttpMock, mockFetch } from "../../test-support/http";
 import {
 	describedMessage,
@@ -49,7 +52,7 @@ const TWO_PANE_WIDTH = 1100;
 const SHOW_INTELLIGENCE = "Show intelligence sidebar";
 const HIDE_INTELLIGENCE = "Hide intelligence sidebar";
 
-/** The one row shape that carries a warning: DKIM signed by another domain. */
+/** The one row shape that carries a warning: a phishing warn verdict. */
 const row = makeThreadMessage({
 	messageId: MESSAGE_ID,
 	threadId: THREAD_ID,
@@ -58,11 +61,22 @@ const row = makeThreadMessage({
 	fromEmail: "delivery.notice@gmail.example",
 	hasStars: true,
 	star: "yellow",
-	authenticity: {
-		dkimMismatch: true,
-		fromDomain: "mondialrelay.fr",
-		dkimDomain: "gmail.example",
+	spamVerdict: {
+		state: "Checked",
+		score: 0.72,
+		action: "Warn",
+		kind: "Phishing",
+		reasons: [
+			{
+				name: "SignerMismatch",
+				symbol: "SignerMismatch",
+				score: 0.4,
+				options: ["gmail.example"],
+			},
+		],
+		modelOutcome: "OutOfBand",
 	},
+	labels: [{ labelId: "lbl-phishing", name: "Phishing", color: "Red" }],
 });
 
 let harness: DomHarness | undefined;
@@ -172,6 +186,7 @@ const testRouter = (pane: PaneUnderTest): AnyRouter => {
 const mount = async (pane: PaneUnderTest): Promise<DomHarness> => {
 	http = mockFetch((call) => {
 		if (call.path.endsWith("/config")) return { accounts: [] };
+		if (call.path.endsWith("/settings")) return makeUserSettings();
 		if (call.path.endsWith(`/threads/${THREAD_ID}/messages`)) {
 			return { items: [row] };
 		}
@@ -214,7 +229,7 @@ describe("intelligence is reachable wherever the reading pane mounts (#817)", ()
 		it(`${pane.name} reaches the DKIM explanation from the banner`, async () => {
 			const mounted = await mount(pane);
 
-			mounted.click(mounted.byText("button", "Why?"));
+			mounted.click(mounted.byText("button", "Why"));
 			await settle(mounted);
 
 			assert.ok(

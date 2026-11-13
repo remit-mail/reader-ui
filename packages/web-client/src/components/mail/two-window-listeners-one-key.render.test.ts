@@ -95,6 +95,8 @@ const describeMessage: RemitImapDescribeMessageResponse = {
 		status: "active",
 		syncStatus: "pending",
 		abandonedMutation: "none",
+		spamVerdict: { state: "NotChecked" },
+		spamCleared: false,
 	},
 	envelope: {
 		messageId: MESSAGE_ID,

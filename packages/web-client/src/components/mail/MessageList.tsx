@@ -27,6 +27,7 @@ import {
 	useEscalatedActions,
 } from "../../hooks/useEscalatedActions";
 import { useFollowFocusOpen } from "../../hooks/useFollowFocusOpen";
+import { useJunkMailboxIds } from "../../hooks/useJunkMailboxIds";
 import { useLabelList } from "../../hooks/useLabels";
 import { useToggleReadFor } from "../../hooks/useMarkAsRead";
 import { useIsDesktop } from "../../hooks/useMediaQuery";
@@ -61,6 +62,7 @@ import {
 	useWizardStepValue,
 } from "../../routing";
 import { useErrorBanners } from "../ui/error-banner-context";
+import { checkAgainRequestOfThread, useCheckAgain } from "./CheckAgainProvider";
 import { DeleteConfirmDialog } from "./DeleteConfirmDialog";
 import { LabelApplyTrigger } from "./LabelApplyTrigger";
 import {
@@ -522,6 +524,17 @@ export const MessageList = ({
 		}
 		return rows;
 	}, [threads, selectedIds, accountId]);
+	const checkAgain = useCheckAgain();
+	const junkMailboxIds = useJunkMailboxIds();
+	const checkAgainSelection = checkAgain
+		? () =>
+				checkAgain.checkAgain(
+					threads
+						.filter((thread) => selectedIds.has(thread.messageId))
+						.map((thread) => checkAgainRequestOfThread(thread, junkMailboxIds)),
+					{ panel: true },
+				)
+		: undefined;
 	const handleRowSelect = useCallback(
 		(messageId: string, modifiers: SelectionModifiers): boolean => {
 			if (modifiers.shiftKey) {
@@ -1217,6 +1230,7 @@ export const MessageList = ({
 			onOrganize={organizeSelection}
 			onJunk={junkDestinationId ? () => startWizard("junk") : undefined}
 			onMarkRead={() => startWizard("markRead")}
+			onCheckAgain={checkAgainSelection}
 			overflowSlot={
 				accountId && mailboxId && selectedCount > 0 && labels.length > 0 ? (
 					<LabelApplyTrigger
@@ -1295,6 +1309,7 @@ export const MessageList = ({
 								<SwipeableMessageRow
 									thread={thread}
 									mailboxId={mailboxId}
+									junkMailboxIds={junkMailboxIds}
 									isSelected={selectedMessageId === thread.messageId}
 									isFocused={focusedMessageId === thread.messageId}
 									isTabStop={tabStopMessageId === thread.messageId}

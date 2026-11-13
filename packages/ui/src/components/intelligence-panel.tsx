@@ -4,17 +4,7 @@ import {
 	categoryTone,
 	type ThreadCategory,
 } from "../category-presentation.js";
-import {
-	BellOff,
-	MailCheck,
-	ShieldAlert,
-	ShieldCheck,
-	ShieldQuestionMark,
-	ShieldX,
-	Sparkles,
-	Star,
-	X,
-} from "../icons.js";
+import { BellOff, MailCheck, ShieldX, Sparkles, Star, X } from "../icons.js";
 import { cn } from "../lib/cn.js";
 import { Avatar } from "./avatar.js";
 import { Badge } from "./badge.js";
@@ -32,8 +22,7 @@ import { SegmentedControl } from "./segmented-control.js";
 /* The fourth pane: mail intelligence. Driven by real backend signals */
 /* (Address engagement counters, DKIM-mismatch category heuristics)  */
 /* with reserved slots for local-LLM and Bedrock                      */
-/* features. Silent when there is nothing to say; loudest element on  */
-/* the screen when authenticity fails.                                */
+/* features. Silent when there is nothing to say.                     */
 /* ------------------------------------------------------------------ */
 
 export type SenderTrustLevel = "unknown" | "wellknown" | "vip";
@@ -55,31 +44,9 @@ export interface SenderIntel {
 	/**
 	 * True when the sender address is missing or unparseable (no valid domain).
 	 * Drives a red "couldn't verify the address" badge instead of the quiet grey
-	 * "Unknown sender", and forces the authenticity verdict to the red tier.
+	 * "Unknown sender".
 	 */
 	addressUnverified?: boolean;
-}
-
-export interface AuthenticityIntel {
-	/**
-	 * Risk tier. `aligned` (green) — verified sender. `caution` (orange) — no
-	 * verification signal available. `mismatch` (red) — impersonation or an
-	 * unreadable sender address.
-	 */
-	verdict: "aligned" | "caution" | "mismatch";
-	fromDomain: string;
-	/** Signing domain the message was actually sent from, when known. */
-	dkimDomain?: string;
-	/** Brand the display name claims, when it differs from the mailbox. */
-	claimedBrand?: string;
-	/** Plain-language verdict shown to the user. */
-	summary: string;
-	/**
-	 * True when the red tier is driven by an unreadable sender address rather
-	 * than an impersonation mismatch — selects the headline and suppresses the
-	 * domain-comparison line (there is no valid domain to show).
-	 */
-	addressUnreadable?: boolean;
 }
 
 export interface SenderFlagsIntel {
@@ -100,7 +67,6 @@ export interface SenderFlagsIntel {
 
 export interface IntelligenceData {
 	sender: SenderIntel;
-	authenticity: AuthenticityIntel;
 	category: { value: ThreadCategory; overridden?: boolean };
 	flags?: SenderFlagsIntel;
 	/** Where Remit placed this message and why. Absent when Remit recorded no verdict. */
@@ -189,6 +155,8 @@ export interface IntelligencePanelProps {
 	defaultTab?: IntelligenceTabId;
 	/** Larger hit targets, for the drawer host on a touch screen. */
 	touch?: boolean;
+	/** The Spam check section, under Sender. */
+	spamCheck?: ReactNode;
 }
 
 const trustLabel: Record<
@@ -237,51 +205,6 @@ function SenderCard({ sender }: { sender: SenderIntel }) {
 				First seen {sender.firstSeenLabel}
 				{engagement ? ` · ${engagement}` : ""}
 			</p>
-		</div>
-	);
-}
-
-function Authenticity({ auth }: { auth: AuthenticityIntel }) {
-	if (auth.verdict === "aligned") {
-		return (
-			<div className="flex items-start gap-2 text-xs text-fg-muted">
-				<ShieldCheck className="mt-0.5 size-3.5 shrink-0 text-positive" />
-				<span>{auth.summary}</span>
-			</div>
-		);
-	}
-	if (auth.verdict === "caution") {
-		return (
-			<div className="flex items-start gap-2 rounded-md bg-warning/10 p-3 text-warning">
-				<ShieldQuestionMark className="mt-0.5 size-4 shrink-0" />
-				<p className="text-xs leading-relaxed">{auth.summary}</p>
-			</div>
-		);
-	}
-	const headline = auth.addressUnreadable
-		? "This sender can't be verified"
-		: "This message may be impersonating someone";
-	return (
-		<div className="rounded-md bg-danger-soft p-3">
-			<div className="flex items-start gap-2">
-				<ShieldAlert className="mt-0.5 size-4 shrink-0 text-danger" />
-				<div className="min-w-0">
-					<p className="text-sm font-semibold text-danger">{headline}</p>
-					<p className="mt-1 text-xs leading-relaxed text-fg">{auth.summary}</p>
-					{!auth.addressUnreadable && auth.dkimDomain && (
-						<p className="mt-1 text-2xs text-fg-muted">
-							Sent from{" "}
-							<code className="rounded bg-surface px-1 py-0.5">
-								{auth.dkimDomain}
-							</code>
-							, claims to be{" "}
-							<code className="rounded bg-surface px-1 py-0.5">
-								{auth.fromDomain}
-							</code>
-						</p>
-					)}
-				</div>
-			</div>
 		</div>
 	);
 }
@@ -340,15 +263,9 @@ export function IntelligencePanel({
 	onTabChange,
 	defaultTab = "sender",
 	touch,
+	spamCheck,
 }: IntelligencePanelProps) {
-	const {
-		sender,
-		authenticity,
-		category,
-		flags = {},
-		placement,
-		spamAction,
-	} = data;
+	const { sender, category, flags = {}, placement, spamAction } = data;
 	const notSpamPendingLabel =
 		spamAction === "undoSpamReport" ? "Undoing…" : "Moving…";
 	const [ownTab, setOwnTab] = useState<IntelligenceTabId>(defaultTab);
@@ -411,9 +328,7 @@ export function IntelligencePanel({
 						<SenderCard sender={sender} />
 					</IntelligenceSection>
 
-					<IntelligenceSection label="Authenticity">
-						<Authenticity auth={authenticity} />
-					</IntelligenceSection>
+					{spamCheck}
 
 					<IntelligenceSection label="Category">
 						<div className="flex items-center gap-2">

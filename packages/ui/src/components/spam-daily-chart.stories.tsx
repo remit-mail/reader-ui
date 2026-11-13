@@ -4,7 +4,6 @@ import { phishingDaysFixture, spamDaysFixture } from "./spam-fixtures.js";
 
 const meta = {
 	title: "Design System/Spam/SpamDailyChart",
-	tags: ["proposed"],
 	component: SpamDailyChart,
 	parameters: { layout: "centered" },
 	decorators: [
@@ -20,7 +19,7 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-/** Thirty days of spam, moved under warned, with Not spam dots. */
+/** Thirty days of spam, moved under warned. */
 export const Spam: Story = {};
 
 /** Phishing takes the danger tone. */

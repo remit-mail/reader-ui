@@ -26,9 +26,13 @@ import type {
 	RemitImapCreateOutboxMessageInput,
 	RemitImapDescribeMessageResponse,
 	RemitImapOutboxMessageResponse,
+	RemitImapRescanInput,
+	RemitImapRescanResult,
+	RemitImapSpamReportBulkResult,
 	RemitImapThreadMessageResponse,
 	RemitImapThreadSearchResponse,
 	RemitImapUpdateOutboxMessageInput,
+	RemitImapUpdateUserSettingsInput,
 	SyncOperationsGetSyncStatusResponse,
 	SyncOperationsTriggerSyncResponse,
 	SystemOperationsGetSystemUpdateResponse,
@@ -103,6 +107,8 @@ const describe = (
 		status: row.status,
 		syncStatus: row.syncStatus,
 		abandonedMutation: row.abandonedMutation,
+		spamVerdict: row.spamVerdict,
+		spamCleared: row.spamCleared,
 	},
 	envelope: {
 		messageId: row.messageId,
@@ -216,6 +222,7 @@ export const mailHandlers = (
 		world.outbox.map((message) => [message.outboxMessageId, message]),
 	);
 	let draftsCreated = 0;
+	let userSettings = world.userSettings;
 	const refuseSave = () =>
 		HttpResponse.json(
 			{ status: 409, message: "The mail server did not accept the draft." },
@@ -576,6 +583,57 @@ export const mailHandlers = (
 			HttpResponse.json<SystemOperationsGetSystemUpdateResponse>(
 				world.systemUpdate,
 			),
+		),
+		http.get(`${API}/settings`, () => HttpResponse.json(userSettings)),
+		http.patch(`${API}/settings`, async ({ request }) => {
+			const input = (await request.json()) as RemitImapUpdateUserSettingsInput;
+			userSettings = {
+				...userSettings,
+				spam: {
+					...userSettings.spam,
+					spamPlacement:
+						input.spamPlacementSpam ?? userSettings.spam.spamPlacement,
+					phishingPlacement:
+						input.spamPlacementPhishing ?? userSettings.spam.phishingPlacement,
+				},
+			};
+			return HttpResponse.json(userSettings);
+		}),
+		http.get(`${API}/classification-stats`, () =>
+			HttpResponse.json(world.classifierStats),
+		),
+		http.post(
+			`${API}/accounts/:accountId/messages/rescan`,
+			async ({ request }) => {
+				const input = (await request.json()) as RemitImapRescanInput;
+				return HttpResponse.json<RemitImapRescanResult>({
+					successful: input.messageIds.flatMap((messageId) => {
+						const row = byMessageId.get(messageId);
+						return row
+							? [{ messageId, verdict: row.spamVerdict, labels: [] }]
+							: [];
+					}),
+					failed: input.messageIds
+						.filter((messageId) => !byMessageId.has(messageId))
+						.map((messageId) => ({
+							messageId,
+							code: "NotFound" as const,
+							retryable: false,
+						})),
+				});
+			},
+		),
+		http.post(`${API}/messages/not-spam`, () =>
+			HttpResponse.json<RemitImapSpamReportBulkResult>({
+				successCount: 1,
+				failureCount: 0,
+			}),
+		),
+		http.post(`${API}/messages/report-spam`, () =>
+			HttpResponse.json<RemitImapSpamReportBulkResult>({
+				successCount: 1,
+				failureCount: 0,
+			}),
 		),
 		http.all(`${API}/*`, ({ request }) =>
 			HttpResponse.json(

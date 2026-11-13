@@ -1,39 +1,37 @@
+import type {
+	RemitImapRescanFailureCode,
+	RemitImapSpamChecked,
+	RemitImapSpamFailed,
+} from "@remit/api-http-client/types.gen.ts";
 import type { ReactNode } from "react";
 import { CircleQuestionMark, ShieldAlert, TriangleAlert } from "../icons.js";
 import { cn } from "../lib/cn.js";
 import { Banner, type BannerTone } from "./banner.js";
 import { Button } from "./button.js";
-import type { SpamChecked, SpamFailed } from "./spam-contract.js";
 import {
 	BASIC_CHECKS_ONLY,
 	CHECK_AGAIN_FAILURE_SENTENCES,
 	CHECK_FAILED_HEADLINE,
 	formatSpamScore,
+	modelSkipCause,
 	SPAM_FAILURE_SENTENCES,
 	SPAM_WARN_HEADLINES,
 	topSpamReasonSentence,
 } from "./spam-copy.js";
-import type { CheckAgainFailureCause, SpamModelSkip } from "./spam-proposed.js";
 
 export type SpamWarningPending = "NotSpam" | "Report" | "Move" | "CheckAgain";
 
 export interface SpamWarningBannerProps {
-	verdict: SpamChecked | SpamFailed;
+	verdict: RemitImapSpamChecked | RemitImapSpamFailed;
 	inSpamFolder: boolean;
-	modelSkip?: SpamModelSkip;
 	pending?: SpamWarningPending;
-	checkAgainFailure?: CheckAgainFailureCause;
+	checkAgainFailure?: RemitImapRescanFailureCode;
 	onNotSpam: () => void;
 	onReport: () => void;
 	onMove: () => void;
 	onWhy: () => void;
 	onCheckAgain: () => void;
 }
-
-const MODEL_SKIP_CAUSES: Record<SpamModelSkip, string> = {
-	DailyLimit: "this account reached its daily model limit.",
-	NoModel: "this account has no model set up.",
-};
 
 const PENDING_LABELS: Record<SpamWarningPending, string> = {
 	NotSpam: "Removing label...",
@@ -132,7 +130,6 @@ function BannerBody({
 export function SpamWarningBanner({
 	verdict,
 	inSpamFolder,
-	modelSkip,
 	pending,
 	checkAgainFailure,
 	onNotSpam,
@@ -173,6 +170,7 @@ export function SpamWarningBanner({
 	if (verdict.action === "Junk" && inSpamFolder) return null;
 
 	const phishing = verdict.kind === "Phishing";
+	const skipped = modelSkipCause(verdict);
 	const tone: BannerTone = phishing ? "danger" : "warning";
 	const role = phishing ? "alert" : "status";
 	const icon = phishing ? (
@@ -225,9 +223,7 @@ export function SpamWarningBanner({
 			headline={SPAM_WARN_HEADLINES[verdict.kind]}
 			lines={[
 				topSpamReasonSentence(verdict.reasons),
-				...(modelSkip
-					? [`${BASIC_CHECKS_ONLY}: ${MODEL_SKIP_CAUSES[modelSkip]}`]
-					: []),
+				...(skipped ? [`${BASIC_CHECKS_ONLY}: ${skipped}`] : []),
 			]}
 			actions={
 				<>

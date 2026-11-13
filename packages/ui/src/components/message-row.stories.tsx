@@ -37,8 +37,8 @@ const starred: ThreadRowData = {
 	starred: true,
 };
 
-const suspicious: ThreadRowData = {
-	id: "r-suspicious",
+const suspected: ThreadRowData = {
+	id: "r-suspected",
 	accountId: "a1",
 	fromName: "Account Security",
 	fromEmail: "no-reply@secure-update.example",
@@ -46,7 +46,10 @@ const suspicious: ThreadRowData = {
 	snippet: "Your account will be suspended unless you confirm now.",
 	timeLabel: "Tue",
 	isRead: false,
-	suspicious: true,
+	spam: {
+		label: { labelId: "label-phishing", name: "Phishing", color: "Red" },
+		suspected: true,
+	},
 };
 
 const withAttachment: ThreadRowData = {
@@ -181,7 +184,7 @@ const unsettled = [deleteFailed, deleteFailedWithLabels, moveFailed, read];
 
 const labeled = [noLabel, oneLabel, twoLabels, severalLabels, longLabelName];
 
-const all = [read, unread, starred, suspicious, withAttachment, withCategory];
+const all = [read, unread, starred, suspected, withAttachment, withCategory];
 
 const meta: Meta = {
 	title: "Design System/Mail/MessageRow",
@@ -223,7 +226,7 @@ export const States: Story = {
 			<ComfortableRow thread={unread} active />
 			<ComfortableRow thread={read} focused />
 			<ComfortableRow thread={starred} />
-			<ComfortableRow thread={suspicious} />
+			<ComfortableRow thread={suspected} />
 		</List>
 	),
 };

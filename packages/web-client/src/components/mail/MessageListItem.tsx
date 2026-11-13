@@ -17,11 +17,14 @@ import { memo } from "react";
 import { toDisplayCategory } from "../../lib/display-category";
 import { formatEmailDate } from "../../lib/format";
 import { rowSettlement } from "../../lib/row-settlement";
+import { spamRowMark } from "../../lib/spam";
 import { MessageRow } from "./MessageRow";
 
 interface MessageListItemProps {
 	thread: RemitImapThreadMessageResponse;
 	mailboxId: string;
+	/** Every account's Spam folder, which tells a moved row from a suspected one. */
+	junkMailboxIds: ReadonlySet<string>;
 	isSelected: boolean;
 	isFocused?: boolean;
 	isTabStop?: boolean;
@@ -42,6 +45,7 @@ interface MessageListItemProps {
  */
 export const threadToRowData = (
 	thread: RemitImapThreadMessageResponse,
+	junkMailboxIds: ReadonlySet<string>,
 	messageCount?: number,
 ): ThreadRowData => ({
 	id: thread.messageId,
@@ -59,10 +63,7 @@ export const threadToRowData = (
 	trust: thread.senderTrust as SenderTrustLevel,
 	category: toDisplayCategory(thread.category),
 	messageCount,
-	// The backend's DKIM-alignment verdict is authoritative: it already accounts
-	// for the multi-signature / alignment semantics a single string compare
-	// misses.
-	suspicious: thread.authenticity?.dkimMismatch === true,
+	spam: spamRowMark(thread, junkMailboxIds),
 	labels: thread.labels,
 	...rowSettlement(thread),
 });
@@ -70,6 +71,7 @@ export const threadToRowData = (
 const MessageListItemComponent = ({
 	thread,
 	mailboxId,
+	junkMailboxIds,
 	isSelected,
 	isFocused,
 	isTabStop,
@@ -84,7 +86,7 @@ const MessageListItemComponent = ({
 	density,
 }: MessageListItemProps) => (
 	<MessageRow
-		thread={threadToRowData(thread, messageCount)}
+		thread={threadToRowData(thread, junkMailboxIds, messageCount)}
 		link={{ mailboxId, threadId: thread.threadId }}
 		inListbox
 		active={isSelected}

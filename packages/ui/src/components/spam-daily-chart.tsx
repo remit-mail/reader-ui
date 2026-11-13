@@ -1,5 +1,11 @@
 import { cn } from "../lib/cn.js";
-import type { SpamDay } from "./spam-proposed.js";
+
+/** One day of verdicts: what reached the Spam threshold and what only warned. */
+export interface SpamDay {
+	date: string;
+	moved: number;
+	warned: number;
+}
 
 export interface SpamDailyChartProps {
 	title: string;
@@ -13,14 +19,11 @@ const TONES = {
 };
 
 export const spamDayDescription = (day: SpamDay): string =>
-	[
-		`${day.date}: ${day.moved} moved, ${day.warned} warned`,
-		...(day.markedNotSpam > 0 ? [`${day.markedNotSpam} marked Not spam`] : []),
-	].join(", ");
+	`${day.date}: ${day.moved} moved, ${day.warned} warned`;
 
 /**
- * One bar per day, moved stacked under warned, with a dot under each day the
- * reader marked mail Not spam. Each bar carries its own text alternative.
+ * One bar per day, moved stacked under warned. Each bar carries its own text
+ * alternative.
  */
 export function SpamDailyChart({ title, tone, days }: SpamDailyChartProps) {
 	const peak = Math.max(1, ...days.map((day) => day.moved + day.warned));
@@ -51,15 +54,6 @@ export function SpamDailyChart({ title, tone, days }: SpamDailyChartProps) {
 					</li>
 				))}
 			</ul>
-			<div aria-hidden="true" className="flex h-2 gap-px pt-1">
-				{days.map((day) => (
-					<span key={day.date} className="flex flex-1 justify-center">
-						{day.markedNotSpam > 0 && (
-							<span className="size-1 rounded-full bg-fg-muted" />
-						)}
-					</span>
-				))}
-			</div>
 			{first && last && (
 				<div
 					aria-hidden="true"

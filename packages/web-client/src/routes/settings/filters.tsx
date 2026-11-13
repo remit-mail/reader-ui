@@ -7,6 +7,7 @@ import { ErrorState, type LabelOption, SettingsShell } from "@remit/ui";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useMemo, useState } from "react";
+import { z } from "zod";
 import { FilterActionError } from "../../components/settings/FilterActionError";
 import { FilterEditorSurface } from "../../components/settings/FilterEditorSurface";
 import { FiltersList } from "../../components/settings/FiltersList";
@@ -28,8 +29,14 @@ import { filterRunStatus } from "../../lib/organize/filter-run";
 import { useOpenSettingsSection } from "../../routing/sections";
 import { useSettingsNavItems } from "../settings";
 
+const filtersSearchSchema = z.object({
+	/** A filter to open on arrival, as the Spam check links to it. */
+	filterId: z.string().optional(),
+});
+
 export const Route = createFileRoute("/settings/filters")({
 	component: FiltersSettings,
+	validateSearch: filtersSearchSchema,
 });
 
 const filtersHelp = (
@@ -52,8 +59,10 @@ const filtersHelp = (
 
 export function AccountFilters({
 	account,
+	openFilterId,
 }: {
 	account: RemitImapAccountResponse;
+	openFilterId?: string;
 }) {
 	const accountId = account.accountId;
 	const { filters, isPending, isError, error, refetch } =
@@ -71,7 +80,9 @@ export function AccountFilters({
 		[startForFilter],
 	);
 	const runStatus = filterRunStatus(run);
-	const [editingFilterId, setEditingFilterId] = useState<string | undefined>();
+	const [editingFilterId, setEditingFilterId] = useState<string | undefined>(
+		openFilterId,
+	);
 
 	const { data: mailboxesData } = useQuery({
 		...mailboxOperationsListMailboxesOptions({ path: { accountId } }),
@@ -207,6 +218,7 @@ function FiltersSettings() {
 	const navItems = useSettingsNavItems();
 	const openSettingsSection = useOpenSettingsSection();
 	const [helpOpen, setHelpOpen] = useState(true);
+	const openFilterId = Route.useSearch({ select: (search) => search.filterId });
 
 	const {
 		data: config,
@@ -248,7 +260,11 @@ function FiltersSettings() {
 			) : (
 				<div className="space-y-8">
 					{config.accounts.map((account) => (
-						<AccountFilters key={account.accountId} account={account} />
+						<AccountFilters
+							key={account.accountId}
+							account={account}
+							openFilterId={openFilterId}
+						/>
 					))}
 				</div>
 			)}

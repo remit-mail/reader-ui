@@ -6,12 +6,13 @@
  * the pane paints a subject before the thread's own messages arrive. A thread no
  * list holds carries none of it and still opens.
  */
-import type { RemitImapMessageAuthenticity } from "@remit/api-http-client/types.gen.ts";
+import type { RemitImapThreadMessageResponse } from "@remit/api-http-client/types.gen.ts";
 
 export interface ConversationTarget {
 	threadId: string;
 	mailboxId: string;
 	subject?: string;
 	messageId?: string;
-	authenticity?: RemitImapMessageAuthenticity;
+	/** The row the reader pointed at, whose spam verdict the banner states. */
+	row?: RemitImapThreadMessageResponse;
 }

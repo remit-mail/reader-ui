@@ -5,7 +5,13 @@ import type {
 	SyntheticEvent,
 } from "react";
 import { categoryTone, getCategoryLabel } from "../category-presentation.js";
-import { Check, Paperclip, ShieldAlert, Star } from "../icons.js";
+import {
+	Check,
+	Paperclip,
+	ShieldAlert,
+	Star,
+	TriangleAlert,
+} from "../icons.js";
 import { cn } from "../lib/cn.js";
 import { ROW_ATTRIBUTE } from "../lib/keymap-dispatch.js";
 import { LIST_ROW_ATTRIBUTE } from "../lib/roving-focus.js";
@@ -14,6 +20,7 @@ import { Avatar } from "./avatar.js";
 import { Badge } from "./badge.js";
 import { LabelChip } from "./label-chip.js";
 import { MessageSettlementBadge } from "./message-settlement.js";
+import { SpamRowMarker } from "./spam-row-marker.js";
 
 /** Visible keyboard-focus ring for a row reached by the list's arrow-key cursor. */
 const ROW_FOCUS_RING =
@@ -77,8 +84,20 @@ export function CompactRowBody({ thread }: { thread: ThreadRowData }) {
 	return (
 		<>
 			<span className="flex w-4 shrink-0 items-center justify-center">
-				{thread.suspicious ? (
-					<ShieldAlert className="size-3.5 text-danger" />
+				{thread.spam ? (
+					thread.spam.label.name === "Phishing" ? (
+						<ShieldAlert
+							className="size-3.5 text-danger"
+							role="img"
+							aria-label="Phishing"
+						/>
+					) : (
+						<TriangleAlert
+							className="size-3.5 text-warning"
+							role="img"
+							aria-label="Spam"
+						/>
+					)
 				) : thread.starred ? (
 					<Star className="size-3 fill-warning text-warning" />
 				) : unread ? (
@@ -194,9 +213,6 @@ export function ComfortableRowTextContent({
 				>
 					{highlightMatches(thread.subject, highlightQuery)}
 				</span>
-				{thread.suspicious && (
-					<ShieldAlert className="size-3.5 shrink-0 text-danger" />
-				)}
 				{thread.starred && (
 					<Star className="size-3 shrink-0 fill-warning text-warning" />
 				)}
@@ -217,9 +233,17 @@ export function ComfortableRowTextContent({
 						{getCategoryLabel(thread.category)}
 					</Badge>
 				)}
-				{thread.labels?.map((label) => (
-					<LabelChip key={label.labelId} label={label} className="max-w-20" />
-				))}
+				{thread.spam && (
+					<SpamRowMarker
+						label={thread.spam.label}
+						suspected={thread.spam.suspected}
+					/>
+				)}
+				{thread.labels
+					?.filter((label) => label.labelId !== thread.spam?.label.labelId)
+					.map((label) => (
+						<LabelChip key={label.labelId} label={label} className="max-w-20" />
+					))}
 				{thread.settlement && (
 					<MessageSettlementBadge settlement={thread.settlement} />
 				)}
