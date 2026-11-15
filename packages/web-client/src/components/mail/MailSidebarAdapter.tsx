@@ -116,6 +116,7 @@ function toNavMailbox(
 		unseen: showBadge ? mb.unseenCount : undefined,
 		role,
 		fullPath: mb.fullPath,
+		hierarchyDelimiter: mb.hierarchyDelimiter,
 		failure: folderFailure(mb),
 	};
 }
@@ -159,15 +160,30 @@ export function MailSidebarAdapter({
 	} = useLabelList(accounts[0]?.accountId);
 	const labelsSettled = !labelsPending || labelsFailed;
 
-	const navLabels: NavLabel[] = useMemo(
-		() =>
-			labels.map((label) => ({
+	const navLabels: NavLabel[] = useMemo(() => {
+		const unseenByMailbox = new Map(
+			mailboxQueries.flatMap((query) =>
+				(query.data?.items ?? []).map(
+					(mb) => [mb.mailboxId, mb.unseenCount] as const,
+				),
+			),
+		);
+		return labels.map((label) => {
+			const unseen = label.folders.reduce(
+				(sum, folder) =>
+					folder.state === "Missing"
+						? sum
+						: sum + (unseenByMailbox.get(folder.mailboxId) ?? 0),
+				0,
+			);
+			return {
 				id: labelNavId(label.labelId),
 				name: label.name,
 				color: label.color,
-			})),
-		[labels],
-	);
+				unseen: unseen > 0 ? unseen : undefined,
+			};
+		});
+	}, [labels, mailboxQueries]);
 
 	const { data: outboxResponse } = useQuery(
 		outboxOperationsListOutboxMessagesOptions(),

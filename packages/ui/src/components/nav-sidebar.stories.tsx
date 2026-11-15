@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { expect, within } from "storybook/test";
+import { expect, userEvent, within } from "storybook/test";
 import type { NavAccount } from "./app-shell-types.js";
 import { NavSidebar } from "./nav-sidebar.js";
 
@@ -103,6 +103,18 @@ export const WithLabels: Story = {
 	},
 };
 
+/** Each label shows the unread mail in its folders across every account. */
+export const LabelUnreadCounts: Story = {
+	args: {
+		selectedNavId: "personal-inbox",
+		labels: [
+			{ id: "label:priority", name: "Priority", color: "Red", unseen: 4 },
+			{ id: "label:promoties", name: "Promoties", color: "Orange", unseen: 27 },
+			{ id: "label:notifications", name: "Notifications", color: "Default" },
+		],
+	},
+};
+
 export const ManyFolders: Story = {
 	args: {
 		accounts: [manyFoldersAccount],
@@ -188,6 +200,49 @@ export const Hostnet: Story = {
 	args: {
 		accounts: [hostnetAccount],
 		selectedNavId: "hn-inbox",
+	},
+};
+
+/**
+ * Custom folders nest under the custom folder their path sits in, and each
+ * parent collapses on its own. A folder under a system folder stays a root.
+ */
+export const NestedFolders: Story = {
+	args: {
+		accounts: [
+			{
+				...hostnetAccount,
+				mailboxes: [
+					...hostnetAccount.mailboxes,
+					{
+						id: "hn-news-tech",
+						name: "Tech",
+						fullPath: "INBOX/Nieuwsbrieven/Tech",
+						unseen: 5,
+					},
+					{
+						id: "hn-news-tech-rust",
+						name: "Rust",
+						fullPath: "INBOX/Nieuwsbrieven/Tech/Rust",
+					},
+					{ id: "hn-receipts", name: "Receipts", fullPath: "INBOX/Receipts" },
+				].map((mb) => ({ ...mb, hierarchyDelimiter: "/" })),
+			},
+		],
+		selectedNavId: "hn-news-tech",
+	},
+	play: async ({ canvasElement }) => {
+		const canvas = within(canvasElement);
+		await expect(canvas.getByText("Rust")).toBeInTheDocument();
+		await userEvent.click(
+			canvas.getByRole("button", { name: "Collapse Nieuwsbrieven" }),
+		);
+		await expect(canvas.queryByText("Tech")).not.toBeInTheDocument();
+		await expect(canvas.queryByText("Rust")).not.toBeInTheDocument();
+		await userEvent.click(
+			canvas.getByRole("button", { name: "Expand Nieuwsbrieven" }),
+		);
+		await expect(canvas.getByText("Rust")).toBeInTheDocument();
 	},
 };
 
