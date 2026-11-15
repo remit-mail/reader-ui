@@ -105,16 +105,11 @@ export function SearchResultRow({
 				thread={searchResultRowData(result, showFolder)}
 				highlightQuery={query}
 				badge={
-					<>
-						{result.category && (
-							<Badge
-								tone={result.category.tone ?? "neutral"}
-								className="shrink-0"
-							>
-								{result.category.label}
-							</Badge>
-						)}
-					</>
+					result.category && (
+						<Badge tone={result.category.tone ?? "neutral"} className="shrink-0">
+							{result.category.label}
+						</Badge>
+					)
 				}
 			/>
 		</button>
