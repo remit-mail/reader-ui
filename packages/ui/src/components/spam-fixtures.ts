@@ -39,6 +39,7 @@ export const warnSpamVerdict: RemitImapSpamChecked = {
 	action: "Warn",
 	kind: "Spam",
 	modelOutcome: "OutOfBand",
+	decidedBy: "Rspamd",
 	reasons: [
 		reason("LinkTextMismatch", 0.3, ["bank.example -> login-check.example"]),
 		reason("FirstContactDomain", 0.25, ["sender-domain.example"]),
@@ -52,6 +53,7 @@ export const warnPhishingVerdict: RemitImapSpamChecked = {
 	action: "Warn",
 	kind: "Phishing",
 	modelOutcome: "OutOfBand",
+	decidedBy: "Rspamd",
 	reasons: [
 		reason("DisplayNameForeignAddress", 0.4, [
 			'"support@bank.example" <x@other.example>',
@@ -77,6 +79,7 @@ export const modelJudgedVerdict: RemitImapSpamChecked = {
 	action: "Warn",
 	kind: "Spam",
 	modelOutcome: "Answered",
+	decidedBy: "Model",
 	reasons: [
 		reason("RecentlyRegisteredDomain", 0.35, ["registered 2026-11-02"]),
 		reason("ModelSpam", 0.2, [
@@ -97,6 +100,7 @@ export const warnOnlyAboveJunkVerdict: RemitImapSpamChecked = {
 	action: "Warn",
 	kind: "Spam",
 	modelOutcome: "Answered",
+	decidedBy: "Model",
 	reasons: [
 		reason("LinkTextMismatch", 0.5, ["bank.example -> login-check.example"]),
 		reason("FirstContactDomain", 0.4, ["sender-domain.example"]),
@@ -109,6 +113,7 @@ export const unknownReasonVerdict: RemitImapSpamChecked = {
 	action: "Warn",
 	kind: "Spam",
 	modelOutcome: "Answered",
+	decidedBy: "Model",
 	reasons: [
 		reason("ProviderSpam", 0.3),
 		{

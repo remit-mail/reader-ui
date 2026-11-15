@@ -65,6 +65,7 @@ describe("applyRescanResult", () => {
 			kind: "Spam",
 			reasons: [],
 			modelOutcome: "OutOfBand",
+			decidedBy: "Rspamd",
 		});
 		const outcome = applyRescanResult(
 			{ summary: EMPTY_SUMMARY, failures: [] },

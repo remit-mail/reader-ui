@@ -15,6 +15,8 @@ const REASON_SENTENCES: Record<
 	string
 > = {
 	DmarcFail: "It failed the sender domain's DMARC check.",
+	DkimDmarcFail:
+		"The sender's domain did not sign it, and its authentication failed.",
 	SignerMismatch: "It was signed by a different domain than its sender.",
 	ReplyToMismatch: "Replies would go to a different domain than the sender's.",
 	LinkTextMismatch: "A link's text shows one domain and opens another.",
