@@ -9,6 +9,7 @@ export interface PushErrorInput {
 	title: string;
 	detail?: string;
 	action?: ErrorBannerAction;
+	onRetry?: () => void;
 	/**
 	 * The error being reported, when there is one. Pass it: a banner is a soft
 	 * surface, and `pushError` uses this to refuse errors that are not soft —
@@ -117,5 +118,6 @@ export const buildEntry = (
 	title: input.title,
 	detail: input.detail,
 	action: input.action,
+	onRetry: input.onRetry,
 	createdAt: now,
 });

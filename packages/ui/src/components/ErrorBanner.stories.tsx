@@ -75,6 +75,21 @@ export const ReportSpamFailed: Story = {
 	},
 };
 
+/**
+ * A Check again on one message that failed with a retryable code. The banner
+ * still says what failed; Try again re-runs the check and dismisses it.
+ */
+export const CheckAgainRetryable: Story = {
+	args: {
+		severity: "error",
+		title: "Couldn't check this message again",
+		detail:
+			"Quarterly report: a move is still settling. Remit will retry it once the move lands.",
+		action: { label: "Report an issue", href: REPORT_URL },
+		onRetry: () => undefined,
+	},
+};
+
 /** Something degraded rather than broke. */
 export const Warning: Story = {
 	args: {
