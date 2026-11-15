@@ -113,6 +113,9 @@ export function CheckAgainProvider({ children }: { children: ReactNode }) {
 	>(new Map());
 	const runningRef = useRef(false);
 	const stopRef = useRef(false);
+	const startRef = useRef<
+		((targets: CheckAgainTarget[], showPanel: boolean) => void) | undefined
+	>(undefined);
 
 	const settle = useCallback(
 		(targets: readonly CheckAgainTarget[]) => {
@@ -172,9 +175,14 @@ export function CheckAgainProvider({ children }: { children: ReactNode }) {
 			}
 			if (!showPanel) {
 				for (const failure of outcome.failures) {
+					const retryTarget = failure.retryable
+						? targets.find((target) => target.messageId === failure.messageId)
+						: undefined;
 					pushError({
 						title: "Couldn't check this message again",
 						detail: `${failure.subject}: ${CHECK_AGAIN_FAILURE_SENTENCES[failure.code]}`,
+						onRetry:
+							retryTarget && (() => startRef.current?.([retryTarget], false)),
 					});
 				}
 				return;
@@ -222,6 +230,8 @@ export function CheckAgainProvider({ children }: { children: ReactNode }) {
 		},
 		[run, pushError],
 	);
+
+	startRef.current = start;
 
 	const checkAgain = useCallback<CheckAgainContextValue["checkAgain"]>(
 		(requests, options) => {

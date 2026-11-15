@@ -1,5 +1,6 @@
 import { CircleAlert, Info, TriangleAlert, X } from "../icons.js";
 import { cn } from "../lib/cn.js";
+import { Button } from "./button.js";
 
 export type ErrorBannerSeverity = "error" | "warning" | "info";
 
@@ -18,6 +19,7 @@ export interface ErrorBannerEntry {
 	title: string;
 	detail?: string;
 	action?: ErrorBannerAction;
+	onRetry?: () => void;
 	createdAt: number;
 }
 
@@ -27,6 +29,7 @@ interface ErrorBannerProps {
 	title: string;
 	detail?: string;
 	action?: ErrorBannerAction;
+	onRetry?: () => void;
 	onDismiss: (id: string) => void;
 }
 
@@ -72,6 +75,7 @@ export const ErrorBanner = ({
 	title,
 	detail,
 	action,
+	onRetry,
 	onDismiss,
 }: ErrorBannerProps) => {
 	const styles = SEVERITY_STYLES[severity];
@@ -98,15 +102,31 @@ export const ErrorBanner = ({
 				{detail && (
 					<p className="mt-0.5 text-xs text-fg-muted break-words">{detail}</p>
 				)}
-				{action && (
-					<a
-						href={action.href}
-						target="_blank"
-						rel="noopener noreferrer"
-						className="mt-1 inline-block text-xs font-medium text-accent-2 underline underline-offset-2"
-					>
-						{action.label}
-					</a>
+				{(onRetry || action) && (
+					<div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1">
+						{onRetry && (
+							<Button
+								variant="secondary"
+								size="sm"
+								onClick={() => {
+									onDismiss(id);
+									onRetry();
+								}}
+							>
+								Try again
+							</Button>
+						)}
+						{action && (
+							<a
+								href={action.href}
+								target="_blank"
+								rel="noopener noreferrer"
+								className="inline-block text-xs font-medium text-accent-2 underline underline-offset-2"
+							>
+								{action.label}
+							</a>
+						)}
+					</div>
 				)}
 			</div>
 			<button
