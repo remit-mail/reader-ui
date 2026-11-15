@@ -13,6 +13,7 @@ import type {
 import type { TriageHandlers } from "../lib/keymap.js";
 import type { SelectionModifiers } from "../lib/use-selection.js";
 import type { AccountService } from "./account-service-choice.js";
+import type { ResultFolder } from "./folder-role.js";
 import type {
 	IntelligenceData,
 	SenderTrustLevel,
@@ -298,6 +299,8 @@ export interface ThreadRowData {
 	category?: ThreadCategory;
 	/** Number of messages when the row is a thread. */
 	messageCount?: number;
+	/** Where the message sits, for a row shown outside its own folder. */
+	folder?: ResultFolder;
 	/** The Remit Spam or Phishing label the message carries. */
 	spam?: ThreadRowSpam;
 	/** Labels applied to this message (issue #26) — filter-, organize-, and manually-applied alike. */

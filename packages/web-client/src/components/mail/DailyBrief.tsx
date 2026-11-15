@@ -134,7 +134,7 @@ import type { ListHeaderChrome } from "../../lib/list-header-chrome";
 import { useMailContext } from "../../lib/mail-context";
 import { useMailFreshness } from "../../lib/mail-freshness";
 import { shouldRequestResultCount } from "../../lib/result-count";
-import { junkMailboxIds } from "../../lib/result-folder";
+import { junkMailboxIds, resolveResultFolder } from "../../lib/result-folder";
 import { rowToSearchResult } from "../../lib/search-result";
 import { showInlineSearchResults } from "../../lib/search-surface";
 import { parseSearchTokens } from "../../lib/search-tokens";
@@ -723,8 +723,15 @@ export function DailyBrief({
 	);
 
 	const matchRows = useMemo<ThreadRowData[]>(
-		() => narrowRows(searchRows),
-		[searchRows, narrowRows],
+		() =>
+			narrowRows(searchRows).map((row) => {
+				const { folder } = resolveResultFolder(
+					resultFolderIndex,
+					row.mailboxId ? [row.mailboxId] : [],
+				);
+				return folder ? { ...row, folder } : row;
+			}),
+		[searchRows, narrowRows, resultFolderIndex],
 	);
 
 	// Each section answers for itself, so a retry is that section's own request.
