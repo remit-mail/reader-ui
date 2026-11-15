@@ -8,6 +8,7 @@ const accounts: NavAccount[] = [
 		id: "acct-personal",
 		label: "Personal",
 		email: "reader@example.com",
+		hierarchyDelimiter: "/",
 		outboxPending: 2,
 		mailboxes: [
 			{ id: "personal-inbox", name: "Inbox", role: "inbox", unseen: 12 },
@@ -22,6 +23,7 @@ const accounts: NavAccount[] = [
 		id: "acct-work",
 		label: "Work",
 		email: "reader@work.example",
+		hierarchyDelimiter: "/",
 		outboxPending: 0,
 		mailboxes: [
 			{ id: "work-inbox", name: "Inbox", role: "inbox", unseen: 4 },
@@ -35,6 +37,7 @@ const manyFoldersAccount: NavAccount = {
 	id: "acct-archivist",
 	label: "Archivist",
 	email: "archivist@example.com",
+	hierarchyDelimiter: "/",
 	mailboxes: [
 		{ id: "arch-inbox", name: "Inbox", role: "inbox", unseen: 1 },
 		{ id: "arch-sent", name: "Sent", role: "sent" },
@@ -103,7 +106,6 @@ export const WithLabels: Story = {
 	},
 };
 
-/** Each label shows the unread mail in its folders across every account. */
 export const LabelUnreadCounts: Story = {
 	args: {
 		selectedNavId: "personal-inbox",
@@ -132,6 +134,7 @@ const hostnetAccount: NavAccount = {
 	id: "acct-hostnet",
 	label: "Hostnet",
 	email: "hostnet-user@example.com",
+	hierarchyDelimiter: "/",
 	mailboxes: [
 		{
 			id: "hn-inbox",
@@ -203,10 +206,6 @@ export const Hostnet: Story = {
 	},
 };
 
-/**
- * Custom folders nest under the custom folder their path sits in, and each
- * parent collapses on its own. A folder under a system folder stays a root.
- */
 export const NestedFolders: Story = {
 	args: {
 		accounts: [
@@ -226,7 +225,7 @@ export const NestedFolders: Story = {
 						fullPath: "INBOX/Nieuwsbrieven/Tech/Rust",
 					},
 					{ id: "hn-receipts", name: "Receipts", fullPath: "INBOX/Receipts" },
-				].map((mb) => ({ ...mb, hierarchyDelimiter: "/" })),
+				],
 			},
 		],
 		selectedNavId: "hn-news-tech",
@@ -261,6 +260,7 @@ export const Loading: Story = {
 				id: "acct-personal",
 				label: "Personal",
 				email: "reader@example.com",
+				hierarchyDelimiter: "/",
 				status: "loading",
 				mailboxes: [],
 			},
@@ -276,6 +276,7 @@ export const LoadError: Story = {
 				id: "acct-personal",
 				label: "Personal",
 				email: "reader@example.com",
+				hierarchyDelimiter: "/",
 				status: "error",
 				onRetry: () => undefined,
 				mailboxes: [],

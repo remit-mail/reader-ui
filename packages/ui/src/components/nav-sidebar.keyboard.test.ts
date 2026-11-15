@@ -15,6 +15,7 @@ const accounts: NavAccount[] = [
 		id: "acct-personal",
 		label: "Personal",
 		email: "person@example.com",
+		hierarchyDelimiter: "/",
 		mailboxes: [
 			{ id: "personal-inbox", name: "Inbox", role: "inbox" },
 			{ id: "personal-sent", name: "Sent", role: "sent" },

@@ -188,11 +188,6 @@ export interface NavMailbox {
 	 * localized leaf name still reveals where it lives. Defaults to `name`.
 	 */
 	fullPath?: string;
-	/**
-	 * The separator between levels of `fullPath`. A custom folder nests under
-	 * the custom folder its path sits in; absent or empty is a flat namespace.
-	 */
-	hierarchyDelimiter?: string;
 	/** Present when the last change to this folder failed: what went wrong, in words. */
 	failure?: string;
 }
@@ -207,7 +202,6 @@ export interface NavLabel {
 	name: string;
 	/** The label's color name; a value the kit has no swatch for renders as Default. */
 	color: string;
-	/** Unread messages in the label's folders, summed across accounts. */
 	unseen?: number;
 }
 
@@ -226,6 +220,7 @@ export interface NavAccount {
 	 * nav with every mailbox it already synced, labelled rather than dropped.
 	 */
 	syncedServices?: AccountService[];
+	hierarchyDelimiter: string;
 	mailboxes: NavMailbox[];
 	/**
 	 * Number of outbox messages pending send. When provided, an Outbox entry

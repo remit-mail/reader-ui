@@ -116,7 +116,6 @@ function toNavMailbox(
 		unseen: showBadge ? mb.unseenCount : undefined,
 		role,
 		fullPath: mb.fullPath,
-		hierarchyDelimiter: mb.hierarchyDelimiter,
 		failure: folderFailure(mb),
 	};
 }
@@ -200,7 +199,8 @@ export function MailSidebarAdapter({
 	const navAccounts: NavAccount[] = useMemo(() => {
 		return accounts.map((account, i) => {
 			const query = mailboxQueries[i];
-			const mailboxes = withoutLabelFolders(query?.data?.items ?? [], labels);
+			const allMailboxes = query?.data?.items ?? [];
+			const mailboxes = withoutLabelFolders(allMailboxes, labels);
 			const roleMap = buildMailboxRoleMap(account.folderAppointments);
 			const { system, labels: folders } = sortMailboxes(
 				mailboxes,
@@ -218,6 +218,7 @@ export function MailSidebarAdapter({
 				id: account.accountId,
 				label: account.email,
 				email: account.email,
+				hierarchyDelimiter: allMailboxes[0]?.hierarchyDelimiter ?? "",
 				muted: Boolean(account.muted),
 				// Outbox is a shared singleton shown inside each account's section,
 				// matching existing sidebar behaviour.

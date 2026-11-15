@@ -19,7 +19,12 @@ import {
 	Trash,
 } from "../icons.js";
 import { cn } from "../lib/cn.js";
-import { folderAncestors } from "../lib/folder-tree.js";
+import {
+	collapseFolderTree,
+	type FolderTreeNode,
+	folderAncestors,
+	orderFolderNodes,
+} from "../lib/folder-tree.js";
 import { isLabelColorValue, labelDotClass } from "../lib/label-color.js";
 import { useRovingFocus } from "../lib/roving-focus.js";
 import { ACCOUNT_SERVICE_OFF_LABEL } from "./account-service-status.js";
@@ -270,48 +275,6 @@ export function writeOpen(prefix: string, id: string, open: boolean): void {
 export const NAV_FOLDER_OPEN_KEY = FOLDER_OPEN_KEY;
 export const NAV_ACCOUNT_OPEN_KEY = ACCOUNT_OPEN_KEY;
 
-interface FolderRow {
-	mailbox: NavMailbox;
-	depth: number;
-	hasChildren: boolean;
-	open: boolean;
-}
-
-/**
- * The custom folders as a tree: each child under its parent, indented by the
- * folders above it in the list, and hidden while any of them is collapsed.
- */
-export function folderRows(
-	folders: readonly NavMailbox[],
-	isOpen: (id: string) => boolean,
-): FolderRow[] {
-	const delimiter =
-		folders.find((mb) => mb.hierarchyDelimiter)?.hierarchyDelimiter ?? "";
-	const pathOf = (mb: NavMailbox): string => mb.fullPath ?? mb.name;
-	const present = new Set(folders.map(pathOf));
-	const children = new Map<string, NavMailbox[]>();
-	for (const mb of folders) {
-		const parent =
-			folderAncestors(pathOf(mb), delimiter).find((path) =>
-				present.has(path),
-			) ?? "";
-		children.set(parent, [...(children.get(parent) ?? []), mb]);
-	}
-
-	const rows: FolderRow[] = [];
-	const walk = (parent: string, depth: number) => {
-		for (const mailbox of children.get(parent) ?? []) {
-			const path = pathOf(mailbox);
-			const hasChildren = children.has(path);
-			const open = isOpen(mailbox.id);
-			rows.push({ mailbox, depth, hasChildren, open });
-			if (hasChildren && open) walk(path, depth + 1);
-		}
-	};
-	walk("", 0);
-	return rows;
-}
-
 function AccountNav({
 	account,
 	selectedNavId,
@@ -361,7 +324,38 @@ function AccountNav({
 		.filter(hasRole)
 		.sort((a, b) => ROLE_ORDER[a.role] - ROLE_ORDER[b.role]);
 	const folders = account.mailboxes.filter((mb) => !hasRole(mb));
-	const rows = folderRows(folders, isFolderOpen);
+	const delimiter = account.hierarchyDelimiter;
+	const folderById = new Map(folders.map((mb) => [mb.id, mb]));
+	const nodes: FolderTreeNode[] = folders.map((mb) => ({
+		id: mb.id,
+		label: mb.name,
+		path: mb.fullPath ?? mb.name,
+	}));
+	const present = new Set(nodes.map((node) => node.path));
+	const parents = new Set(
+		nodes.flatMap((node) =>
+			folderAncestors(node.path, delimiter).filter((path) => present.has(path)),
+		),
+	);
+	const selected = nodes.find((node) => node.id === selectedNavId);
+	const selectedAncestors = new Set(
+		selected ? folderAncestors(selected.path, delimiter) : [],
+	);
+	const expanded = new Set(
+		nodes
+			.filter(
+				(node) => selectedAncestors.has(node.path) || isFolderOpen(node.id),
+			)
+			.map((node) => node.path),
+	);
+	const rows = collapseFolderTree(
+		orderFolderNodes(nodes, delimiter),
+		expanded,
+		delimiter,
+	).flatMap((row) => {
+		const mailbox = folderById.get(row.folder.id);
+		return mailbox ? [{ ...row, mailbox }] : [];
+	});
 	const visibleRows =
 		showAllFolders || rows.length <= FOLDER_COLLAPSE_THRESHOLD
 			? rows
@@ -508,13 +502,13 @@ function AccountNav({
 									{foldersOpen && (
 										<>
 											{visibleRows.map(
-												({ mailbox: mb, depth, hasChildren, open }) => (
+												({ mailbox: mb, folder, depth, expanded: open }) => (
 													<div
 														key={mb.id}
 														className="flex items-center"
 														style={{ paddingLeft: `${depth * 0.75}rem` }}
 													>
-														{hasChildren ? (
+														{parents.has(folder.path) ? (
 															<button
 																type="button"
 																onClick={() => toggleFolder(mb.id)}

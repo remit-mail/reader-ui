@@ -10,6 +10,7 @@ const accounts: NavAccount[] = [
 		id: "acct-personal",
 		label: "Personal",
 		email: "reader@example.com",
+		hierarchyDelimiter: "/",
 		mailboxes: [
 			{ id: "personal-inbox", name: "Inbox", role: "inbox", unseen: 12 },
 			{ id: "personal-sent", name: "Sent", role: "sent" },
@@ -175,6 +176,7 @@ describe("NavSidebar", () => {
 		id: "acct-hostnet",
 		label: "Hostnet",
 		email: "hostnet-user@example.com",
+		hierarchyDelimiter: "/",
 		mailboxes: [
 			{ id: "hn-inbox", name: "Inbox", role: "inbox", fullPath: "INBOX" },
 			{ id: "hn-spam", name: "Spam", role: "junk", fullPath: "INBOX/Spam" },
