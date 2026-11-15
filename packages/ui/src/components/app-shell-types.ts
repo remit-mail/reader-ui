@@ -296,6 +296,8 @@ export interface ThreadRowData {
 	category?: ThreadCategory;
 	/** Number of messages when the row is a thread. */
 	messageCount?: number;
+	/** Where the message sits, named for a row shown outside its own folder. */
+	folderLabel?: string;
 	/** The Remit Spam or Phishing label the message carries. */
 	spam?: ThreadRowSpam;
 	/** Labels applied to this message (issue #26) — filter-, organize-, and manually-applied alike. */

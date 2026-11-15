@@ -228,6 +228,11 @@ export function ComfortableRowTextContent({
 				<span className="line-clamp-1 min-w-0 flex-1 text-xs text-fg-subtle">
 					{highlightMatches(thread.snippet, highlightQuery)}
 				</span>
+				{thread.folderLabel && (
+					<Badge tone="neutral" className="shrink-0">
+						{thread.folderLabel}
+					</Badge>
+				)}
 				{thread.category && thread.category !== "personal" && (
 					<Badge tone={categoryTone[thread.category]} className="shrink-0">
 						{getCategoryLabel(thread.category)}

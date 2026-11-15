@@ -52,6 +52,12 @@ const suspected: ThreadRowData = {
 	},
 };
 
+const suspectedInInbox: ThreadRowData = {
+	...suspected,
+	id: "r-suspected-inbox",
+	folderLabel: "Inbox",
+};
+
 const withAttachment: ThreadRowData = {
 	id: "r-attachment",
 	accountId: "a1",
@@ -227,6 +233,7 @@ export const States: Story = {
 			<ComfortableRow thread={read} focused />
 			<ComfortableRow thread={starred} />
 			<ComfortableRow thread={suspected} />
+			<ComfortableRow thread={suspectedInInbox} />
 		</List>
 	),
 };
