@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { expect, within } from "storybook/test";
+import { expect, userEvent, within } from "storybook/test";
 import type { NavAccount } from "./app-shell-types.js";
 import { NavSidebar } from "./nav-sidebar.js";
 
@@ -8,6 +8,7 @@ const accounts: NavAccount[] = [
 		id: "acct-personal",
 		label: "Personal",
 		email: "reader@example.com",
+		hierarchyDelimiter: "/",
 		outboxPending: 2,
 		mailboxes: [
 			{ id: "personal-inbox", name: "Inbox", role: "inbox", unseen: 12 },
@@ -22,6 +23,7 @@ const accounts: NavAccount[] = [
 		id: "acct-work",
 		label: "Work",
 		email: "reader@work.example",
+		hierarchyDelimiter: "/",
 		outboxPending: 0,
 		mailboxes: [
 			{ id: "work-inbox", name: "Inbox", role: "inbox", unseen: 4 },
@@ -35,6 +37,7 @@ const manyFoldersAccount: NavAccount = {
 	id: "acct-archivist",
 	label: "Archivist",
 	email: "archivist@example.com",
+	hierarchyDelimiter: "/",
 	mailboxes: [
 		{ id: "arch-inbox", name: "Inbox", role: "inbox", unseen: 1 },
 		{ id: "arch-sent", name: "Sent", role: "sent" },
@@ -103,6 +106,17 @@ export const WithLabels: Story = {
 	},
 };
 
+export const LabelUnreadCounts: Story = {
+	args: {
+		selectedNavId: "personal-inbox",
+		labels: [
+			{ id: "label:priority", name: "Priority", color: "Red", unseen: 4 },
+			{ id: "label:promoties", name: "Promoties", color: "Orange", unseen: 27 },
+			{ id: "label:notifications", name: "Notifications", color: "Default" },
+		],
+	},
+};
+
 export const ManyFolders: Story = {
 	args: {
 		accounts: [manyFoldersAccount],
@@ -120,6 +134,7 @@ const hostnetAccount: NavAccount = {
 	id: "acct-hostnet",
 	label: "Hostnet",
 	email: "hostnet-user@example.com",
+	hierarchyDelimiter: "/",
 	mailboxes: [
 		{
 			id: "hn-inbox",
@@ -191,6 +206,45 @@ export const Hostnet: Story = {
 	},
 };
 
+export const NestedFolders: Story = {
+	args: {
+		accounts: [
+			{
+				...hostnetAccount,
+				mailboxes: [
+					...hostnetAccount.mailboxes,
+					{
+						id: "hn-news-tech",
+						name: "Tech",
+						fullPath: "INBOX/Nieuwsbrieven/Tech",
+						unseen: 5,
+					},
+					{
+						id: "hn-news-tech-rust",
+						name: "Rust",
+						fullPath: "INBOX/Nieuwsbrieven/Tech/Rust",
+					},
+					{ id: "hn-receipts", name: "Receipts", fullPath: "INBOX/Receipts" },
+				],
+			},
+		],
+		selectedNavId: "hn-news-tech",
+	},
+	play: async ({ canvasElement }) => {
+		const canvas = within(canvasElement);
+		await expect(canvas.getByText("Rust")).toBeInTheDocument();
+		await userEvent.click(
+			canvas.getByRole("button", { name: "Collapse Nieuwsbrieven" }),
+		);
+		await expect(canvas.queryByText("Tech")).not.toBeInTheDocument();
+		await expect(canvas.queryByText("Rust")).not.toBeInTheDocument();
+		await userEvent.click(
+			canvas.getByRole("button", { name: "Expand Nieuwsbrieven" }),
+		);
+		await expect(canvas.getByText("Rust")).toBeInTheDocument();
+	},
+};
+
 export const WithOutbox: Story = {
 	args: { selectedNavId: "outbox" },
 };
@@ -206,6 +260,7 @@ export const Loading: Story = {
 				id: "acct-personal",
 				label: "Personal",
 				email: "reader@example.com",
+				hierarchyDelimiter: "/",
 				status: "loading",
 				mailboxes: [],
 			},
@@ -221,6 +276,7 @@ export const LoadError: Story = {
 				id: "acct-personal",
 				label: "Personal",
 				email: "reader@example.com",
+				hierarchyDelimiter: "/",
 				status: "error",
 				onRetry: () => undefined,
 				mailboxes: [],

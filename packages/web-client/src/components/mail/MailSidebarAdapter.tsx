@@ -159,15 +159,30 @@ export function MailSidebarAdapter({
 	} = useLabelList(accounts[0]?.accountId);
 	const labelsSettled = !labelsPending || labelsFailed;
 
-	const navLabels: NavLabel[] = useMemo(
-		() =>
-			labels.map((label) => ({
+	const navLabels: NavLabel[] = useMemo(() => {
+		const unseenByMailbox = new Map(
+			mailboxQueries.flatMap((query) =>
+				(query.data?.items ?? []).map(
+					(mb) => [mb.mailboxId, mb.unseenCount] as const,
+				),
+			),
+		);
+		return labels.map((label) => {
+			const unseen = label.folders.reduce(
+				(sum, folder) =>
+					folder.state === "Missing"
+						? sum
+						: sum + (unseenByMailbox.get(folder.mailboxId) ?? 0),
+				0,
+			);
+			return {
 				id: labelNavId(label.labelId),
 				name: label.name,
 				color: label.color,
-			})),
-		[labels],
-	);
+				unseen: unseen > 0 ? unseen : undefined,
+			};
+		});
+	}, [labels, mailboxQueries]);
 
 	const { data: outboxResponse } = useQuery(
 		outboxOperationsListOutboxMessagesOptions(),
@@ -184,7 +199,8 @@ export function MailSidebarAdapter({
 	const navAccounts: NavAccount[] = useMemo(() => {
 		return accounts.map((account, i) => {
 			const query = mailboxQueries[i];
-			const mailboxes = withoutLabelFolders(query?.data?.items ?? [], labels);
+			const allMailboxes = query?.data?.items ?? [];
+			const mailboxes = withoutLabelFolders(allMailboxes, labels);
 			const roleMap = buildMailboxRoleMap(account.folderAppointments);
 			const { system, labels: folders } = sortMailboxes(
 				mailboxes,
@@ -202,6 +218,7 @@ export function MailSidebarAdapter({
 				id: account.accountId,
 				label: account.email,
 				email: account.email,
+				hierarchyDelimiter: allMailboxes[0]?.hierarchyDelimiter ?? "",
 				muted: Boolean(account.muted),
 				// Outbox is a shared singleton shown inside each account's section,
 				// matching existing sidebar behaviour.

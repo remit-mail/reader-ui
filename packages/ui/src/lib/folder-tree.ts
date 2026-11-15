@@ -169,7 +169,8 @@ export const filterFolderTree = (
 /**
  * The unfiltered list: roots always, and a child only while every ancestor it
  * has on screen is open. A folder whose parent is absent from the list is a
- * root, so it never hides behind something that was never there.
+ * root, so it never hides behind something that was never there, and it
+ * indents only by the ancestors the list holds.
  */
 export const collapseFolderTree = (
 	ordered: readonly FolderTreeNode[],
@@ -177,18 +178,20 @@ export const collapseFolderTree = (
 	delimiter: string,
 ): FolderTreeRow[] => {
 	const present = new Set(ordered.map((folder) => folder.path));
-	return ordered
-		.filter((folder) =>
-			folderAncestors(folder.path, delimiter).every(
-				(ancestor) => !present.has(ancestor) || expanded.has(ancestor),
-			),
-		)
-		.map((folder) => ({
-			folder,
-			depth: folderDepth(folder.path, delimiter),
-			context: false,
-			expanded: expanded.has(folder.path),
-		}));
+	return ordered.flatMap((folder) => {
+		const shown = folderAncestors(folder.path, delimiter).filter((ancestor) =>
+			present.has(ancestor),
+		);
+		if (!shown.every((ancestor) => expanded.has(ancestor))) return [];
+		return [
+			{
+				folder,
+				depth: shown.length,
+				context: false,
+				expanded: expanded.has(folder.path),
+			},
+		];
+	});
 };
 
 /**

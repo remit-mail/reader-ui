@@ -156,6 +156,22 @@ describe("collapsing", () => {
 			"Work/Projects/Apollo",
 		]);
 	});
+
+	it("indents only by the ancestors in the list", () => {
+		const nested = orderFolderNodes(
+			[
+				node("news", "Nieuwsbrieven", "INBOX/Nieuwsbrieven"),
+				node("tech", "Tech", "INBOX/Nieuwsbrieven/Tech"),
+			],
+			"/",
+		);
+		assert.deepEqual(
+			collapseFolderTree(nested, new Set(["INBOX/Nieuwsbrieven"]), "/").map(
+				(row) => row.depth,
+			),
+			[0, 1],
+		);
+	});
 });
 
 describe("filtering", () => {
