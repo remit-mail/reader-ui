@@ -5,6 +5,7 @@ import {
 } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
 import type {
 	RemitImapAccountResponse,
+	RemitImapLabelResponse,
 	RemitImapMailboxResponse,
 } from "@remit/api-http-client/types.gen.ts";
 import type {
@@ -17,6 +18,7 @@ import { NavSidebar } from "@remit/ui";
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { useLabelUnreadCounts } from "../../hooks/useCollectionThreads";
 import { useLabelList } from "../../hooks/useLabels";
 import { folderFailure } from "../../lib/folder-failure";
 import {
@@ -120,6 +122,21 @@ function toNavMailbox(
 	};
 }
 
+function toNavLabels(
+	labels: RemitImapLabelResponse[],
+	unreadByLabel: ReadonlyMap<string, number>,
+): NavLabel[] {
+	return labels.map((label) => {
+		const unseen = unreadByLabel.get(label.labelId) ?? 0;
+		return {
+			id: labelNavId(label.labelId),
+			name: label.name,
+			color: label.color,
+			unseen: unseen > 0 ? unseen : undefined,
+		};
+	});
+}
+
 /**
  * Pane 1 of the 4-pane shell. Data bridge that fetches mailboxes per account,
  * maps them onto the kit's NavAccount shape, and renders each entry as a real
@@ -159,30 +176,15 @@ export function MailSidebarAdapter({
 	} = useLabelList(accounts[0]?.accountId);
 	const labelsSettled = !labelsPending || labelsFailed;
 
-	const navLabels: NavLabel[] = useMemo(() => {
-		const unseenByMailbox = new Map(
-			mailboxQueries.flatMap((query) =>
-				(query.data?.items ?? []).map(
-					(mb) => [mb.mailboxId, mb.unseenCount] as const,
-				),
-			),
-		);
-		return labels.map((label) => {
-			const unseen = label.folders.reduce(
-				(sum, folder) =>
-					folder.state === "Missing"
-						? sum
-						: sum + (unseenByMailbox.get(folder.mailboxId) ?? 0),
-				0,
-			);
-			return {
-				id: labelNavId(label.labelId),
-				name: label.name,
-				color: label.color,
-				unseen: unseen > 0 ? unseen : undefined,
-			};
-		});
-	}, [labels, mailboxQueries]);
+	const labelIds = useMemo(
+		() => labels.map((label) => label.labelId),
+		[labels],
+	);
+	const unreadByLabel = useLabelUnreadCounts(labelIds);
+	const navLabels: NavLabel[] = useMemo(
+		() => toNavLabels(labels, unreadByLabel),
+		[labels, unreadByLabel],
+	);
 
 	const { data: outboxResponse } = useQuery(
 		outboxOperationsListOutboxMessagesOptions(),
