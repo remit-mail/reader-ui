@@ -13,11 +13,11 @@ import type {
 import type { TriageHandlers } from "../lib/keymap.js";
 import type { SelectionModifiers } from "../lib/use-selection.js";
 import type { AccountService } from "./account-service-choice.js";
+import type { ResultFolder } from "./folder-role.js";
 import type {
 	IntelligenceData,
 	SenderTrustLevel,
 } from "./intelligence-panel.js";
-import type { ResultFolder } from "./folder-role.js";
 import type { ResultCount } from "./list-result-header.js";
 import type { ListState } from "./message-list-state.js";
 import type { RowSettlement } from "./message-settlement.js";

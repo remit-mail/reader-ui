@@ -106,7 +106,10 @@ export function SearchResultRow({
 				highlightQuery={query}
 				badge={
 					result.category && (
-						<Badge tone={result.category.tone ?? "neutral"} className="shrink-0">
+						<Badge
+							tone={result.category.tone ?? "neutral"}
+							className="shrink-0"
+						>
 							{result.category.label}
 						</Badge>
 					)
