@@ -75,6 +75,7 @@ const row = makeThreadMessage({
 			},
 		],
 		modelOutcome: "OutOfBand",
+		decidedBy: "Rspamd",
 	},
 	labels: [{ labelId: "lbl-phishing", name: "Phishing", color: "Red" }],
 });

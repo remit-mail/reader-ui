@@ -35,6 +35,7 @@ export const warnPhishing: RemitImapSpamChecked = {
 	action: "Warn",
 	kind: "Phishing",
 	modelOutcome: "OutOfBand",
+	decidedBy: "Rspamd",
 	reasons: [
 		{
 			name: "SignerMismatch",
@@ -52,6 +53,7 @@ const warnSpam: RemitImapSpamChecked = {
 	action: "Warn",
 	kind: "Spam",
 	modelOutcome: "DailyLimit",
+	decidedBy: "Rspamd",
 	reasons: [
 		{
 			name: "LinkTextMismatch",
@@ -74,6 +76,7 @@ const junkSpam: RemitImapSpamChecked = {
 	action: "Junk",
 	kind: "Spam",
 	modelOutcome: "Answered",
+	decidedBy: "Model",
 	reasons: [
 		{ name: "ProviderSpam", symbol: "ProviderSpam", score: 0.5, options: [] },
 		{

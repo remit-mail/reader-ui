@@ -291,14 +291,18 @@ export const mailHandlers = (
 			() => new HttpResponse(null, { status: 204 }),
 		),
 		http.get(`${API}/addresses/search`, ({ request }) => {
-			const needle = (
-				new URL(request.url).searchParams.get("q") ?? ""
-			).toLowerCase();
+			const params = new URL(request.url).searchParams;
+			const needle = (params.get("q") ?? "").toLowerCase();
+			const flag = params.get("flag");
 			return HttpResponse.json<AddressOperationsSearchAddressesResponse>({
 				items: world.addresses.filter(
 					(address) =>
-						address.normalizedEmail.includes(needle) ||
-						(address.displayName ?? "").toLowerCase().includes(needle),
+						(address.normalizedEmail.includes(needle) ||
+							(address.displayName ?? "").toLowerCase().includes(needle)) &&
+						(flag === null ||
+							Object.entries(address.flags ?? {}).some(
+								([name, state]) => name === flag && state?.value === true,
+							)),
 				),
 			});
 		}),

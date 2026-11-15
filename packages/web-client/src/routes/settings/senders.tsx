@@ -2,12 +2,9 @@
  * Senders & Rules — 2-pane page: rule groups left, dense filterable
  * sender table right. Built to scale to hundreds of flagged senders.
  *
- * Backend gap (#427): there is no "list all addresses with flag X" endpoint.
- * VIP group: served from GET /me/vip-suggestions (suggested-to-promote list).
- * Muted / Blocked / Never in Spam groups: users search by name/email to find
- * flagged senders via GET /addresses/search; results are filtered client-side
- * on the flag, because the search takes no flag filter (spam spec gap 1).
- * The real flagged-address query endpoint is tracked as a backend issue.
+ * VIP, Blocked and Never in Spam list their whole group from
+ * GET /addresses/search with the `flag` filter. Muted has no server-side
+ * filter, so its senders are found by searching and filtered on the flag here.
  */
 import {
 	addressDetailOperationsUpdateAddressMutation,
@@ -56,8 +53,6 @@ export const Route = createFileRoute("/settings/senders")({
 
 type SenderGroup = (typeof SENDER_GROUPS)[number];
 
-type SearchGroup = Exclude<SenderGroup, "vip">;
-
 const groupLabels: Record<SenderGroup, string> = {
 	vip: "VIPs",
 	muted: "Muted",
@@ -65,26 +60,23 @@ const groupLabels: Record<SenderGroup, string> = {
 	neverSpam: "Never in Spam",
 };
 
-const groupNouns: Record<SearchGroup, string> = {
+const FLAGGED_GROUP_LIMIT = 500;
+
+const groupNouns: Record<SenderGroup, string> = {
+	vip: "VIP",
 	muted: "muted",
 	blocked: "blocked",
 	neverSpam: "never-in-spam",
 };
 
-const flagOf = (address: RemitImapAddressResponse, group: SearchGroup) =>
+const flagOf = (address: RemitImapAddressResponse, group: SenderGroup) =>
 	address.flags?.[group];
 
 /* ------------------------------------------------------------------ */
 /* VIP group: served from suggestions endpoint                        */
 /* ------------------------------------------------------------------ */
 
-function VipGroupPane({
-	query,
-	onCount,
-}: {
-	query: string;
-	onCount?: (matched: number, total: number) => void;
-}) {
+function VipGroupPane({ query }: { query: string }) {
 	const { data, isPending, isError, error } = useQuery(
 		meOperationsListVipSuggestionsOptions(),
 	);
@@ -95,6 +87,9 @@ function VipGroupPane({
 		onSettled: () => {
 			queryClient.invalidateQueries({
 				queryKey: meOperationsListVipSuggestionsQueryKey(),
+			});
+			queryClient.invalidateQueries({
+				queryKey: [{ _id: "addressOperationsSearchAddresses" }],
 			});
 		},
 	});
@@ -108,10 +103,6 @@ function VipGroupPane({
 					s.normalizedEmail.toLowerCase().includes(q),
 			)
 		: suggestions;
-
-	useEffect(() => {
-		onCount?.(filtered.length, suggestions.length);
-	}, [onCount, filtered.length, suggestions.length]);
 
 	if (isPending) {
 		return (
@@ -193,7 +184,7 @@ function VipGroupPane({
 }
 
 /* ------------------------------------------------------------------ */
-/* Muted / Blocked groups: search-based (backend gap noted)           */
+/* Flag groups: listed through the address search                    */
 /* ------------------------------------------------------------------ */
 
 export function SearchGroupPane({
@@ -201,7 +192,7 @@ export function SearchGroupPane({
 	query,
 	onCount,
 }: {
-	group: SearchGroup;
+	group: SenderGroup;
 	query: string;
 	onCount?: (matched: number, total: number | null) => void;
 }) {
@@ -209,10 +200,15 @@ export function SearchGroupPane({
 	const queryClient = useQueryClient();
 	const [retryId, setRetryId] = useState<string | null>(null);
 
-	const enabled = debouncedQ.length >= 2;
+	const trustFlag = group === "muted" ? undefined : group;
+	const enabled = trustFlag !== undefined || debouncedQ.length >= 2;
 
 	const searchOptions = addressOperationsSearchAddressesOptions({
-		query: { q: debouncedQ, limit: 50 },
+		query: {
+			q: debouncedQ,
+			limit: trustFlag ? FLAGGED_GROUP_LIMIT : 50,
+			flag: trustFlag,
+		},
 	});
 
 	const { data, isPending, isError, error } = useQuery({
@@ -227,18 +223,17 @@ export function SearchGroupPane({
 		},
 	});
 
-	const items = (data?.items ?? []).filter(
-		(a: RemitImapAddressResponse) => flagOf(a, group)?.value ?? false,
-	);
+	const items = trustFlag
+		? (data?.items ?? [])
+		: (data?.items ?? []).filter(
+				(a: RemitImapAddressResponse) => flagOf(a, group)?.value ?? false,
+			);
 
 	useEffect(() => {
-		// Total flagged count is unknown (no list-all-flagged endpoint), so the
-		// group rail shows the live matched-row count while a search is active.
-		onCount?.(enabled ? items.length : 0, null);
-	}, [onCount, enabled, items.length]);
+		onCount?.(enabled ? items.length : 0, trustFlag ? items.length : null);
+	}, [onCount, enabled, items.length, trustFlag]);
 
 	if (!enabled) {
-		// Backend gap: no list-all-flagged endpoint; prompt user to search.
 		return (
 			<div className="px-row-inset py-5 text-sm text-fg-subtle space-y-2">
 				<p>
@@ -246,7 +241,6 @@ export function SearchGroupPane({
 					address.
 				</p>
 				<p className="text-2xs text-fg-subtle">
-					Note: a dedicated flagged-address list endpoint is in the backlog.
 					Press <Kbd>m</Kbd> on any message to mute its sender; <Kbd>b</Kbd> to
 					block.
 				</p>
@@ -273,8 +267,9 @@ export function SearchGroupPane({
 	if (items.length === 0) {
 		return (
 			<p className="px-row-inset py-5 text-sm text-fg-subtle">
-				No {groupNouns[group]} senders matching &ldquo;
-				{debouncedQ}&rdquo;.
+				{debouncedQ
+					? `No ${groupNouns[group]} senders matching \u201c${debouncedQ}\u201d.`
+					: `No ${groupNouns[group]} senders yet.`}
 			</p>
 		);
 	}
@@ -376,18 +371,10 @@ function SendersSettings() {
 	const [query, setQuery] = useState("");
 	const [helpOpen, setHelpOpen] = useState(true);
 
-	// Per-group counts for the rail + footer. VIP total is the suggestions
-	// list size; muted/blocked have no list endpoint, so their total is null
-	// (the rail shows the live matched-row count instead of a stale total).
 	const [matched, setMatched] = useState(0);
 	const [groupCounts, setGroupCounts] = useState<
 		Record<SenderGroup, number | null>
-	>({ vip: 0, muted: null, blocked: null, neverSpam: null });
-
-	const handleVipCount = useCallback((m: number, total: number) => {
-		setMatched(m);
-		setGroupCounts((prev) => ({ ...prev, vip: total }));
-	}, []);
+	>({ vip: null, muted: null, blocked: null, neverSpam: null });
 
 	const handleSearchCount = useCallback(
 		(m: number, _total: number | null) => {
@@ -439,15 +426,12 @@ function SendersSettings() {
 					</div>
 
 					<div className="min-h-0 flex-1 divide-y divide-line overflow-y-auto">
-						{group === "vip" ? (
-							<VipGroupPane query={query} onCount={handleVipCount} />
-						) : (
-							<SearchGroupPane
-								group={group}
-								query={query}
-								onCount={handleSearchCount}
-							/>
-						)}
+						<SearchGroupPane
+							group={group}
+							query={query}
+							onCount={handleSearchCount}
+						/>
+						{group === "vip" && <VipGroupPane query={query} />}
 					</div>
 
 					<footer className="flex items-center justify-between border-t border-line px-row-inset py-1 text-2xs text-fg-subtle">

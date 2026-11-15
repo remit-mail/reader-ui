@@ -64,6 +64,12 @@ const world = mailWorld({
 		flagged("addr-spam", "Prize Desk", "win@prize.example", {
 			blocked: { value: true, setAt: NOW },
 		}),
+		flagged("addr-boss", "Dana Boss", "dana@acme.example", {
+			vip: { value: true, setAt: NOW },
+		}),
+		flagged("addr-bank", "Example Bank", "alerts@bank.example", {
+			neverSpam: { value: true, setAt: NOW },
+		}),
 	],
 });
 
@@ -83,7 +89,8 @@ type Story = StoryObj<typeof meta>;
 export const SendersAndRules: Story = {
 	play: async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
-		await expect(await canvas.findByText("Ada Lovelace")).toBeVisible();
+		await expect(await canvas.findByText("Dana Boss")).toBeVisible();
+		await expect(canvas.getByText("1 of 1 flagged senders")).toBeVisible();
 		await expect(
 			canvas.getByText("48 received · you replied 21×"),
 		).toBeVisible();
@@ -93,7 +100,29 @@ export const SendersAndRules: Story = {
 		await expect(
 			canvas.getAllByRole("button", { name: "Add VIP" }),
 		).toHaveLength(3);
-		await expect(canvas.getByText("3 of 3 flagged senders")).toBeVisible();
+	},
+};
+
+export const NeverInSpam: Story = {
+	play: async ({ canvasElement }) => {
+		const canvas = within(canvasElement);
+		await canvas.findByText("Ada Lovelace");
+		await userEvent.click(canvas.getByRole("tab", { name: /^Never in Spam/ }));
+		await expect(await canvas.findByText("Example Bank")).toBeVisible();
+		await expect(canvas.queryByText("Prize Desk")).toBeNull();
+		await expect(
+			canvas.getByRole("button", { name: "Remove never-in-spam flag" }),
+		).toBeVisible();
+	},
+};
+
+export const BlockedWithoutSearching: Story = {
+	play: async ({ canvasElement }) => {
+		const canvas = within(canvasElement);
+		await canvas.findByText("Ada Lovelace");
+		await userEvent.click(canvas.getByRole("tab", { name: /^Blocked/ }));
+		await expect(await canvas.findByText("Prize Desk")).toBeVisible();
+		await expect(canvas.queryByText("Example Bank")).toBeNull();
 	},
 };
 
@@ -106,7 +135,7 @@ export const FilteredVips: Story = {
 			"grace",
 		);
 		await expect(
-			await canvas.findByText("1 of 3 flagged senders"),
+			await canvas.findByText(/No VIP senders matching/),
 		).toBeVisible();
 		await expect(canvas.queryByText("Ada Lovelace")).toBeNull();
 	},
