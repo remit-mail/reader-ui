@@ -24,6 +24,7 @@ import {
 	collectionThreadsQueryKey,
 	useCollectionThreads,
 	useCollectionUnreadCount,
+	useLabelUnreadCounts,
 } from "./useCollectionThreads.js";
 
 interface Page {
@@ -209,5 +210,56 @@ describe("useCollectionUnreadCount", () => {
 	// dressed as a total is what this replaces.
 	test("reports nothing when the server has not answered", () => {
 		assert.equal(renderCount(), undefined);
+	});
+});
+
+// The sidebar summed each label folder's IMAP unseen count: messages rather
+// than conversations, applied labels left out, deleted and muted mail left in.
+// The label list counts the server's answer, so the two disagreed.
+describe("useLabelUnreadCounts", () => {
+	test("gives each label the count its list header shows", () => {
+		const client = new QueryClient({
+			defaultOptions: { queries: { retry: false } },
+		});
+		const headerKey = (labelId: string) =>
+			unifiedThreadOperationsListAllThreadsQueryKey({
+				query: {
+					labelId,
+					order: "desc",
+					unread: true,
+					count: true,
+					results: false,
+				},
+			});
+		client.setQueryData(headerKey("label-work"), { count: 4 });
+		client.setQueryData(headerKey("label-travel"), { count: 0 });
+
+		const labelIds = ["label-work", "label-travel", "label-unsynced"];
+		let sidebar: ReadonlyMap<string, number> = new Map();
+		const header = new Map<string, number | undefined>();
+		function Sidebar() {
+			sidebar = useLabelUnreadCounts(labelIds);
+			return null;
+		}
+		function Header({ labelId }: { labelId: string }) {
+			header.set(labelId, useCollectionUnreadCount({ labelId }));
+			return null;
+		}
+		renderToString(
+			createElement(
+				QueryClientProvider,
+				{ client },
+				createElement(Sidebar),
+				...labelIds.map((labelId) =>
+					createElement(Header, { key: labelId, labelId }),
+				),
+			) as never,
+		);
+
+		assert.deepEqual(
+			labelIds.map((labelId) => sidebar.get(labelId)),
+			labelIds.map((labelId) => header.get(labelId)),
+		);
+		assert.equal(sidebar.get("label-work"), 4);
 	});
 });

@@ -26,7 +26,7 @@
 import { unifiedThreadOperationsListAllThreadsQueryKey } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
 import { unifiedThreadOperationsListAllThreads } from "@remit/api-http-client/sdk.gen.ts";
 import type { RemitImapThreadMessageResponse } from "@remit/api-http-client/types.gen.ts";
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQueries, useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import type { ThreadCollection } from "../lib/collection-criteria";
 import type { ThreadSearchTokenParams } from "../lib/thread-search-tokens";
@@ -136,13 +136,48 @@ export function useCollectionUnreadCount(
 	collection: ThreadCollection,
 	criteria: CollectionCriteria = {},
 ): number | undefined {
+	const { data } = useQuery(unreadCountOptions(collection, criteria));
+	return data?.count;
+}
+
+/**
+ * Each label's unread count, from the request the label list's header makes,
+ * so a sidebar badge and the list it opens count the same conversations.
+ */
+export function useLabelUnreadCounts(
+	labelIds: readonly string[],
+): ReadonlyMap<string, number> {
+	const counts = useQueries({
+		queries: labelIds.map((labelId) => unreadCountOptions({ labelId })),
+		combine: countsOf,
+	});
+	return useMemo(
+		() =>
+			new Map(
+				labelIds.flatMap((labelId, index) => {
+					const count = counts[index];
+					return count === undefined ? [] : [[labelId, count] as const];
+				}),
+			),
+		[labelIds, counts],
+	);
+}
+
+const countsOf = (
+	results: ReadonlyArray<{ data?: { count?: number } }>,
+): Array<number | undefined> => results.map((result) => result.data?.count);
+
+function unreadCountOptions(
+	collection: ThreadCollection,
+	criteria: CollectionCriteria = {},
+) {
 	const query = {
 		...collectionQuery(collection, criteria),
 		unread: true,
 		count: true,
 		results: false,
 	};
-	const { data } = useQuery({
+	return {
 		queryKey: unifiedThreadOperationsListAllThreadsQueryKey({ query }),
 		queryFn: async () => {
 			const { data: page } = await unifiedThreadOperationsListAllThreads({
@@ -152,6 +187,5 @@ export function useCollectionUnreadCount(
 			return page;
 		},
 		staleTime: 60_000,
-	});
-	return data?.count;
+	};
 }
