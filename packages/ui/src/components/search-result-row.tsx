@@ -1,7 +1,7 @@
 import { cn } from "../lib/cn.js";
 import type { ThreadRowData } from "./app-shell-types.js";
 import { Badge } from "./badge.js";
-import { provenanceFolderLabel, type ResultFolder } from "./folder-role.js";
+import type { ResultFolder } from "./folder-role.js";
 import { ComfortableRowBody, comfortableRowClass } from "./message-row.js";
 
 export type SearchResultTone =
@@ -60,7 +60,10 @@ export interface SearchResultRowProps {
  * rather than being invented. The category is not mapped here: the search
  * carries its own labelled chip, which the row renders in the badge slot.
  */
-function searchResultRowData(result: SearchResult): ThreadRowData {
+function searchResultRowData(
+	result: SearchResult,
+	showFolder: boolean,
+): ThreadRowData {
 	return {
 		id: result.id,
 		fromName: result.sender,
@@ -71,6 +74,7 @@ function searchResultRowData(result: SearchResult): ThreadRowData {
 		isRead: !result.unread,
 		starred: result.flagged,
 		...(result.mailboxId ? { mailboxId: result.mailboxId } : {}),
+		...(showFolder && result.folder ? { folder: result.folder } : {}),
 	};
 }
 
@@ -91,10 +95,6 @@ export function SearchResultRow({
 	query,
 	showFolder = true,
 }: SearchResultRowProps) {
-	const folderLabel =
-		showFolder && result.folder
-			? provenanceFolderLabel(result.folder)
-			: undefined;
 	return (
 		<button
 			type="button"
@@ -102,15 +102,10 @@ export function SearchResultRow({
 			className={cn("group", comfortableRowClass({}), "border-b border-line")}
 		>
 			<ComfortableRowBody
-				thread={searchResultRowData(result)}
+				thread={searchResultRowData(result, showFolder)}
 				highlightQuery={query}
 				badge={
 					<>
-						{folderLabel && (
-							<Badge tone="neutral" className="shrink-0">
-								{folderLabel}
-							</Badge>
-						)}
 						{result.category && (
 							<Badge
 								tone={result.category.tone ?? "neutral"}

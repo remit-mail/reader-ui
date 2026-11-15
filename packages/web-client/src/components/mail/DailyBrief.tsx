@@ -78,7 +78,6 @@ import {
 	KeyboardHintBar,
 	matchesBriefFilters,
 	partitionSpamResults,
-	provenanceFolderLabel,
 	RefreshButton,
 	SECTION_ROW_CAP,
 	type SearchResult,
@@ -730,8 +729,7 @@ export function DailyBrief({
 					resultFolderIndex,
 					row.mailboxId ? [row.mailboxId] : [],
 				);
-				const folderLabel = folder ? provenanceFolderLabel(folder) : undefined;
-				return folderLabel ? { ...row, folderLabel } : row;
+				return folder ? { ...row, folder } : row;
 			}),
 		[searchRows, narrowRows, resultFolderIndex],
 	);

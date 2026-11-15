@@ -18,9 +18,20 @@ import { LIST_ROW_ATTRIBUTE } from "../lib/roving-focus.js";
 import type { ThreadRowData } from "./app-shell-types.js";
 import { Avatar } from "./avatar.js";
 import { Badge } from "./badge.js";
+import { provenanceFolderLabel, type ResultFolder } from "./folder-role.js";
 import { LabelChip } from "./label-chip.js";
 import { MessageSettlementBadge } from "./message-settlement.js";
 import { SpamRowMarker } from "./spam-row-marker.js";
+
+function FolderChip({ folder }: { folder?: ResultFolder }) {
+	const label = folder ? provenanceFolderLabel(folder) : undefined;
+	if (!label) return null;
+	return (
+		<Badge tone="neutral" className="shrink-0">
+			{label}
+		</Badge>
+	);
+}
 
 /** Visible keyboard-focus ring for a row reached by the list's arrow-key cursor. */
 const ROW_FOCUS_RING =
@@ -125,6 +136,7 @@ export function CompactRowBody({ thread }: { thread: ThreadRowData }) {
 					aria-label="Has an attachment"
 				/>
 			)}
+			<FolderChip folder={thread.folder} />
 			{thread.settlement && (
 				<MessageSettlementBadge settlement={thread.settlement} />
 			)}
@@ -228,11 +240,7 @@ export function ComfortableRowTextContent({
 				<span className="line-clamp-1 min-w-0 flex-1 text-xs text-fg-subtle">
 					{highlightMatches(thread.snippet, highlightQuery)}
 				</span>
-				{thread.folderLabel && (
-					<Badge tone="neutral" className="shrink-0">
-						{thread.folderLabel}
-					</Badge>
-				)}
+				<FolderChip folder={thread.folder} />
 				{thread.category && thread.category !== "personal" && (
 					<Badge tone={categoryTone[thread.category]} className="shrink-0">
 						{getCategoryLabel(thread.category)}

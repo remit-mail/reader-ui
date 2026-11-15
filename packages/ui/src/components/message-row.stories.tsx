@@ -55,7 +55,7 @@ const suspected: ThreadRowData = {
 const suspectedInInbox: ThreadRowData = {
 	...suspected,
 	id: "r-suspected-inbox",
-	folderLabel: "Inbox",
+	folder: { role: "inbox" },
 };
 
 const withAttachment: ThreadRowData = {

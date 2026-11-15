@@ -17,6 +17,7 @@ import type {
 	IntelligenceData,
 	SenderTrustLevel,
 } from "./intelligence-panel.js";
+import type { ResultFolder } from "./folder-role.js";
 import type { ResultCount } from "./list-result-header.js";
 import type { ListState } from "./message-list-state.js";
 import type { RowSettlement } from "./message-settlement.js";
@@ -296,8 +297,8 @@ export interface ThreadRowData {
 	category?: ThreadCategory;
 	/** Number of messages when the row is a thread. */
 	messageCount?: number;
-	/** Where the message sits, named for a row shown outside its own folder. */
-	folderLabel?: string;
+	/** Where the message sits, for a row shown outside its own folder. */
+	folder?: ResultFolder;
 	/** The Remit Spam or Phishing label the message carries. */
 	spam?: ThreadRowSpam;
 	/** Labels applied to this message (issue #26) — filter-, organize-, and manually-applied alike. */
