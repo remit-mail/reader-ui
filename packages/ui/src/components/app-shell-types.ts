@@ -203,6 +203,7 @@ export interface NavLabel {
 	name: string;
 	/** The label's color name; a value the kit has no swatch for renders as Default. */
 	color: string;
+	unseen?: number;
 }
 
 /** Per-account mailbox-load status, so the nav can show loading/error inline. */
@@ -220,6 +221,7 @@ export interface NavAccount {
 	 * nav with every mailbox it already synced, labelled rather than dropped.
 	 */
 	syncedServices?: AccountService[];
+	hierarchyDelimiter: string;
 	mailboxes: NavMailbox[];
 	/**
 	 * Number of outbox messages pending send. When provided, an Outbox entry

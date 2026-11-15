@@ -19,6 +19,12 @@ import {
 	Trash,
 } from "../icons.js";
 import { cn } from "../lib/cn.js";
+import {
+	collapseFolderTree,
+	type FolderTreeNode,
+	folderAncestors,
+	orderFolderNodes,
+} from "../lib/folder-tree.js";
 import { isLabelColorValue, labelDotClass } from "../lib/label-color.js";
 import { useRovingFocus } from "../lib/roving-focus.js";
 import { ACCOUNT_SERVICE_OFF_LABEL } from "./account-service-status.js";
@@ -233,6 +239,7 @@ const FOLDER_COLLAPSE_THRESHOLD = 8;
 
 const FOLDER_OPEN_KEY = "remit.nav.folders.open.";
 const ACCOUNT_OPEN_KEY = "remit.nav.account.open.";
+const FOLDER_NODE_OPEN_KEY = "remit.nav.folder.open.";
 
 /**
  * Read a persisted open/closed flag. `fallback` applies only when nothing is
@@ -248,15 +255,21 @@ export function readOpen(
 	id: string,
 	fallback: boolean,
 ): boolean {
-	if (typeof localStorage === "undefined") return fallback;
-	const stored = localStorage.getItem(prefix + id);
-	if (stored === null) return fallback;
-	return stored !== "0";
+	try {
+		const stored = localStorage.getItem(prefix + id);
+		if (stored === null) return fallback;
+		return stored !== "0";
+	} catch {
+		return fallback;
+	}
 }
 
 export function writeOpen(prefix: string, id: string, open: boolean): void {
-	if (typeof localStorage === "undefined") return;
-	localStorage.setItem(prefix + id, open ? "1" : "0");
+	try {
+		localStorage.setItem(prefix + id, open ? "1" : "0");
+	} catch {
+		// Without storage the choice lasts until the page reloads.
+	}
 }
 
 export const NAV_FOLDER_OPEN_KEY = FOLDER_OPEN_KEY;
@@ -280,6 +293,16 @@ function AccountNav({
 		readOpen(FOLDER_OPEN_KEY, account.id, true),
 	);
 	const [showAllFolders, setShowAllFolders] = useState(false);
+	const [folderOpen, setFolderOpen] = useState<Record<string, boolean>>({});
+
+	const isFolderOpen = (id: string): boolean =>
+		folderOpen[id] ?? readOpen(FOLDER_NODE_OPEN_KEY, id, true);
+
+	const toggleFolder = (id: string) => {
+		const next = !isFolderOpen(id);
+		writeOpen(FOLDER_NODE_OPEN_KEY, id, next);
+		setFolderOpen((open) => ({ ...open, [id]: next }));
+	};
 
 	const toggleAccount = () => {
 		setAccountOpen((open) => {
@@ -301,11 +324,43 @@ function AccountNav({
 		.filter(hasRole)
 		.sort((a, b) => ROLE_ORDER[a.role] - ROLE_ORDER[b.role]);
 	const folders = account.mailboxes.filter((mb) => !hasRole(mb));
-	const visibleFolders =
-		showAllFolders || folders.length <= FOLDER_COLLAPSE_THRESHOLD
-			? folders
-			: folders.slice(0, FOLDER_COLLAPSE_THRESHOLD);
-	const hiddenCount = folders.length - visibleFolders.length;
+	const delimiter = account.hierarchyDelimiter;
+	const folderById = new Map(folders.map((mb) => [mb.id, mb]));
+	const nodes: FolderTreeNode[] = folders.map((mb) => ({
+		id: mb.id,
+		label: mb.name,
+		path: mb.fullPath ?? mb.name,
+	}));
+	const present = new Set(nodes.map((node) => node.path));
+	const parents = new Set(
+		nodes.flatMap((node) =>
+			folderAncestors(node.path, delimiter).filter((path) => present.has(path)),
+		),
+	);
+	const selected = nodes.find((node) => node.id === selectedNavId);
+	const selectedAncestors = new Set(
+		selected ? folderAncestors(selected.path, delimiter) : [],
+	);
+	const expanded = new Set(
+		nodes
+			.filter(
+				(node) => selectedAncestors.has(node.path) || isFolderOpen(node.id),
+			)
+			.map((node) => node.path),
+	);
+	const rows = collapseFolderTree(
+		orderFolderNodes(nodes, delimiter),
+		expanded,
+		delimiter,
+	).flatMap((row) => {
+		const mailbox = folderById.get(row.folder.id);
+		return mailbox ? [{ ...row, mailbox }] : [];
+	});
+	const visibleRows =
+		showAllFolders || rows.length <= FOLDER_COLLAPSE_THRESHOLD
+			? rows
+			: rows.slice(0, FOLDER_COLLAPSE_THRESHOLD);
+	const hiddenCount = rows.length - visibleRows.length;
 
 	const status = account.status ?? "ready";
 	const mailOff =
@@ -446,24 +501,53 @@ function AccountNav({
 									</button>
 									{foldersOpen && (
 										<>
-											{visibleFolders.map((mb) => (
-												<NavItem
-													key={mb.id}
-													navId={mb.id}
-													linkComponent={linkComponent}
-													icon={<Folder className="size-4" />}
-													label={mb.name}
-													ariaLabel={mb.name}
-													title={mb.fullPath ?? mb.name}
-													failure={mb.failure}
-													count={mb.unseen}
-													active={selectedNavId === mb.id}
-													dimmed={account.muted}
-													onClick={() => onSelectNav?.(mb.id)}
-												/>
-											))}
+											{visibleRows.map(
+												({ mailbox: mb, folder, depth, expanded: open }) => (
+													<div
+														key={mb.id}
+														className="flex items-center"
+														style={{ paddingLeft: `${depth * 0.75}rem` }}
+													>
+														{parents.has(folder.path) ? (
+															<button
+																type="button"
+																onClick={() => toggleFolder(mb.id)}
+																aria-expanded={open}
+																aria-label={`${open ? "Collapse" : "Expand"} ${mb.name}`}
+																className={cn(
+																	"flex size-5 shrink-0 items-center justify-center rounded text-fg-subtle transition-colors hover:text-fg",
+																	FOCUS_RING,
+																)}
+															>
+																{open ? (
+																	<ChevronDown className="size-3" />
+																) : (
+																	<ChevronRight className="size-3" />
+																)}
+															</button>
+														) : (
+															<span className="size-5 shrink-0" />
+														)}
+														<div className="min-w-0 flex-1">
+															<NavItem
+																navId={mb.id}
+																linkComponent={linkComponent}
+																icon={<Folder className="size-4" />}
+																label={mb.name}
+																ariaLabel={mb.name}
+																title={mb.fullPath ?? mb.name}
+																failure={mb.failure}
+																count={mb.unseen}
+																active={selectedNavId === mb.id}
+																dimmed={account.muted}
+																onClick={() => onSelectNav?.(mb.id)}
+															/>
+														</div>
+													</div>
+												),
+											)}
 											{(hiddenCount > 0 || showAllFolders) &&
-												folders.length > FOLDER_COLLAPSE_THRESHOLD && (
+												rows.length > FOLDER_COLLAPSE_THRESHOLD && (
 													<button
 														type="button"
 														onClick={() => setShowAllFolders((all) => !all)}
@@ -474,7 +558,7 @@ function AccountNav({
 													>
 														{showAllFolders
 															? "Show less"
-															: `Show all (${folders.length})`}
+															: `Show all (${rows.length})`}
 													</button>
 												)}
 										</>
@@ -557,6 +641,7 @@ export function NavSidebar({
 					icon={labelIcon(label.color)}
 					label={label.name}
 					ariaLabel={label.name}
+					count={label.unseen}
 					active={selectedNavId === label.id}
 					onClick={() => onSelectNav?.(label.id)}
 				/>
