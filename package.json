@@ -42,6 +42,7 @@
 		"typescript": "5.9.3"
 	},
 	"overrides": {
+		"@rrweb/record": "2.2.2",
 		"@vitest/mocker": "^4.1.12",
 		"@xmldom/xmldom": "^0.8.15",
 		"adm-zip": "^0.6.0",
