@@ -21,6 +21,7 @@ declare global {
 			loadProbe: () => Promise<unknown>;
 		};
 		allowPwaRegistration?: () => void;
+		pwaRegistration?: ServiceWorkerRegistration;
 	}
 }
 
@@ -227,11 +228,10 @@ try {
 	serving = join(dirname(dist), "dist-next");
 	await first.evaluate(async () => {
 		const registration = await navigator.serviceWorker.getRegistration();
+		window.pwaRegistration = registration;
 		await registration?.update();
 	});
-	await first.waitForFunction(
-		async () => !!(await navigator.serviceWorker.getRegistration())?.waiting,
-	);
+	await first.waitForFunction(() => !!window.pwaRegistration?.waiting);
 	await first.evaluate(async () =>
 		(await navigator.serviceWorker.getRegistration())?.waiting?.postMessage(
 			"remit:check-update",
@@ -262,6 +262,24 @@ try {
 					.length >= 2,
 		),
 	);
+	// Neither a full nor an unavailable session store may strand a safe tab
+	// after takeover. These overrides belong only to the old documents.
+	await first.evaluate(() => {
+		const setItem = Storage.prototype.setItem;
+		Storage.prototype.setItem = function (key, value) {
+			if (key.startsWith("remit.stale-build-reload:"))
+				throw new DOMException("Session store is full", "QuotaExceededError");
+			setItem.call(this, key, value);
+		};
+	});
+	await second.evaluate(() => {
+		Object.defineProperty(window, "sessionStorage", {
+			configurable: true,
+			get() {
+				throw new DOMException("Session store is unavailable", "SecurityError");
+			},
+		});
+	});
 	finishSave();
 	await first.evaluate(async () =>
 		(await navigator.serviceWorker.getRegistration())?.waiting?.postMessage(
@@ -281,6 +299,14 @@ try {
 	assert.equal(savedSubject, "The edit just before closing");
 	assert.equal(reloadsFirst, 1);
 	assert.equal(reloadsSecond, 1);
+	assert.equal(
+		await first.evaluate(() => document.documentElement.inert),
+		false,
+	);
+	assert.equal(
+		await second.evaluate(() => document.documentElement.inert),
+		false,
+	);
 	await context.close();
 
 	// HTML A can finish booting after deployment B. The first claim must not
@@ -342,8 +368,8 @@ try {
 	);
 	await staleContext.close();
 
-	// Restore the same dirty document from BFCache, then remove the only other
-	// polling tab. Its resumed scheduler must activate once the draft is safe.
+	// Restore the same dirty document from BFCache. Its resumed scheduler must
+	// activate the waiting worker once the draft is safe.
 	serving = dist;
 	const restoredContext = await browser.newContext();
 	const restored = await restoredContext.newPage();
@@ -367,19 +393,24 @@ try {
 		});
 	});
 	const other = await restoredContext.newPage();
-	await other.goto(origin);
-	await other.waitForFunction(() => !!window.pwaTest);
-	await other.waitForLoadState("networkidle");
+	// Keep the old worker in use without a second coordinator's polling. This
+	// clean client votes, but only the restored document can initiate a retry.
+	await other.goto(`${origin}/auth/bfcache-away`);
 	await other.evaluate(() => {
-		window.pwaTest.dirty = true;
+		navigator.serviceWorker.addEventListener("message", (event) => {
+			if (
+				event.data === "remit:prepare-update" ||
+				event.data === "remit:commit-update"
+			)
+				event.ports[0]?.postMessage(true);
+		});
 	});
 	serving = join(dirname(dist), "dist-next");
 	await other.evaluate(async () => {
-		await (await navigator.serviceWorker.getRegistration())?.update();
+		window.pwaRegistration = await navigator.serviceWorker.getRegistration();
+		await window.pwaRegistration?.update();
 	});
-	await other.waitForFunction(
-		async () => !!(await navigator.serviceWorker.getRegistration())?.waiting,
-	);
+	await other.waitForFunction(() => !!window.pwaRegistration?.waiting);
 	await restored.goto(
 		`${origin.replace("127.0.0.1", "localhost")}/auth/bfcache-away`,
 	);
@@ -397,7 +428,15 @@ try {
 		"BFCache must restore the original document",
 	);
 	assert.equal(await restored.evaluate(() => window.pwaTest.dirty), true);
-	await other.close();
+	// Drain votes from before suspension (reply timeout: 1500 ms) while this
+	// document still vetoes activation. Only its resumed checks can retry.
+	await restored.waitForTimeout(2000);
+	assert.equal(
+		await restored.evaluate(
+			async () => !!(await navigator.serviceWorker.getRegistration())?.waiting,
+		),
+		true,
+	);
 	await restored.evaluate(() => {
 		window.pwaTest.dirty = false;
 	});
@@ -410,7 +449,7 @@ try {
 	);
 	await restoredContext.close();
 	console.log(
-		"PWA consumer OK: offline chunks, deferred composer save, stale first control, BFCache restoration, one reload.",
+		"PWA consumer OK: offline chunks, deferred composer save, unavailable/full session storage, stale first control, BFCache restoration, one reload.",
 	);
 } finally {
 	await browser.close();

@@ -11,9 +11,6 @@ import {
 	WORKER_VERSION,
 } from "./pwa-protocol";
 
-import { sessionStore } from "./session-storage";
-import { reloadOnceForChunkFailure } from "./stale-build";
-
 const blockers = new Set<() => boolean>();
 let prepared = false;
 
@@ -80,14 +77,14 @@ export const installPwaUpdateCoordinator = (
 		}
 		prepared = true;
 		document.documentElement.inert = true;
-		if (
-			!reloadOnceForChunkFailure({
-				reload,
-				guard: sessionStore(),
-				commit: `${documentVersion}->${version}`,
-			})
-		)
+		// The worker/document versions prevent recovery loops across loads;
+		// the in-memory guard handles concurrent checks within this document.
+		try {
+			reload();
+		} catch (error) {
 			release();
+			throw error;
+		}
 	};
 	sw.addEventListener("message", (event) => {
 		if (event.data === SHELL_VERSION)

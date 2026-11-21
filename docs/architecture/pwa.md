@@ -40,6 +40,8 @@ query-cache restoration never participates in that comparison. The controlling
 worker reports its shell version so a stale document can recover safely even
 when updating the already-current worker creates no waiting worker. Persisted
 `pageshow` restarts waiting-worker checks immediately and resumes polling.
+Recovery uses an in-memory reload guard and the worker/document versions;
+unavailable or full session storage cannot block a safe takeover.
 
 `@remit/web-client/pwa` exports `registerUpdateBlocker(() => boolean)` (returns
 an unregister function), `isUpdatePrepared()` and `observeServerBuild(commit,
