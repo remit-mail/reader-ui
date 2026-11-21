@@ -49,8 +49,8 @@ export const writeOfflineRecord = async (
 		db.close();
 	}
 };
-export const storageLock = <T>(work: () => Promise<T>): Promise<T> =>
-	navigator.locks.request(OFFLINE_LOCK, work);
+export const storageLock = async <T>(work: () => Promise<T>): Promise<T> =>
+	await navigator.locks.request(OFFLINE_LOCK, work);
 export const contentCacheName = (partition: Partition): string =>
 	`remit-content-v${OFFLINE_FORMAT}-${encodeURIComponent(partition.key)}-${partition.generation}`;
 export const samePartition = (
