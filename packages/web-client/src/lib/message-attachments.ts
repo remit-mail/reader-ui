@@ -22,6 +22,7 @@ export interface MessageAttachment {
 	typeLabel: string;
 	sizeOctets: number;
 	contentUrl: string;
+	contentType: string;
 }
 
 const typeLabelFor = (kind: AttachmentKind, mediaSubtype: string): string => {
@@ -66,5 +67,6 @@ export const selectMessageAttachments = (
 				typeLabel: typeLabelFor(kind, part.mediaSubtype),
 				sizeOctets: part.sizeOctets,
 				contentUrl: part.contentUrl,
+				contentType: `${part.mediaType}/${part.mediaSubtype}`.toLowerCase(),
 			};
 		});

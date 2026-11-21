@@ -12,6 +12,13 @@ import { installAuthInterceptor } from "../auth/auth-interceptor";
 import { type AuthProvider, AuthProviderProvider } from "../auth/provider";
 import { install as installConsoleErrorCatcher } from "../lib/console-errors";
 import { setFatalErrorTelemetry } from "../lib/fatal-error";
+import { NetworkError } from "../lib/network-error";
+import { OfflineProvider } from "../lib/OfflineProvider";
+import {
+	getOfflineRuntime,
+	installOfflineRuntime,
+	type OfflineOptions,
+} from "../lib/offline-runtime";
 import { installPwaUpdateCoordinator } from "../lib/pwa-update";
 import {
 	handleMutationCacheError,
@@ -31,6 +38,8 @@ import { installPwaBuildObservation } from "../lib/client";
 export interface MountOptions {
 	/** The identity system this build composes. */
 	authProvider: AuthProvider;
+	/** Opt-in durable tenant downloads; host owns fresh session verification. */
+	offline?: OfflineOptions;
 	/** Settings sections the host adds, each at `/settings/<id>`. */
 	settingsSlots?: SettingsSlot[];
 	/** Element to mount into. Defaults to `#root`. */
@@ -45,6 +54,7 @@ export interface MountOptions {
  */
 export const mountApp = ({
 	authProvider,
+	offline,
 	settingsSlots = [],
 	rootElementId = "root",
 }: MountOptions): void => {
@@ -65,11 +75,21 @@ export const mountApp = ({
 	// equivalent of `defaultOptions.queries.onError` / `.mutations.onError`.
 	const queryClient = new QueryClient({
 		queryCache: new QueryCache({ onError: handleQueryCacheError }),
-		mutationCache: new MutationCache({ onError: handleMutationCacheError }),
+		mutationCache: new MutationCache({
+			onError: handleMutationCacheError,
+			onMutate: async () => {
+				const runtime = getOfflineRuntime();
+				if (runtime)
+					await runtime.authorizeNetwork("write").catch((error: unknown) => {
+						throw new NetworkError(error);
+					});
+			},
+		}),
 		defaultOptions: {
+			mutations: { networkMode: offline ? "always" : "online", retry: false },
 			queries: {
 				staleTime: 30_000,
-				gcTime: 5 * 60_000,
+				gcTime: offline ? Infinity : 5 * 60_000,
 				retry: 1,
 			},
 		},
@@ -87,6 +107,7 @@ export const mountApp = ({
 		installStaleBuildReload();
 	}
 
+	const offlineRuntime = offline ? installOfflineRuntime(offline) : undefined;
 	const router = createAppRouter(queryClient, telemetry);
 	for (const slot of settingsSlots) {
 		if (Object.hasOwn(router.routesByPath, `/settings/${slot.id}`)) {
@@ -103,18 +124,31 @@ export const mountApp = ({
 	}
 
 	const { Shell } = authProvider;
+	const app = (
+		<AuthProviderProvider value={authProvider}>
+			<SettingsSlotsProvider value={settingsSlots}>
+				{offlineRuntime ? (
+					<RouterProvider router={router} />
+				) : (
+					<Shell>
+						<RouterProvider router={router} />
+					</Shell>
+				)}
+			</SettingsSlotsProvider>
+		</AuthProviderProvider>
+	);
 
 	createRoot(rootElement).render(
 		<StrictMode>
 			<TelemetryContext.Provider value={telemetry}>
 				<QueryClientProvider client={queryClient}>
-					<AuthProviderProvider value={authProvider}>
-						<SettingsSlotsProvider value={settingsSlots}>
-							<Shell>
-								<RouterProvider router={router} />
-							</Shell>
-						</SettingsSlotsProvider>
-					</AuthProviderProvider>
+					{offlineRuntime ? (
+						<OfflineProvider runtime={offlineRuntime} client={queryClient}>
+							{app}
+						</OfflineProvider>
+					) : (
+						app
+					)}
 					{!import.meta.env.PROD && !getRuntimeConfig().disableDevtools && (
 						<ReactQueryDevtools initialIsOpen={false} />
 					)}

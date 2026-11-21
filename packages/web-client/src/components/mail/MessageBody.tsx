@@ -6,6 +6,7 @@ import {
 	MessageBodyView,
 } from "@remit/ui";
 import { useMemo, useState } from "react";
+import { useDownloadedInlineParts } from "../../hooks/useDownloadedInlineParts";
 import { useIsDark } from "../../hooks/useIsDark";
 import { useMessageBodyContent } from "../../hooks/useMessageBodyContent";
 import { useToggleTrusted } from "../../hooks/useToggleTrusted";
@@ -146,9 +147,10 @@ export const MessageBody = ({
 		enabled: hasParts,
 	});
 
+	const inline = useDownloadedInlineParts(bodyParts);
 	const resolveCid: CidResolver = useMemo(
-		() => buildCidResolver(bodyParts ?? []),
-		[bodyParts],
+		() => buildCidResolver(inline.parts ?? []),
+		[inline.parts],
 	);
 
 	const renderedHtml =
@@ -164,7 +166,7 @@ export const MessageBody = ({
 				</div>
 			);
 		}
-		if (isBodyError) {
+		if (isBodyError && !fetched) {
 			return (
 				<div className={cn("message-body", className)}>
 					<MessageBodyErrorBanner
@@ -203,24 +205,32 @@ export const MessageBody = ({
 	// privacy "images blocked" bar (it touches app trust state, so it stays
 	// here and is injected via `renderBlockedNotice`).
 	return (
-		<MessageBodyView
-			className={className}
-			html={renderedHtml}
-			text={renderedText}
-			isDark={isDark}
-			category={category}
-			allowImages={allowImages}
-			resolveCid={resolveCid}
-			renderBlockedNotice={(blockedImageCount) => (
-				<BlockedImagesNotice
-					blockedImageCount={blockedImageCount}
-					canAlwaysTrust={canAlwaysTrust}
-					isTrustPending={isTrustPending}
-					isSenderBlocked={isBlocked}
-					onLoadOnce={() => setAllowImagesOnce(true)}
-					onAlwaysTrust={handleAlwaysTrust}
+		<>
+			{isBodyError && fetched && (
+				<MessageBodyErrorBanner
+					error={bodyError}
+					onRetry={() => refetchBody()}
 				/>
 			)}
-		/>
+			<MessageBodyView
+				className={className}
+				html={renderedHtml}
+				text={renderedText}
+				isDark={isDark}
+				category={category}
+				allowImages={allowImages}
+				resolveCid={resolveCid}
+				renderBlockedNotice={(blockedImageCount) => (
+					<BlockedImagesNotice
+						blockedImageCount={blockedImageCount}
+						canAlwaysTrust={canAlwaysTrust}
+						isTrustPending={isTrustPending}
+						isSenderBlocked={isBlocked}
+						onLoadOnce={() => setAllowImagesOnce(true)}
+						onAlwaysTrust={handleAlwaysTrust}
+					/>
+				)}
+			/>
+		</>
 	);
 };

@@ -69,3 +69,80 @@ its content-hash gate publishes changed packages and the matching exact ui
 version in web-client. The workflow log names the resulting npm versions. The
 host then bumps its exact package pins. This chunk does not publish a release
 or change a host.
+
+# Durable reading (U2)
+
+Enable `mountApp({ authProvider, offline: { verifySession, reauthenticate } })`
+only with the PWA preset enabled. The offline gate replaces `authProvider.Shell`;
+`Account`, token configuration and normal authentication still belong to the host.
+The gate restores the remembered partition without claiming a current session.
+It restores successful reading queries through `PersistQueryClientProvider`
+before mounting routes. Unverified sessions keep local reading available and
+pause network queries. Mutations fail before optimistic updates and are never
+queued for replay. Freshness remains independent of retention: retained queries
+have `gcTime: Infinity`, and persistence has `maxAge: Infinity`.
+
+The host contract for C2 is:
+
+- Implement authenticated `GET /api/session` with `Cache-Control: no-store` and
+  JSON `{ "partitionKey": "<opaque account-config ID>" }`. `verifySession` must
+  make a fresh same-origin fetch with `cache: "no-store"`, `credentials:
+  "same-origin"`, `redirect: "manual"` and a bounded timeout. Validate a 200 JSON
+  response before returning that object; return `null` for 401, 403 or an opaque
+  redirect, and reject transport/server failures. Never derive identity from
+  persisted config, a URL, a user-editable email, or a login HTML response.
+- On successful protected API and `/content/*` responses, set
+  `X-Remit-Partition` to the **server-derived** partition that produced the data.
+  Never echo a client-supplied tenant. The shared fetch boundary checks API
+  provenance before query data reaches persistence; content admission checks
+  it independently. Access/login/SPA responses must never carry this provenance.
+- Serve immutable mail parts at stable same-origin `/content/*` paths, with the
+  exact part MIME, private caching policy, and existing CSP/security headers.
+  The path identifies the bytes; query parameters authorize access and are
+  excluded from device cache keys so renewed signatures reuse downloaded bytes.
+  Exports belong outside these routes and use `no-store`. Only status 200,
+  nonredirected, nonopaque responses with expected MIME/provenance are saved.
+- `reauthenticate` performs explicit foreground navigation through Access
+  (including `?reauth=1` so U1 does not intercept it). Returning from login
+  re-verifies identity before refreshing. A host performing logout outside the
+  shared account menu must first await
+  `getOfflineRuntime()?.removeDownloads()` from `@remit/web-client/offline`,
+  including when offline, before clearing credentials or navigating away.
+- C2 owns the authenticated, destination-validated external-image proxy. This
+  chunk saves CID images and fetched attachment bytes and recreates object URLs;
+  it does not fetch or prefetch remote tracking images. Remote images continue
+  to follow the existing explicit display permission.
+
+The downloaded-message index is separate from replacing list pages. `/downloads`
+reopens saved descriptors directly, without requiring a thread to remain on a
+current list page. Successful snapshots merge by query hash, retaining the last
+successful result through transient errors. Only reading operations are admitted;
+mutations, drafts, exports, credentials and query keys containing request headers
+or bodies are excluded. Storage format `OFFLINE_FORMAT` is independent of shell
+commits; incompatibility requires an explicit remove-downloads action.
+
+Cache Storage and IndexedDB writers share a Web Lock and validate a captured
+partition/generation inside it. Wiping durably rotates an identity-verification
+epoch, revokes the partition, deletes private caches and IDB records, clears the
+query client, and broadcasts the revoked generation across tabs and through the
+worker. A response that started before a wipe cannot recreate data. The worker
+owns generic shell caches only; it forwards revocations to all windows and has
+no global current tenant or private runtime writer. Generic shell caches survive.
+Pending commits block U1 updates, and prepared updates reject new storage writes.
+A part is available offline only after both its bytes and index entry commit.
+Storage failures remain visible; nothing silently evicts old mail.
+
+The downloads status exposes persistent-storage requests, origin usage/quota,
+and save failures. Browser/user eviction remains possible. Foreground resume,
+reconnect and successful reauthentication verify the session before refresh.
+The existing cadence and in-flight guards remain; background sync waits for a
+new server round to settle before refetching active reading metadata and visible
+bodies. Explicit refresh bypasses content cache reads while retaining good saved
+responses when a replacement fails. Push and periodic synchronization are later
+chunks.
+
+A wiped document never binds its old QueryClient to another generation. Confirmed
+identity changes wipe first, then invoke the host's foreground navigation. Other
+tabs and explicit removal similarly require reopening/foreground navigation to
+start downloading again. This document boundary prevents even a late mutation's
+optimistic rollback callback from seeding a new tenant's in-memory cache.

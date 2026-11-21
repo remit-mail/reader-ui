@@ -1,5 +1,8 @@
 import { mailboxOperationsListMailboxesQueryKey } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
-import { syncOperationsTriggerSync } from "@remit/api-http-client/sdk.gen.ts";
+import {
+	syncOperationsGetSyncStatus,
+	syncOperationsTriggerSync,
+} from "@remit/api-http-client/sdk.gen.ts";
 import type { RemitImapAccountResponse } from "@remit/api-http-client/types.gen.ts";
 import { type QueryClient, useQueryClient } from "@tanstack/react-query";
 import pMap from "p-map";
@@ -11,7 +14,13 @@ import {
 	isHotSyncWindowActive,
 	subscribeHotSyncWindow,
 } from "../lib/hot-sync-window";
+import { getOfflineRuntime } from "../lib/offline-runtime";
 import { getRuntimeConfig } from "../runtime-config";
+import {
+	inboxSyncedAt,
+	REFRESH_TIMEOUT_MS,
+	waitForSettled,
+} from "./useRefreshControl";
 
 /**
  * Mailboxes are considered stale 15 minutes after the last successful sync.
@@ -186,19 +195,39 @@ export const handleBackgroundSyncFailure = (
  * which would let a 500 look like a successful sync and invalidate queries
  * anyway.
  */
-const runBackgroundSync = (
+const runBackgroundSync = async (
 	accountId: string,
 	queryClient: QueryClient,
-): Promise<void> =>
-	syncOperationsTriggerSync({ path: { accountId }, throwOnError: true }).then(
-		() => {
-			queryClient.invalidateQueries({
-				queryKey: mailboxOperationsListMailboxesQueryKey({
-					path: { accountId },
-				}),
-			});
-		},
-	);
+): Promise<void> => {
+	const runtime = getOfflineRuntime();
+	if (runtime && !runtime.state.verified) return;
+	const readStatus = async () =>
+		(
+			await syncOperationsGetSyncStatus({
+				path: { accountId },
+				throwOnError: true,
+			})
+		).data;
+	const baseline = runtime ? await readStatus() : undefined;
+	await syncOperationsTriggerSync({ path: { accountId }, throwOnError: true });
+	if (runtime && baseline) {
+		const outcome = await waitForSettled({
+			accountId,
+			readStatus,
+			baselineLastSyncAt: baseline.lastSyncAt ?? 0,
+			baselineInboxSyncedAt: inboxSyncedAt(baseline),
+			deadline: Date.now() + REFRESH_TIMEOUT_MS,
+		});
+		if (outcome) {
+			runtime.report(new Error(outcome.message));
+			return;
+		}
+	}
+	await queryClient.invalidateQueries({
+		queryKey: mailboxOperationsListMailboxesQueryKey({ path: { accountId } }),
+	});
+	await runtime?.refreshReading();
+};
 
 /**
  * Auto-trigger a background mailbox-list sync for every stale account the
@@ -224,6 +253,7 @@ export const useStaleAccountSync = (
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: stableKey is a serialized account list used to trigger re-sync on account changes; adding it would cause issues without also referencing accountsRef
 	useEffect(() => {
+		if (getOfflineRuntime() && !getOfflineRuntime()?.state.verified) return;
 		const now = Date.now();
 		const stale = selectStaleAccountIds(accountsRef.current, now);
 		const fresh = stale.filter((id) => !triggeredAccountIds.has(id));
@@ -244,6 +274,11 @@ export const useStaleAccountSync = (
 		const inFlight = new Set<string>();
 
 		const poll = () => {
+			if (
+				!navigator.onLine ||
+				(getOfflineRuntime() && !getOfflineRuntime()?.state.verified)
+			)
+				return;
 			lastPollAt = Date.now();
 			const ids = selectPollableAccountIds(
 				accountsRef.current.map((a) => a.accountId),
@@ -286,7 +321,7 @@ export const useStaleAccountSync = (
 		// whether a next tick exists: a tab that went to sleep on the hot cadence
 		// and came back after the window lapsed is not due against a longer
 		// ambient interval, and used to stop polling for good (#1031).
-		const handleVisibilityChange = () => {
+		const resumeVisible = () => {
 			if (document.visibilityState !== "visible") return;
 			if (timeoutId !== undefined) clearTimeout(timeoutId);
 			const now = Date.now();
@@ -297,6 +332,19 @@ export const useStaleAccountSync = (
 				return;
 			}
 			timeoutId = setTimeout(tick, lastPollAt + intervalMs - now);
+		};
+
+		const handleVisibilityChange = () => {
+			if (document.visibilityState !== "visible") return;
+			const runtime = getOfflineRuntime();
+			if (runtime) {
+				void runtime
+					.verify()
+					.then((verified) => {
+						if (verified) resumeVisible();
+					})
+					.catch(runtime.report);
+			} else resumeVisible();
 		};
 
 		// A press opens the hot window, but this loop may already be asleep on a
@@ -314,11 +362,32 @@ export const useStaleAccountSync = (
 
 		timeoutId = setTimeout(tick, currentPollIntervalMs());
 		document.addEventListener("visibilitychange", handleVisibilityChange);
+		const handleReconnect = () => {
+			const runtime = getOfflineRuntime();
+			if (runtime) {
+				void runtime
+					.verify()
+					.then((verified) => {
+						if (verified) {
+							poll();
+							void runtime.refreshReading().catch(runtime.report);
+						}
+					})
+					.catch(runtime.report);
+			} else poll();
+		};
+		const handleVerified = () => {
+			poll();
+		};
+		window.addEventListener("online", handleReconnect);
+		window.addEventListener("remit:session-verified", handleVerified);
 		const unsubscribeHotWindow = subscribeHotSyncWindow(handleHotWindow);
 
 		return () => {
 			if (timeoutId !== undefined) clearTimeout(timeoutId);
 			document.removeEventListener("visibilitychange", handleVisibilityChange);
+			window.removeEventListener("online", handleReconnect);
+			window.removeEventListener("remit:session-verified", handleVerified);
 			unsubscribeHotWindow();
 		};
 	}, [stableKey, queryClient]);

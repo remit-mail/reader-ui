@@ -1,5 +1,6 @@
 import { ApiError } from "./api";
 import { NetworkError } from "./network-error";
+import { OfflineUnavailableError } from "./offline-error";
 
 /**
  * Extract an HTTP status code from a thrown error, regardless of which client
@@ -90,7 +91,10 @@ export const isNetworkError = (error: unknown): boolean => {
  * about and must never be asked to shrug off.
  */
 export const isClientBug = (error: unknown): boolean =>
-	!hasHttpStatus(error) && !isAbortError(error) && !isNetworkError(error);
+	!hasHttpStatus(error) &&
+	!isAbortError(error) &&
+	!isNetworkError(error) &&
+	!(error instanceof OfflineUnavailableError);
 
 /**
  * Fatal with no opt-out: our API answered "I'm broken", or our own code threw.
@@ -195,7 +199,8 @@ export const shouldEscalate = (
 		);
 	}
 	if (isAbortError(error)) return false;
-	if (isNetworkError(error)) return false;
+	if (isNetworkError(error) || error instanceof OfflineUnavailableError)
+		return false;
 	if (isUnauthenticated(error)) return false;
 	if (isAlwaysFatal(error)) return true;
 	if (isSoftErrorMeta(error, meta)) return false;

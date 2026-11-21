@@ -8,6 +8,7 @@ import {
 	type RenderableBodyPart,
 } from "../lib/message-body-source";
 import { taggedFetch } from "../lib/network-error";
+import { fetchOfflineContent, getOfflineRuntime } from "../lib/offline-runtime";
 import { useTelemetry } from "../lib/telemetry-context";
 import { messageKeys } from "./queries/keys";
 
@@ -185,9 +186,15 @@ export const fetchBodyContent = async (
 	getToken: () => Promise<string | null> = async () => null,
 ): Promise<string> => {
 	const headers: Record<string, string> = {};
-	const token = await getToken();
-	if (token) headers.Authorization = `Bearer ${token}`;
-	const response = await taggedFetch(url, { headers });
+	const response = await fetchOfflineContent(
+		url,
+		expected === "html" ? "text/html" : "text/plain",
+		async () => {
+			const token = await getToken();
+			if (token) headers.Authorization = `Bearer ${token}`;
+			return taggedFetch(url, { headers });
+		},
+	);
 	// 202 = the body is not synced yet. The content route has re-armed the sync
 	// cue; retry after `Retry-After` seconds rather than rendering the placeholder
 	// body (a 202 is `ok`, so this must be caught before the success path).
@@ -323,8 +330,9 @@ export const useMessageBodyContent = ({
 			);
 		},
 		enabled: enabled && !!messageId && !!picked,
+		networkMode: getOfflineRuntime() ? "always" : "online",
 		staleTime: 5 * 60 * 1000,
-		gcTime: 30 * 60 * 1000,
+		gcTime: getOfflineRuntime() ? Infinity : 30 * 60 * 1000,
 		// A `not-ready` (202) body is still syncing — keep retrying with the
 		// server's `Retry-After` delay until it lands. Every other error keeps the
 		// app-wide default (retry once) so a real failure surfaces its banner
