@@ -44,9 +44,12 @@ export const useInlineImages = (
 			latest.current.storedContent(contentId) ?? beforeLoad(contentId);
 
 		const fetchStored = (content: StoredContent): Promise<string> =>
-			fetchAttachment(content.contentUrl, latest.current.getToken).then(
-				(blob) =>
-					URL.createObjectURL(new Blob([blob], { type: content.contentType })),
+			fetchAttachment(
+				content.contentUrl,
+				latest.current.getToken,
+				content.contentType,
+			).then((blob) =>
+				URL.createObjectURL(new Blob([blob], { type: content.contentType })),
 			);
 
 		const fetchRenewed = (contentId: string): Promise<string> =>

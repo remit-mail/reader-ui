@@ -1,6 +1,7 @@
 import { classifyBodyFetchFailure } from "../hooks/useMessageBodyContent";
 import { buildBugReportContext, buildGitHubIssueUrl } from "./bug-report";
 import { taggedFetch } from "./network-error";
+import { fetchOfflineContent } from "./offline-runtime";
 
 /**
  * Why an attachment download failed. Same edge/origin discrimination the body
@@ -75,14 +76,17 @@ export const ATTACHMENT_FETCH_TIMEOUT_MS = 5 * 60 * 1000;
 export const fetchAttachment = async (
 	url: string,
 	getToken: () => Promise<string | null>,
+	expectedMime = "application/octet-stream",
 ): Promise<Blob> => {
 	const headers: Record<string, string> = {};
-	const token = await getToken();
-	if (token) headers.Authorization = `Bearer ${token}`;
+	const response = await fetchOfflineContent(url, expectedMime, async () => {
+		const token = await getToken();
+		if (token) headers.Authorization = `Bearer ${token}`;
 
-	const response = await taggedFetch(url, {
-		headers,
-		signal: AbortSignal.timeout(ATTACHMENT_FETCH_TIMEOUT_MS),
+		return taggedFetch(url, {
+			headers,
+			signal: AbortSignal.timeout(ATTACHMENT_FETCH_TIMEOUT_MS),
+		});
 	});
 	if (response.status === 202) {
 		throw new AttachmentFetchError(

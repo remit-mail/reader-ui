@@ -76,30 +76,31 @@ export const MessageAttachments = ({
 	const fetchThroughRefreshedDescribe = (
 		attachment: MessageAttachment,
 	): Promise<Blob> =>
-		fetchAttachment(attachment.contentUrl, getToken).catch(
-			(error: unknown): Promise<Blob> => {
-				if (!isRepairableByRefetch(extractAttachmentFailureReason(error))) {
-					throw error;
-				}
-				return queryClient
-					.refetchQueries({ queryKey: describeKey })
-					.then(() => {
-						const refreshed =
-							queryClient.getQueryData<RemitImapDescribeMessageResponse>(
-								describeKey,
-							);
-						const renewed = refreshed
-							? selectMessageAttachments(refreshed.bodyParts).find(
-									(candidate) => candidate.bodyPartId === attachment.bodyPartId,
-								)
-							: undefined;
-						return fetchAttachment(
-							renewed?.contentUrl ?? attachment.contentUrl,
-							getToken,
-						);
-					});
-			},
-		);
+		fetchAttachment(
+			attachment.contentUrl,
+			getToken,
+			attachment.contentType,
+		).catch((error: unknown): Promise<Blob> => {
+			if (!isRepairableByRefetch(extractAttachmentFailureReason(error))) {
+				throw error;
+			}
+			return queryClient.refetchQueries({ queryKey: describeKey }).then(() => {
+				const refreshed =
+					queryClient.getQueryData<RemitImapDescribeMessageResponse>(
+						describeKey,
+					);
+				const renewed = refreshed
+					? selectMessageAttachments(refreshed.bodyParts).find(
+							(candidate) => candidate.bodyPartId === attachment.bodyPartId,
+						)
+					: undefined;
+				return fetchAttachment(
+					renewed?.contentUrl ?? attachment.contentUrl,
+					getToken,
+					renewed?.contentType ?? attachment.contentType,
+				);
+			});
+		});
 
 	const setState = (id: string, state: AttachmentDownloadState) =>
 		setDownloads((current) => ({ ...current, [id]: state }));
