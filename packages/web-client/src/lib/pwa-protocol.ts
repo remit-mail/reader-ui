@@ -2,6 +2,7 @@ export const COMMIT_UPDATE = "remit:commit-update";
 export const PREPARE_UPDATE = "remit:prepare-update";
 export const RELEASE_UPDATE = "remit:release-update";
 export const CHECK_UPDATE = "remit:check-update";
+export const WORKER_VERSION = "remit:worker-version";
 export const SHELL_VERSION = "remit:shell-version";
 export const CLEAN_SHELL_CACHES = "remit:clean-shell-caches";
 export const shellCacheName = (commit: string, time: string): string =>
@@ -21,7 +22,7 @@ export interface UpdateClient {
 
 /** A missing reply is a veto, including a suspended tab running an old bundle. */
 export const askClient = (
-	client: UpdateClient,
+	client: Pick<UpdateClient, "postMessage">,
 	message: string,
 ): Promise<unknown> =>
 	new Promise((resolve) => {
@@ -60,6 +61,9 @@ export const activateWhenSafe = async (
 			),
 		);
 		if (!committed.every(Boolean)) return false;
+		const final = await clients();
+		if (final.some((tab) => !current.some(({ id }) => id === tab.id)))
+			return false;
 		await activate();
 		activated = true;
 		return true;
