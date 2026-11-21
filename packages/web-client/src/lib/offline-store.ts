@@ -1,13 +1,13 @@
 import { OfflineUnavailableError } from "./offline-error";
 /** Independent of shell/build versions. Changing this requires an explicit wipe. */
-export const OFFLINE_FORMAT = 1;
+export const OFFLINE_FORMAT = 2;
 export const OFFLINE_LOCK = "remit-offline-storage";
 export const PARTITION_HEADER = "x-remit-partition";
 export interface Partition {
 	key: string;
 	generation: string;
 	format: number;
-	epoch?: string;
+	epoch: string;
 }
 const database = (): Promise<IDBDatabase> =>
 	new Promise((resolve, reject) => {

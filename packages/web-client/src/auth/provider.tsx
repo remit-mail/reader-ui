@@ -34,6 +34,10 @@ export interface AuthProvider {
 	getToken(): Promise<string | null>;
 	/** Drop any cached token so the next `getToken` re-mints. */
 	resetToken(): void;
+	/** Identity context that must also exist during remembered offline reading. */
+	Provider?: FC<{ children: ReactNode }>;
+	/** Online-only gate, separate from Provider. Shell remains the legacy composition. */
+	SessionGate?: FC<{ children: ReactNode }>;
 	/** The sign-in gate: renders children only once a session is established. */
 	Shell: FC<{ children: ReactNode }>;
 	/**

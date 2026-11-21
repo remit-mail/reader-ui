@@ -244,7 +244,7 @@ const SignInGate = ({ children }: { children: ReactNode }) => {
 	);
 };
 
-export const CognitoShell = ({ children }: CognitoShellProps) => {
+export const CognitoSessionGate = ({ children }: CognitoShellProps) => {
 	if (!isCognitoConfigured()) {
 		// The dev banner is fixed at the top. Pad content below it AND shrink the
 		// inner `main` (hardcoded `h-dvh`) by the banner height — otherwise main's
@@ -258,9 +258,17 @@ export const CognitoShell = ({ children }: CognitoShellProps) => {
 		);
 	}
 
-	return (
-		<Authenticator.Provider>
-			<SignInGate>{children}</SignInGate>
-		</Authenticator.Provider>
-	);
+	return <SignInGate>{children}</SignInGate>;
 };
+
+export const CognitoProvider = ({ children }: CognitoShellProps) =>
+	isCognitoConfigured() ? (
+		<Authenticator.Provider>{children}</Authenticator.Provider>
+	) : (
+		<>{children}</>
+	);
+export const CognitoShell = ({ children }: CognitoShellProps) => (
+	<CognitoProvider>
+		<CognitoSessionGate>{children}</CognitoSessionGate>
+	</CognitoProvider>
+);

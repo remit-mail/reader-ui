@@ -1,28 +1,39 @@
 import type { RemitImapDescribeMessageResponse } from "@remit/api-http-client/types.gen.ts";
+import { type QueryClient, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, Outlet } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { getOfflineRuntime } from "../lib/offline-runtime";
 
 export const Route = createFileRoute("/downloads")({ component: Downloads });
+const downloadedMessages = (client: QueryClient) =>
+	client
+		.getQueryCache()
+		.getAll()
+		.filter((query) => {
+			const first = query.queryKey[0];
+			return (
+				first &&
+				typeof first === "object" &&
+				"_id" in first &&
+				first._id === "messageOperationsDescribeMessage" &&
+				query.state.data
+			);
+		})
+		.map((query) => query.state.data as RemitImapDescribeMessageResponse);
 function Downloads() {
-	const [messages, setMessages] = useState<RemitImapDescribeMessageResponse[]>(
-		[],
+	const client = useQueryClient();
+	const [messages, setMessages] = useState(() => downloadedMessages(client));
+	useEffect(
+		() =>
+			client.getQueryCache().subscribe((event) => {
+				if (
+					event.type === "added" ||
+					event.type === "updated" ||
+					event.type === "removed"
+				)
+					setMessages(downloadedMessages(client));
+			}),
+		[client],
 	);
-	useEffect(() => {
-		const runtime = getOfflineRuntime();
-		if (!runtime) return;
-		void runtime
-			.downloadedMessages()
-			.then((index) =>
-				setMessages(
-					Object.values(index).map(
-						(entry) =>
-							(entry as { data: RemitImapDescribeMessageResponse }).data,
-					),
-				),
-			)
-			.catch(runtime.report);
-	}, []);
 	return (
 		<div className="flex h-full flex-col gap-4 overflow-auto p-4">
 			<h1>Downloaded mail</h1>

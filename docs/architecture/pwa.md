@@ -73,9 +73,15 @@ or change a host.
 # Durable reading (U2)
 
 Enable `mountApp({ authProvider, offline: { verifySession, reauthenticate } })`
-only with the PWA preset enabled. The offline provider preserves `authProvider.Shell` and its authentication context.
-The host shell must allow remembered-partition reading when the runtime is
-unverified; its normal authentication surfaces and Account context stay mounted.
+only with the PWA preset enabled. Auth providers may expose `Provider` for
+identity context and `SessionGate` for online sign-in; `Shell` remains their
+legacy composition. The identity provider always mounts. The offline boundary
+restores remembered reading without mounting the online gate. With no remembered
+partition, it renders the gate and verifies identity after authentication. Both
+shipped Cognito and Better Auth compositions support this separation, including
+explicit sign-in/reset-password navigations. Hosts with SDK context in their
+existing shell must split that context into `Provider` and its gate into
+`SessionGate`; a plain Access gate can continue to use `Shell`.
 The gate restores the remembered partition without claiming a current session.
 It restores successful reading queries through `PersistQueryClientProvider`
 before mounting routes. Unverified sessions keep local reading available and
@@ -114,17 +120,17 @@ The host contract for C2 is:
   it does not fetch or prefetch remote tracking images. Remote images continue
   to follow the existing explicit display permission.
 
-The downloaded-message index is separate from replacing list pages. `/downloads`
-reopens saved descriptors directly, without requiring a thread to remain on a
-current list page. Successful snapshots merge by query hash, retaining the last
+The retained describe-message queries are the downloaded-message index.
+`/downloads` derives its list from the restored QueryClient; no second descriptor
+store exists, and replacing a list page cannot orphan a retained message. Successful snapshots merge by query hash, retaining the last
 successful result through transient errors. Only reading operations are admitted;
-mutations, drafts, exports, credentials and query keys containing request headers
+configuration/settings, mutations, drafts, exports, credentials and query keys containing request headers
 or bodies are excluded. Storage format `OFFLINE_FORMAT` is independent of shell
 commits; incompatibility requires an explicit remove-downloads action.
 
 Cache Storage and IndexedDB writers share a Web Lock and validate a captured
 partition/generation inside it. Wiping durably rotates an identity-verification
-epoch, revokes the partition, deletes private caches and IDB records, clears the
+epoch (initialized before the first partition), revokes the partition, deletes private caches and IDB records, clears the
 query client, and broadcasts the revoked generation across tabs and through the
 worker. A response that started before a wipe cannot recreate data. The worker
 owns generic shell caches only; it forwards revocations to all windows and has
@@ -147,3 +153,10 @@ identity changes wipe first, then invoke the host's foreground navigation. Other
 tabs and explicit removal similarly require reopening/foreground navigation to
 start downloading again. This document boundary prevents even a late mutation's
 optimistic rollback callback from seeding a new tenant's in-memory cache.
+
+The packed Chromium consumer tests close and restart the browser with the same
+durable profile, age its snapshot by 90 days, and reopen old mail, referenced
+inline image blobs and attachment bytes offline. They exercise both shipped auth
+compositions, expired signed-link recovery, real Cache Storage and IndexedDB
+failures, a delayed network response across a two-tab wipe, and tenant changes.
+Unit tests retain only the pure admission and query-retention selectors.

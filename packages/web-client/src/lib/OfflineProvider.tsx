@@ -1,6 +1,7 @@
 import { type QueryClient, useIsRestoring } from "@tanstack/react-query";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import {
+	type FC,
 	type ReactNode,
 	useEffect,
 	useMemo,
@@ -9,6 +10,7 @@ import {
 } from "react";
 import { type OfflineRuntime, retainedReadingQuery } from "./offline-runtime";
 import { OFFLINE_FORMAT } from "./offline-store";
+import { isAppNavigation } from "./pwa-protocol";
 
 export interface OfflineStatusProps {
 	verified: boolean;
@@ -65,10 +67,12 @@ const Restored = ({ children }: { children: ReactNode }) =>
 export const OfflineProvider = ({
 	runtime,
 	client,
+	gate: Gate,
 	children,
 }: {
 	runtime: OfflineRuntime;
 	client: QueryClient;
+	gate: FC<{ children: ReactNode }>;
 	children: ReactNode;
 }) => {
 	const state = useSyncExternalStore(runtime.subscribe, runtime.snapshot);
@@ -93,7 +97,7 @@ export const OfflineProvider = ({
 				void runtime
 					.verify()
 					.then((verified) => {
-						if (!verified) runtime.options.reauthenticate();
+						if (!verified && navigator.onLine) runtime.options.reauthenticate();
 					})
 					.catch(runtime.report);
 			}}
@@ -112,13 +116,15 @@ export const OfflineProvider = ({
 				<p role="status">Opening downloads…</p>
 			</>
 		);
+	if (!isAppNavigation(new URL(window.location.href)))
+		return <Gate>{children}</Gate>;
 	if (!state.partition || !persister)
 		return (
 			<>
 				{status}
-				<p>
-					Sign in to download mail. First-time offline sign-in is unavailable.
-				</p>
+				<Gate>
+					<VerifyAuthenticatedSession runtime={runtime} />
+				</Gate>
 			</>
 		);
 	return (
@@ -143,5 +149,21 @@ export const OfflineProvider = ({
 				</div>
 			</div>
 		</PersistQueryClientProvider>
+	);
+};
+
+const VerifyAuthenticatedSession = ({
+	runtime,
+}: {
+	runtime: OfflineRuntime;
+}) => {
+	useEffect(() => {
+		void runtime.verify().catch(runtime.report);
+	}, [runtime]);
+	return (
+		<p role="status">
+			Verify your session to download mail. First-time offline sign-in is
+			unavailable.
+		</p>
 	);
 };

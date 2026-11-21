@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { configureAmplify } from "./amplify-config";
 import { isBetterAuthEnabled } from "./better-auth-config";
 import { betterAuthProvider } from "./better-auth-provider";
+import { CognitoProvider, CognitoSessionGate } from "./cognito/CognitoShell";
 import { cognitoAuthProvider } from "./cognito-provider";
 import type { AuthAccountProps, AuthProvider } from "./provider";
 
@@ -38,5 +39,17 @@ export const combinedAuthProvider: AuthProvider = {
 		cognitoAuthProvider.resetToken();
 	},
 	Shell: CombinedShell,
+	Provider: ({ children }) =>
+		isBetterAuthEnabled() ? (
+			<>{children}</>
+		) : (
+			<CognitoProvider>{children}</CognitoProvider>
+		),
+	SessionGate: ({ children }) =>
+		isBetterAuthEnabled() ? (
+			<betterAuthProvider.Shell>{children}</betterAuthProvider.Shell>
+		) : (
+			<CognitoSessionGate>{children}</CognitoSessionGate>
+		),
 	Account: CombinedAccount,
 };

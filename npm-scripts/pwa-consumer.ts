@@ -6,16 +6,22 @@ import { createServer } from "node:http";
 import { dirname, extname, join } from "node:path";
 import { promisify } from "node:util";
 import { chromium } from "playwright";
+import type { OfflineRuntime } from "../packages/web-client/src/lib/offline-runtime.ts";
 import {
 	makeAccount,
 	makeConfig,
 	makeUserSettings,
 } from "../packages/web-client/src/test-support/fixtures.ts";
+import { testOfflineReading } from "./offline-consumer.ts";
 
 declare global {
 	interface Window {
 		pwaTest: {
 			dirty: boolean;
+			offline: () => OfflineRuntime | undefined;
+			reauthentications: number;
+			latePersist?: () => Promise<string>;
+			slowSave?: Promise<string>;
 			version: string;
 			restored?: boolean;
 			loadProbe: () => Promise<unknown>;
@@ -76,6 +82,38 @@ const draft = {
 	createdAt: 0,
 	updatedAt: 0,
 };
+let tenant = "tenant-a";
+let sessionStatus = 200;
+const contentRequests: string[] = [];
+let attachmentExpired = false;
+let inlineReady!: () => void;
+const inlineGate = new Promise<void>((resolve) => {
+	inlineReady = resolve;
+});
+let slowReady!: () => void;
+const slowRequested = new Promise<void>((resolve) => {
+	slowReady = resolve;
+});
+let releaseSlow!: () => void;
+const slowGate = new Promise<void>((resolve) => {
+	releaseSlow = resolve;
+});
+const part = (
+	messageId: string,
+	path: string,
+	mediaType: string,
+	mediaSubtype: string,
+	extra = {},
+) => ({
+	bodyPartId: path,
+	partPath: path,
+	mediaType,
+	mediaSubtype,
+	isMultipart: false,
+	sizeOctets: 32,
+	contentUrl: `/content/${messageId}/${path}?signature=${attachmentExpired ? "renewed" : "expired"}`,
+	...extra,
+});
 const server = createServer(async (request, response) => {
 	const path = new URL(request.url ?? "/", "http://localhost").pathname;
 	const file = join(serving, path === "/" ? "index.html" : path);
@@ -84,9 +122,103 @@ const server = createServer(async (request, response) => {
 		response.setHeader("Content-Type", "text/html");
 		response.setHeader("Cache-Control", "max-age=600");
 		response.end("<!doctype html><title>Outside the app</title>");
+	} else if (path.startsWith("/content/")) {
+		contentRequests.push(path);
+		response.setHeader("X-Remit-Partition", tenant);
+		response.setHeader("Cache-Control", "private, max-age=3600");
+		response.setHeader("Content-Security-Policy", "sandbox");
+		if (path.endsWith("/html")) {
+			response.setHeader("Content-Type", "text/html");
+			response.end(
+				'<p>Old downloaded body</p><img alt="first inline" src="cid:one"><img alt="second inline" src="cid:two"><!-- <img src="cid:unused"> --><script>"<img src=cid:unused>"</script><img src="https://tracking.invalid/pixel">',
+			);
+		} else if (path.endsWith("/inline-a") || path.endsWith("/inline-b")) {
+			if (path.endsWith("/inline-a")) await inlineGate;
+			else inlineReady();
+			response.setHeader("Content-Type", "image/png");
+			response.end(
+				Buffer.from(
+					"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+					"base64",
+				),
+			);
+		} else if (path.endsWith("/attachment")) {
+			if (!attachmentExpired) {
+				attachmentExpired = true;
+				response.writeHead(403, { "x-remit-403-reason": "expired" });
+				response.end("Expired signature");
+			} else {
+				response.setHeader("Content-Type", "application/pdf");
+				response.end("Offline attachment bytes\n");
+			}
+		} else if (path.endsWith("/slow")) {
+			slowReady();
+			await slowGate;
+			response.setHeader("Content-Type", "text/plain");
+			response.end("Late private bytes");
+		} else if (path.endsWith("/quota")) {
+			response.setHeader("Content-Type", "text/plain");
+			response.end("Quota probe");
+		} else {
+			response.writeHead(500);
+			response.end("Unused CID must never be fetched");
+		}
 	} else if (path.startsWith("/api/")) {
 		response.setHeader("Content-Type", "application/json");
-		if (path === "/api/config")
+		if (!path.startsWith("/api/auth/") && path !== "/api/session")
+			response.setHeader("X-Remit-Partition", tenant);
+		if (path === "/api/session") {
+			response.setHeader("Cache-Control", "no-store");
+			response.statusCode = sessionStatus;
+			response.end(
+				JSON.stringify(
+					sessionStatus === 200
+						? { partitionKey: tenant }
+						: { error: "Session unavailable" },
+				),
+			);
+		} else if (path.startsWith("/api/auth/")) response.end("null");
+		else if (path.startsWith("/api/messages/")) {
+			const messageId = path.split("/").at(-1)!;
+			response.end(
+				JSON.stringify({
+					message: { messageId, mailboxId: "inbox", status: "active" },
+					envelope: {
+						messageId,
+						subject:
+							messageId === "old-mail" ? "Old retained mail" : "New list page",
+						date: 0,
+						from: [],
+						to: [],
+						cc: [],
+						bcc: [],
+						replyTo: [],
+						sender: [],
+					},
+					flags: [],
+					references: [],
+					bodyParts:
+						messageId === "old-mail"
+							? [
+									part(messageId, "html", "TEXT", "HTML"),
+									part(messageId, "inline-a", "IMAGE", "PNG", {
+										contentId: "<one>",
+									}),
+									part(messageId, "inline-b", "IMAGE", "PNG", {
+										contentId: "two",
+									}),
+									part(messageId, "unused", "IMAGE", "PNG", {
+										contentId: "unused",
+									}),
+									part(messageId, "attachment", "APPLICATION", "PDF", {
+										disposition: "attachment",
+										dispositionFilename: "report.pdf",
+									}),
+								]
+							: [],
+				}),
+			);
+		} else if (path === "/api/config")
 			response.end(
 				JSON.stringify(
 					makeConfig([makeAccount({ accountId: "acc-1" })], {
@@ -448,10 +580,22 @@ try {
 		"2",
 	);
 	await restoredContext.close();
+	await testOfflineReading(origin, {
+		setSession: (key, status = 200) => {
+			tenant = key;
+			sessionStatus = status;
+		},
+		contentRequests,
+		slowRequested,
+		releaseSlow,
+	});
 	console.log(
 		"PWA consumer OK: offline chunks, deferred composer save, unavailable/full session storage, stale first control, BFCache restoration, one reload.",
 	);
 } finally {
+	inlineReady();
+	releaseSlow();
+	finishSave();
 	await browser.close();
 	await new Promise<void>((resolve, reject) =>
 		server.close((error) => (error ? reject(error) : resolve())),

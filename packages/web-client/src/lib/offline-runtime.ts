@@ -47,7 +47,6 @@ export const retainedReadingQuery = (
 	if (!first || typeof first !== "object" || !("_id" in first)) return false;
 	if ("headers" in first || "body" in first) return false;
 	return new Set([
-		"configOperationsGetConfig",
 		"mailboxOperationsListMailboxes",
 		"messageOperationsDescribeMessage",
 		"threadDetailOperationsListThreadMessages",
@@ -55,6 +54,25 @@ export const retainedReadingQuery = (
 		"threadOperationsSearchThreads",
 		"unifiedThreadOperationsListAllThreads",
 	]).has(String(first._id));
+};
+
+/** Preserve the last successful descriptor even when a list page or error replaces it. */
+export const mergePersistedQueries = (
+	previous: PersistedClient | undefined,
+	client: PersistedClient,
+): PersistedClient => {
+	const queries = new Map(
+		previous?.clientState.queries.map((query) => [query.queryHash, query]),
+	);
+	for (const query of client.clientState.queries) {
+		const existing = queries.get(query.queryHash);
+		if (!existing || query.state.dataUpdatedAt >= existing.state.dataUpdatedAt)
+			queries.set(query.queryHash, query);
+	}
+	return {
+		...client,
+		clientState: { mutations: [], queries: [...queries.values()] },
+	};
 };
 
 export class OfflineRuntime {
@@ -143,7 +161,13 @@ export class OfflineRuntime {
 		const wasVerified = this.state.verified;
 		this.update({ verified: false });
 		const revision = this.revision;
-		const epoch = await offlineRecord<string>("epoch");
+		const epoch = await storageLock(async () => {
+			const existing = await offlineRecord<string>("epoch");
+			if (existing) return existing;
+			const epoch = crypto.randomUUID();
+			await writeOfflineRecord("epoch", epoch);
+			return epoch;
+		});
 		const observed = await offlineRecord<Partition>("partition");
 		if (
 			this.state.partition &&
@@ -255,47 +279,11 @@ export class OfflineRuntime {
 					const previous = await offlineRecord<PersistedClient>(
 						`queries:${partition.generation}`,
 					);
-					const queries = new Map(
-						previous?.clientState.queries.map((query) => [
-							query.queryHash,
-							query,
-						]),
-					);
-					for (const query of client.clientState.queries) {
-						const existing = queries.get(query.queryHash);
-						if (
-							!existing ||
-							query.state.dataUpdatedAt >= existing.state.dataUpdatedAt
-						)
-							queries.set(query.queryHash, query);
-					}
-					await writeOfflineRecord(`queries:${partition.generation}`, {
-						...client,
-						clientState: { mutations: [], queries: [...queries.values()] },
-					});
-					// Merge descriptors independently of replacement list pages.
-					const messages =
-						(await offlineRecord<Record<string, unknown>>(
-							`messages:${partition.generation}`,
-						)) ?? {};
-					for (const query of queries.values()) {
-						const first = query.queryKey[0];
-						if (
-							first &&
-							typeof first === "object" &&
-							"_id" in first &&
-							String(first._id) === "messageOperationsDescribeMessage"
-						)
-							messages[query.queryHash] = {
-								queryKey: query.queryKey,
-								data: query.state.data,
-							};
-					}
 					await writeOfflineRecord(
-						`messages:${partition.generation}`,
-						messages,
+						`queries:${partition.generation}`,
+						mergePersistedQueries(previous, client),
 					);
-				}).catch(this.report);
+				});
 			},
 			restoreClient: () =>
 				commitOffline(partition, () =>
@@ -384,17 +372,6 @@ export class OfflineRuntime {
 		} finally {
 			this.refreshing--;
 		}
-	}
-	async downloadedMessages(): Promise<Record<string, unknown>> {
-		const partition = this.state.partition;
-		if (!partition) return {};
-		return commitOffline(
-			partition,
-			async () =>
-				(await offlineRecord<Record<string, unknown>>(
-					`messages:${partition.generation}`,
-				)) ?? {},
-		);
 	}
 }
 let runtime: OfflineRuntime | undefined;

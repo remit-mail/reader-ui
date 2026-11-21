@@ -6,7 +6,7 @@ import {
 } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { RouterProvider } from "@tanstack/react-router";
-import { StrictMode } from "react";
+import { Fragment, StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { installAuthInterceptor } from "../auth/auth-interceptor";
 import { type AuthProvider, AuthProviderProvider } from "../auth/provider";
@@ -123,31 +123,35 @@ export const mountApp = ({
 		throw new Error(`Root element not found: #${rootElementId}`);
 	}
 
-	const { Shell } = authProvider;
-	const app = (
-		<AuthProviderProvider value={authProvider}>
-			<SettingsSlotsProvider value={settingsSlots}>
-				<Shell>
-					<RouterProvider router={router} />
-				</Shell>
-			</SettingsSlotsProvider>
-		</AuthProviderProvider>
-	);
+	const Provider = authProvider.Provider ?? Fragment;
+	const Gate = authProvider.SessionGate ?? authProvider.Shell;
+	const app = <RouterProvider router={router} />;
 
 	createRoot(rootElement).render(
 		<StrictMode>
 			<TelemetryContext.Provider value={telemetry}>
 				<QueryClientProvider client={queryClient}>
-					{offlineRuntime ? (
-						<OfflineProvider runtime={offlineRuntime} client={queryClient}>
-							{app}
-						</OfflineProvider>
-					) : (
-						app
-					)}
-					{!import.meta.env.PROD && !getRuntimeConfig().disableDevtools && (
-						<ReactQueryDevtools initialIsOpen={false} />
-					)}
+					<AuthProviderProvider value={authProvider}>
+						<SettingsSlotsProvider value={settingsSlots}>
+							<Provider>
+								{offlineRuntime ? (
+									<OfflineProvider
+										runtime={offlineRuntime}
+										client={queryClient}
+										gate={Gate}
+									>
+										{app}
+									</OfflineProvider>
+								) : (
+									<Gate>{app}</Gate>
+								)}
+								{!import.meta.env.PROD &&
+									!getRuntimeConfig().disableDevtools && (
+										<ReactQueryDevtools initialIsOpen={false} />
+									)}
+							</Provider>
+						</SettingsSlotsProvider>
+					</AuthProviderProvider>
 				</QueryClientProvider>
 			</TelemetryContext.Provider>
 		</StrictMode>,
