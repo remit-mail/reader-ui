@@ -128,3 +128,34 @@ test("a write starting during preparation or an activation failure releases the 
 	);
 	assert.equal(clean.released, true);
 });
+
+test("a dirty tab opened during a delayed commit prevents activation", async () => {
+	const old = tab("old", true);
+	const dirty = tab("arriving-dirty", false);
+	const tabs = [old];
+	let commitRequested!: () => void;
+	const committing = new Promise<void>((resolve) => {
+		commitRequested = resolve;
+	});
+	let finishCommit!: () => void;
+	old.postMessage = (message, ports) => {
+		if (message === RELEASE_UPDATE) old.released = true;
+		else if (message === COMMIT_UPDATE) {
+			finishCommit = () => (ports[0] as MessagePort).postMessage(true);
+			commitRequested();
+		} else (ports[0] as MessagePort).postMessage(true);
+	};
+	let activations = 0;
+	const activation = activateWhenSafe(
+		async () => [...tabs],
+		async () => {
+			activations++;
+		},
+	);
+	await committing;
+	tabs.push(dirty);
+	finishCommit();
+	assert.equal(await activation, false);
+	assert.equal(activations, 0);
+	assert.equal(old.released, true);
+});

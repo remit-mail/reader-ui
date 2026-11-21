@@ -164,3 +164,36 @@ describe("a message reopened in the composer", () => {
 		);
 	});
 });
+
+it("holds activation after the real composer closes until its debounced save settles", async () => {
+	await mount();
+	let finishSave!: () => void;
+	const saving = new Promise<void>((resolve) => {
+		finishSave = resolve;
+	});
+	http?.restore();
+	http = mockFetch(async (call) => {
+		if (call.method === "PATCH") {
+			await saving;
+			return { ...failedEntry, ...call.body };
+		}
+		return failedEntry;
+	});
+	harness?.type(subjectField(), "The edit just before closing");
+	await harness?.flush();
+	harness?.close();
+	harness = undefined;
+	assert.equal(canUpdate(), false, "the debounce outlives the form");
+	await new Promise((resolve) =>
+		setTimeout(resolve, AUTOSAVE_DEBOUNCE_MS + 100),
+	);
+	assert.equal(writes().at(-1)?.body?.subject, "The edit just before closing");
+	assert.equal(
+		canUpdate(),
+		false,
+		"the in-flight save still vetoes activation",
+	);
+	finishSave();
+	await new Promise((resolve) => setTimeout(resolve, 30));
+	assert.equal(canUpdate(), true);
+});

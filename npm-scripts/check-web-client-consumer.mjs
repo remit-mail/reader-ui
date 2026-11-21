@@ -159,16 +159,21 @@ try {
 	writeFileSync(
 		join(consumer, "src", "main.tsx"),
 		[
-			'import { betterAuthProvider } from "@remit/web-client/auth/better-auth";',
+			'import { noneAuthProvider } from "@remit/web-client/auth/provider";',
 			'import { mountApp } from "@remit/web-client/shell";',
 			'import { registerUpdateBlocker } from "@remit/web-client/pwa";',
-			"window.pwaTest = { dirty: false };",
+			'window.pwaTest = { dirty: false, version: __APP_SHA__, loadProbe: () => import("./lazy-probe") };',
+			'window.addEventListener("pageshow", event => { window.pwaTest.restored = event.persisted; });',
 			"registerUpdateBlocker(() => window.pwaTest.dirty);",
 			'sessionStorage.setItem("pwa-loads", String(Number(sessionStorage.getItem("pwa-loads") ?? 0) + 1));',
 			"",
-			"mountApp({ authProvider: betterAuthProvider });",
+			"mountApp({ authProvider: noneAuthProvider });",
 			"",
 		].join("\n"),
+	);
+	writeFileSync(
+		join(consumer, "src/lazy-probe.ts"),
+		"export const version = __APP_SHA__;\n",
 	);
 	writeFileSync(
 		join(consumer, "vite.config.js"),

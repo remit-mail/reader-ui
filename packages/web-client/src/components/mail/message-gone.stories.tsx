@@ -9,6 +9,7 @@ import {
 import { mailHandlers } from "../../mocks/story-frame/mail-handlers";
 
 const world = composeWorld();
+const routeLoad = { timeout: 5000 };
 
 const goneFromServer = http.get("/api/messages/msg-q3-planning", () =>
 	HttpResponse.json(
@@ -35,12 +36,14 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const MovedOrDeletedElsewhere: Story = {
-	play: async () => {
-		const page = within(document.body);
-		await page.findAllByText("Q3 planning");
+	play: async ({ canvasElement }) => {
+		const page = within(canvasElement);
+		await page.findAllByText("Q3 planning", {}, routeLoad);
 		await expect(
 			await page.findByText(
 				"This message is no longer on the mail server. It was moved or deleted in another mail app.",
+				{},
+				routeLoad,
 			),
 		).toBeVisible();
 	},
