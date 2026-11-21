@@ -8,6 +8,7 @@ import {
 	isAppNavigation,
 	SHELL_VERSION,
 	shellCacheName,
+	WORKER_VERSION,
 } from "../../src/lib/pwa-protocol.ts";
 
 declare const self: ServiceWorkerGlobalScope & {
@@ -37,6 +38,10 @@ self.addEventListener("activate", (event) => {
 });
 let checking: Promise<boolean> | undefined;
 self.addEventListener("message", (event) => {
+	if (event.data === WORKER_VERSION) {
+		event.ports[0]?.postMessage(cacheName);
+		return;
+	}
 	if (event.data === CLEAN_SHELL_CACHES) {
 		event.waitUntil(
 			(async () => {

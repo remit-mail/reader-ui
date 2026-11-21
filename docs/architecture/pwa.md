@@ -25,14 +25,21 @@ fallback, and configure Access bypass paths themselves.
 
 The waiting worker asks every window client, including uncontrolled clients,
 for permission before activation. An unresponsive tab vetoes the update. Each
-tab blocks while a composer is open or a React Query mutation is pending. Safe
+tab blocks while a composer is open or a React Query mutation is pending. Draft
+saves also own blockers from scheduling through queueing and settlement, even
+after the composer closes. Safe
 tabs hold user input while voting; a veto releases them. A second vote checks
-for late writes and pins the hold through activation. An accepted activation
-claims clients and each previously controlled tab reloads once. The chunk error
+for late writes and pins the hold through activation. Membership is checked
+again after that vote. An accepted activation claims clients; each tab checks
+its own draft/write barrier before reloading once, including arrivals during
+takeover. The chunk error
 handler requests a worker update through this same coordinator. A successful
 fresh network config response compares `buildCommit` to the bundle SHA and
 requests `registration.update()` on mismatch. Config requests bypass HTTP cache;
-query-cache restoration never participates in that comparison.
+query-cache restoration never participates in that comparison. The controlling
+worker reports its shell version so a stale document can recover safely even
+when updating the already-current worker creates no waiting worker. Persisted
+`pageshow` restarts waiting-worker checks immediately and resumes polling.
 
 `@remit/web-client/pwa` exports `registerUpdateBlocker(() => boolean)` (returns
 an unregister function), `isUpdatePrepared()` and `observeServerBuild(commit,

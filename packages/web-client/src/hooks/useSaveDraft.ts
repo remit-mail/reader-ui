@@ -5,8 +5,9 @@ import {
 } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
 import type { ComposeSaveState } from "@remit/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { softErrorMeta } from "../lib/error-classifier";
+import { registerUpdateBlocker } from "../lib/pwa-update";
 
 export type ImmediateSave =
 	| { outcome: "saved"; outboxMessageId: string }
@@ -79,7 +80,21 @@ export const useSaveDraft = ({
 }: UseSaveDraftOptions) => {
 	const [saveState, setSaveState] = useState<ComposeSaveState>(IDLE);
 	const [saveError, setSaveError] = useState<unknown>(null);
+	const mounted = useRef(true);
+	useEffect(() => {
+		mounted.current = true;
+		return () => {
+			mounted.current = false;
+		};
+	}, []);
 	const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+	const scheduledBlocker = useRef<(() => void) | undefined>(undefined);
+	const cancelScheduledSave = useCallback(() => {
+		clearTimeout(timerRef.current);
+		timerRef.current = undefined;
+		scheduledBlocker.current?.();
+		scheduledBlocker.current = undefined;
+	}, []);
 	const closedIdsRef = useRef<Set<string>>(new Set());
 	const queryClient = useQueryClient();
 
@@ -102,7 +117,7 @@ export const useSaveDraft = ({
 		const leavingADocument = propIdRef.current !== undefined;
 		propIdRef.current = outboxMessageId;
 		targetIdRef.current = outboxMessageId;
-		if (leavingADocument && timerRef.current) clearTimeout(timerRef.current);
+		if (leavingADocument) cancelScheduledSave();
 	}
 
 	// A write that fails belongs in the composer's banner beside the message it
@@ -148,7 +163,8 @@ export const useSaveDraft = ({
 				},
 			});
 			targetIdRef.current = result.outboxMessageId;
-			onDraftCreated(result.outboxMessageId);
+			// Persist after close, but do not navigate back into the closed form.
+			if (mounted.current) onDraftCreated(result.outboxMessageId);
 			setSaveState(SAVED);
 			queryClient.invalidateQueries({
 				queryKey: outboxOperationsListOutboxMessagesOptions().queryKey,
@@ -169,7 +185,10 @@ export const useSaveDraft = ({
 	const writesRef = useRef<Promise<void>>(Promise.resolve());
 	const enqueueSave = useCallback(
 		(data: DraftData) => {
-			const write = writesRef.current.then(() => executeSave(data));
+			const release = registerUpdateBlocker(() => true);
+			const write = writesRef.current
+				.then(() => executeSave(data))
+				.finally(release);
 			writesRef.current = settled(write);
 			return write;
 		},
@@ -178,7 +197,7 @@ export const useSaveDraft = ({
 
 	const saveDraft = useCallback(
 		(data: DraftData) => {
-			if (timerRef.current) clearTimeout(timerRef.current);
+			cancelScheduledSave();
 			// Said now rather than two seconds from now: the composer is holding
 			// text nothing is going to persist, and the moment it starts holding it
 			// is the moment the user has to be able to see that.
@@ -193,19 +212,28 @@ export const useSaveDraft = ({
 			setSaveState((current) =>
 				current.status === "unsaved" ? IDLE : current,
 			);
+			scheduledBlocker.current = registerUpdateBlocker(() => true);
 			timerRef.current = setTimeout(() => {
+				timerRef.current = undefined;
+				const release = scheduledBlocker.current;
+				scheduledBlocker.current = undefined;
 				const targetId = targetIdRef.current;
-				if (targetId && closedIdsRef.current.has(targetId)) return;
+				if (targetId && closedIdsRef.current.has(targetId)) {
+					release?.();
+					return;
+				}
 				// Keep the real error, not just a vague "error" status — the caller
 				// surfaces its detail in a banner. A fatal 5xx additionally escalates
 				// through the global MutationCache.onError sink.
-				enqueueSave(data).catch((error: unknown) => {
+				const write = enqueueSave(data);
+				release?.();
+				write.catch((error: unknown) => {
 					setSaveError(error);
 					setSaveState(SAVE_FAILED);
 				});
 			}, 2000);
 		},
-		[enqueueSave],
+		[enqueueSave, cancelScheduledSave],
 	);
 
 	// Whoever asks for this is acting on the draft right now and owns the
@@ -214,7 +242,7 @@ export const useSaveDraft = ({
 	// `saveError` would raise a second "Couldn't save draft" banner beside it.
 	const saveImmediately = useCallback(
 		(data: DraftData): Promise<ImmediateSave> => {
-			if (timerRef.current) clearTimeout(timerRef.current);
+			cancelScheduledSave();
 			return enqueueSave(data)
 				.then(
 					(result): ImmediateSave => ({
@@ -227,7 +255,7 @@ export const useSaveDraft = ({
 					return { outcome: "failed", error };
 				});
 		},
-		[enqueueSave],
+		[enqueueSave, cancelScheduledSave],
 	);
 
 	// Called with an id, the entry is closed to autosave for good. Sending and
@@ -235,10 +263,14 @@ export const useSaveDraft = ({
 	// schedules autosaves re-runs on every mutation settling — so dropping the
 	// pending timer alone leaves the next render free to schedule another write
 	// against an entry the server will refuse (#604).
-	const stopAutoSave = useCallback((closedOutboxMessageId?: string) => {
-		if (timerRef.current) clearTimeout(timerRef.current);
-		if (closedOutboxMessageId) closedIdsRef.current.add(closedOutboxMessageId);
-	}, []);
+	const stopAutoSave = useCallback(
+		(closedOutboxMessageId?: string) => {
+			cancelScheduledSave();
+			if (closedOutboxMessageId)
+				closedIdsRef.current.add(closedOutboxMessageId);
+		},
+		[cancelScheduledSave],
+	);
 
 	return { saveState, saveError, saveDraft, saveImmediately, stopAutoSave };
 };
