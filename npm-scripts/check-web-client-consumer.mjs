@@ -180,7 +180,7 @@ try {
 		[
 			'import { webClientPreset } from "@remit/web-client/vite-preset";',
 			'import { defineConfig } from "vite";',
-			'export default defineConfig(webClientPreset({ entry: "src/main.tsx", runtimeConfig: { betterAuthEnabled: true, updateMode: "managed" }, commit: process.env.REMIT_TEST_COMMIT ?? "consumer-pwa-v1", pwa: { enabled: true, manifestOverrides: { name: "Consumer Mail" } } }));',
+			'export default defineConfig(webClientPreset({ entry: "src/main.tsx", runtimeConfig: { betterAuthEnabled: true, updateMode: "managed" }, commit: process.env.REMIT_TEST_COMMIT ?? "consumer-pwa-v1", pwa: { enabled: true, manifestOverrides: { name: "Consumer Mail" }, navigationDenylist: ["/consent", "/device", "/apps"] } }));',
 			"",
 		].join("\n"),
 	);

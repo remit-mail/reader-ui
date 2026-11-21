@@ -8,11 +8,24 @@ export const CLEAN_SHELL_CACHES = "remit:clean-shell-caches";
 export const shellCacheName = (commit: string, time: string): string =>
 	`remit-shell-${commit}-${time}`;
 
-/** Only the generic app shell is eligible. Private data belongs to U2. */
-export const isAppNavigation = (url: URL): boolean =>
+/** Private endpoints must never read from the app shell's precache. */
+export const isAppRequest = (url: URL): boolean =>
 	url.searchParams.get("reauth") !== "1" &&
 	!/^\/(?:api|content|outbox-upload|upload|uploads|cdn-cgi|oauth|auth|login|logout|signin|signout|sign-in|sign-up|reset-password|forgot-password|verify-email|callback)(?:\/|$)/i.test(
 		url.pathname,
+	);
+
+/** Navigations to host pages or file paths must reach the server. */
+export const isAppNavigation = (
+	url: URL,
+	navigationDenylist: readonly string[] = [],
+): boolean =>
+	isAppRequest(url) &&
+	!/(?:\.|%2e)[^/]+\/?$/i.test(url.pathname) &&
+	!navigationDenylist.some(
+		(path) =>
+			url.pathname === path ||
+			url.pathname.startsWith(path.endsWith("/") ? path : `${path}/`),
 	);
 
 export interface UpdateClient {

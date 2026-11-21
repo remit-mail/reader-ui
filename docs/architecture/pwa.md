@@ -18,6 +18,12 @@ Cloudflare canonicalizes `/index.html` with a redirect.
 Navigations read the shell cache first. API, content, uploads, Access, OAuth,
 authentication and `reauth=1` navigations reach the network. No runtime response
 cache is installed. Failed or redirected precache downloads fail installation.
+Hosts with server-rendered pages add `pwa.navigationDenylist: ["/consent",
+"/device", "/apps"]`. This optional `readonly string[]` is baked into `sw.js`;
+each rooted pathname excludes itself and its descendants, while built-in
+exclusions remain in force. Navigations whose final path segment has a file
+extension also reach the network, preserving server responses for missing
+assets. Regular asset fetches still use the precache.
 Hosts must serve worker/manifest MIME types, prevent missing-static-file SPA
 fallback, and configure Access bypass paths themselves.
 

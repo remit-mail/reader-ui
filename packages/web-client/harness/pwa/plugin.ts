@@ -6,6 +6,8 @@ import { type ManifestOptions, VitePWA } from "vite-plugin-pwa";
 export interface PwaOptions {
 	enabled: boolean;
 	manifestOverrides?: Partial<ManifestOptions>;
+	/** Host-owned paths excluded from shell navigation, including descendants. */
+	navigationDenylist?: readonly string[];
 	/** Stage required host assets before the precache is generated. */
 	beforePrecache?: (outDir: string) => Promise<void>;
 }
