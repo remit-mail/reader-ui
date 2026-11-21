@@ -11,6 +11,7 @@ import {
 	FileText,
 	Folder,
 	Inbox,
+	Lock,
 	Mails,
 	OctagonAlert,
 	Send,
@@ -34,6 +35,7 @@ import type {
 	NavLabel,
 	NavLinkComponent,
 	NavMailbox,
+	NavMailboxNote,
 	NavMailboxRole,
 } from "./app-shell-types.js";
 
@@ -73,13 +75,13 @@ function NavItemInner({
 	label,
 	count,
 	active,
-	failure,
+	failed,
 }: {
 	icon?: ReactNode;
 	label: string;
 	count?: number;
 	active?: boolean;
-	failure?: string;
+	failed?: boolean;
 }) {
 	return (
 		<>
@@ -94,7 +96,7 @@ function NavItemInner({
 				</span>
 			)}
 			<span className="flex-1 truncate">{label}</span>
-			{failure && (
+			{failed && (
 				<CircleAlert
 					className="size-3.5 shrink-0 text-danger"
 					aria-hidden="true"
@@ -115,6 +117,38 @@ function NavItemInner({
 }
 
 /**
+ * A folder the mail server refuses to open. It is not a destination, so it is
+ * neither a link nor in the arrow-key group, and its reason stays on screen
+ * because a phone never shows a tooltip.
+ */
+function UnavailableNavItem({
+	label,
+	text,
+	dimmed,
+}: {
+	label: string;
+	text: string;
+	dimmed?: boolean;
+}) {
+	return (
+		<div
+			role="note"
+			aria-label={`${label} — ${text}`}
+			className={cn(
+				"flex w-full cursor-not-allowed items-start gap-2 rounded-md px-2 py-1 text-sm text-fg-subtle",
+				dimmed && "opacity-55",
+			)}
+		>
+			<Lock className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+			<span className="min-w-0 flex-1">
+				<span className="block truncate italic">{label}</span>
+				<span className="block text-2xs">{text}</span>
+			</span>
+		</div>
+	);
+}
+
+/**
  * A navigation entry. Renders a real anchor through `linkComponent` when given a
  * `navId` (preserving middle-click / deep-link / link a11y); otherwise a button
  * with programmatic `onClick`. Non-navigational toggles never pass a navId.
@@ -130,13 +164,13 @@ function NavItem({
 	linkComponent,
 	ariaLabel,
 	title,
-	failure,
+	note,
 	onClick,
 }: {
 	icon?: ReactNode;
 	label: string;
 	count?: number;
-	failure?: string;
+	note?: NavMailboxNote;
 	active?: boolean;
 	dimmed?: boolean;
 	indent?: boolean;
@@ -146,6 +180,11 @@ function NavItem({
 	title?: string;
 	onClick?: () => void;
 }) {
+	if (note?.kind === "unavailable") {
+		return (
+			<UnavailableNavItem label={label} text={note.text} dimmed={dimmed} />
+		);
+	}
 	const className = navItemClassName({ active, dimmed, indent });
 	const inner = (
 		<NavItemInner
@@ -153,12 +192,12 @@ function NavItem({
 			label={label}
 			count={count}
 			active={active}
-			failure={failure}
+			failed={note !== undefined}
 		/>
 	);
 	const name = ariaLabel ?? label;
-	const announced = failure ? `${name} — ${failure}` : name;
-	const tooltip = failure ? `${title ?? label} — ${failure}` : title;
+	const announced = note ? `${name} — ${note.text}` : name;
+	const tooltip = note ? `${title ?? label} — ${note.text}` : title;
 
 	if (navId && linkComponent) {
 		return linkComponent({
@@ -176,7 +215,7 @@ function NavItem({
 			type="button"
 			onClick={onClick}
 			className={className}
-			aria-label={failure ? announced : ariaLabel}
+			aria-label={note ? announced : ariaLabel}
 			title={tooltip}
 		>
 			{inner}
@@ -452,7 +491,7 @@ function AccountNav({
 									label={mb.name}
 									ariaLabel={mb.name}
 									title={mb.fullPath ?? mb.name}
-									failure={mb.failure}
+									note={mb.note}
 									count={mb.unseen}
 									active={selectedNavId === mb.id}
 									dimmed={account.muted}
@@ -536,7 +575,7 @@ function AccountNav({
 																label={mb.name}
 																ariaLabel={mb.name}
 																title={mb.fullPath ?? mb.name}
-																failure={mb.failure}
+																note={mb.note}
 																count={mb.unseen}
 																active={selectedNavId === mb.id}
 																dimmed={account.muted}

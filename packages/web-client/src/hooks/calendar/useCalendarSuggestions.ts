@@ -34,6 +34,7 @@ import {
 } from "@tanstack/react-query";
 import { useCallback, useMemo } from "react";
 import { softErrorStatuses } from "../../lib/error-classifier";
+import { listPages } from "../../lib/list-pages";
 
 const SUGGESTION_META = softErrorStatuses(400, 404);
 
@@ -99,17 +100,18 @@ const findPending = async (
 	suggestionId: string,
 	signal: AbortSignal,
 ): Promise<RemitImapCalendarSuggestionResponse | null> => {
-	let continuationToken: string | undefined;
-	do {
+	const pages = listPages(async (continuationToken) => {
 		const { data } = await calendarSuggestionOperationsListCalendarSuggestions({
 			query: { state: "Pending", continuationToken },
 			signal,
 			throwOnError: true,
 		});
-		const found = data.items.find((item) => item.suggestionId === suggestionId);
+		return data;
+	});
+	for await (const items of pages) {
+		const found = items.find((item) => item.suggestionId === suggestionId);
 		if (found) return found;
-		continuationToken = data.continuationToken;
-	} while (continuationToken);
+	}
 	return null;
 };
 

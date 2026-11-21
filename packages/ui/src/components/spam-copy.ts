@@ -146,6 +146,7 @@ export const SPAM_SCREEN_SENTENCES: Record<
 	NeverSpam: "You marked this sender Never in Spam.",
 	Vip: "This sender is a VIP.",
 	WellKnown: "You know this sender well.",
+	KnownSender: "You have written to this sender before.",
 	Newsletter: "It is a newsletter from a sender you already get mail from.",
 };
 

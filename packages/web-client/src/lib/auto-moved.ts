@@ -1,5 +1,5 @@
 import type { RemitImapAutoMovedInfo } from "@remit/api-http-client/types.gen.ts";
-import { PlacementAction } from "@remit/domain-enums";
+import { FromPlacement, PlacementAction } from "@remit/domain-enums";
 
 /** The two folder roles the account's mailboxes can resolve for this feature. */
 export interface AutoMovedRoleMailboxes {
@@ -7,9 +7,13 @@ export interface AutoMovedRoleMailboxes {
 	junkMailboxId: string | undefined;
 }
 
-const FROM_PLACEMENT_LABEL: Record<string, string> = {
-	inbox: "Inbox",
-	junk: "Junk",
+const FROM_PLACEMENT_LABEL: Record<
+	(typeof FromPlacement)[keyof typeof FromPlacement],
+	string
+> = {
+	[FromPlacement.Inbox]: "Inbox",
+	[FromPlacement.Junk]: "Junk",
+	[FromPlacement.Other]: "another folder",
 };
 
 /** A standing-filter move names an arbitrary destination via `destinationMailboxId`; a classifier move names a direction via `action`. */
@@ -33,8 +37,8 @@ export const autoMovedLabel = (
 	if (isFilterMove(autoMoved)) {
 		return `Moved from ${sourceFolderName ?? "another folder"} by Remit`;
 	}
-	const from = autoMoved.fromPlacement ?? "";
-	return `Moved from ${FROM_PLACEMENT_LABEL[from] ?? "another folder"} by Remit`;
+	const from = autoMoved.fromPlacement ?? FromPlacement.Other;
+	return `Moved from ${FROM_PLACEMENT_LABEL[from]} by Remit`;
 };
 
 /**
@@ -97,7 +101,9 @@ export const resolveUndoTargetMailboxId = (
 ): string | undefined => {
 	if (!autoMoved) return undefined;
 	if (isFilterMove(autoMoved)) return autoMoved.fromMailboxId;
-	if (autoMoved.fromPlacement === "inbox") return mailboxes.inboxMailboxId;
-	if (autoMoved.fromPlacement === "junk") return mailboxes.junkMailboxId;
+	if (autoMoved.fromPlacement === FromPlacement.Inbox)
+		return mailboxes.inboxMailboxId;
+	if (autoMoved.fromPlacement === FromPlacement.Junk)
+		return mailboxes.junkMailboxId;
 	return undefined;
 };

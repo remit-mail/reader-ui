@@ -189,8 +189,18 @@ export interface NavMailbox {
 	 * localized leaf name still reveals where it lives. Defaults to `name`.
 	 */
 	fullPath?: string;
-	/** Present when the last change to this folder failed: what went wrong, in words. */
-	failure?: string;
+	/** What is wrong with the folder, in words, when anything is. */
+	note?: NavMailboxNote;
+}
+
+/**
+ * `failure`: the last change to the folder failed; the folder still opens.
+ * `unavailable`: the mail server refuses to open the folder, so it does not
+ * open here either.
+ */
+export interface NavMailboxNote {
+	kind: "failure" | "unavailable";
+	text: string;
 }
 
 /**

@@ -87,6 +87,7 @@ export {
 	type NavLinkComponent,
 	type NavLinkRenderProps,
 	type NavMailbox,
+	type NavMailboxNote,
 	type NavMailboxRole,
 	type PaneLayout,
 	READING_PANE_MIN_WIDTH,

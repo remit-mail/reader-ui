@@ -189,8 +189,33 @@ export const RefusedFolderChange: Story = {
 						id: "hn-locked",
 						name: "Locked",
 						fullPath: "INBOX/Locked",
-						failure:
-							"The mail server refused the last change: Permission denied",
+						note: {
+							kind: "failure",
+							text: "The mail server refused the last change: Permission denied",
+						},
+					},
+				],
+			},
+		],
+		selectedNavId: "hn-inbox",
+	},
+};
+
+export const UnavailableSharedFolder: Story = {
+	args: {
+		accounts: [
+			{
+				...hostnetAccount,
+				mailboxes: [
+					...hostnetAccount.mailboxes,
+					{
+						id: "hn-shared",
+						name: "Team",
+						fullPath: "Shared/Team",
+						note: {
+							kind: "unavailable",
+							text: "The mail server refuses to open this folder. Check its permissions on the server, or unsubscribe from it.",
+						},
 					},
 				],
 			},

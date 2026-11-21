@@ -17,7 +17,7 @@ const ROLE_MAILBOXES: AutoMovedRoleMailboxes = {
 
 const classifierMove = (
 	action: RemitImapAutoMovedInfo["action"],
-	fromPlacement: string,
+	fromPlacement: NonNullable<RemitImapAutoMovedInfo["fromPlacement"]>,
 ): RemitImapAutoMovedInfo => ({ action, fromPlacement });
 
 const filterMove = (

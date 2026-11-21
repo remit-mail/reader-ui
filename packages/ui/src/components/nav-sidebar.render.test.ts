@@ -58,7 +58,7 @@ describe("NavSidebar", () => {
 								id: "personal-locked",
 								name: "Locked",
 								fullPath: "Locked",
-								failure: "Permission denied",
+								note: { kind: "failure", text: "Permission denied" },
 							},
 						],
 					},

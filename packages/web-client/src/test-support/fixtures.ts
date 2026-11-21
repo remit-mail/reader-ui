@@ -31,6 +31,7 @@ export const makeMailbox = (
 	lastMessageSyncAt: 0,
 	syncStatus: "synced",
 	syncFailureReason: "",
+	statusRefused: false,
 	createdAt: 0,
 	updatedAt: 0,
 	...overrides,
