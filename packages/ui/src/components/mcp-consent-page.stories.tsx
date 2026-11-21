@@ -8,13 +8,17 @@ const meta: Meta<typeof McpConsentPage> = {
 	tags: ["proposed"],
 	component: McpConsentPage,
 	parameters: { layout: "fullscreen" },
-	args: { clientName: "Claude", oauthQuery: "client_id=abc&sig=xyz" },
+	args: {
+		clientName: "Claude",
+		oauthQuery: "client_id=abc&sig=xyz",
+		offerOperatorGrant: false,
+	},
 };
 export default meta;
 
 type Story = StoryObj<typeof McpConsentPage>;
 
-export const ReadAndRules: Story = {
+export const WithoutOperatorGrant: Story = {
 	args: { permissions: mcpPermissionsFixture },
 	play: async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
@@ -24,6 +28,22 @@ export const ReadAndRules: Story = {
 		).toBeVisible();
 		await expect(canvas.getByRole("button", { name: "Allow" })).toBeVisible();
 		await expect(canvas.getByRole("button", { name: "Deny" })).toBeVisible();
+		await expect(
+			canvas.queryByRole("checkbox", { name: "Grant operator access" }),
+		).not.toBeInTheDocument();
+	},
+};
+
+export const WithOperatorGrant: Story = {
+	args: {
+		permissions: mcpPermissionsFixture,
+		offerOperatorGrant: true,
+	},
+	play: async ({ canvasElement }) => {
+		const canvas = within(canvasElement);
+		await expect(
+			canvas.getByRole("checkbox", { name: "Grant operator access" }),
+		).not.toBeChecked();
 	},
 };
 
