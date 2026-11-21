@@ -12,6 +12,7 @@ import type {
 } from "@remit/api-http-client/types.gen.ts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
+import { listPages } from "../lib/list-pages";
 
 /**
  * The query key the label list reads and every mutation invalidates on
@@ -26,16 +27,15 @@ const listAllLabels = async (
 	accountId: string,
 ): Promise<RemitImapLabelResponse[]> => {
 	const labels: RemitImapLabelResponse[] = [];
-	let continuationToken: string | undefined;
-	do {
+	const pages = listPages(async (continuationToken) => {
 		const { data } = await labelOperationsListLabels({
 			path: { accountId },
 			query: { continuationToken },
 			throwOnError: true,
 		});
-		labels.push(...data.items);
-		continuationToken = data.continuationToken;
-	} while (continuationToken);
+		return data;
+	});
+	for await (const items of pages) labels.push(...items);
 	return labels;
 };
 

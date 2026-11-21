@@ -6,6 +6,7 @@ import type {
 } from "@remit/api-http-client/types.gen.ts";
 import type { RescueCandidate } from "@remit/ui";
 import { useQuery } from "@tanstack/react-query";
+import { listPages } from "../lib/list-pages";
 import { rescueCandidateReason } from "../lib/rescue-candidates";
 
 const TRUST_REASON = "We can verify this sender";
@@ -38,16 +39,18 @@ export function useRescueCandidates(junkMailboxId: string | undefined): {
 		queryKey: threadOperationsSearchThreadsQueryKey({ path, query }),
 		queryFn: async () => {
 			const items: RemitImapThreadMessageResponse[] = [];
-			let continuationToken: string | undefined;
-			do {
+			const pages = listPages(async (continuationToken) => {
 				const { data: page } = await threadOperationsSearchThreads({
 					path,
 					query: { ...query, continuationToken },
 					throwOnError: true,
 				});
-				items.push(...(page.items ?? []));
-				continuationToken = page.continuationToken;
-			} while (continuationToken);
+				return {
+					items: page.items ?? [],
+					continuationToken: page.continuationToken,
+				};
+			});
+			for await (const page of pages) items.push(...page);
 			return { items };
 		},
 		enabled: !!junkMailboxId,

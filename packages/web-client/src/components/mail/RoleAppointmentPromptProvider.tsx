@@ -1,4 +1,5 @@
 import {
+	configOperationsGetConfigOptions,
 	configOperationsGetConfigQueryKey,
 	folderRoleOperationsAppointFolderRoleMutation,
 	mailboxOperationsListMailboxesOptions,
@@ -22,7 +23,6 @@ import {
 } from "react";
 import { useCreateMailbox } from "../../hooks/useCreateMailbox";
 import { useFolderLabelTranslator } from "../../hooks/useFolderLabelTranslator";
-import { configQueryOptions } from "../../lib/config-query";
 import { softErrorStatuses } from "../../lib/error-classifier";
 import { buildMailboxRoleMap, labelForMailbox } from "../../lib/folder-roles";
 import { buildMoveOptions, folderDelimiter } from "../../lib/move-options";
@@ -80,7 +80,7 @@ export const RoleAppointmentPromptProvider = ({
 	// provider is mounted at the root, so an ungated read would put a request
 	// behind every screen that never opens a prompt.
 	const { data: config } = useQuery({
-		...configQueryOptions(),
+		...configOperationsGetConfigOptions(),
 		staleTime: Infinity,
 		enabled: !!accountId,
 	});

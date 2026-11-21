@@ -1,3 +1,4 @@
+import { configOperationsGetConfigOptions } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
 import type {
 	RemitImapQuarantineResponse,
 	RemitImapSyncWarningResponse,
@@ -26,7 +27,6 @@ import {
 	buildBugReportContext,
 	buildGitHubIssueUrl,
 } from "../../lib/bug-report";
-import { configQueryOptions } from "../../lib/config-query";
 import { isUnauthenticated } from "../../lib/error-classifier";
 import { toQuarantineEntry } from "../../lib/quarantine-entries";
 import type { ResultFolderIndex } from "../../lib/result-folder";
@@ -197,7 +197,7 @@ function delimiterForMailbox(
 
 export function WarningsPanel() {
 	const list = useWarningsList();
-	const config = useQuery(configQueryOptions());
+	const config = useQuery(configOperationsGetConfigOptions());
 	const accounts = useMemo(() => config.data?.accounts ?? [], [config.data]);
 	const folders = useResultFolderIndex(accounts);
 

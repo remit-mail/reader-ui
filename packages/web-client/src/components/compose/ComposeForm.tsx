@@ -1,4 +1,5 @@
 import {
+	configOperationsGetConfigOptions,
 	outboxDetailOperationsDeleteOutboxMessageMutation,
 	outboxDetailOperationsGetOutboxMessageOptions,
 	outboxDetailOperationsSendOutboxMessageMutation,
@@ -80,7 +81,6 @@ const LazyComposeBody = lazy(() =>
 
 import { useIsDesktop } from "../../hooks/useMediaQuery.js";
 import { useVisualViewport } from "../../hooks/useVisualViewport.js";
-import { configQueryOptions } from "../../lib/config-query";
 import type { ComposeMode } from "./ComposeProvider";
 import { OUTBOX_ROW_META, useCompose } from "./ComposeProvider";
 import { FromSelector } from "./FromSelector";
@@ -972,7 +972,7 @@ export const ComposeForm = ({
 	});
 
 	const { data: config } = useQuery({
-		...configQueryOptions(),
+		...configOperationsGetConfigOptions(),
 		staleTime: Infinity,
 	});
 

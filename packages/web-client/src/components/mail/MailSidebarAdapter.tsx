@@ -12,6 +12,7 @@ import type {
 	NavAccount,
 	NavLabel,
 	NavLinkComponent,
+	NavMailboxNote,
 	NavMailboxRole,
 } from "@remit/ui";
 import { NavSidebar } from "@remit/ui";
@@ -100,6 +101,16 @@ function sortMailboxes(
 	return { system, labels };
 }
 
+const folderNote = (
+	mb: RemitImapMailboxResponse,
+): NavMailboxNote | undefined => {
+	const unavailable = folderUnavailable(mb);
+	if (unavailable) return { kind: "unavailable", text: unavailable };
+	const failure = folderFailure(mb);
+	if (failure) return { kind: "failure", text: failure };
+	return undefined;
+};
+
 /**
  * Convert an API mailbox to a NavMailbox for the kit: `role` comes from the
  * account's folder-role map (RFC 032 exclusive-folder-appointment, #976), the
@@ -118,8 +129,7 @@ function toNavMailbox(
 		unseen: showBadge ? mb.unseenCount : undefined,
 		role,
 		fullPath: mb.fullPath,
-		failure: folderFailure(mb),
-		unavailable: folderUnavailable(mb),
+		note: folderNote(mb),
 	};
 }
 

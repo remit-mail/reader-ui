@@ -42,6 +42,10 @@ const reasonCopy: Record<PlacementReasonCode, string> = {
 		"Nothing gave a reason to bring it out of Junk.",
 };
 
+/** A server newer than this build can send a reason it has no label for yet. */
+const reasonLabel = (code: PlacementReasonCode): string =>
+	reasonCopy[code] ?? code;
+
 function placementHeadline(placement: PlacementIntel): string {
 	const fromJunk = placement.fromPlacement === FromPlacement.Junk;
 	if (placement.action === PlacementAction.MoveToJunk && fromJunk) {
@@ -77,7 +81,7 @@ export function Placement({ placement }: { placement: PlacementIntel }) {
 			{placement.reasons.length > 0 && (
 				<ul className="mt-2 list-disc space-y-0.5 pl-4 text-2xs text-fg-muted">
 					{placement.reasons.map((code) => (
-						<li key={code}>{reasonCopy[code]}</li>
+						<li key={code}>{reasonLabel(code)}</li>
 					))}
 				</ul>
 			)}

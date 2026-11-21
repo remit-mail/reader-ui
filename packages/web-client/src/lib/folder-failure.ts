@@ -13,5 +13,5 @@ export const folderUnavailable = (
 	mailbox: Pick<RemitImapMailboxResponse, "statusRefused">,
 ): string | undefined =>
 	mailbox.statusRefused
-		? "Unavailable: the mail server refuses to open this folder."
+		? "The mail server refuses to open this folder. Check its permissions on the server, or unsubscribe from it."
 		: undefined;

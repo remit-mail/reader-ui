@@ -1,5 +1,6 @@
 import {
 	accountDetailOperationsDeleteAccountMutation,
+	configOperationsGetConfigOptions,
 	configOperationsGetConfigQueryKey,
 	microsoftOAuthOperationsMicrosoftOAuthStartMutation,
 } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
@@ -33,7 +34,6 @@ import {
 	useRedirectEnded,
 } from "../../hooks/useRedirectEnded";
 import { useReturnFromRedirect } from "../../hooks/useReturnFromRedirect";
-import { configQueryOptions } from "../../lib/config-query";
 import { formatRelativeTime } from "../../lib/format";
 import { useOpenSettingsSection } from "../../routing/sections";
 import { useSettingsNavItems } from "../settings";
@@ -255,7 +255,7 @@ function AccountsSettings() {
 		isError,
 		error,
 		refetch,
-	} = useQuery(configQueryOptions());
+	} = useQuery(configOperationsGetConfigOptions());
 
 	// Handle ?editAccountId deep-link
 	useEffect(() => {

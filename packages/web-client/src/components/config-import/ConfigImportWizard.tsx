@@ -16,6 +16,7 @@
 
 import {
 	accountDetailOperationsUpdateAccountMutation,
+	configOperationsGetConfigOptions,
 	configOperationsGetConfigQueryKey,
 	configOperationsImportConfigMutation,
 	microsoftOAuthOperationsMicrosoftOAuthStartMutation,
@@ -49,7 +50,6 @@ import {
 	WRITE_FAILURE_CODE,
 	writeFailure,
 } from "../../lib/config-import";
-import { configQueryOptions } from "../../lib/config-query";
 import { softErrorStatuses } from "../../lib/error-classifier";
 import {
 	ConnectionTestStep,
@@ -210,7 +210,7 @@ export function ConfigImportWizard({ onDone }: ConfigImportWizardProps) {
 	const [importedFolders, setImportedFolders] = useState<PendingFolder[]>([]);
 
 	const { data: config } = useQuery({
-		...configQueryOptions(),
+		...configOperationsGetConfigOptions(),
 		enabled: needingCredentials.length > 0 || step === "folders",
 	});
 

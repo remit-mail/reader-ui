@@ -1,8 +1,8 @@
+import { configOperationsGetConfigOptions } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
 import { ConfirmDialog, ErrorState, useOverlayScope } from "@remit/ui";
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useRef, useState } from "react";
 import { Drawer } from "vaul";
-import { configQueryOptions } from "../../lib/config-query";
 import {
 	useAdoptComposeDraft,
 	useCloseCompose,
@@ -48,7 +48,7 @@ export const MobileComposeSheet = () => {
 		error: configError,
 		refetch: refetchConfig,
 	} = useQuery({
-		...configQueryOptions(),
+		...configOperationsGetConfigOptions(),
 		staleTime: Infinity,
 	});
 
