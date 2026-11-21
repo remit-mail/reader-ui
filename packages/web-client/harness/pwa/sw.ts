@@ -48,7 +48,6 @@ self.addEventListener("message", (event) => {
 					for (const tab of tabs)
 						tab.postMessage({
 							type: "remit:offline-revoked",
-							generation: event.data.generation,
 						});
 				}),
 		);

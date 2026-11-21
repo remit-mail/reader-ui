@@ -43,7 +43,6 @@ export const retainedReadingQuery = (
 	query: Pick<Query, "queryKey">,
 ): boolean => {
 	const first = query.queryKey[0];
-	if (first === "messages") return query.queryKey[1] === "detail";
 	if (!first || typeof first !== "object" || !("_id" in first)) return false;
 	if ("headers" in first || "body" in first) return false;
 	return new Set([
@@ -82,7 +81,6 @@ export class OfflineRuntime {
 	private pending = 0;
 	private verifying?: Promise<boolean>;
 	private starting?: Promise<void>;
-	private revision = 0;
 	private revoked = false;
 	private queryClient?: QueryClient;
 	private refreshing = 0;
@@ -90,17 +88,13 @@ export class OfflineRuntime {
 		registerUpdateBlocker(
 			() => this.pending > 0 || this.verifying !== undefined,
 		);
-		const revoked = (generation: unknown) => {
-			if (this.state.partition?.generation === generation) {
-				this.revision++;
-				this.revoked = true;
-				void this.revokeMemory();
-			}
+		const revoked = () => {
+			this.revoked = true;
+			void this.revokeMemory();
 		};
-		this.channel.onmessage = (event) => revoked(event.data);
+		this.channel.onmessage = revoked;
 		navigator.serviceWorker?.addEventListener("message", (event) => {
-			if (event.data?.type === "remit:offline-revoked")
-				revoked(event.data.generation);
+			if (event.data?.type === "remit:offline-revoked") revoked();
 		});
 	}
 	subscribe = (listener: () => void): (() => void) => {
@@ -138,11 +132,13 @@ export class OfflineRuntime {
 				queryClient.getQueryCache().remove(event.query);
 		});
 		const partition = await offlineRecord<Partition>("partition");
+		if (this.revoked) return;
 		if (partition && partition.format !== OFFLINE_FORMAT)
 			throw new Error(
 				"Offline storage format changed. Remove downloads before continuing.",
 			);
 		if (partition) await requirePartition(partition);
+		if (this.revoked) return;
 		this.update({ partition });
 		await this.verify().catch(this.report);
 		window.addEventListener("offline", () => this.update({ verified: false }));
@@ -160,7 +156,6 @@ export class OfflineRuntime {
 		if (!navigator.onLine || this.revoked || isUpdatePrepared()) return false;
 		const wasVerified = this.state.verified;
 		this.update({ verified: false });
-		const revision = this.revision;
 		const epoch = await storageLock(async () => {
 			const existing = await offlineRecord<string>("epoch");
 			if (existing) return existing;
@@ -178,7 +173,7 @@ export class OfflineRuntime {
 			return false;
 		}
 		const session = await this.options.verifySession();
-		if (!session || revision !== this.revision) return false;
+		if (!session || this.revoked) return false;
 		const unchanged = await offlineRecord<Partition>("partition");
 		if (observed && !samePartition(unchanged, observed)) return false;
 		if (!session.partitionKey)
@@ -209,6 +204,7 @@ export class OfflineRuntime {
 			await writeOfflineRecord("partition", next);
 			return next;
 		});
+		if (this.revoked) return false;
 		this.update({ partition, verified: true, error: undefined });
 		if (!wasVerified) window.dispatchEvent(new Event("remit:session-verified"));
 		return true;
@@ -223,24 +219,14 @@ export class OfflineRuntime {
 			);
 		this.pending++;
 		try {
-			const generation = this.state.partition?.generation;
-			this.revision++;
 			this.revoked = true;
 			this.update({ verified: false, partition: undefined });
 			await wipeOffline();
-			this.channel.postMessage(generation);
+			this.channel.postMessage("wipe");
 			await this.revokeMemory();
 			navigator.serviceWorker?.controller?.postMessage({
 				type: "remit:offline-wipe",
-				generation,
 			});
-			const registration = await navigator.serviceWorker?.getRegistration?.();
-			if (registration) {
-				for (const notification of await registration.getNotifications())
-					notification.close();
-				const subscription = await registration.pushManager.getSubscription();
-				await subscription?.unsubscribe();
-			}
 		} finally {
 			this.pending--;
 		}

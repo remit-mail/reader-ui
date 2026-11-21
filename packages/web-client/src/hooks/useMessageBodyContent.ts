@@ -334,21 +334,24 @@ export const useMessageBodyContent = ({
 		staleTime: 5 * 60 * 1000,
 		gcTime: getOfflineRuntime() ? Infinity : 30 * 60 * 1000,
 		// A `not-ready` (202) body is still syncing — keep retrying with the
-		// server's `Retry-After` delay until it lands. Every other error keeps the
-		// app-wide default (retry once) so a real failure surfaces its banner
-		// promptly instead of hanging on repeated attempts.
+		// server's `Retry-After` as the base for exponential backoff, capped at 30s.
+		// Other errors keep the app-wide default (retry once) so failures surface
+		// promptly.
 		retry: (failureCount, error) => {
 			if (error instanceof BodyFetchError && error.reason === "not-ready") {
 				return failureCount < MAX_NOT_READY_RETRIES;
 			}
 			return failureCount < 1;
 		},
-		retryDelay: (_attempt, error) => {
+		retryDelay: (attempt, error) => {
 			if (error instanceof BodyFetchError && error.reason === "not-ready") {
 				pendingDescribeRefetchRef.current = true;
-				return (error.retryAfterSeconds ?? 1) * 1000;
+				return Math.min(
+					(error.retryAfterSeconds ?? 1) * 1000 * 2 ** attempt,
+					30_000,
+				);
 			}
-			return 1000;
+			return Math.min(1000 * 2 ** attempt, 30_000);
 		},
 		// A missing/forbidden body (404/403 body-missing, auth) renders the inline
 		// MessageBodyErrorBanner below — a single sub-resource failure must not nuke

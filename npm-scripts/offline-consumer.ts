@@ -210,9 +210,6 @@ export async function testOfflineReading(
 		controls.setSession("tenant-a", 503);
 		await context.setOffline(false);
 		await page
-			.getByRole("button", { name: "Verify session / sign in" })
-			.click();
-		await page
 			.getByRole("alert")
 			.filter({ hasText: "Session verification failed: 503" })
 			.waitFor();
@@ -275,6 +272,64 @@ export async function testOfflineReading(
 			.getByRole("alert")
 			.filter({ hasText: "Query quota exceeded" })
 			.waitFor();
+		// A second tab removes downloads before its initial identity read completes.
+		// Delay only the first real IDB read; all stores and messaging stay native.
+		const starting = await context.newPage();
+		await starting.addInitScript(() => {
+			const get = IDBObjectStore.prototype.get;
+			let first = true;
+			IDBObjectStore.prototype.get = function (key) {
+				const request = get.call(this, key);
+				if (first && key === "partition") {
+					first = false;
+					request.addEventListener(
+						"success",
+						(event) => {
+							event.stopImmediatePropagation();
+							window.addEventListener(
+								"release-offline-start",
+								() => {
+									request.dispatchEvent(new Event("success"));
+								},
+								{ once: true },
+							);
+						},
+						{ once: true },
+					);
+				}
+				return request;
+			};
+		});
+		await starting.goto(`${origin}/downloads`);
+		await starting.getByText("Opening downloads…", { exact: true }).waitFor();
+		assert.equal(
+			await starting.evaluate(() => window.pwaTest.offline()?.state.partition),
+			undefined,
+		);
+		await starting
+			.getByRole("button", { name: "Remove downloads", exact: true })
+			.click();
+		await page.waitForFunction(
+			() => !window.pwaTest.offline()?.state.partition,
+			undefined,
+			{ timeout: 5000 },
+		);
+		await page
+			.getByRole("heading", { name: "Old retained mail" })
+			.waitFor({ state: "detached" });
+		await starting.evaluate(() =>
+			window.dispatchEvent(new Event("release-offline-start")),
+		);
+		await starting
+			.getByText("Opening downloads…", { exact: true })
+			.waitFor({ state: "detached" });
+		assert.equal(
+			await starting.evaluate(() => window.pwaTest.offline()?.state.partition),
+			undefined,
+		);
+		await starting.close();
+		await page.reload();
+		await imagesReady(page);
 		// Capture a late persister and hold a real network read across a cross-tab wipe.
 		await page.evaluate(async () => {
 			const runtime = window.pwaTest.offline()!;

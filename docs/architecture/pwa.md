@@ -121,6 +121,8 @@ The host contract for C2 is:
   to follow the existing explicit display permission.
 
 The retained describe-message queries are the downloaded-message index.
+Decoded bodies are rebuilt from Cache Storage on reopen rather than duplicated
+in persisted queries.
 `/downloads` derives its list from the restored QueryClient; no second descriptor
 store exists, and replacing a list page cannot orphan a retained message. Successful snapshots merge by query hash, retaining the last
 successful result through transient errors. Only reading operations are admitted;
@@ -131,10 +133,12 @@ commits; incompatibility requires an explicit remove-downloads action.
 Cache Storage and IndexedDB writers share a Web Lock and validate a captured
 partition/generation inside it. Wiping durably rotates an identity-verification
 epoch (initialized before the first partition), revokes the partition, deletes private caches and IDB records, clears the
-query client, and broadcasts the revoked generation across tabs and through the
+query client, and revokes every runtime across tabs and through the
 worker. A response that started before a wipe cannot recreate data. The worker
 owns generic shell caches only; it forwards revocations to all windows and has
 no global current tenant or private runtime writer. Generic shell caches survive.
+Revocation also stops tabs still reading their initial identity, and removal does
+not manage push subscriptions or notifications; those belong to the later push owner.
 Pending commits block U1 updates, and prepared updates reject new storage writes.
 A part is available offline only after both its bytes and index entry commit.
 Storage failures remain visible; nothing silently evicts old mail.

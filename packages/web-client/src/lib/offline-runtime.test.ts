@@ -85,10 +85,6 @@ test("retention admits reading data and excludes configuration, credentials, exp
 		}),
 		false,
 	);
-	assert.equal(
-		retainedReadingQuery({ queryKey: ["messages", "detail", "old", "body"] }),
-		true,
-	);
 	assert.equal(retainedReadingQuery({ queryKey: ["auth"] }), false);
 });
 
