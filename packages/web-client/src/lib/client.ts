@@ -31,3 +31,25 @@ client.interceptors.error.use((error, response) => {
 });
 
 export { client };
+
+export const installPwaBuildObservation = (): void => {
+	const isConfigRequest = (request: Request): boolean =>
+		request.method === "GET" &&
+		new URL(request.url).pathname.endsWith("/config");
+	client.interceptors.request.use((request) =>
+		isConfigRequest(request)
+			? new Request(request, { cache: "no-store" })
+			: request,
+	);
+
+	// This interceptor only sees network responses, never persisted query data.
+	client.interceptors.response.use(async (response, request) => {
+		if (response.ok && isConfigRequest(request)) {
+			const config = await response.clone().json();
+			window.dispatchEvent(
+				new CustomEvent("remit:server-build", { detail: config.buildCommit }),
+			);
+		}
+		return response;
+	});
+};

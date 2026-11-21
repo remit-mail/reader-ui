@@ -95,7 +95,7 @@ if (index > total) {
 // The app and the build tooling that stages the spellchecker into it. Both are
 // this package's tests; only the first is measured for coverage, because the
 // 86% floor was set against the app's own files.
-const TEST_ROOTS = ["src", "spellcheck"];
+const TEST_ROOTS = ["src", "spellcheck", "harness"];
 
 const allFiles = TEST_ROOTS.flatMap((root) =>
 	discoverTestFiles(join(packageRoot, root)),

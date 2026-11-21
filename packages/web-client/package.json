@@ -12,7 +12,8 @@
 		"./auth/combined": "./src/auth/combined-provider.tsx",
 		"./styles/app.css": "./src/index.css",
 		"./styles/cognito.css": "./src/auth/cognito/cognito.css",
-		"./vite-preset": "./harness/vite-preset.ts"
+		"./vite-preset": "./harness/vite-preset.ts",
+		"./pwa": "./src/lib/pwa-update.ts"
 	},
 	"scripts": {
 		"dev": "vite",
@@ -21,26 +22,26 @@
 		"build": "npm run generate:routes && tsc -b && vite build",
 		"preview": "vite preview",
 		"test:typecheck": "npm run generate:routes && tsgo --noEmit && tsgo --noEmit -p tsconfig.node.json",
-		"test:run": "TSX_TSCONFIG_PATH=./tsconfig.test.json node $NODE_TEST_FLAGS --import tsx --import ./test-support/register.mjs --experimental-test-coverage --test-coverage-include='src/**' --test-coverage-exclude='src/**/*.test.ts' --test-coverage-exclude='src/**/*.test.tsx' --test-coverage-exclude='src/test-support/**' --test-coverage-lines=86 --test 'src/**/*.test.ts' 'spellcheck/**/*.test.ts'",
+		"test:run": "TSX_TSCONFIG_PATH=./tsconfig.test.json node $NODE_TEST_FLAGS --import tsx --import ./test-support/register.mjs --experimental-test-coverage --test-coverage-include='src/**' --test-coverage-exclude='src/**/*.test.ts' --test-coverage-exclude='src/**/*.test.tsx' --test-coverage-exclude='src/test-support/**' --test-coverage-lines=86 --test 'src/**/*.test.ts' 'spellcheck/**/*.test.ts' 'harness/**/*.test.ts'",
 		"test": "npm run test:typecheck && npm run test:run",
 		"postpack": "node ../../npm-scripts/pack-dist.mjs postpack"
 	},
 	"peerDependencies": {
+		"@remit/api-http-client": "*",
+		"@remit/data-ports": "*",
+		"@remit/domain-enums": "*",
+		"@remit/mail-oauth-service": "*",
+		"@tailwindcss/vite": "^4",
+		"@tanstack/router-plugin": "^1",
+		"@types/react-dom": "^19",
+		"@vitejs/plugin-react": "^4",
 		"dictionary-en": "^4",
 		"dictionary-en-gb": "^3",
 		"dictionary-nl": "^2",
 		"react": "^19",
 		"react-dom": "^19",
-		"vite": "^7",
-		"@vitejs/plugin-react": "^4",
-		"@tailwindcss/vite": "^4",
 		"tailwindcss": "^4",
-		"@tanstack/router-plugin": "^1",
-		"@types/react-dom": "^19",
-		"@remit/api-http-client": "*",
-		"@remit/data-ports": "*",
-		"@remit/domain-enums": "*",
-		"@remit/mail-oauth-service": "*"
+		"vite": "^7"
 	},
 	"peerDependenciesMeta": {
 		"dictionary-en": {
@@ -69,14 +70,15 @@
 		}
 	},
 	"dependencies": {
+		"@aws-amplify/ui-react": "6.15.4",
 		"@hookform/resolvers": "5.4.0",
+		"@remit/spellcheck-engine": "0.0.1",
 		"@remit/ui": "*",
 		"@tanstack/react-query": "5.101.2",
 		"@tanstack/react-query-devtools": "5.101.2",
 		"@tanstack/react-router": "1.170.18",
 		"@tanstack/react-virtual": "3.14.6",
 		"aws-amplify": "6.18.0",
-		"@aws-amplify/ui-react": "6.15.4",
 		"aws-rum-web": "3.1.0",
 		"better-auth": "1.7.12",
 		"i18next": "24.2.3",
@@ -86,8 +88,9 @@
 		"react-hook-form": "7.82.0",
 		"react-i18next": "15.7.4",
 		"vaul": "1.1.2",
-		"zod": "4.6.7",
-		"@remit/spellcheck-engine": "0.0.1"
+		"vite-plugin-pwa": "1.3.0",
+		"workbox-precaching": "7.4.1",
+		"zod": "4.6.7"
 	},
 	"devDependencies": {
 		"@remit/test-dom": "*",
@@ -149,11 +152,17 @@
 			"./vite-preset": {
 				"types": "./dist/harness/vite-preset.d.ts",
 				"default": "./dist/harness/vite-preset.js"
+			},
+			"./pwa": {
+				"types": "./dist/src/lib/pwa-update.d.ts",
+				"default": "./dist/src/lib/pwa-update.js"
 			}
 		},
 		"files": [
 			"dist",
-			"public"
+			"public",
+			"harness/pwa/sw.ts",
+			"src/lib/pwa-protocol.ts"
 		]
 	}
 }

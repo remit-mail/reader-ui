@@ -1,5 +1,5 @@
 import { execSync } from "node:child_process";
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -9,10 +9,12 @@ import react from "@vitejs/plugin-react";
 import type { Plugin, PluginOption, ProxyOptions, UserConfig } from "vite";
 import { spellcheckPlugin } from "../spellcheck/vite-plugin.ts";
 import { spellcheckWorkerStub } from "../spellcheck/worker-stub.ts";
+import { type PwaOptions, pwaPlugins } from "./pwa/plugin.ts";
 
 export interface WebClientPresetOptions {
 	/** The module that calls `mountApp`, relative to the vite root. */
 	entry: string;
+	pwa?: PwaOptions;
 	/** Written to `config.js` in the build; the package default otherwise. */
 	runtimeConfig?: Record<string, unknown>;
 	/** The commit the bundle names; GITHUB_SHA or `git rev-parse HEAD` otherwise. */
@@ -98,24 +100,21 @@ const runtimeConfigFile = (runtimeConfig?: Record<string, unknown>): Plugin => {
 		res.setHeader("Content-Type", "application/javascript");
 		res.end(`window.__REMIT_CONFIG__ = ${body};\n`);
 	};
-	let outDir = "";
 	return {
 		name: "remit-web-client-runtime-config",
-		configResolved(config) {
-			outDir = resolve(config.root, config.build.outDir);
-		},
 		configureServer(server) {
 			server.middlewares.use(serve);
 		},
 		configurePreviewServer(server) {
 			server.middlewares.use(serve);
 		},
-		closeBundle() {
+		generateBundle() {
 			if (!runtimeConfig) return;
-			writeFileSync(
-				join(outDir, "config.js"),
-				`window.__REMIT_CONFIG__ = ${JSON.stringify(runtimeConfig)};\n`,
-			);
+			this.emitFile({
+				type: "asset",
+				fileName: "config.js",
+				source: `window.__REMIT_CONFIG__ = ${JSON.stringify(runtimeConfig)};\n`,
+			});
 		},
 	};
 };
@@ -156,6 +155,7 @@ export const webClientPreset = ({
 	entry,
 	runtimeConfig,
 	commit,
+	pwa,
 }: WebClientPresetOptions): UserConfig => ({
 	plugins: [
 		indexHtml(entry),
@@ -165,9 +165,11 @@ export const webClientPreset = ({
 		tailwindcss(),
 		spellcheckPlugin(),
 		spellcheckWorkerStub(),
+		...pwaPlugins(packageRoot, pwa),
 	],
 	publicDir: join(packageRoot, "public"),
 	define: {
+		__REMIT_PWA_ENABLED__: JSON.stringify(pwa?.enabled ?? false),
 		__APP_SHA__: JSON.stringify(commit ?? resolveGitSha()),
 		__APP_BUILD_TIME__: JSON.stringify(new Date().toISOString()),
 	},

@@ -52,6 +52,7 @@ import { useSaveDraft } from "../../hooks/useSaveDraft";
 import { useSignature } from "../../hooks/useSignature.js";
 import { isNotFound, softErrorMeta } from "../../lib/error-classifier";
 import type { ComposeSeed } from "../../lib/mail-search";
+import { registerUpdateBlocker } from "../../lib/pwa-update";
 import { accountIsMissingSmtp } from "../settings/account-form-helpers.js";
 import { useErrorBanners } from "../ui/error-banner-context";
 import {
@@ -421,6 +422,8 @@ export const ComposeForm = ({
 	onAccountChange,
 	layout = "fill",
 }: ComposeFormProps) => {
+	// Keep the whole composition session stable, including debounced autosaves.
+	useEffect(() => registerUpdateBlocker(() => true), []);
 	const { startSendPolling } = useCompose();
 	const { pushError } = useErrorBanners();
 

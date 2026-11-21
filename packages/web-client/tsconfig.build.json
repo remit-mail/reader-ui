@@ -19,6 +19,7 @@
 		"src/**/*.stories.tsx",
 		"src/test-support/**",
 		"src/mocks/**",
-		"spellcheck/**/*.test.ts"
+		"spellcheck/**/*.test.ts",
+		"harness/**/*.test.ts"
 	]
 }

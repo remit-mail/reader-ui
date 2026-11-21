@@ -2,3 +2,5 @@
 
 declare const __APP_SHA__: string;
 declare const __APP_BUILD_TIME__: string;
+
+declare const __REMIT_PWA_ENABLED__: boolean;
