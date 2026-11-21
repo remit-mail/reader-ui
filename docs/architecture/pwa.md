@@ -73,8 +73,9 @@ or change a host.
 # Durable reading (U2)
 
 Enable `mountApp({ authProvider, offline: { verifySession, reauthenticate } })`
-only with the PWA preset enabled. The offline gate replaces `authProvider.Shell`;
-`Account`, token configuration and normal authentication still belong to the host.
+only with the PWA preset enabled. The offline provider preserves `authProvider.Shell` and its authentication context.
+The host shell must allow remembered-partition reading when the runtime is
+unverified; its normal authentication surfaces and Account context stay mounted.
 The gate restores the remembered partition without claiming a current session.
 It restores successful reading queries through `PersistQueryClientProvider`
 before mounting routes. Unverified sessions keep local reading available and
@@ -93,7 +94,7 @@ The host contract for C2 is:
   persisted config, a URL, a user-editable email, or a login HTML response.
 - On successful protected API and `/content/*` responses, set
   `X-Remit-Partition` to the **server-derived** partition that produced the data.
-  Never echo a client-supplied tenant. The shared fetch boundary checks API
+  Never echo a client-supplied tenant. The mail API client boundary checks API
   provenance before query data reaches persistence; content admission checks
   it independently. Access/login/SPA responses must never carry this provenance.
 - Serve immutable mail parts at stable same-origin `/content/*` paths, with the

@@ -1,5 +1,6 @@
 import { isUnauthenticated, shouldEscalate } from "./error-classifier";
 import { reportFatalError } from "./fatal-error";
+import { getOfflineRuntime } from "./offline-runtime";
 import { reportSignedOut } from "./signed-out";
 
 /**
@@ -12,6 +13,11 @@ export const escalate = (
 	meta?: Record<string, unknown>,
 ): void => {
 	if (isUnauthenticated(error)) {
+		const runtime = getOfflineRuntime();
+		if (runtime) {
+			runtime.sessionUnverified();
+			return;
+		}
 		reportSignedOut();
 		return;
 	}

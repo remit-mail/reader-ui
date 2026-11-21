@@ -226,7 +226,6 @@ const runBackgroundSync = async (
 	await queryClient.invalidateQueries({
 		queryKey: mailboxOperationsListMailboxesQueryKey({ path: { accountId } }),
 	});
-	await runtime?.refreshReading();
 };
 
 /**
@@ -259,12 +258,15 @@ export const useStaleAccountSync = (
 		const fresh = stale.filter((id) => !triggeredAccountIds.has(id));
 		if (fresh.length === 0) return;
 
-		for (const accountId of fresh) {
-			triggeredAccountIds.add(accountId);
-			runBackgroundSync(accountId, queryClient).catch((err: unknown) => {
-				handleBackgroundSyncFailure(accountId, err);
-			});
-		}
+		for (const accountId of fresh) triggeredAccountIds.add(accountId);
+		void pMap(
+			fresh,
+			(accountId) =>
+				runBackgroundSync(accountId, queryClient).catch((error: unknown) =>
+					handleBackgroundSyncFailure(accountId, error),
+				),
+			{ concurrency: POLL_CONCURRENCY },
+		).then(() => getOfflineRuntime()?.refreshReading());
 	}, [stableKey, queryClient]);
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: stableKey re-runs the poll loop when the account list changes; accountsRef supplies the live list each tick
@@ -284,6 +286,7 @@ export const useStaleAccountSync = (
 				accountsRef.current.map((a) => a.accountId),
 				inFlight,
 			);
+			if (ids.length === 0) return;
 			// Mark every selected id in flight before dispatch (not as pMap
 			// starts each one) so a concurrency-queued id still counts as
 			// "already polling" for the next tick's `selectPollableAccountIds`
@@ -300,7 +303,7 @@ export const useStaleAccountSync = (
 							inFlight.delete(accountId);
 						}),
 				{ concurrency: POLL_CONCURRENCY },
-			);
+			).then(() => getOfflineRuntime()?.refreshReading());
 		};
 
 		const tick = () => {
@@ -370,7 +373,6 @@ export const useStaleAccountSync = (
 					.then((verified) => {
 						if (verified) {
 							poll();
-							void runtime.refreshReading().catch(runtime.report);
 						}
 					})
 					.catch(runtime.report);

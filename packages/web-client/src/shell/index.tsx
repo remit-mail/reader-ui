@@ -127,13 +127,9 @@ export const mountApp = ({
 	const app = (
 		<AuthProviderProvider value={authProvider}>
 			<SettingsSlotsProvider value={settingsSlots}>
-				{offlineRuntime ? (
+				<Shell>
 					<RouterProvider router={router} />
-				) : (
-					<Shell>
-						<RouterProvider router={router} />
-					</Shell>
-				)}
+				</Shell>
 			</SettingsSlotsProvider>
 		</AuthProviderProvider>
 	);

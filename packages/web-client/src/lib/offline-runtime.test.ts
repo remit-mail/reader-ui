@@ -249,6 +249,11 @@ test("a wipe fences slow content completions, persisted snapshots and other tabs
 	await started.promise;
 	const persister = runtime.persister(runtime.state.partition!);
 	await runtime.removeDownloads();
+	client.setQueryData(["messages", "detail", "late-rollback"], "old tenant");
+	assert.equal(
+		client.getQueryData(["messages", "detail", "late-rollback"]),
+		undefined,
+	);
 	slow.resolve(response());
 	await assert.rejects(fetching, /removed/);
 	await persister.persistClient({
@@ -466,4 +471,38 @@ test("pending commits block a shell takeover until settlement", async () => {
 	held.resolve();
 	await writing;
 	assert.equal(canUpdate(), true);
+});
+
+test("overlapping account refreshes keep bypassing cached bodies until both finish", async () => {
+	const client = new QueryClient();
+	const runtime = createRuntime();
+	await runtime.start(client);
+	await runtime.content("/content/body", "text/plain", async () =>
+		response("old"),
+	);
+	const firstBody = deferred<void>();
+	const secondBody = deferred<void>();
+	const bothStarted = deferred<void>();
+	let calls = 0;
+	client.refetchQueries = async () => {
+		const call = ++calls;
+		if (call === 3) await firstBody.promise;
+		if (call === 4) {
+			bothStarted.resolve();
+			await secondBody.promise;
+		}
+	};
+	const first = runtime.refreshReading();
+	const second = runtime.refreshReading();
+	await bothStarted.promise;
+	firstBody.resolve();
+	await first;
+	const refreshed = await runtime.content(
+		"/content/body",
+		"text/plain",
+		async () => response("fresh"),
+	);
+	assert.equal(await refreshed.text(), "fresh");
+	secondBody.resolve();
+	await second;
 });

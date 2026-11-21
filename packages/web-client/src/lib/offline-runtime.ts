@@ -67,7 +67,7 @@ export class OfflineRuntime {
 	private revision = 0;
 	private revoked = false;
 	private queryClient?: QueryClient;
-	refreshing = false;
+	private refreshing = 0;
 	constructor(readonly options: OfflineOptions) {
 		registerUpdateBlocker(
 			() => this.pending > 0 || this.verifying !== undefined,
@@ -113,6 +113,12 @@ export class OfflineRuntime {
 	}
 	private async startNow(queryClient: QueryClient): Promise<void> {
 		this.queryClient = queryClient;
+		// Late mutation rollbacks still hold this client after a wipe. Keep its
+		// cache empty until the required fresh-document navigation.
+		queryClient.getQueryCache().subscribe((event) => {
+			if (this.revoked && event.type === "added")
+				queryClient.getQueryCache().remove(event.query);
+		});
 		const partition = await offlineRecord<Partition>("partition");
 		if (partition && partition.format !== OFFLINE_FORMAT)
 			throw new Error(
@@ -120,7 +126,7 @@ export class OfflineRuntime {
 			);
 		if (partition) await requirePartition(partition);
 		this.update({ partition });
-		await this.verify();
+		await this.verify().catch(this.report);
 		window.addEventListener("offline", () => this.update({ verified: false }));
 		window.addEventListener("online", () => {
 			void this.verify().catch(this.report);
@@ -147,12 +153,7 @@ export class OfflineRuntime {
 			await this.revokeMemory();
 			return false;
 		}
-		const session = await this.options
-			.verifySession()
-			.catch((error: unknown) => {
-				this.report(error);
-				return null;
-			});
+		const session = await this.options.verifySession();
 		if (!session || revision !== this.revision) return false;
 		const unchanged = await offlineRecord<Partition>("partition");
 		if (observed && !samePartition(unchanged, observed)) return false;
@@ -374,14 +375,14 @@ export class OfflineRuntime {
 			predicate: (query) =>
 				retainedReadingQuery(query) && query.queryKey[0] !== "messages",
 		});
-		this.refreshing = true;
+		this.refreshing++;
 		try {
 			await this.queryClient.refetchQueries({
 				type: "active",
 				predicate: (query) => query.queryKey[0] === "messages",
 			});
 		} finally {
-			this.refreshing = false;
+			this.refreshing--;
 		}
 	}
 	async downloadedMessages(): Promise<Record<string, unknown>> {

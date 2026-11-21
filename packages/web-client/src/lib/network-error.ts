@@ -1,4 +1,3 @@
-import { getOfflineRuntime, validateNetworkPartition } from "./offline-runtime";
 /**
  * Transport failures are identified where they happen, not guessed at later.
  *
@@ -67,32 +66,11 @@ const isDeliberateAbort = (error: unknown): boolean =>
 export const taggedFetch: typeof fetch = async (input, init) => {
 	const startedAt = performance.now();
 	try {
-		const runtime = getOfflineRuntime();
-		const requestUrl =
-			typeof input === "string" || input instanceof URL
-				? String(input)
-				: input.url;
-		const protectedApi = /\/api\//.test(requestUrl);
-		const partition =
-			runtime && protectedApi
-				? await runtime.authorizeNetwork(
-						init?.method ?? (input instanceof Request ? input.method : "GET"),
-					)
-				: undefined;
 		const received = await fetch(input, { ...init, redirect: "manual" });
 		const response =
 			received.type === "opaqueredirect"
 				? new Response(null, { status: 401 })
 				: received;
-		if (runtime && (response.status === 401 || response.status === 403)) {
-			runtime.sessionUnverified();
-			throw new NetworkError(
-				new Error(
-					"Session verification required. Downloaded mail remains readable.",
-				),
-			);
-		}
-		if (partition) await validateNetworkPartition(response, partition);
 		recordRequest({
 			input,
 			init,
