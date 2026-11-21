@@ -69,7 +69,9 @@ export class OfflineRuntime {
 	private queryClient?: QueryClient;
 	refreshing = false;
 	constructor(readonly options: OfflineOptions) {
-		registerUpdateBlocker(() => this.pending > 0);
+		registerUpdateBlocker(
+			() => this.pending > 0 || this.verifying !== undefined,
+		);
 		const revoked = (generation: unknown) => {
 			if (this.state.partition?.generation === generation) {
 				this.revision++;
@@ -131,7 +133,7 @@ export class OfflineRuntime {
 		return this.verifying;
 	};
 	private async verifyNow(): Promise<boolean> {
-		if (!navigator.onLine || this.revoked) return false;
+		if (!navigator.onLine || this.revoked || isUpdatePrepared()) return false;
 		const wasVerified = this.state.verified;
 		this.update({ verified: false });
 		const revision = this.revision;
@@ -190,23 +192,32 @@ export class OfflineRuntime {
 		this.update({ verified: false });
 	}
 	async removeDownloads(): Promise<void> {
-		const generation = this.state.partition?.generation;
-		this.revision++;
-		this.revoked = true;
-		this.update({ verified: false, partition: undefined });
-		await wipeOffline();
-		this.channel.postMessage(generation);
-		await this.revokeMemory();
-		navigator.serviceWorker?.controller?.postMessage({
-			type: "remit:offline-wipe",
-			generation,
-		});
-		const registration = await navigator.serviceWorker?.getRegistration?.();
-		if (registration) {
-			for (const notification of await registration.getNotifications())
-				notification.close();
-			const subscription = await registration.pushManager.getSubscription();
-			await subscription?.unsubscribe();
+		if (isUpdatePrepared())
+			throw new OfflineUnavailableError(
+				"App update in progress; downloads were not removed. Try again after updating.",
+			);
+		this.pending++;
+		try {
+			const generation = this.state.partition?.generation;
+			this.revision++;
+			this.revoked = true;
+			this.update({ verified: false, partition: undefined });
+			await wipeOffline();
+			this.channel.postMessage(generation);
+			await this.revokeMemory();
+			navigator.serviceWorker?.controller?.postMessage({
+				type: "remit:offline-wipe",
+				generation,
+			});
+			const registration = await navigator.serviceWorker?.getRegistration?.();
+			if (registration) {
+				for (const notification of await registration.getNotifications())
+					notification.close();
+				const subscription = await registration.pushManager.getSubscription();
+				await subscription?.unsubscribe();
+			}
+		} finally {
+			this.pending--;
 		}
 	}
 	/** Capture the generation at request start, never at completion. */

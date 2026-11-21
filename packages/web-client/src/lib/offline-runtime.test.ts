@@ -275,6 +275,7 @@ test("wipe waits for a writer already committing and rejects one queued after re
 	const runtime = createRuntime();
 	runtime.state = { partition, verified: true };
 	const wiping = runtime.removeDownloads();
+	assert.equal(canUpdate(), false);
 	const stale = commitOffline(partition, () =>
 		writeOfflineRecord("resurrected", "mail"),
 	);
@@ -283,6 +284,7 @@ test("wipe waits for a writer already committing and rejects one queued after re
 	await writing;
 	await wiping;
 	await rejected;
+	assert.equal(canUpdate(), true);
 	assert.equal(await offlineRecord("old"), undefined);
 	assert.equal(await offlineRecord("resurrected"), undefined);
 });
