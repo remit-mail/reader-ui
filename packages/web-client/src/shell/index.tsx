@@ -12,6 +12,7 @@ import { installAuthInterceptor } from "../auth/auth-interceptor";
 import { type AuthProvider, AuthProviderProvider } from "../auth/provider";
 import { install as installConsoleErrorCatcher } from "../lib/console-errors";
 import { setFatalErrorTelemetry } from "../lib/fatal-error";
+import { installPwaUpdateCoordinator } from "../lib/pwa-update";
 import {
 	handleMutationCacheError,
 	handleQueryCacheError,
@@ -25,7 +26,7 @@ import { getRuntimeConfig } from "../runtime-config";
 import { type SettingsSlot, SettingsSlotsProvider } from "../settings-slots";
 import "../lib/i18n";
 import "../index.css";
-import "../lib/client"; // Initialize client with error interceptor
+import { installPwaBuildObservation } from "../lib/client";
 
 export interface MountOptions {
 	/** The identity system this build composes. */
@@ -74,7 +75,17 @@ export const mountApp = ({
 		},
 	});
 
-	installStaleBuildReload();
+	if (
+		import.meta.env.PROD &&
+		typeof __REMIT_PWA_ENABLED__ !== "undefined" &&
+		__REMIT_PWA_ENABLED__ &&
+		"serviceWorker" in navigator
+	) {
+		installPwaBuildObservation();
+		installPwaUpdateCoordinator(() => queryClient.isMutating() > 0);
+	} else {
+		installStaleBuildReload();
+	}
 
 	const router = createAppRouter(queryClient, telemetry);
 	for (const slot of settingsSlots) {

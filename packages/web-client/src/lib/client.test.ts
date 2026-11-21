@@ -6,7 +6,7 @@ import { QueryClient } from "@tanstack/react-query";
 import { getRuntimeConfig } from "../runtime-config";
 import { type HttpMock, mockFetch } from "../test-support/http";
 import { ApiError } from "./api";
-import "./client";
+import { installPwaBuildObservation } from "./client";
 import { escalate } from "./escalate";
 import { isSignedOut, resetSignedOut } from "./signed-out";
 
@@ -143,5 +143,38 @@ describe("the client the generated code calls through", () => {
 
 		assert.ok(error instanceof ApiError);
 		assert.equal(error.status, 409);
+	});
+});
+
+describe("fresh build observation", () => {
+	it("bypasses HTTP caching for config and observes only successful network replies", async () => {
+		installPwaBuildObservation();
+		const { configOperationsGetConfig } = await import(
+			"@remit/api-http-client/sdk.gen.ts"
+		);
+		const builds: unknown[] = [];
+		const observe = (event: Event) =>
+			builds.push((event as CustomEvent).detail);
+		window.addEventListener("remit:server-build", observe);
+		const original = globalThis.fetch;
+		const modes: RequestCache[] = [];
+		let status = 200;
+		globalThis.fetch = (async (input: RequestInfo | URL) => {
+			modes.push((input as Request).cache);
+			return new Response(JSON.stringify({ buildCommit: "next" }), {
+				status,
+				headers: { "content-type": "application/json" },
+			});
+		}) as typeof fetch;
+		try {
+			await configOperationsGetConfig();
+			status = 401;
+			await configOperationsGetConfig();
+			assert.deepEqual(modes, ["no-store", "no-store"]);
+			assert.deepEqual(builds, ["next"]);
+		} finally {
+			globalThis.fetch = original;
+			window.removeEventListener("remit:server-build", observe);
+		}
 	});
 });

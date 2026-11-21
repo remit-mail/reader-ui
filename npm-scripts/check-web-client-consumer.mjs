@@ -161,6 +161,10 @@ try {
 		[
 			'import { betterAuthProvider } from "@remit/web-client/auth/better-auth";',
 			'import { mountApp } from "@remit/web-client/shell";',
+			'import { registerUpdateBlocker } from "@remit/web-client/pwa";',
+			"window.pwaTest = { dirty: false };",
+			"registerUpdateBlocker(() => window.pwaTest.dirty);",
+			'sessionStorage.setItem("pwa-loads", String(Number(sessionStorage.getItem("pwa-loads") ?? 0) + 1));',
 			"",
 			"mountApp({ authProvider: betterAuthProvider });",
 			"",
@@ -171,7 +175,7 @@ try {
 		[
 			'import { webClientPreset } from "@remit/web-client/vite-preset";',
 			'import { defineConfig } from "vite";',
-			'export default defineConfig(webClientPreset({ entry: "src/main.tsx", runtimeConfig: { betterAuthEnabled: true } }));',
+			'export default defineConfig(webClientPreset({ entry: "src/main.tsx", runtimeConfig: { betterAuthEnabled: true, updateMode: "managed" }, commit: process.env.REMIT_TEST_COMMIT ?? "consumer-pwa-v1", pwa: { enabled: true, manifestOverrides: { name: "Consumer Mail" } } }));',
 			"",
 		].join("\n"),
 	);
@@ -277,6 +281,16 @@ try {
 			`the consumer build's stylesheet has no ${UI_ONLY_UTILITY}: @remit/ui's components were not scanned for utilities`,
 		);
 	}
+
+	run("bash", [join(repoRoot, "npm-scripts/stories-install.sh")], {
+		cwd: repoRoot,
+		stdio: "inherit",
+	});
+	run(
+		process.execPath,
+		["--import", "tsx", join(repoRoot, "npm-scripts/pwa-consumer.ts"), dist],
+		{ cwd: repoRoot, stdio: "inherit", env },
+	);
 
 	console.log(
 		"Consumer acceptance OK: the packed web client and ui build a servable app from a three-line vite config, with the ui's utilities in its stylesheet.",

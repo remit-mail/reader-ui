@@ -25,6 +25,7 @@ import {
 	RouterContextProvider,
 } from "@tanstack/react-router";
 import { createElement, useState } from "react";
+import { canUpdate } from "../../lib/pwa-update";
 import { createDomHarness, type DomHarness } from "../../test-support/dom";
 import { type HttpMock, mockFetch } from "../../test-support/http";
 import { ComposeForm } from "./ComposeForm";
@@ -139,10 +140,27 @@ describe("a message reopened in the composer", () => {
 		await mount();
 
 		harness?.type(subjectField(), "Invoice, corrected");
+		assert.equal(
+			canUpdate(),
+			false,
+			"unsaved composition must veto worker activation",
+		);
 		await harness?.wait(AUTOSAVE_DEBOUNCE_MS + 200);
 
 		const written = writes().at(-1);
 		assert.equal(written?.method, "PATCH");
 		assert.equal(written?.body?.subject, "Invoice, corrected");
+		assert.equal(
+			canUpdate(),
+			false,
+			"autosave must not interrupt an open composer",
+		);
+		harness?.close();
+		harness = undefined;
+		assert.equal(
+			canUpdate(),
+			true,
+			"closing composition releases the update blocker",
+		);
 	});
 });
