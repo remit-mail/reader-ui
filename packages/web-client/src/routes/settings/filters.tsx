@@ -1,7 +1,4 @@
-import {
-	configOperationsGetConfigOptions,
-	mailboxOperationsListMailboxesOptions,
-} from "@remit/api-http-client/@tanstack/react-query.gen.ts";
+import { mailboxOperationsListMailboxesOptions } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
 import type { RemitImapAccountResponse } from "@remit/api-http-client/types.gen.ts";
 import { ErrorState, type LabelOption, SettingsShell } from "@remit/ui";
 import { useQuery } from "@tanstack/react-query";
@@ -19,6 +16,7 @@ import {
 import { useFolderLabelTranslator } from "../../hooks/useFolderLabelTranslator";
 import { useLabelList } from "../../hooks/useLabels";
 import { useOrganizeJob } from "../../hooks/useOrganizeJob";
+import { configQueryOptions } from "../../lib/config-query";
 import {
 	filterRunReportHref,
 	filterToggleReportHref,
@@ -226,7 +224,7 @@ function FiltersSettings() {
 		isError,
 		error,
 		refetch,
-	} = useQuery(configOperationsGetConfigOptions());
+	} = useQuery(configQueryOptions());
 
 	return (
 		<SettingsShell

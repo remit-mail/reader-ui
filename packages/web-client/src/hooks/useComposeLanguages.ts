@@ -1,6 +1,5 @@
 import {
 	accountDetailOperationsUpdateAccountMutation,
-	configOperationsGetConfigOptions,
 	configOperationsGetConfigQueryKey,
 } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
 import { defaultComposeLanguages } from "@remit/ui";
@@ -8,6 +7,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo } from "react";
 import { useErrorBanners } from "../components/ui/error-banner-context";
 import { buildMutationErrorBanner } from "../components/ui/error-banners";
+import { configQueryOptions } from "../lib/config-query";
 
 /**
  * The account's writing languages: the menu the composer's language chip
@@ -20,7 +20,7 @@ export const useComposeLanguages = (accountId?: string) => {
 	const { pushError } = useErrorBanners();
 
 	const { data: config } = useQuery({
-		...configOperationsGetConfigOptions(),
+		...configQueryOptions(),
 		staleTime: Infinity,
 	});
 

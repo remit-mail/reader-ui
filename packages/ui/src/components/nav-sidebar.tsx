@@ -131,12 +131,14 @@ function NavItem({
 	ariaLabel,
 	title,
 	failure,
+	unavailable,
 	onClick,
 }: {
 	icon?: ReactNode;
 	label: string;
 	count?: number;
 	failure?: string;
+	unavailable?: string;
 	active?: boolean;
 	dimmed?: boolean;
 	indent?: boolean;
@@ -146,7 +148,11 @@ function NavItem({
 	title?: string;
 	onClick?: () => void;
 }) {
-	const className = navItemClassName({ active, dimmed, indent });
+	const className = navItemClassName({
+		active,
+		dimmed: dimmed || unavailable !== undefined,
+		indent,
+	});
 	const inner = (
 		<NavItemInner
 			icon={icon}
@@ -157,8 +163,9 @@ function NavItem({
 		/>
 	);
 	const name = ariaLabel ?? label;
-	const announced = failure ? `${name} — ${failure}` : name;
-	const tooltip = failure ? `${title ?? label} — ${failure}` : title;
+	const note = failure ?? unavailable;
+	const announced = note ? `${name} — ${note}` : name;
+	const tooltip = note ? `${title ?? label} — ${note}` : title;
 
 	if (navId && linkComponent) {
 		return linkComponent({
@@ -176,7 +183,7 @@ function NavItem({
 			type="button"
 			onClick={onClick}
 			className={className}
-			aria-label={failure ? announced : ariaLabel}
+			aria-label={note ? announced : ariaLabel}
 			title={tooltip}
 		>
 			{inner}
@@ -453,6 +460,7 @@ function AccountNav({
 									ariaLabel={mb.name}
 									title={mb.fullPath ?? mb.name}
 									failure={mb.failure}
+									unavailable={mb.unavailable}
 									count={mb.unseen}
 									active={selectedNavId === mb.id}
 									dimmed={account.muted}
@@ -537,6 +545,7 @@ function AccountNav({
 																ariaLabel={mb.name}
 																title={mb.fullPath ?? mb.name}
 																failure={mb.failure}
+																unavailable={mb.unavailable}
 																count={mb.unseen}
 																active={selectedNavId === mb.id}
 																dimmed={account.muted}

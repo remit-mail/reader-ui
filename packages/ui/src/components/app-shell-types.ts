@@ -191,6 +191,8 @@ export interface NavMailbox {
 	fullPath?: string;
 	/** Present when the last change to this folder failed: what went wrong, in words. */
 	failure?: string;
+	/** Present when the mail server refuses to open this folder: why it is unavailable, in words. */
+	unavailable?: string;
 }
 
 /**

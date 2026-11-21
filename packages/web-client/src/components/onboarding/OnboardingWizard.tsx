@@ -19,7 +19,6 @@
 
 import {
 	accountOperationsCreateAccountMutation,
-	configOperationsGetConfigOptions,
 	configOperationsGetConfigQueryKey,
 	microsoftOAuthOperationsMicrosoftOAuthStartMutation,
 	syncOperationsGetSyncStatusOptions,
@@ -63,6 +62,7 @@ import {
 	getAppPasswordUrl,
 	getDiscoveryStatusMessage,
 } from "../../lib/autodiscovery.js";
+import { configQueryOptions } from "../../lib/config-query";
 import {
 	getPresetById,
 	PROVIDER_PRESETS,
@@ -327,9 +327,7 @@ export function StepMicrosoftEmail({
 	// empty stand-in every account already here reads as the one just connected.
 	const accountIdsBeforeRedirect = useRef<ReadonlySet<string>>(new Set());
 
-	const { refetch: refetchConfig } = useQuery(
-		configOperationsGetConfigOptions(),
-	);
+	const { refetch: refetchConfig } = useQuery(configQueryOptions());
 
 	// Microsoft's answer comes back to whichever window the platform picks, and
 	// on iOS that is often the browser rather than the app launched from the
@@ -521,7 +519,7 @@ export function StepMicrosoftGranted({
 		isError,
 		isFetching,
 		refetch,
-	} = useQuery(configOperationsGetConfigOptions());
+	} = useQuery(configQueryOptions());
 	const account = config?.accounts.find(
 		(candidate) => candidate.accountId === accountId,
 	);
@@ -1095,7 +1093,7 @@ function StepSync({
 	// lastError). Only fetched once the account is created and in error.
 	const syncErrored = syncStatus?.syncPhase === "error";
 	const { data: config } = useQuery({
-		...configOperationsGetConfigOptions(),
+		...configQueryOptions(),
 		enabled: !!accountId && syncErrored,
 	});
 	const syncLastError = config?.accounts.find(

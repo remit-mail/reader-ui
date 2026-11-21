@@ -1,9 +1,9 @@
-import { configOperationsGetConfigOptions } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
 import { ErrorState } from "@remit/ui";
 import { X } from "@remit/ui/icons";
 import { useQuery } from "@tanstack/react-query";
 import { useKeyboardNavigation } from "../../hooks/useKeyboardNavigation";
 import { useIsDesktop } from "../../hooks/useMediaQuery";
+import { configQueryOptions } from "../../lib/config-query";
 import {
 	useAdoptComposeDraft,
 	useCloseCompose,
@@ -28,7 +28,7 @@ export const FullCompose = () => {
 		error: configError,
 		refetch: refetchConfig,
 	} = useQuery({
-		...configOperationsGetConfigOptions(),
+		...configQueryOptions(),
 		staleTime: Infinity,
 	});
 

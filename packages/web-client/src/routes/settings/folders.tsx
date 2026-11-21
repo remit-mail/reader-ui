@@ -1,5 +1,4 @@
 import {
-	configOperationsGetConfigOptions,
 	configOperationsGetConfigQueryKey,
 	folderRoleOperationsAppointFolderRoleMutation,
 	mailboxDetailOperationsRenameMailboxMutation,
@@ -30,6 +29,7 @@ import { DeleteFolderDialog } from "../../components/settings/DeleteFolderDialog
 import { isMailboxNotSettledRefusal } from "../../components/ui/folder-role-refusal";
 import { useCreateMailbox } from "../../hooks/useCreateMailbox";
 import { useFolderLabelTranslator } from "../../hooks/useFolderLabelTranslator";
+import { configQueryOptions } from "../../lib/config-query";
 import { guardFolderDeletion } from "../../lib/delete-folder";
 import { softErrorStatuses } from "../../lib/error-classifier";
 import { folderFailure } from "../../lib/folder-failure";
@@ -285,7 +285,7 @@ function FoldersSettings() {
 		isError,
 		error,
 		refetch,
-	} = useQuery(configOperationsGetConfigOptions());
+	} = useQuery(configQueryOptions());
 
 	return (
 		<SettingsShell

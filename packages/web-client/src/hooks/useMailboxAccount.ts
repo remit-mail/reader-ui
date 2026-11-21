@@ -1,9 +1,7 @@
-import {
-	configOperationsGetConfigOptions,
-	mailboxOperationsListMailboxesOptions,
-} from "@remit/api-http-client/@tanstack/react-query.gen.ts";
+import { mailboxOperationsListMailboxesOptions } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
+import { configQueryOptions } from "../lib/config-query";
 
 interface MailboxAccountResolution {
 	accountId: string | undefined;
@@ -30,7 +28,7 @@ export const useMailboxAccount = (
 	// this subscribes to nothing — which keeps the hook from pulling `/config`
 	// into trees that never asked for it.
 	const { data: config, isLoading: isConfigLoading } = useQuery({
-		...configOperationsGetConfigOptions(),
+		...configQueryOptions(),
 		staleTime: Infinity,
 		enabled: !!mailboxId,
 	});

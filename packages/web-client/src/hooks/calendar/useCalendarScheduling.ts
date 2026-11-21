@@ -8,7 +8,6 @@
  */
 import {
 	addressOperationsSearchAddressesOptions,
-	configOperationsGetConfigOptions,
 	outboxDetailOperationsGetOutboxMessageOptions,
 	outboxDetailOperationsSendOutboxMessageMutation,
 	userSettingsOperationsGetUserSettingsOptions,
@@ -26,6 +25,7 @@ import {
 	useQueryClient,
 } from "@tanstack/react-query";
 import { useCallback, useMemo } from "react";
+import { configQueryOptions } from "../../lib/config-query";
 import { getErrorStatus } from "../../lib/error-classifier";
 import { useDebouncedValue } from "../useDebouncedValue";
 
@@ -43,7 +43,7 @@ export interface CalendarSenders {
 export function useCalendarSenders(): CalendarSenders {
 	const queryClient = useQueryClient();
 	const { data } = useQuery({
-		...configOperationsGetConfigOptions(),
+		...configQueryOptions(),
 		staleTime: 60_000,
 	});
 	const { data: settings } = useQuery(

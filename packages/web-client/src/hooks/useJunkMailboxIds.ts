@@ -1,13 +1,13 @@
-import { configOperationsGetConfigOptions } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
+import { configQueryOptions } from "../lib/config-query";
 
 const NONE: ReadonlySet<string> = new Set();
 
 /** Every account's appointed Spam folder, which decides moved from suspected. */
 export const useJunkMailboxIds = (): ReadonlySet<string> => {
 	const { data } = useQuery({
-		...configOperationsGetConfigOptions(),
+		...configQueryOptions(),
 		staleTime: Infinity,
 	});
 	return useMemo(() => {

@@ -116,7 +116,7 @@ const answerFor = (path: string): unknown => {
 const settle = async (): Promise<void> => {
 	for (let round = 0; round < 8; round += 1) {
 		await act(async () => {
-			await Promise.resolve();
+			await new Promise((resolve) => setTimeout(resolve, 0));
 		});
 	}
 };

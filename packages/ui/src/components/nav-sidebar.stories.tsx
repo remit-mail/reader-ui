@@ -199,6 +199,27 @@ export const RefusedFolderChange: Story = {
 	},
 };
 
+export const UnavailableSharedFolder: Story = {
+	args: {
+		accounts: [
+			{
+				...hostnetAccount,
+				mailboxes: [
+					...hostnetAccount.mailboxes,
+					{
+						id: "hn-shared",
+						name: "Team",
+						fullPath: "Shared/Team",
+						unavailable:
+							"Unavailable: the mail server refuses to open this folder.",
+					},
+				],
+			},
+		],
+		selectedNavId: "hn-inbox",
+	},
+};
+
 export const Hostnet: Story = {
 	args: {
 		accounts: [hostnetAccount],

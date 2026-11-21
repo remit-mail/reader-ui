@@ -1,10 +1,10 @@
-import { configOperationsGetConfigOptions } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
 import type {
 	RemitImapCanonicalMailboxRole,
 	RemitImapFolderAppointment,
 } from "@remit/api-http-client/types.gen.ts";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
+import { configQueryOptions } from "../lib/config-query";
 import type { TrashResolution } from "../lib/format";
 
 /**
@@ -20,7 +20,7 @@ const useFolderRoleMailbox = (
 	role: RemitImapCanonicalMailboxRole,
 ): { mailboxId: string | undefined; isLoading: boolean } => {
 	const { data: config, isLoading } = useQuery({
-		...configOperationsGetConfigOptions(),
+		...configQueryOptions(),
 		staleTime: Infinity,
 		enabled: !!accountId,
 	});
@@ -116,7 +116,7 @@ export const useTrashByAccount = (): {
 	isError: boolean;
 } => {
 	const { data: config, isError } = useQuery({
-		...configOperationsGetConfigOptions(),
+		...configQueryOptions(),
 		staleTime: Infinity,
 	});
 
@@ -148,7 +148,7 @@ export const useFolderAppointments = (
 	accountId: string | undefined,
 ): readonly RemitImapFolderAppointment[] => {
 	const { data: config } = useQuery({
-		...configOperationsGetConfigOptions(),
+		...configQueryOptions(),
 		staleTime: Infinity,
 		enabled: !!accountId,
 	});

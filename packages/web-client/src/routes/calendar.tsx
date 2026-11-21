@@ -6,7 +6,6 @@
  * pane and the grid.
  */
 
-import { configOperationsGetConfigOptions } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
 import { ErrorState } from "@remit/ui";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router";
@@ -17,10 +16,11 @@ import { CalendarTopBar } from "../components/layout/CalendarTopBar";
 import { DesktopChrome } from "../components/layout/DesktopChrome";
 import { useIsWritingEvent } from "../routing";
 import "../lib/client";
+import { configQueryOptions } from "../lib/config-query";
 
 export const Route = createFileRoute("/calendar")({
 	loader: ({ context: { queryClient } }) => {
-		void queryClient.prefetchQuery(configOperationsGetConfigOptions());
+		void queryClient.prefetchQuery(configQueryOptions());
 	},
 	component: CalendarLayout,
 });
@@ -35,7 +35,7 @@ function CalendarLayout() {
 		error,
 		refetch,
 	} = useQuery({
-		...configOperationsGetConfigOptions(),
+		...configQueryOptions(),
 		staleTime: Infinity,
 	});
 

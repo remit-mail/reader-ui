@@ -1,4 +1,3 @@
-import { configOperationsGetConfigOptions } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
 import type {
 	RemitImapAccountResponse,
 	RemitImapClassificationPreset,
@@ -20,6 +19,7 @@ import {
 	usageCost,
 	withSourceNote,
 } from "../../../lib/classification";
+import { configQueryOptions } from "../../../lib/config-query";
 import { DailyLimitCard } from "./DailyLimitCard";
 import { FailureBanner } from "./FailureBanner";
 import { ProviderCard } from "./ProviderCard";
@@ -264,7 +264,7 @@ function LoadingSkeleton() {
 export function ClassificationPanel() {
 	const query = useClassificationSettings();
 	const config = useQuery({
-		...configOperationsGetConfigOptions(),
+		...configQueryOptions(),
 		staleTime: Infinity,
 	});
 	const [announcement, setAnnouncement] = useState("");

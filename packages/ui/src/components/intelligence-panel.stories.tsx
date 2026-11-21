@@ -112,7 +112,7 @@ export const MovedOutOfJunkUnsure: Story = {
 				action: "MoveToInbox",
 				confidence: "Unsure",
 				fromPlacement: "junk",
-				reasons: ["no-confident-signal", "newer-server-code"],
+				reasons: ["no-confident-signal", "junk-not-rescued"],
 				dryRun: false,
 			},
 		},

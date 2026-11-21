@@ -1,11 +1,9 @@
-import {
-	configOperationsGetConfigOptions,
-	messageOperationsDescribeMessageOptions,
-} from "@remit/api-http-client/@tanstack/react-query.gen.ts";
+import { messageOperationsDescribeMessageOptions } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
 import type { ComposeInsertion } from "@remit/ui/rich-text";
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useState } from "react";
 import { useMailboxAccount } from "../../hooks/useMailboxAccount";
+import { configQueryOptions } from "../../lib/config-query";
 import {
 	type ReplyAddress,
 	useAdoptReplyDraft,
@@ -51,7 +49,7 @@ export const ConversationCompose = ({ surface }: { surface: ReplyAddress }) => {
 	});
 
 	const { data: config } = useQuery({
-		...configOperationsGetConfigOptions(),
+		...configQueryOptions(),
 		staleTime: Infinity,
 	});
 

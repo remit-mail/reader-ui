@@ -1,4 +1,3 @@
-import { configOperationsGetConfigOptions } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
 import type {
 	RemitImapAccountResponse,
 	RemitImapLabelColor,
@@ -24,6 +23,7 @@ import {
 	useLabelList,
 	useUpdateLabel,
 } from "../../hooks/useLabels";
+import { configQueryOptions } from "../../lib/config-query";
 import { deleteLabelConfirmCopy } from "../../lib/organize/label-delete-copy";
 import { useOpenSettingsSection } from "../../routing/sections";
 import { useSettingsNavItems } from "../settings";
@@ -197,7 +197,7 @@ function LabelsSettings() {
 		isError,
 		error,
 		refetch,
-	} = useQuery(configOperationsGetConfigOptions());
+	} = useQuery(configQueryOptions());
 
 	return (
 		<SettingsShell

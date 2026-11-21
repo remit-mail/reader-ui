@@ -20,7 +20,7 @@ import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useLabelUnreadCounts } from "../../hooks/useCollectionThreads";
 import { useLabelList } from "../../hooks/useLabels";
-import { folderFailure } from "../../lib/folder-failure";
+import { folderFailure, folderUnavailable } from "../../lib/folder-failure";
 import {
 	buildMailboxRoleMap,
 	labelForMailbox,
@@ -119,6 +119,7 @@ function toNavMailbox(
 		role,
 		fullPath: mb.fullPath,
 		failure: folderFailure(mb),
+		unavailable: folderUnavailable(mb),
 	};
 }
 

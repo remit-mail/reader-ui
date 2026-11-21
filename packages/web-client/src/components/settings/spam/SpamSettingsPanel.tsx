@@ -1,6 +1,5 @@
 import {
 	classificationStatsOperationsGetClassificationStatsOptions,
-	configOperationsGetConfigOptions,
 	userSettingsOperationsGetUserSettingsOptions,
 } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
 import { unifiedThreadOperationsListAllThreads } from "@remit/api-http-client/sdk.gen.ts";
@@ -25,6 +24,7 @@ import { type ReactNode, useId, useState } from "react";
 import { useSaveClassification } from "../../../hooks/useClassificationSettings";
 import { useJunkMailboxIds } from "../../../hooks/useJunkMailboxIds";
 import { useLabelList } from "../../../hooks/useLabels";
+import { configQueryOptions } from "../../../lib/config-query";
 import {
 	isUnauthenticated,
 	softErrorStatuses,
@@ -200,7 +200,7 @@ const latestOf = async (
 function LatestSection() {
 	const junkMailboxIds = useJunkMailboxIds();
 	const config = useQuery({
-		...configOperationsGetConfigOptions(),
+		...configQueryOptions(),
 		staleTime: Infinity,
 	});
 	const labelList = useLabelList(config.data?.accounts[0]?.accountId);

@@ -1,7 +1,4 @@
-import {
-	configOperationsGetConfigOptions,
-	unifiedThreadOperationsListAllThreadsOptions,
-} from "@remit/api-http-client/@tanstack/react-query.gen.ts";
+import { unifiedThreadOperationsListAllThreadsOptions } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
 import {
 	ErrorState,
 	KeyboardShortcutsModal,
@@ -35,6 +32,7 @@ import { mailSearchSchema } from "../lib/mail-search";
 import { buildAccountNameIndex } from "../lib/search-token-index";
 import { useIsComposing, useOpenCompose, useSearchField } from "../routing";
 import "../lib/client";
+import { configQueryOptions } from "../lib/config-query";
 
 // `MailContext` / `useMailContext` live in `@/lib/mail-context` so the provider
 // here and the child-route consumers resolve to a single module instance — see
@@ -49,7 +47,7 @@ export const Route = createFileRoute("/mail")({
 	// zero-account onboarding redirect moved into the component (see
 	// MailLayout), so a cold load no longer blocks first paint on the network.
 	loader: ({ context: { queryClient } }) => {
-		void queryClient.prefetchQuery(configOperationsGetConfigOptions());
+		void queryClient.prefetchQuery(configQueryOptions());
 		void queryClient.prefetchQuery({
 			...unifiedThreadOperationsListAllThreadsOptions(),
 			staleTime: 60_000,
@@ -95,7 +93,7 @@ function MailLayout() {
 		error: configError,
 		refetch: refetchConfig,
 	} = useQuery({
-		...configOperationsGetConfigOptions(),
+		...configQueryOptions(),
 		// Config only changes when accounts are added/edited/removed; those
 		// mutations explicitly invalidate this query.
 		staleTime: Infinity,

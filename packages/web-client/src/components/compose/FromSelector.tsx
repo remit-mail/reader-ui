@@ -1,7 +1,7 @@
-import { configOperationsGetConfigOptions } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
 import type { RemitImapAccountResponse } from "@remit/api-http-client/types.gen.ts";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
+import { configQueryOptions } from "../../lib/config-query";
 
 interface FromSelectorProps {
 	selectedAccountId?: string;
@@ -13,7 +13,7 @@ export const FromSelector = ({
 	onSelect,
 }: FromSelectorProps) => {
 	const { data: config } = useQuery({
-		...configOperationsGetConfigOptions(),
+		...configQueryOptions(),
 		staleTime: Infinity,
 	});
 	const accounts = config?.accounts ?? [];

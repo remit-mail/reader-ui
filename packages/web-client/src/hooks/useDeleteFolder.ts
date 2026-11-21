@@ -25,8 +25,22 @@ import {
 	type MailboxCountReading,
 	mailboxSyncStamp,
 } from "../lib/fresh-mailbox-count";
+import { listPages } from "../lib/list-pages";
 
 const PAGE_CAP = 50;
+
+const threadPages = (mailboxId: string, signal: AbortSignal) =>
+	listPages(
+		async (continuationToken) => {
+			const { data } = await threadOperationsListThreads({
+				path: { mailboxId },
+				query: { order: "desc", continuationToken },
+				throwOnError: true,
+			});
+			return data;
+		},
+		{ maxPages: PAGE_CAP, signal },
+	);
 
 type Outcome<T> = { ok: true; value: T } | { ok: false; error: string };
 
@@ -57,22 +71,13 @@ const collectMovableIds = async (
 	signal: AbortSignal,
 ): Promise<string[]> => {
 	const ids: string[] = [];
-	let continuationToken: string | undefined;
-	for (let page = 0; page < PAGE_CAP; page += 1) {
-		if (signal.aborted) return ids;
-		const { data } = await threadOperationsListThreads({
-			path: { mailboxId },
-			query: { order: "desc", continuationToken },
-			throwOnError: true,
-		});
-		for (const item of data.items) {
+	for await (const items of threadPages(mailboxId, signal)) {
+		for (const item of items) {
 			if (alreadyMoved.has(item.messageId)) continue;
 			if (ids.includes(item.messageId)) continue;
 			ids.push(item.messageId);
 			if (ids.length >= limit) return ids;
 		}
-		if (!data.continuationToken) break;
-		continuationToken = data.continuationToken;
 	}
 	return ids;
 };
@@ -88,17 +93,8 @@ const liveMessageCount = async (
 	signal: AbortSignal,
 ): Promise<number> => {
 	let count = 0;
-	let continuationToken: string | undefined;
-	for (let page = 0; page < PAGE_CAP; page += 1) {
-		if (signal.aborted) return count;
-		const { data } = await threadOperationsListThreads({
-			path: { mailboxId },
-			query: { order: "desc", continuationToken },
-			throwOnError: true,
-		});
-		count += data.items.length;
-		if (!data.continuationToken) break;
-		continuationToken = data.continuationToken;
+	for await (const items of threadPages(mailboxId, signal)) {
+		count += items.length;
 	}
 	return count;
 };
