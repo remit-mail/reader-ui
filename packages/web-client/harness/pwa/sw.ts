@@ -6,6 +6,7 @@ import {
 	CHECK_UPDATE,
 	CLEAN_SHELL_CACHES,
 	isAppNavigation,
+	isAppRequest,
 	SHELL_VERSION,
 	shellCacheName,
 	WORKER_VERSION,
@@ -16,6 +17,7 @@ declare const self: ServiceWorkerGlobalScope & {
 };
 declare const __APP_SHA__: string;
 declare const __APP_BUILD_TIME__: string;
+declare const __REMIT_PWA_NAVIGATION_DENYLIST__: readonly string[];
 
 // Each build owns its cache. Activating a new worker must not remove chunks
 // still used by clients of the previous worker. Tenant stores are independent.
@@ -82,10 +84,11 @@ self.addEventListener("fetch", (event) => {
 	if (
 		request.method !== "GET" ||
 		url.origin !== self.location.origin ||
-		!isAppNavigation(url)
+		!isAppRequest(url)
 	)
 		return;
 	if (request.mode === "navigate") {
+		if (!isAppNavigation(url, __REMIT_PWA_NAVIGATION_DENYLIST__)) return;
 		event.respondWith(
 			precache.strategy.handle({
 				event,
