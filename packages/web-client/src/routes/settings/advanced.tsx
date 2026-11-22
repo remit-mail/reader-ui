@@ -5,6 +5,7 @@
 import { SettingsShell } from "@remit/ui";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
+import { InstallSettings } from "../../components/install/InstallApp";
 import { ConfigTransferPanel } from "../../components/settings/ConfigTransferPanel";
 import { SelfUpdatePanel } from "../../components/settings/SelfUpdatePanel";
 import { TlsRootCaDownload } from "../../components/settings/TlsRootCaDownload";
@@ -36,6 +37,7 @@ function AdvancedSettings() {
 			onSelect={openSettingsSection}
 			onBackToMail={() => void navigate({ to: "/mail" })}
 		>
+			<InstallSettings />
 			{getRuntimeConfig().updateMode === "self" && <SelfUpdatePanel />}
 			<div className="mt-6 border-t border-line pt-4">
 				<ConfigTransferPanel />

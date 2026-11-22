@@ -1,1 +1,13 @@
-{}
+{
+  "install": {
+    "title": "Installer l’application",
+    "share": "Touchez Partager dans Safari.",
+    "file": "Ouvrez le menu Fichier dans Safari.",
+    "homeScreen": "Choisissez Sur l’écran d’accueil.",
+    "dock": "Choisissez Ajouter au Dock.",
+    "close": "Compris",
+    "dismiss": "Masquer l’option d’installation",
+    "hidden": "L’option d’installation est masquée sur cet appareil.",
+    "restore": "Afficher à nouveau l’option d’installation"
+  }
+}

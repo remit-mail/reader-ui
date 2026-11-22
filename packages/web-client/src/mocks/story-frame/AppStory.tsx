@@ -21,8 +21,11 @@ import { type SettingsSlot, SettingsSlotsProvider } from "../../settings-slots";
 import "../../lib/i18n";
 import "../../lib/client";
 
+import { InstallProvider } from "../../components/install/InstallProvider";
+
 export interface AppStoryProps {
 	url: string;
+	pwaEnabled?: boolean;
 	authProvider?: AuthProvider;
 	settingsSlots?: SettingsSlot[];
 }
@@ -41,6 +44,7 @@ export function AppStory({
 	url,
 	authProvider = noneAuthProvider,
 	settingsSlots = [],
+	pwaEnabled = false,
 }: AppStoryProps) {
 	const [queryClient] = useState(createStoryQueryClient);
 	const [router] = useState(() => {
@@ -57,9 +61,11 @@ export function AppStory({
 		<QueryClientProvider client={queryClient}>
 			<AuthProviderProvider value={authProvider}>
 				<SettingsSlotsProvider value={settingsSlots}>
-					<Shell>
-						<RouterProvider router={router} />
-					</Shell>
+					<InstallProvider enabled={pwaEnabled}>
+						<Shell>
+							<RouterProvider router={router} />
+						</Shell>
+					</InstallProvider>
 				</SettingsSlotsProvider>
 			</AuthProviderProvider>
 		</QueryClientProvider>

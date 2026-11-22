@@ -75,3 +75,14 @@ its content-hash gate publishes changed packages and the matching exact ui
 version in web-client. The workflow log names the resulting npm versions. The
 host then bumps its exact package pins. This chunk does not publish a release
 or change a host.
+
+# In-app installation
+
+Only PWA-enabled builds capture `beforeinstallprompt`. The auth shell keeps the
+one-use event until the mail navigation's Install app button is pressed. Safari
+instead offers Share → Add to Home Screen on iPhone/iPad (including iPadOS's Mac
+user agent), or File → Add to Dock on macOS Safari 17+. Other browsers show no option.
+Standalone display mode, iOS's `navigator.standalone`, and `appinstalled` hide it.
+Dismissal uses the device-local `remit.installDismissed` key; Settings → Advanced
+can clear it. Chromium still needs a fresh browser eligibility event after its
+native prompt has been consumed. There is no server preference or worker change.
