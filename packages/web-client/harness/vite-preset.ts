@@ -170,6 +170,9 @@ export const webClientPreset = ({
 	publicDir: join(packageRoot, "public"),
 	define: {
 		__REMIT_PWA_ENABLED__: JSON.stringify(pwa?.enabled ?? false),
+		__REMIT_PWA_NAVIGATION_DENYLIST__: JSON.stringify(
+			pwa?.navigationDenylist ?? [],
+		),
 		__APP_SHA__: JSON.stringify(commit ?? resolveGitSha()),
 		__APP_BUILD_TIME__: JSON.stringify(new Date().toISOString()),
 	},

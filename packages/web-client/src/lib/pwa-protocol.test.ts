@@ -4,6 +4,7 @@ import {
 	activateWhenSafe,
 	COMMIT_UPDATE,
 	isAppNavigation,
+	isAppRequest,
 	PREPARE_UPDATE,
 	RELEASE_UPDATE,
 	type UpdateClient,
@@ -23,6 +24,52 @@ const tab = (
 			(ports[0] as MessagePort).postMessage(safe);
 		if (message === RELEASE_UPDATE) this.released = true;
 	},
+});
+test("host navigation exclusions match whole path segments and extend the built-ins", () => {
+	const denylist = ["/consent", "/device", "/apps"];
+	for (const path of [
+		"/consent?code=123",
+		"/device",
+		"/apps",
+		"/apps/connections",
+		"/api/config",
+		"/mail?reauth=1",
+	])
+		assert.equal(
+			isAppNavigation(new URL(path, "https://mail.example"), denylist),
+			false,
+			path,
+		);
+	for (const path of ["/", "/mail/inbox", "/settings", "/apps-other"])
+		assert.equal(
+			isAppNavigation(new URL(path, "https://mail.example"), denylist),
+			true,
+			path,
+		);
+	assert.equal(isAppNavigation(new URL("https://mail.example/consent")), true);
+});
+test("file-like navigations bypass the shell without disabling precached asset requests", () => {
+	for (const path of [
+		"/sw.js",
+		"/manifest.webmanifest",
+		"/icons/missing.png",
+		"/assets/missing.js?version=2",
+		"/icons/missing%2Epng",
+		"/icons/missing.png/",
+	])
+		assert.equal(
+			isAppNavigation(new URL(path, "https://mail.example")),
+			false,
+			path,
+		);
+	assert.equal(
+		isAppNavigation(new URL("https://mail.example/mail/archive.2026/inbox")),
+		true,
+	);
+	assert.equal(
+		isAppRequest(new URL("https://mail.example/assets/app.js")),
+		true,
+	);
 });
 test("shell navigation excludes authentication and private endpoints", () => {
 	for (const path of [

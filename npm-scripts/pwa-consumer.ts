@@ -118,7 +118,10 @@ const server = createServer(async (request, response) => {
 	const path = new URL(request.url ?? "/", "http://localhost").pathname;
 	const file = join(serving, path === "/" ? "index.html" : path);
 	response.setHeader("Cache-Control", "no-cache");
-	if (path === "/auth/bfcache-away") {
+	if (["/consent", "/device", "/apps", "/apps/connections"].includes(path)) {
+		response.setHeader("Content-Type", "text/html");
+		response.end(`<!doctype html><title>Host page</title><h1>${path}</h1>`);
+	} else if (path === "/auth/bfcache-away") {
 		response.setHeader("Content-Type", "text/html");
 		response.setHeader("Cache-Control", "max-age=600");
 		response.end("<!doctype html><title>Outside the app</title>");
@@ -255,8 +258,9 @@ const server = createServer(async (request, response) => {
 		response.end(readFileSync(file));
 	} else if (extname(file)) {
 		missingStatic.add(path);
+		response.setHeader("Content-Type", "text/plain");
 		response.writeHead(404);
-		response.end();
+		response.end("Not found");
 	} else if (
 		path.startsWith("/content/") ||
 		path.startsWith("/auth/") ||
@@ -296,6 +300,33 @@ try {
 	const second = await context.newPage();
 	await second.goto(origin);
 	await second.waitForFunction(() => "pwaTest" in window);
+	const hostPage = await context.newPage();
+	for (const path of ["/consent", "/device", "/apps", "/apps/connections"]) {
+		const response = await hostPage.goto(`${origin}${path}`);
+		assert.equal(response?.status(), 200, path);
+		assert.equal(response?.fromServiceWorker(), false, path);
+		assert.equal(await hostPage.locator("h1").textContent(), path);
+		assert.equal(
+			await hostPage.evaluate(() => !!navigator.serviceWorker.controller),
+			true,
+		);
+	}
+	for (const path of [
+		"/icons/missing.png",
+		"/assets/missing.js",
+		"/missing.webmanifest",
+		"/missing-sw.js",
+	]) {
+		const response = await hostPage.goto(`${origin}${path}`);
+		assert.equal(response?.status(), 404, path);
+		assert.equal(response?.fromServiceWorker(), false, path);
+		assert.equal(await hostPage.locator("body").textContent(), "Not found");
+		assert.equal(
+			await hostPage.evaluate(() => !!navigator.serviceWorker.controller),
+			true,
+		);
+	}
+	await hostPage.close();
 	await context.setOffline(true);
 	for (const page of [first, second]) {
 		assert.deepEqual(
