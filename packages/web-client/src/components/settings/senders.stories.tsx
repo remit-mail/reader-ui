@@ -92,10 +92,10 @@ export const SendersAndRules: Story = {
 		await expect(await canvas.findByText("Dana Boss")).toBeVisible();
 		await expect(canvas.getByText("1 of 1 flagged senders")).toBeVisible();
 		await expect(
-			canvas.getByText("48 received · you replied 21×"),
+			await canvas.findByText("48 received · you replied 21×"),
 		).toBeVisible();
 		await expect(
-			canvas.getByText("7 received · you've never replied"),
+			await canvas.findByText("7 received · you've never replied"),
 		).toBeVisible();
 		await expect(
 			canvas.getAllByRole("button", { name: "Add VIP" }),
