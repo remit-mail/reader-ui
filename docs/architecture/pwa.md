@@ -170,3 +170,14 @@ inline image blobs and attachment bytes offline. They exercise both shipped auth
 compositions, expired signed-link recovery, real Cache Storage and IndexedDB
 failures, a delayed network response across a two-tab wipe, and tenant changes.
 Unit tests retain only the pure admission and query-retention selectors.
+
+# In-app installation
+
+Only PWA-enabled builds capture `beforeinstallprompt`. The auth shell keeps the
+one-use event until the mail navigation's Install app button is pressed. Safari
+instead offers Share → Add to Home Screen on iPhone/iPad (including iPadOS's Mac
+user agent), or File → Add to Dock on macOS Safari 17+. Other browsers show no option.
+Standalone display mode, iOS's `navigator.standalone`, and `appinstalled` hide it.
+Dismissal uses the device-local `remit.installDismissed` key; Settings → Advanced
+can clear it. Chromium still needs a fresh browser eligibility event after its
+native prompt has been consumed. There is no server preference or worker change.

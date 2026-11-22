@@ -10,6 +10,7 @@ import { Fragment, StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { installAuthInterceptor } from "../auth/auth-interceptor";
 import { type AuthProvider, AuthProviderProvider } from "../auth/provider";
+import { InstallProvider } from "../components/install/InstallProvider";
 import { install as installConsoleErrorCatcher } from "../lib/console-errors";
 import { setFatalErrorTelemetry } from "../lib/fatal-error";
 import { NetworkError } from "../lib/network-error";
@@ -133,23 +134,25 @@ export const mountApp = ({
 				<QueryClientProvider client={queryClient}>
 					<AuthProviderProvider value={authProvider}>
 						<SettingsSlotsProvider value={settingsSlots}>
-							<Provider>
-								{offlineRuntime ? (
-									<OfflineProvider
-										runtime={offlineRuntime}
-										client={queryClient}
-										gate={Gate}
-									>
-										{app}
-									</OfflineProvider>
-								) : (
-									<Gate>{app}</Gate>
-								)}
-								{!import.meta.env.PROD &&
-									!getRuntimeConfig().disableDevtools && (
-										<ReactQueryDevtools initialIsOpen={false} />
+							<InstallProvider>
+								<Provider>
+									{offlineRuntime ? (
+										<OfflineProvider
+											runtime={offlineRuntime}
+											client={queryClient}
+											gate={Gate}
+										>
+											{app}
+										</OfflineProvider>
+									) : (
+										<Gate>{app}</Gate>
 									)}
-							</Provider>
+									{!import.meta.env.PROD &&
+										!getRuntimeConfig().disableDevtools && (
+											<ReactQueryDevtools initialIsOpen={false} />
+										)}
+								</Provider>
+							</InstallProvider>
 						</SettingsSlotsProvider>
 					</AuthProviderProvider>
 				</QueryClientProvider>
