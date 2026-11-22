@@ -1,4 +1,4 @@
-export type InstallPlatform =
+type InstallPlatform =
 	| "chromium-prompt"
 	| "ios-safari"
 	| "macos-safari"
