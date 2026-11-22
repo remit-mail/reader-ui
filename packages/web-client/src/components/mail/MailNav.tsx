@@ -14,6 +14,7 @@ import { LogOut, Settings } from "@remit/ui/icons";
 import { AccountSession } from "../../auth/AccountSession";
 import { useWarningsAttention } from "../../hooks/useWarningsAttention";
 import { NavLink } from "../../routing";
+import { InstallApp } from "../install/InstallApp";
 import { BugReportButton } from "../ui/BugReportButton";
 import { MailSidebarAdapter } from "./MailSidebarAdapter";
 
@@ -28,7 +29,14 @@ export function MailNav({ accounts, onMailboxSelect }: MailNavProps) {
 	const settingsAttention = useWarningsAttention();
 
 	if (isPane) {
-		return <MailSidebarAdapter accounts={accounts} />;
+		return (
+			<div className="flex h-full flex-col bg-surface-sunken">
+				<div className="min-h-0 flex-1">
+					<MailSidebarAdapter accounts={accounts} />
+				</div>
+				<InstallApp />
+			</div>
+		);
 	}
 
 	return (
@@ -47,6 +55,7 @@ export function MailNav({ accounts, onMailboxSelect }: MailNavProps) {
 					</AttentionDot>
 					<span className="flex-1 truncate text-left">Settings</span>
 				</NavLink>
+				<InstallApp onInstall={onMailboxSelect} />
 				<BugReportButton />
 				<AccountSession>
 					{({ signOut }) => (

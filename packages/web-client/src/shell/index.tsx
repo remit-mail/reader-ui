@@ -10,6 +10,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { installAuthInterceptor } from "../auth/auth-interceptor";
 import { type AuthProvider, AuthProviderProvider } from "../auth/provider";
+import { InstallProvider } from "../components/install/InstallProvider";
 import { install as installConsoleErrorCatcher } from "../lib/console-errors";
 import { setFatalErrorTelemetry } from "../lib/fatal-error";
 import { installPwaUpdateCoordinator } from "../lib/pwa-update";
@@ -110,9 +111,11 @@ export const mountApp = ({
 				<QueryClientProvider client={queryClient}>
 					<AuthProviderProvider value={authProvider}>
 						<SettingsSlotsProvider value={settingsSlots}>
-							<Shell>
-								<RouterProvider router={router} />
-							</Shell>
+							<InstallProvider>
+								<Shell>
+									<RouterProvider router={router} />
+								</Shell>
+							</InstallProvider>
 						</SettingsSlotsProvider>
 					</AuthProviderProvider>
 					{!import.meta.env.PROD && !getRuntimeConfig().disableDevtools && (

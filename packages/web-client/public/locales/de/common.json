@@ -1,1 +1,13 @@
-{}
+{
+  "install": {
+    "title": "App installieren",
+    "share": "Tippe in Safari auf Teilen.",
+    "file": "Öffne in Safari das Menü Ablage.",
+    "homeScreen": "Wähle Zum Home-Bildschirm.",
+    "dock": "Wähle Zum Dock hinzufügen.",
+    "close": "Verstanden",
+    "dismiss": "Installationsoption ausblenden",
+    "hidden": "Die Installationsoption ist auf diesem Gerät ausgeblendet.",
+    "restore": "Installationsoption wieder anzeigen"
+  }
+}
