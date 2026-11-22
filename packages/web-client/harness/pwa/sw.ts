@@ -40,6 +40,21 @@ self.addEventListener("activate", (event) => {
 });
 let checking: Promise<boolean> | undefined;
 self.addEventListener("message", (event) => {
+	// The worker owns only generic shell bytes. Forward the durable revocation
+	// to controlled and uncontrolled windows; never maintain a global tenant.
+	if (event.data?.type === "remit:offline-wipe") {
+		event.waitUntil(
+			self.clients
+				.matchAll({ type: "window", includeUncontrolled: true })
+				.then((tabs) => {
+					for (const tab of tabs)
+						tab.postMessage({
+							type: "remit:offline-revoked",
+						});
+				}),
+		);
+		return;
+	}
 	if (event.data === WORKER_VERSION) {
 		event.ports[0]?.postMessage(cacheName);
 		return;

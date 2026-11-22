@@ -1,5 +1,5 @@
 import type { ApiError as ApiErrorWireBody } from "@remit/api-http-client/types.gen.ts";
-import { taggedFetch } from "./network-error";
+import { apiFetch } from "./api-fetch";
 
 export class ApiError extends Error {
 	constructor(
@@ -81,7 +81,7 @@ const request = async <T>(
 
 	const url = buildUrl(path, params);
 
-	const response = await taggedFetch(url, {
+	const response = await apiFetch(url, {
 		method,
 		headers: {
 			"Content-Type": "application/json",

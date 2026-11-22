@@ -10,6 +10,7 @@ import { useErrorBanners } from "../components/ui/error-banner-context";
 import { formatErrorDetail } from "../components/ui/error-banners";
 import { runChunkedMutation } from "../lib/bulk-actions";
 import { softErrorMeta } from "../lib/error-classifier";
+import { getOfflineRuntime } from "../lib/offline-runtime";
 import {
 	cancelThreadListQueries,
 	invalidateThreadListQueries,
@@ -258,7 +259,11 @@ export const useMarkAsRead = ({
 	// selection or leaving the view before the dwell elapses cancels the pending
 	// mark, so a glance stays unread (#140).
 	useEffect(
-		() => scheduleMarkRead(eligibleIds, MARK_READ_DELAY_MS, markMessagesRead),
+		() =>
+			scheduleMarkRead(eligibleIds, MARK_READ_DELAY_MS, (ids) => {
+				const runtime = getOfflineRuntime();
+				if (!runtime || runtime.state.verified) markMessagesRead(ids);
+			}),
 		[eligibleIds, markMessagesRead],
 	);
 

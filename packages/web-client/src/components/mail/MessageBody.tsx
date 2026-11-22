@@ -5,10 +5,13 @@ import {
 	type EmailRenderCategory,
 	MessageBodyView,
 } from "@remit/ui";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useAuthProvider } from "../../auth/provider";
 import { useIsDark } from "../../hooks/useIsDark";
 import { useMessageBodyContent } from "../../hooks/useMessageBodyContent";
 import { useToggleTrusted } from "../../hooks/useToggleTrusted";
+import { fetchAttachment } from "../../lib/attachment-download";
+import { getOfflineRuntime } from "../../lib/offline-runtime";
 import { BlockedImagesNotice } from "./BlockedImagesNotice";
 import { MessageBodyErrorBanner } from "./MessageBodyErrorBanner";
 
@@ -146,15 +149,67 @@ export const MessageBody = ({
 		enabled: hasParts,
 	});
 
-	const resolveCid: CidResolver = useMemo(
-		() => buildCidResolver(bodyParts ?? []),
-		[bodyParts],
-	);
-
 	const renderedHtml =
 		hasParts && fetched?.kind === "html" ? fetched.body : html;
 	const renderedText =
 		hasParts && fetched?.kind === "text" ? fetched.body : text;
+
+	const { getToken } = useAuthProvider();
+	const [inline, setInline] = useState<{
+		html: string;
+		parts: readonly MessageBodyPart[];
+		urls: Map<string, string>;
+	}>();
+	useEffect(() => {
+		const runtime = getOfflineRuntime();
+		if (!runtime || !renderedHtml || !bodyParts) return;
+		const template = document.createElement("template");
+		template.innerHTML = renderedHtml;
+		const referenced = new Set(
+			[...template.content.querySelectorAll("img[src]")]
+				.map((image) => image.getAttribute("src") ?? "")
+				.filter((src) => src.startsWith("cid:"))
+				.map((src) => src.slice(4).replace(/^<|>$/g, "")),
+		);
+		let stopped = false;
+		const urls = new Map<string, string>();
+		const parts = bodyParts.filter(
+			(part) =>
+				part.mediaType.toLowerCase() === "image" &&
+				part.contentId &&
+				referenced.has(part.contentId.replace(/^<|>$/g, "")),
+		);
+		void Promise.all(
+			parts.map(async (part) => {
+				const blob = await fetchAttachment(
+					part.contentUrl,
+					getToken,
+					`${part.mediaType}/${part.mediaSubtype}`.toLowerCase(),
+				).catch((error: unknown) => {
+					runtime.report(error);
+					return undefined;
+				});
+				if (blob && !stopped)
+					urls.set(
+						part.contentId!.replace(/^<|>$/g, ""),
+						URL.createObjectURL(blob),
+					);
+			}),
+		).then(() => {
+			if (!stopped) setInline({ html: renderedHtml, parts: bodyParts, urls });
+		});
+		return () => {
+			stopped = true;
+			for (const url of urls.values()) URL.revokeObjectURL(url);
+		};
+	}, [renderedHtml, bodyParts, getToken]);
+	const resolveCid: CidResolver = useMemo(() => {
+		if (!getOfflineRuntime()) return buildCidResolver(bodyParts ?? []);
+		return (cid) =>
+			inline && inline.html === renderedHtml && inline.parts === bodyParts
+				? inline.urls.get(cid.replace(/^<|>$/g, ""))
+				: undefined;
+	}, [inline, renderedHtml, bodyParts]);
 
 	if (hasParts) {
 		if (isBodyLoading) {
@@ -164,7 +219,7 @@ export const MessageBody = ({
 				</div>
 			);
 		}
-		if (isBodyError) {
+		if (isBodyError && !fetched) {
 			return (
 				<div className={cn("message-body", className)}>
 					<MessageBodyErrorBanner
@@ -203,24 +258,32 @@ export const MessageBody = ({
 	// privacy "images blocked" bar (it touches app trust state, so it stays
 	// here and is injected via `renderBlockedNotice`).
 	return (
-		<MessageBodyView
-			className={className}
-			html={renderedHtml}
-			text={renderedText}
-			isDark={isDark}
-			category={category}
-			allowImages={allowImages}
-			resolveCid={resolveCid}
-			renderBlockedNotice={(blockedImageCount) => (
-				<BlockedImagesNotice
-					blockedImageCount={blockedImageCount}
-					canAlwaysTrust={canAlwaysTrust}
-					isTrustPending={isTrustPending}
-					isSenderBlocked={isBlocked}
-					onLoadOnce={() => setAllowImagesOnce(true)}
-					onAlwaysTrust={handleAlwaysTrust}
+		<>
+			{isBodyError && fetched && (
+				<MessageBodyErrorBanner
+					error={bodyError}
+					onRetry={() => refetchBody()}
 				/>
 			)}
-		/>
+			<MessageBodyView
+				className={className}
+				html={renderedHtml}
+				text={renderedText}
+				isDark={isDark}
+				category={category}
+				allowImages={allowImages}
+				resolveCid={resolveCid}
+				renderBlockedNotice={(blockedImageCount) => (
+					<BlockedImagesNotice
+						blockedImageCount={blockedImageCount}
+						canAlwaysTrust={canAlwaysTrust}
+						isTrustPending={isTrustPending}
+						isSenderBlocked={isBlocked}
+						onLoadOnce={() => setAllowImagesOnce(true)}
+						onAlwaysTrust={handleAlwaysTrust}
+					/>
+				)}
+			/>
+		</>
 	);
 };

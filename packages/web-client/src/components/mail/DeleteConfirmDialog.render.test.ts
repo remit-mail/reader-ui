@@ -112,11 +112,16 @@ const answerFor = (path: string): unknown => {
 	return {};
 };
 
-/** Let the queries and the two writes behind the confirm run to completion. */
-const settle = async (): Promise<void> => {
-	for (let round = 0; round < 8; round += 1) {
+/** Queries, mutation notifications and the replay may cross event-loop turns. */
+const waitFor = async (done: () => boolean): Promise<void> => {
+	const deadline = Date.now() + 5_000;
+	while (!done()) {
+		assert.ok(
+			Date.now() < deadline,
+			"the appointment did not reach its expected state",
+		);
 		await act(async () => {
-			await Promise.resolve();
+			await new Promise((resolve) => setTimeout(resolve, 0));
 		});
 	}
 };
@@ -349,7 +354,7 @@ describe("DeleteConfirmDialog — a refusal answers itself", () => {
 			view.text(),
 			/Confirm Deleted Messages, or pick the folder this account really uses\./,
 		);
-		await settle();
+		await waitFor(() => !!view.byLabel("Set Prullenbak, 3 messages, as Trash"));
 		act(() => view.byLabel("Set Prullenbak, 3 messages, as Trash")?.click());
 		assert.ok(
 			view.button("Set as Trash and delete 3 messages"),
@@ -385,7 +390,7 @@ describe("DeleteConfirmDialog — a refusal answers itself", () => {
 		});
 
 		act(() => view.button("Pick a Trash folder")?.click());
-		await settle();
+		await waitFor(() => !!view.byLabel("Set Prullenbak, 3 messages, as Trash"));
 		assert.deepEqual(
 			confirmed,
 			[],
@@ -393,9 +398,12 @@ describe("DeleteConfirmDialog — a refusal answers itself", () => {
 		);
 
 		act(() => view.byLabel("Set Prullenbak, 3 messages, as Trash")?.click());
-		await settle();
+		await waitFor(() => {
+			const confirm = view.button("Set as Trash and delete 3 messages");
+			return !!confirm && !confirm.disabled;
+		});
 		act(() => view.button("Set as Trash and delete 3 messages")?.click());
-		await settle();
+		await waitFor(() => confirmed.length > 0);
 
 		assert.deepEqual(confirmed, [["msg-0", "msg-1", "msg-2"]]);
 	});

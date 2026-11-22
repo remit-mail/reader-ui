@@ -6,13 +6,20 @@ import {
 } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { RouterProvider } from "@tanstack/react-router";
-import { StrictMode } from "react";
+import { Fragment, StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { installAuthInterceptor } from "../auth/auth-interceptor";
 import { type AuthProvider, AuthProviderProvider } from "../auth/provider";
 import { InstallProvider } from "../components/install/InstallProvider";
 import { install as installConsoleErrorCatcher } from "../lib/console-errors";
 import { setFatalErrorTelemetry } from "../lib/fatal-error";
+import { NetworkError } from "../lib/network-error";
+import { OfflineProvider } from "../lib/OfflineProvider";
+import {
+	getOfflineRuntime,
+	installOfflineRuntime,
+	type OfflineOptions,
+} from "../lib/offline-runtime";
 import { installPwaUpdateCoordinator } from "../lib/pwa-update";
 import {
 	handleMutationCacheError,
@@ -32,6 +39,8 @@ import { installPwaBuildObservation } from "../lib/client";
 export interface MountOptions {
 	/** The identity system this build composes. */
 	authProvider: AuthProvider;
+	/** Opt-in durable tenant downloads; host owns fresh session verification. */
+	offline?: OfflineOptions;
 	/** Settings sections the host adds, each at `/settings/<id>`. */
 	settingsSlots?: SettingsSlot[];
 	/** Element to mount into. Defaults to `#root`. */
@@ -46,6 +55,7 @@ export interface MountOptions {
  */
 export const mountApp = ({
 	authProvider,
+	offline,
 	settingsSlots = [],
 	rootElementId = "root",
 }: MountOptions): void => {
@@ -66,11 +76,21 @@ export const mountApp = ({
 	// equivalent of `defaultOptions.queries.onError` / `.mutations.onError`.
 	const queryClient = new QueryClient({
 		queryCache: new QueryCache({ onError: handleQueryCacheError }),
-		mutationCache: new MutationCache({ onError: handleMutationCacheError }),
+		mutationCache: new MutationCache({
+			onError: handleMutationCacheError,
+			onMutate: async () => {
+				const runtime = getOfflineRuntime();
+				if (runtime)
+					await runtime.authorizeNetwork("write").catch((error: unknown) => {
+						throw new NetworkError(error);
+					});
+			},
+		}),
 		defaultOptions: {
+			mutations: { networkMode: offline ? "always" : "online", retry: false },
 			queries: {
 				staleTime: 30_000,
-				gcTime: 5 * 60_000,
+				gcTime: offline ? Infinity : 5 * 60_000,
 				retry: 1,
 			},
 		},
@@ -88,6 +108,7 @@ export const mountApp = ({
 		installStaleBuildReload();
 	}
 
+	const offlineRuntime = offline ? installOfflineRuntime(offline) : undefined;
 	const router = createAppRouter(queryClient, telemetry);
 	for (const slot of settingsSlots) {
 		if (Object.hasOwn(router.routesByPath, `/settings/${slot.id}`)) {
@@ -103,7 +124,9 @@ export const mountApp = ({
 		throw new Error(`Root element not found: #${rootElementId}`);
 	}
 
-	const { Shell } = authProvider;
+	const Provider = authProvider.Provider ?? Fragment;
+	const Gate = authProvider.SessionGate ?? authProvider.Shell;
+	const app = <RouterProvider router={router} />;
 
 	createRoot(rootElement).render(
 		<StrictMode>
@@ -112,15 +135,26 @@ export const mountApp = ({
 					<AuthProviderProvider value={authProvider}>
 						<SettingsSlotsProvider value={settingsSlots}>
 							<InstallProvider>
-								<Shell>
-									<RouterProvider router={router} />
-								</Shell>
+								<Provider>
+									{offlineRuntime ? (
+										<OfflineProvider
+											runtime={offlineRuntime}
+											client={queryClient}
+											gate={Gate}
+										>
+											{app}
+										</OfflineProvider>
+									) : (
+										<Gate>{app}</Gate>
+									)}
+									{!import.meta.env.PROD &&
+										!getRuntimeConfig().disableDevtools && (
+											<ReactQueryDevtools initialIsOpen={false} />
+										)}
+								</Provider>
 							</InstallProvider>
 						</SettingsSlotsProvider>
 					</AuthProviderProvider>
-					{!import.meta.env.PROD && !getRuntimeConfig().disableDevtools && (
-						<ReactQueryDevtools initialIsOpen={false} />
-					)}
 				</QueryClientProvider>
 			</TelemetryContext.Provider>
 		</StrictMode>,
