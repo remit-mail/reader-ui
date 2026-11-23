@@ -128,7 +128,8 @@ describe("the checker the composer opens", () => {
 		assert.match(banner.detail ?? "", /Spellcheck for en is off/);
 		assert.match(banner.detail ?? "", /browser is checking this message/);
 		assert.match(banner.detail ?? "", /Worker is not defined/);
-		const report = new URL(banner.action?.href ?? "https://example.invalid");
+		assert.ok(banner.action?.kind === "link");
+		const report = new URL(banner.action.href);
 		assert.match(report.href, /github\.com\/.+\/issues\/new\?/);
 		assert.match(
 			report.searchParams.get("body") ?? "",

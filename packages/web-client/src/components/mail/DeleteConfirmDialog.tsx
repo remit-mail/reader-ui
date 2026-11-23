@@ -18,6 +18,7 @@
 import { configOperationsGetConfigOptions } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
 import { ConfirmDialog, formatErrorMessage } from "@remit/ui";
 import { useQuery } from "@tanstack/react-query";
+import { useEffect, useRef } from "react";
 import { type DeleteOutcome, deleteConfirmationCopy } from "../../lib/format";
 import { useRoleAppointmentPrompt } from "./RoleAppointmentPromptProvider";
 
@@ -61,6 +62,16 @@ export const DeleteConfirmDialog = ({
 		enabled: false,
 	});
 	const { requestAppointment } = useRoleAppointmentPrompt();
+	const sent = useRef(false);
+	useEffect(() => {
+		if (!isOpen) {
+			sent.current = false;
+			return;
+		}
+		if (outcome !== "trash" || isDeleting || sent.current) return;
+		sent.current = true;
+		onConfirm([...messageIds]);
+	}, [isOpen, outcome, isDeleting, messageIds, onConfirm]);
 	const count = messageIds.length;
 	const confirm = () => onConfirm([...messageIds]);
 	const copy = deleteConfirmationCopy(count, outcome, {
@@ -121,6 +132,8 @@ export const DeleteConfirmDialog = ({
 			/>
 		);
 	}
+
+	if (outcome === "trash") return null;
 
 	return (
 		<ConfirmDialog

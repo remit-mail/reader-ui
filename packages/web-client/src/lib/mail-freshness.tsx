@@ -148,7 +148,6 @@ export function MailFreshnessProvider({
 			...syncOperationsGetSyncStatusOptions({ path: { accountId } }),
 			refetchInterval: FRESHNESS_POLL_MS,
 			staleTime: FRESHNESS_POLL_MS,
-			meta: { softError: true },
 		})),
 	});
 	const updatedKey = queries.map((query) => query.dataUpdatedAt).join(",");

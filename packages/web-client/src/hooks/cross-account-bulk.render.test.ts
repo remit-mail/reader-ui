@@ -162,3 +162,12 @@ describe("a selection spanning accounts", () => {
 		assert.notEqual(outcome.error, undefined);
 	});
 });
+
+it("restores unread through the same account-aware bulk runner", async () => {
+	const hook = mountRunner();
+	const outcome = await run(hook, { kind: "markRead", isRead: false }, MIXED);
+	assertOneBatchPerAccount(batches("/messages/flags"));
+	for (const call of http.to("/messages/flags"))
+		assert.equal(call.body?.isRead, false);
+	assert.equal(outcome.done, MIXED.length);
+});

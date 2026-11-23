@@ -11,7 +11,7 @@ import type {
 	RemitImapStepUpAction,
 } from "@remit/api-http-client/types.gen.ts";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { peopleActionMeta, replacePerson } from "../lib/people";
+import { replacePerson } from "../lib/people";
 
 export interface PersonActionInput {
 	action: RemitImapStepUpAction;
@@ -67,7 +67,6 @@ export const usePersonAction = (password: string) => {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		meta: peopleActionMeta,
 		gcTime: 0,
 		mutationFn: async (
 			input: PersonActionInput,

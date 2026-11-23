@@ -19,9 +19,10 @@ describe("bannerWayOut — no failure banner is a dead end", () => {
 			error: new ApiError("This message could not be processed.", 422),
 		});
 
-		assert.equal(action?.label, "Report an issue");
+		assert.ok(action?.kind === "link");
+		assert.equal(action.label, "Report an issue");
 		assert.ok(
-			action?.href.startsWith(
+			action.href.startsWith(
 				"https://github.com/remit-mail/reader/issues/new?",
 			),
 		);
@@ -42,17 +43,22 @@ describe("bannerWayOut — no failure banner is a dead end", () => {
 			error,
 		});
 
-		assert.ok(action !== undefined);
+		assert.ok(action?.kind === "link");
 		assert.match(issueBody(action.href), /Stacktrace/);
 	});
 
 	it("keeps an action the call site already chose", () => {
 		const action = bannerWayOut({
 			title: "Spellcheck stopped",
-			action: { label: "Report this", href: "https://example.invalid/report" },
+			action: {
+				kind: "link",
+				label: "Report this",
+				href: "https://example.invalid/report",
+			},
 		});
 
 		assert.deepEqual(action, {
+			kind: "link",
 			label: "Report this",
 			href: "https://example.invalid/report",
 		});

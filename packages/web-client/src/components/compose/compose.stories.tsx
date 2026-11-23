@@ -403,3 +403,19 @@ export const ReplyWithNothingToQuote: Story = {
 		).not.toHaveAttribute("title");
 	},
 };
+
+export const PhoneSavedDraftClosesWithoutPrompt: Story = {
+	globals: phone,
+	args: { url: `/mail/${INBOX}/compose/out-plain` },
+	play: async () => {
+		const editor = await page().findByTestId("compose-body-plain");
+		await waitFor(() => expect(editor).toHaveValue(PLAIN_DRAFT));
+		await userEvent.clear(editor);
+		await userEvent.type(editor, "Saved as the sheet closes.");
+		await userEvent.keyboard("{Escape}");
+		await waitFor(() =>
+			expect(page().queryByTestId("compose-body-plain")).toBeNull(),
+		);
+		await expect(page().queryByText("Discard draft?")).toBeNull();
+	},
+};

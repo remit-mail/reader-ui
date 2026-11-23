@@ -40,17 +40,14 @@ import {
 	type ConfigDocument,
 	type FailureCopy,
 	groupReportSections,
-	type ImportConflict,
 	type PendingFolder,
 	pendingFolders,
 	readConfigText,
-	readConflict,
 	readFailure,
 	sectionResults,
 	WRITE_FAILURE_CODE,
 	writeFailure,
 } from "../../lib/config-import";
-import { softErrorStatuses } from "../../lib/error-classifier";
 import {
 	ConnectionTestStep,
 	CredentialsStep,
@@ -65,7 +62,6 @@ import {
 	StepCredentialsOverview,
 	StepDryRunReport,
 	StepFileRejected,
-	StepInstanceAlreadyConfigured,
 	StepPartialImport,
 	StepPendingFolders,
 } from "./steps";
@@ -74,7 +70,6 @@ type Step =
 	| "file"
 	| "rejected"
 	| "review"
-	| "conflict"
 	| "partial"
 	| "credentials"
 	| "account-password"
@@ -130,25 +125,6 @@ const asImportedAccount = (
 	};
 };
 
-const heldSummary = (details: Record<string, string> | undefined): string => {
-	if (!details) return "This instance already holds configuration of its own.";
-	const parts = (
-		[
-			["accounts", "account"],
-			["labels", "label"],
-			["filters", "rule"],
-			["addressFlags", "flagged sender"],
-		] as const
-	)
-		.map(([key, noun]) => ({ count: Number(details[key] ?? 0), noun }))
-		.filter((part) => part.count > 0)
-		.map((part) => `${part.count} ${part.noun}${part.count === 1 ? "" : "s"}`);
-	if (parts.length === 0) {
-		return "This instance already holds configuration of its own.";
-	}
-	return `${parts.join(", ")} are set up here already.`;
-};
-
 const errorText = (error: unknown, fallback: string): string => {
 	if (error instanceof Error) return error.message;
 	if (typeof error === "object" && error !== null) {
@@ -181,13 +157,6 @@ export function ConfigImportWizard({ onDone }: ConfigImportWizardProps) {
 		FailureCopy | undefined
 	>(undefined);
 	const [report, setReport] = useState<RemitImapConfigImportReport | undefined>(
-		undefined,
-	);
-	const [onExisting, setOnExisting] = useState<"abort" | "merge">("abort");
-	const [conflictChoice, setConflictChoice] = useState<
-		"abort" | "merge" | undefined
-	>(undefined);
-	const [conflict, setConflict] = useState<ImportConflict | undefined>(
 		undefined,
 	);
 	const [needingCredentials, setNeedingCredentials] = useState<string[]>([]);
@@ -244,19 +213,11 @@ export function ConfigImportWizard({ onDone }: ConfigImportWizardProps) {
 		? needingCredentials.indexOf(activeAccountId) + 1
 		: 0;
 
-	// Each of these owns exactly the refusals it renders, and nothing else. A
-	// blanket `softError` would also swallow the 401 that has to escalate to the
-	// signed-out state, and a 5xx escalates regardless of what is asked for here.
 	const importMutation = useMutation({
 		...configOperationsImportConfigMutation(),
-		// 409 `config_not_empty` is not a fault: it is the abort-or-merge screen.
-		meta: softErrorStatuses(409),
 	});
 	const updateAccount = useMutation({
 		...accountDetailOperationsUpdateAccountMutation(),
-		// The account is gone (404) or is not this configuration's (403); the
-		// credentials row states either where it stands.
-		meta: softErrorStatuses(403, 404),
 	});
 	const triggerSync = useMutation(syncOperationsTriggerSyncMutation());
 	// No meta: `POST /oauth/microsoft/start` declares no refusal. It answers 5xx
@@ -312,11 +273,10 @@ export function ConfigImportWizard({ onDone }: ConfigImportWizardProps) {
 	}, []);
 
 	const runImport = useCallback(
-		(mode: "validate" | "apply", existing: "abort" | "merge") => {
+		(mode: "validate" | "apply") => {
 			if (!document) return;
-			setConflict(undefined);
 			importMutation.mutate(
-				{ body: { mode, onExisting: existing, document } },
+				{ body: { mode, onExisting: "merge", document } },
 				{
 					onSuccess: (answer) => {
 						setReport(answer);
@@ -344,13 +304,6 @@ export function ConfigImportWizard({ onDone }: ConfigImportWizardProps) {
 						setStep("folders");
 					},
 					onError: (cause: unknown) => {
-						const refused = readConflict(cause);
-						if (refused) {
-							setConflict(refused);
-							setConflictChoice(undefined);
-							setStep("conflict");
-							return;
-						}
 						setReadFailureCopy({
 							title: "The import could not be sent",
 							explanation:
@@ -481,11 +434,9 @@ export function ConfigImportWizard({ onDone }: ConfigImportWizardProps) {
 
 	const goToFile = useCallback(() => {
 		setReport(undefined);
-		setConflict(undefined);
 		setReadFailureCopy(undefined);
 		setFile(undefined);
 		setDocument(undefined);
-		setOnExisting("abort");
 		setStep("file");
 	}, []);
 
@@ -507,7 +458,7 @@ export function ConfigImportWizard({ onDone }: ConfigImportWizardProps) {
 					failure={readFailureCopy}
 					onChoose={handleChoose}
 					onDragStateChange={setDragging}
-					onNext={() => runImport("validate", onExisting)}
+					onNext={() => runImport("validate")}
 				/>
 			);
 
@@ -527,33 +478,18 @@ export function ConfigImportWizard({ onDone }: ConfigImportWizardProps) {
 				/>
 			);
 
-		case "conflict":
-			return (
-				<StepInstanceAlreadyConfigured
-					choice={conflictChoice}
-					held={heldSummary(conflict?.details)}
-					onChoose={setConflictChoice}
-					onBack={goToFile}
-					onNext={() => {
-						if (conflictChoice === "abort") {
-							onDone("abandoned");
-							return;
-						}
-						setOnExisting("merge");
-						runImport("validate", "merge");
-					}}
-				/>
-			);
-
 		case "review":
 			return (
 				<StepDryRunReport
 					sections={groupReportSections(report?.items ?? [])}
 					fileName={file?.name ?? "the config file"}
-					warnings={(report?.warnings ?? []).map((warning) => warning.message)}
+					warnings={[
+						"This preview merges into the configuration already here. Existing accounts keep their server settings. Nothing changes until you apply.",
+						...(report?.warnings ?? []).map((warning) => warning.message),
+					]}
 					applying={importMutation.isPending}
 					onBack={goToFile}
-					onNext={() => runImport("apply", onExisting)}
+					onNext={() => runImport("apply")}
 				/>
 			);
 
@@ -567,7 +503,7 @@ export function ConfigImportWizard({ onDone }: ConfigImportWizardProps) {
 					raw={`${failed?.code ?? WRITE_FAILURE_CODE}: ${failed?.message ?? "no message"}`}
 					nothingLanded={!report.applied}
 					onBack={goToFile}
-					onNext={() => runImport("apply", "merge")}
+					onNext={() => runImport("apply")}
 				/>
 			);
 		}

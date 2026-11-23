@@ -51,7 +51,7 @@ describe("console-errors window error handling", () => {
 		assert.deepEqual(escalated, []);
 	});
 
-	it("escalates an arbitrary uncaught error", () => {
+	it("records an arbitrary uncaught error without covering the app", () => {
 		const stub = installWindowStub();
 		const escalated: string[] = [];
 		subscribeFatalError((fatal) => escalated.push(fatal.message));
@@ -59,6 +59,6 @@ describe("console-errors window error handling", () => {
 
 		emitWindowError(stub, "TypeError: boom");
 
-		assert.equal(escalated.length, 1);
+		assert.equal(escalated.length, 0);
 	});
 });

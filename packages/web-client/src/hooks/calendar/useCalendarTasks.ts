@@ -19,11 +19,8 @@ import type { CalendarTaskData } from "@remit/ui";
 import { formatErrorMessage } from "@remit/ui";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useCallback, useMemo } from "react";
-import { getErrorStatus, softErrorStatuses } from "../../lib/error-classifier";
-import {
-	CALENDAR_WRITE_META,
-	useInvalidateCalendarReads,
-} from "./useCalendarWrites";
+import { getErrorStatus } from "../../lib/error-classifier";
+import { useInvalidateCalendarReads } from "./useCalendarWrites";
 import type { CalendarWindow } from "./window";
 
 /** A task as the grid draws it, on its due day. */
@@ -43,7 +40,6 @@ export function useCalendarTasks(window: CalendarWindow, enabled = true) {
 		...calendarTaskOperationsListCalendarTasksOptions({
 			query: { from: window.from, to: window.to },
 		}),
-		meta: softErrorStatuses(400, 404),
 		enabled,
 	});
 	const tasks = useMemo(() => data?.items ?? [], [data?.items]);
@@ -62,7 +58,6 @@ export function useCalendarTask(calendarTaskId: string): CalendarTaskRead {
 		...calendarTaskDetailOperationsGetCalendarTaskOptions({
 			path: { calendarTaskId },
 		}),
-		meta: softErrorStatuses(404),
 		retry: false,
 	});
 	if (data) return { kind: "found", task: data };
@@ -98,17 +93,14 @@ export function useCalendarTaskWrites() {
 	const invalidate = useInvalidateCalendarReads();
 	const create = useMutation({
 		...calendarTaskOperationsCreateCalendarTaskMutation(),
-		meta: CALENDAR_WRITE_META,
 		onSuccess: invalidate,
 	});
 	const update = useMutation({
 		...calendarTaskDetailOperationsUpdateCalendarTaskMutation(),
-		meta: CALENDAR_WRITE_META,
 		onSuccess: invalidate,
 	});
 	const remove = useMutation({
 		...calendarTaskDetailOperationsDeleteCalendarTaskMutation(),
-		meta: CALENDAR_WRITE_META,
 		onSuccess: invalidate,
 	});
 

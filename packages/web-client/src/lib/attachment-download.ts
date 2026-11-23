@@ -123,7 +123,7 @@ export const attachmentFailureContent = (
 		case "link-expired":
 			return {
 				title: "This download link expired and could not be renewed",
-				detail: `Reload the page, then download ${filename} again. If that keeps failing, this is worth reporting.`,
+				detail: `Try downloading ${filename} again to renew the link. If that keeps failing, report the error.`,
 			};
 		case "missing":
 			return {

@@ -5,20 +5,11 @@ import { renderToString } from "react-dom/server";
 import type { FatalError } from "../../lib/fatal-error";
 import { FatalErrorScreen } from "./FatalErrorOverlay";
 
-const recoverableFatal: FatalError = {
-	error: new Error("Request failed with status 500"),
-	message: "Request failed with status 500",
-	correlationId: "abc-123",
-	at: 0,
-	recoverable: true,
-};
-
 const deterministicFatal: FatalError = {
 	error: new Error("date value is not finite in DateTimeFormat format()"),
 	message: "date value is not finite in DateTimeFormat format()",
 	correlationId: "def-456",
 	at: 0,
-	recoverable: false,
 	stack: "Error: date value is not finite\n    at format",
 	componentStack: "\n    at AccountsSettings\n    at Route",
 };
@@ -28,7 +19,7 @@ const render = (fatal: FatalError): string =>
 
 describe("FatalErrorScreen — the full-screen red escalation page", () => {
 	it("renders a loud red full-screen overlay (not a benign grey label)", () => {
-		const html = render(recoverableFatal);
+		const html = render(deterministicFatal);
 		assert.match(html, /data-testid="fatal-error-overlay"/);
 		assert.match(html, /bg-red-700/);
 		assert.match(html, /fixed inset-0/);
@@ -36,13 +27,13 @@ describe("FatalErrorScreen — the full-screen red escalation page", () => {
 	});
 
 	it("shows the error message and correlation reference", () => {
-		const html = render(recoverableFatal);
-		assert.match(html, /Request failed with status 500/);
-		assert.match(html, /abc-123/);
+		const html = render(deterministicFatal);
+		assert.match(html, /date value is not finite/);
+		assert.match(html, /def-456/);
 	});
 
 	it("always offers Report a bug and Copy full details", () => {
-		for (const fatal of [recoverableFatal, deterministicFatal]) {
+		for (const fatal of [deterministicFatal]) {
 			const html = render(fatal);
 			assert.match(html, /Report a bug/);
 			assert.match(html, /Copy full details/);
@@ -50,13 +41,7 @@ describe("FatalErrorScreen — the full-screen red escalation page", () => {
 	});
 });
 
-describe("FatalErrorScreen — recoverable vs fatal affordances", () => {
-	it("a recoverable error offers Retry and no dead-end safe-route link", () => {
-		const html = render(recoverableFatal);
-		assert.match(html, /Retry/);
-		assert.doesNotMatch(html, /Go to inbox/);
-	});
-
+describe("FatalErrorScreen — crash recovery", () => {
 	it("a deterministic fatal offers a safe route out — never a re-crashing Retry", () => {
 		const html = render(deterministicFatal);
 		assert.doesNotMatch(html, />Retry</);

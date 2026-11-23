@@ -57,6 +57,9 @@ const failedEntry = {
 	lastError: "550 5.1.0 mailbox unavailable",
 };
 
+const closeRequestRef: { current: (() => Promise<boolean>) | null } = {
+	current: null,
+};
 let harness: DomHarness | undefined;
 let http: HttpMock | undefined;
 
@@ -91,6 +94,7 @@ const Opened = () => {
 		outboxMessageId: draftId,
 		onDraftCreated: setDraftId,
 		onClose: () => undefined,
+		closeRequestRef,
 	});
 };
 
@@ -128,6 +132,8 @@ describe("a message reopened in the composer", () => {
 		await mount();
 
 		await harness?.wait(AUTOSAVE_DEBOUNCE_MS + 200);
+		assert.ok(closeRequestRef.current);
+		assert.equal(await closeRequestRef.current(), true);
 
 		assert.deepEqual(
 			writes().map((call) => call.method),
@@ -196,4 +202,13 @@ it("holds activation after the real composer closes until its debounced save set
 	finishSave();
 	await new Promise((resolve) => setTimeout(resolve, 30));
 	assert.equal(canUpdate(), true);
+});
+
+it("flushes the latest edit before a mobile close completes", async () => {
+	await mount();
+	harness?.type(subjectField(), "Saved on close");
+	assert.ok(closeRequestRef.current);
+	const saved = await closeRequestRef.current();
+	assert.equal(saved, true);
+	assert.equal(writes().at(-1)?.body?.subject, "Saved on close");
 });

@@ -1,6 +1,6 @@
 /**
  * ThreadListInteraction (#149) — the cursor walks the rows that are on screen,
- * and delete asks before it trashes anything.
+ * and delete trashes immediately.
  *
  * The brief's sections cap themselves behind "Show N more" and collapse from
  * their headers, so what the consumer passed and what is rendered are different
@@ -282,7 +282,7 @@ describe("ThreadListInteraction — a verb over a selection goes to the wizard",
 	});
 });
 
-describe("ThreadListInteraction — delete confirms first", () => {
+describe("ThreadListInteraction — Trash moves immediately", () => {
 	const confirmButton = () =>
 		Array.from(
 			dom.window.document.querySelectorAll<HTMLButtonElement>("button"),
@@ -299,14 +299,11 @@ describe("ThreadListInteraction — delete confirms first", () => {
 		act(() => {
 			assert.equal(list.commands().requestVerb("delete"), true);
 		});
-		assert.deepEqual(deleted, [], "nothing is deleted before confirming");
-		assert.ok(confirmButton(), "the confirmation is on screen");
-
-		act(() => confirmButton()?.click());
+		assert.equal(confirmButton(), undefined);
 		assert.deepEqual(deleted, [["m1"]]);
 	});
 
-	it("claims a second Delete rather than deleting behind the dialog", () => {
+	it("acts on the next selection after the first delete", () => {
 		const deleted: string[][] = [];
 		const list = mountList({
 			initialIds: ["m1", "m2"],
@@ -321,10 +318,10 @@ describe("ThreadListInteraction — delete confirms first", () => {
 			assert.equal(
 				list.commands().requestVerb("delete"),
 				true,
-				"the second press belongs to the dialog",
+				"the next press is handled",
 			);
 		});
-		assert.deepEqual(deleted, []);
+		assert.equal(deleted.length, 2);
 	});
 
 	it("declines the keypress when there is nothing to delete", () => {
@@ -380,8 +377,7 @@ describe("ThreadListInteraction — the confirmation states the outcome it will 
 
 		askDelete(list);
 
-		assert.match(dialogText(), /Move 1 message to Trash\?/);
-		assert.match(dialogText(), /restore them from Trash later/);
+		assert.doesNotMatch(dialogText(), /Move 1 message to Trash\?/);
 	});
 
 	it("refuses a row with no account the same way", () => {

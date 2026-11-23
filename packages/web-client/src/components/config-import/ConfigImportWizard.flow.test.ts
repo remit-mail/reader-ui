@@ -1,30 +1,10 @@
-/**
- * Walking the config import wizard against a mocked instance.
- *
- * Every state here is one the components could already render in Storybook; the
- * question this file answers is whether the app can ever reach them. Each of
- * these was unreachable at one point: the 409 came back with its code on the
- * thrown wrapper's body rather than on the error, an account whose password had
- * just been verified stayed red because `connectionState` is written later by a
- * worker, and "Check the file" was live before there was a document to send.
- *
- * Held with the real caches wired to `lib/query-error-handler.ts`, because
- * "does the fatal overlay swallow this" is a question about what those two
- * handlers pass, and nothing below them can see it. The overlay itself is not
- * mounted — `getCurrentFatalError` is the same signal without a second app's
- * worth of chrome in the tree.
- */
-
 import assert from "node:assert/strict";
 import { afterEach, describe, it } from "node:test";
 import { MutationCache, QueryCache, QueryClient } from "@tanstack/react-query";
 import { createElement } from "react";
 import "../../lib/client";
+import { escalate } from "../../lib/escalate";
 import { __resetFatalError, getCurrentFatalError } from "../../lib/fatal-error";
-import {
-	handleMutationCacheError,
-	handleQueryCacheError,
-} from "../../lib/query-error-handler";
 import { isSignedOut, resetSignedOut } from "../../lib/signed-out";
 import { createDomHarness, type DomHarness } from "../../test-support/dom";
 import {
@@ -51,8 +31,8 @@ const ACCOUNT_ID = "acct-imported";
 
 const escalatingClient = (): QueryClient =>
 	new QueryClient({
-		queryCache: new QueryCache({ onError: handleQueryCacheError }),
-		mutationCache: new MutationCache({ onError: handleMutationCacheError }),
+		queryCache: new QueryCache({ onError: escalate }),
+		mutationCache: new MutationCache({ onError: escalate }),
 		defaultOptions: {
 			queries: { retry: false },
 			mutations: { retry: false },
@@ -177,51 +157,14 @@ describe("ConfigImportWizard — a file that cannot be sent", () => {
 });
 
 describe("ConfigImportWizard — an instance that is not empty", () => {
-	const conflicted = () =>
-		refusal(409, {
-			code: "config_not_empty",
-			message: "already holds configuration",
-			details: { accounts: "2", filters: "14" },
-		});
-
-	it("offers abort or merge on the 409 rather than a connection error", async () => {
-		const dom = start({ onImport: conflicted });
+	it("folds the merge warning into the preview without writing", async () => {
+		const dom = start();
 		await pickFile(dom, "config.json", CONFIG);
 		dom.click(checkButton(dom));
 		await dom.flush();
-
-		assert.match(dom.text(), /This instance already has configuration/);
-		assert.match(dom.text(), /2 accounts, 14 rules are set up here already/);
-	});
-
-	/**
-	 * The other half of reaching that screen: the refusal must not also take the
-	 * app to the fatal page over it. Driven through the wizard, so it holds the
-	 * whole chain — the error interceptor stamping the status on the thrown
-	 * `ApiError`, and the mutation's meta telling `shouldEscalate` to leave 409
-	 * to the caller.
-	 */
-	it("keeps the 409 off the fatal page", async () => {
-		const dom = start({ onImport: conflicted });
-		await pickFile(dom, "config.json", CONFIG);
-		dom.click(checkButton(dom));
-		await dom.flush();
-
-		assert.equal(getCurrentFatalError(), null);
-	});
-
-	it("does not record an import when the reader aborts the 409", async () => {
-		const dom = start({ onImport: conflicted });
-		await pickFile(dom, "config.json", CONFIG);
-		dom.click(checkButton(dom));
-		await dom.flush();
-
-		dom.click(dom.byText("button", "Stop, keep this instance"));
-		await dom.flush();
-		dom.click(dom.byText("button", "Continue"));
-		await dom.flush();
-
-		assert.deepEqual(done, ["abandoned"]);
+		assert.match(dom.text(), /Existing accounts keep their server settings/);
+		assert.doesNotMatch(dom.text(), /Stop, keep this instance/);
+		assert.deepEqual(done, []);
 	});
 });
 

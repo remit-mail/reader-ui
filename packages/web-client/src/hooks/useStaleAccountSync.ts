@@ -6,8 +6,10 @@ import {
 import type { RemitImapAccountResponse } from "@remit/api-http-client/types.gen.ts";
 import { type QueryClient, useQueryClient } from "@tanstack/react-query";
 import pMap from "p-map";
-import { useEffect, useRef } from "react";
-import { isUnauthenticated, shouldEscalate } from "../lib/error-classifier";
+import { useCallback, useEffect, useRef } from "react";
+import { useErrorBanners } from "../components/ui/error-banner-context";
+import { buildMutationErrorBanner } from "../components/ui/error-banners";
+import { isAbortError, isUnauthenticated } from "../lib/error-classifier";
 import { escalate } from "../lib/escalate";
 import {
 	HOT_POLL_INTERVAL_MS,
@@ -160,26 +162,14 @@ export const __resetStaleAccountSyncGuard = (): void => {
 export const __peekStaleAccountSyncGuard = (): ReadonlySet<string> =>
 	triggeredAccountIds;
 
-/**
- * Handle a failed background mailbox-sync trigger. This is a best-effort, direct
- * SDK probe (not a React Query call), so we apply the same fail-fast decision by
- * hand with the `softError` meta the call site owns: its non-5xx failures (the
- * account's own 4xx, a statusless connectivity blip) stay soft — we drop the
- * per-account guard so a later remount can retry, then log and move on. But a
- * 5xx is OUR API broken, and per the contract (#1059) that always escalates to
- * the full-screen overlay — even from a background trigger.
- *
- * Nobody is waiting on this one. It fires on mount, so escalating its 401 would
- * put the full-screen page up on load for anyone whose session had lapsed,
- * ahead of the sign-in the shell is already about to ask for.
- */
+/** Release the per-account guard and preserve confirmed authentication refusals. */
 export const handleBackgroundSyncFailure = (
 	accountId: string,
 	error: unknown,
 ): void => {
 	triggeredAccountIds.delete(accountId);
-	if (isUnauthenticated(error) || shouldEscalate(error, { softError: true })) {
-		escalate(error, { softError: true });
+	if (isUnauthenticated(error)) {
+		escalate(error);
 		return;
 	}
 	console.warn("[remit] background mailbox sync failed", {
@@ -243,12 +233,30 @@ export const useStaleAccountSync = (
 	accounts: RemitImapAccountResponse[],
 ): void => {
 	const queryClient = useQueryClient();
+	const { pushError } = useErrorBanners();
 	// Hold the latest accounts in a ref so both effects can read them without
 	// re-running on every render; they re-run only when the joined accountId
 	// list actually changes (account added / removed).
 	const accountsRef = useRef(accounts);
 	accountsRef.current = accounts;
 	const stableKey = accounts.map((a) => a.accountId).join(",");
+	const onFailure = useCallback(
+		(accountId: string, error: unknown) => {
+			handleBackgroundSyncFailure(accountId, error);
+			if (isUnauthenticated(error) || isAbortError(error)) return;
+			const email = accountsRef.current.find(
+				(account) => account.accountId === accountId,
+			)?.email;
+			pushError(
+				buildMutationErrorBanner(
+					email ? `Couldn't sync ${email}` : "Couldn't sync mail",
+					"The background sync failed.",
+					error,
+				),
+			);
+		},
+		[pushError],
+	);
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: stableKey is a serialized account list used to trigger re-sync on account changes; adding it would cause issues without also referencing accountsRef
 	useEffect(() => {
@@ -263,11 +271,11 @@ export const useStaleAccountSync = (
 			fresh,
 			(accountId) =>
 				runBackgroundSync(accountId, queryClient).catch((error: unknown) =>
-					handleBackgroundSyncFailure(accountId, error),
+					onFailure(accountId, error),
 				),
 			{ concurrency: POLL_CONCURRENCY },
 		).then(() => getOfflineRuntime()?.refreshReading());
-	}, [stableKey, queryClient]);
+	}, [stableKey, queryClient, onFailure]);
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: stableKey re-runs the poll loop when the account list changes; accountsRef supplies the live list each tick
 	useEffect(() => {
@@ -297,7 +305,7 @@ export const useStaleAccountSync = (
 				(accountId) =>
 					runBackgroundSync(accountId, queryClient)
 						.catch((err: unknown) => {
-							handleBackgroundSyncFailure(accountId, err);
+							onFailure(accountId, err);
 						})
 						.finally(() => {
 							inFlight.delete(accountId);
@@ -392,5 +400,5 @@ export const useStaleAccountSync = (
 			window.removeEventListener("remit:session-verified", handleVerified);
 			unsubscribeHotWindow();
 		};
-	}, [stableKey, queryClient]);
+	}, [stableKey, queryClient, onFailure]);
 };

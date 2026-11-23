@@ -13,19 +13,8 @@ import type {
 import { ClassificationValueSource } from "@remit/domain-enums";
 import { codedApiErrorBody } from "./api";
 import { buildBugReportContext, buildGitHubIssueUrl } from "./bug-report";
-import {
-	getErrorStatus,
-	ownsServerErrorsMeta,
-	softErrorStatuses,
-} from "./error-classifier";
+import { getErrorStatus } from "./error-classifier";
 import { formatDate } from "./format";
-
-export const classificationQueryMeta = softErrorStatuses(403);
-
-export const classificationActionMeta = {
-	...softErrorStatuses(400, 403, 404, 409, 422, 429),
-	...ownsServerErrorsMeta,
-};
 
 export const isClassificationSignedOut = (error: unknown): boolean =>
 	getErrorStatus(error) === 403;

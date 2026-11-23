@@ -76,7 +76,7 @@ import { useRescueCandidates } from "../../hooks/useRescueCandidates";
 import { useResultCount } from "../../hooks/useResultCount";
 import { useSearchTokenContext } from "../../hooks/useSearchTokenContext";
 import { useThreadActions } from "../../hooks/useThreadActions";
-import { useThreadMessageIds } from "../../hooks/useThreadMessageIds";
+import { useThreadMessages } from "../../hooks/useThreadMessages";
 import { useThreadRow } from "../../hooks/useThreadRow";
 import { useToggleStar } from "../../hooks/useToggleStar";
 import { useTriageContext, useTriageLayer } from "../../hooks/useTriageLayer";
@@ -545,7 +545,7 @@ function MailboxPaneProvider({
 
 	const { archiveMailboxId } = useArchiveMailbox(mailboxAccountId);
 
-	const getThreadMessageIds = useThreadMessageIds();
+	const getThreadMessages = useThreadMessages();
 
 	const openReply = useOpenReply();
 
@@ -575,9 +575,9 @@ function MailboxPaneProvider({
 	const messageIdsForFocusedThread = useCallback(
 		(thread: typeof focusedThread): string[] => {
 			if (!thread) return [];
-			return getThreadMessageIds(thread);
+			return getThreadMessages(thread).map((message) => message.messageId);
 		},
-		[getThreadMessageIds],
+		[getThreadMessages],
 	);
 
 	const { toggleStar: focusedToggleStar } = useToggleStar({
@@ -640,9 +640,23 @@ function MailboxPaneProvider({
 	// action, and the pane acts on it directly.
 	const triageDeleteAction = useCallback(() => {
 		if (listCommandsRef.current?.requestVerb("delete")) return;
-		const ids = triageTargetMessageIds();
-		if (ids.length > 0) triageDelete(ids);
-	}, [listCommandsRef, triageTargetMessageIds, triageDelete]);
+		if (!focusedThread) return;
+		const owner = focusedThread.accountId ?? mailboxAccountId;
+		if (!owner) throw new Error("Missing original message account");
+		triageDelete(
+			getThreadMessages(focusedThread).map((message) => ({
+				id: message.messageId,
+				mailboxId: message.mailboxId,
+				accountId: message.accountId ?? owner,
+			})),
+		);
+	}, [
+		listCommandsRef,
+		focusedThread,
+		getThreadMessages,
+		triageDelete,
+		mailboxAccountId,
+	]);
 
 	const triageMarkJunk = useCallback(() => {
 		if (listCommandsRef.current?.requestVerb("junk")) return;
@@ -815,7 +829,13 @@ function MailboxPaneProvider({
 				? searchThreadsQuery
 				: undefined,
 		resultCount,
-		onDeleteMessages: handleDeleteMessages,
+		onDeleteMessages: (ids) => {
+			if (!mailboxAccountId)
+				throw new Error("Missing original message account");
+			handleDeleteMessages(
+				ids.map((id) => ({ id, mailboxId, accountId: mailboxAccountId })),
+			);
+		},
 		onMoveMessages: handleMoveMessages,
 		isDeleting,
 		isMoving,

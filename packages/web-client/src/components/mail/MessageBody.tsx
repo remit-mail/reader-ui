@@ -152,8 +152,6 @@ export const MessageBody = ({
 		setImageError(error);
 	}, []);
 	const isDark = useIsDark();
-	// `useToggleTrusted` surfaces its own failure (banner + rollback) and a fatal
-	// 5xx escalates globally — no consumer-side error effect needed here.
 	const { toggleTrusted, isPending: isTrustPending } = useToggleTrusted({
 		messageId: messageId ?? "",
 	});

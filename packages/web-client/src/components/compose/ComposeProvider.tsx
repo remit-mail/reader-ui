@@ -12,7 +12,7 @@ import {
 	useRef,
 	useState,
 } from "react";
-import { isNotFound, softErrorStatuses } from "../../lib/error-classifier";
+import { isNotFound } from "../../lib/error-classifier";
 import type { ReplyMode } from "../../routing";
 
 /**
@@ -63,16 +63,6 @@ const isSettledStatus = (status: string | undefined): boolean =>
 	status === "unfiled" || status === "failed" || status === "blocked";
 
 /**
- * A send that lands is filed and then forgotten: the worker APPENDs the message
- * to Sent and drops the outbox row, so the row's absence is the settled state
- * and the 404 is the confirmation.
- *
- * Only the 404 is this call site's to own. A 401 or a 403 here is a session that
- * lapsed under a send, which the app owes the user an answer about.
- */
-export const OUTBOX_ROW_META = softErrorStatuses(404);
-
-/**
  * The watch is over on a settled status and on any error the read comes back
  * with. The 404 is the settled state itself; every other refusal has already
  * escalated once through the query cache, and asking again every two seconds
@@ -96,7 +86,6 @@ export const ComposeProvider = ({
 			path: { outboxMessageId: pollingMessageId ?? "" },
 		}),
 		enabled: !!pollingMessageId,
-		meta: OUTBOX_ROW_META,
 		retry: (failureCount, error) => !isNotFound(error) && failureCount < 1,
 		refetchInterval: (query) => {
 			if (isWatchOver(query.state.data?.status, query.state.error))

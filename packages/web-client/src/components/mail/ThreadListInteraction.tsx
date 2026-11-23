@@ -317,7 +317,11 @@ export function ThreadListInteraction({
 					title: "Couldn't delete this message",
 					detail:
 						"This list has lost track of which account and folder it is in, so reader can't tell whether deleting it would move it to Trash or erase it. Nothing was deleted.",
-					action: { label: "Reload the list", href: window.location.href },
+					action: {
+						kind: "link",
+						label: "Reload the list",
+						href: window.location.href,
+					},
 				});
 				return true;
 			}

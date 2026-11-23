@@ -17,13 +17,6 @@ export {
 	type AccountMenuSection,
 } from "./components/account-menu.js";
 export {
-	type AccountServiceChange,
-	type AccountServiceChangeCopy,
-	AccountServiceChangeDialog,
-	type AccountServiceChangeDialogProps,
-	accountServiceChangeCopy,
-} from "./components/account-service-change-dialog.js";
-export {
 	ACCOUNT_SERVICE_EMPTY_MESSAGE,
 	ACCOUNT_SERVICE_ROWS,
 	type AccountService,

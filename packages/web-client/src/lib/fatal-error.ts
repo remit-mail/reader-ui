@@ -1,5 +1,4 @@
 import { recordError } from "./console-errors";
-import { isServerError } from "./error-classifier";
 import type { Telemetry } from "./telemetry";
 
 /**
@@ -26,14 +25,6 @@ export interface FatalError {
 	correlationId: string;
 	/** When the fatal was reported. */
 	at: number;
-	/**
-	 * Whether retrying the same action might succeed. A transient class — a 5xx,
-	 * an offline/network blip, an aborted request — is recoverable; the overlay
-	 * offers Retry. A deterministic render/exception (caught by the route error
-	 * boundary) is NOT recoverable — retry re-crashes, so the overlay offers a
-	 * way out (a safe route) instead.
-	 */
-	recoverable: boolean;
 	/** The error's stack, when it is an `Error`. Seeds the bug report. */
 	stack?: string;
 	/** React component stack from the error boundary, when available. */
@@ -42,27 +33,9 @@ export interface FatalError {
 
 /** Options for `reportFatalError`. */
 export interface ReportFatalOptions {
-	/**
-	 * Force the recoverable classification. Omit to derive it from the error
-	 * (transient network/5xx/abort ⇒ recoverable). The route error boundary
-	 * passes `false` for a caught render exception — it is deterministic.
-	 */
-	recoverable?: boolean;
 	/** React component stack captured by the error boundary. */
 	componentStack?: string;
 }
-
-/**
- * Default recoverable classification for an error with no explicit override.
- * Only a 5xx is treated as recoverable — the one clearly transient class, where
- * retrying the same action may succeed. Everything that reaches the fatal seam
- * is otherwise deterministic: aborts and offline/network blips never escalate
- * here (they are filtered upstream by `shouldEscalate`), so a statusless error
- * arriving here is an uncaught/unhandled crash, not a benign network blip.
- * A caught render exception is deterministic too — the error boundary reports
- * it with an explicit `recoverable: false` for good measure.
- */
-const defaultRecoverable = (error: unknown): boolean => isServerError(error);
 
 type FatalErrorListener = (fatal: FatalError) => void;
 
@@ -122,7 +95,6 @@ export const reportFatalError = (
 		message: messageOf(error),
 		correlationId: newCorrelationId(),
 		at: Date.now(),
-		recoverable: options?.recoverable ?? defaultRecoverable(error),
 		stack: error instanceof Error ? error.stack : undefined,
 		componentStack: options?.componentStack,
 	};

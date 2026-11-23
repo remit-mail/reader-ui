@@ -35,9 +35,11 @@ import {
 	useFolderAppointments,
 	useInboxMailbox,
 	useJunkMailbox,
+	useTrashByAccount,
 } from "../../hooks/useArchiveMailbox";
 import { useClauseSuggestions } from "../../hooks/useClauseSuggestions";
 import { useCreateMailbox } from "../../hooks/useCreateMailbox";
+import { useDeleteOutcome } from "../../hooks/useDeleteOutcome";
 import {
 	type EscalationSearchQuery,
 	useEscalatedActions,
@@ -75,6 +77,7 @@ import { searchRuleAccountId } from "../../lib/organize/search-to-rule";
 import { useSearchConversion } from "../../lib/search-conversion";
 import type { WizardSelectionMessage } from "../../lib/wizard-selection";
 import { useWizardEntryValue, useWizardStep } from "../../routing";
+import { useBulkRun } from "./BulkRunProvider";
 import { bulkRunReport } from "./bulk-run-state";
 import { organizeRunState } from "./organize-run-state";
 import {
@@ -377,8 +380,9 @@ function SelectionWizardSession({
 			selection.map((message) => ({
 				id: message.id,
 				accountId: message.accountId,
+				mailboxId: message.mailboxId ?? mailboxId,
 			})),
-		[selection],
+		[selection, mailboxId],
 	);
 	const senders = useMemo(
 		() => selection.map((message) => message.email).filter(Boolean),
@@ -526,7 +530,21 @@ function SelectionWizardSession({
 	});
 	const { runAction } = bulk;
 
-	const steps = stepsFor({ verb, mode, scope: draft.scope, fromSearch });
+	const { offerUndo } = useBulkRun();
+	const { trashByAccount } = useTrashByAccount();
+	const selectionDelete = useDeleteOutcome(
+		selection.map((message) => ({
+			accountId: message.accountId,
+			mailboxId: message.mailboxId ?? mailboxId ?? "",
+		})),
+	);
+	const steps = stepsFor({
+		verb,
+		mode,
+		scope: draft.scope,
+		fromSearch,
+		requiresReview: verb === "delete" && selectionDelete.outcome !== "trash",
+	});
 	// The step the screens are on, which is the held one only while the answers
 	// still hold it. Reading the URL's step here and the resolved one on screen
 	// is how a footer comes to name a screen nobody is looking at.
@@ -615,16 +633,6 @@ function SelectionWizardSession({
 		});
 	}, []);
 
-	const advance = useCallback(() => {
-		if (blockedReason) {
-			setNudgedStep(current);
-			return;
-		}
-		setNudgedStep(undefined);
-		const next = steps[stepIndex(steps, current) + 1];
-		if (next) goToStep(next);
-	}, [blockedReason, current, steps, goToStep]);
-
 	const runBulk = useCallback(
 		async (targets: readonly BulkActionTarget[]) => {
 			const action = bulkActionFor(verb, named.moveMailboxId, junkMailboxId);
@@ -638,6 +646,43 @@ function SelectionWizardSession({
 			}
 			setBulkRun({ matched: targets.length, sent: targets });
 			const started = await runAction(action, targets, claimEnding);
+			if (
+				mode === "selected" &&
+				started.kind === "ran" &&
+				started.outcome.refused === 0 &&
+				!started.outcome.cancelled &&
+				started.outcome.failedIds.length === 0 &&
+				(verb !== "delete" || selectionDelete.outcome === "trash")
+			) {
+				const originals = selection.filter((message) =>
+					targets.some((target) => target.id === message.id),
+				);
+				offerUndo(
+					"Selection updated",
+					verb === "markRead"
+						? {
+								kind: "markRead",
+								targets: originals.map((message) => ({
+									...message,
+									mailboxId: message.mailboxId ?? mailboxId,
+								})),
+							}
+						: {
+								kind: "move",
+								targets: originals.map((message) => ({
+									id: message.id,
+									accountId: message.accountId ?? accountId,
+									originalMailboxId: message.mailboxId ?? mailboxId ?? "",
+									mailboxId:
+										action.kind === "move"
+											? action.destinationMailboxId
+											: trashByAccount.get(message.accountId ?? accountId ?? "")
+													?.mailboxId,
+								})),
+							},
+					mailboxId ?? "",
+				);
+			}
 			setBulkRun({
 				matched: targets.length,
 				sent: targets,
@@ -645,7 +690,20 @@ function SelectionWizardSession({
 				failureReason: started.kind === "refused" ? started.reason : undefined,
 			});
 		},
-		[verb, named.moveMailboxId, junkMailboxId, runAction, claimEnding],
+		[
+			verb,
+			named.moveMailboxId,
+			junkMailboxId,
+			runAction,
+			claimEnding,
+			mode,
+			selectionDelete.outcome,
+			selection,
+			mailboxId,
+			offerUndo,
+			accountId,
+			trashByAccount,
+		],
 	);
 
 	// The escalated predicate, run by the chunked runner the list already owns.
@@ -750,6 +808,17 @@ function SelectionWizardSession({
 		goToStep("run");
 		sendCommit();
 	}, [blockedReason, current, goToStep, sendCommit]);
+
+	const advance = useCallback(() => {
+		if (blockedReason) {
+			setNudgedStep(current);
+			return;
+		}
+		setNudgedStep(undefined);
+		const next = steps[stepIndex(steps, current) + 1];
+		if (next === "run") commit();
+		else if (next) goToStep(next);
+	}, [blockedReason, current, steps, commit, goToStep]);
 
 	const jobSnapshot = useCallback(
 		(ruleSaved: boolean): RunSnapshot => {

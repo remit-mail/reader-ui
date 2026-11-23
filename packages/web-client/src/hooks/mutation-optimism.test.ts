@@ -103,7 +103,13 @@ describe("deleting from a listing", () => {
 	it("removes the row from its mailbox and from the brief at once", async () => {
 		const hook = mountHook(() => useDeleteMessages({ mailboxId: INBOX }));
 
-		hook.current().deleteMessages(["msg-1"]);
+		hook.current().deleteMessages(
+			["msg-1"].map((id) => ({
+				id,
+				mailboxId: id === "msg-2" ? SENT : INBOX,
+				accountId: "acc-1",
+			})),
+		);
 		await dom().flush();
 
 		assert.deepEqual(ids(dom(), inboxKey), []);
@@ -119,18 +125,28 @@ describe("deleting from a listing", () => {
 			}),
 		);
 
-		hook.current().deleteMessages(["msg-1"]);
+		hook.current().deleteMessages(
+			["msg-1"].map((id) => ({
+				id,
+				mailboxId: id === "msg-2" ? SENT : INBOX,
+				accountId: "acc-1",
+			})),
+		);
 		await dom().flush();
 
 		assert.deepEqual(removed, [["msg-1"]]);
 	});
 
 	it("patches the mailbox the message is really in, not the one being browsed", async () => {
-		const hook = mountHook(() =>
-			useDeleteMessages({ mailboxId: INBOX, messages: [inboxRow, sentRow] }),
-		);
+		const hook = mountHook(() => useDeleteMessages({ mailboxId: INBOX }));
 
-		hook.current().deleteMessages(["msg-2"]);
+		hook.current().deleteMessages(
+			["msg-2"].map((id) => ({
+				id,
+				mailboxId: id === "msg-2" ? SENT : INBOX,
+				accountId: "acc-1",
+			})),
+		);
 		await dom().flush();
 
 		assert.deepEqual(ids(dom(), sentKey), []);
@@ -140,7 +156,13 @@ describe("deleting from a listing", () => {
 	it("does nothing at all for an empty selection", async () => {
 		const hook = mountHook(() => useDeleteMessages({ mailboxId: INBOX }));
 
-		hook.current().deleteMessages([]);
+		hook.current().deleteMessages(
+			[].map((id) => ({
+				id,
+				mailboxId: id === "msg-2" ? SENT : INBOX,
+				accountId: "acc-1",
+			})),
+		);
 		await dom().flush();
 
 		assert.deepEqual(http.calls, []);
@@ -152,7 +174,13 @@ describe("deleting from a listing", () => {
 		http = mockFetch(() => httpError(409, "mailbox is locked"));
 		const hook = mountHook(() => useDeleteMessages({ mailboxId: INBOX }));
 
-		hook.current().deleteMessages(["msg-1"]);
+		hook.current().deleteMessages(
+			["msg-1"].map((id) => ({
+				id,
+				mailboxId: id === "msg-2" ? SENT : INBOX,
+				accountId: "acc-1",
+			})),
+		);
 		await dom().flush();
 
 		assert.deepEqual(ids(dom(), inboxKey), ["msg-1"]);
@@ -165,7 +193,13 @@ describe("deleting from a listing", () => {
 		http = mockFetch(() => httpError(409));
 		const hook = mountHook(() => useDeleteMessages({ mailboxId: INBOX }));
 
-		hook.current().deleteMessages(["msg-1", "msg-2"]);
+		hook.current().deleteMessages(
+			["msg-1", "msg-2"].map((id) => ({
+				id,
+				mailboxId: id === "msg-2" ? SENT : INBOX,
+				accountId: "acc-1",
+			})),
+		);
 		await dom().flush();
 
 		assert.match(dom().text(), /Couldn't delete 2 messages/);

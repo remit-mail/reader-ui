@@ -62,7 +62,7 @@ export const SheetOpensOverTheRail: Story = {
 	},
 };
 
-export const DeleteConfirmOutlastsAKeystroke: Story = {
+export const TrashMovesWithoutConfirming: Story = {
 	args: { url: `/mail/${INBOX}` },
 	play: async () => {
 		await page().findByText("Q3 planning");
@@ -70,21 +70,10 @@ export const DeleteConfirmOutlastsAKeystroke: Story = {
 		await userEvent.keyboard("j");
 		await userEvent.keyboard("k");
 		await userEvent.keyboard("#");
-		const dialog = await page().findByRole("dialog");
 		await expect(
-			await within(dialog).findByRole("button", {
-				name: "Move to Trash",
-			}),
+			await page().findByRole("button", { name: "Undo" }),
 		).toBeVisible();
-
-		await userEvent.keyboard("j");
-		await expect(page().getByRole("dialog")).toBeVisible();
-
-		await userEvent.click(
-			within(dialog).getByRole("button", { name: "Cancel" }),
-		);
-		await waitFor(() => expect(page().queryByRole("dialog")).toBeNull());
-		await expect(rows()[0]).toHaveTextContent("Q3 planning");
+		await expect(page().queryByRole("dialog")).toBeNull();
 	},
 };
 

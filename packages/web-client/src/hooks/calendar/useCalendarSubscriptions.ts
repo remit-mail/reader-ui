@@ -14,10 +14,7 @@ import {
 } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
-import { softErrorStatuses } from "../../lib/error-classifier";
 import { useInvalidateCalendarReads } from "./useCalendarWrites";
-
-const SUBSCRIPTION_WRITE_META = softErrorStatuses(400, 404);
 
 export interface CalendarSubscribeRequest {
 	displayName: string;
@@ -49,13 +46,11 @@ export function useCalendarSubscriptions(): CalendarSubscriptionControls {
 
 	const create = useMutation({
 		...calendarOperationsCreateCalendarMutation(),
-		meta: SUBSCRIPTION_WRITE_META,
 		onSuccess: invalidate,
 	});
 
 	const toggle = useMutation({
 		...calendarDetailOperationsUpdateCalendarMutation(),
-		meta: SUBSCRIPTION_WRITE_META,
 		onSuccess: invalidate,
 	});
 

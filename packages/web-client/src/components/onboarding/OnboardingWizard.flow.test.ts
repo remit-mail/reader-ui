@@ -152,7 +152,6 @@ const walkToServers = async (
 
 const walkToTest = async (dom: DomHarness): Promise<void> => {
 	await walkToServers(dom);
-	clickText(dom, "Continue");
 	const password = dom.query<HTMLInputElement>("#credentials-password");
 	assert.ok(password);
 	dom.type(password, "app-password");
@@ -189,39 +188,18 @@ describe("OnboardingWizard — the first-run path", () => {
 		const dom = start();
 		await walkToServers(dom);
 
-		assert.match(dom.text(), /Confirm server settings/);
-		assert.equal(imapHostField(dom).value, "imap.fastmail.com");
+		assert.match(dom.text(), /Sign in to fastmail.com/);
+		assert.doesNotMatch(dom.text(), /Confirm server settings/);
 	});
 
-	it("picks the Gmail preset from a Gmail address and locks both hosts", async () => {
+	it("uses the detected Gmail settings without a server review", async () => {
 		const dom = start();
 		await walkToServers(dom, "alice@gmail.com");
 
-		const provider = dom.query<HTMLSelectElement>("#provider-select");
-		assert.ok(provider);
-		assert.equal(provider.value, "gmail");
-		const imap = imapHostField(dom);
-		const smtp = dom.query<HTMLInputElement>(
-			'input[placeholder="smtp.example.com"]',
-		);
-		assert.ok(smtp, "expected the SMTP host field");
-		assert.equal(imap.value, "imap.gmail.com");
-		assert.equal(smtp.value, "smtp.gmail.com");
-		assert.equal(imap.readOnly, true);
-		assert.equal(smtp.readOnly, true);
-		const security = [
-			...dom.document.querySelectorAll<HTMLSelectElement>("fieldset select"),
-		];
-		assert.deepEqual(
-			security.map((select) => [select.value, select.disabled]),
-			[
-				["tls", true],
-				["starttls", true],
-			],
-		);
-		assert.match(dom.text(), /2-Step Verification/);
+		assert.match(dom.text(), /Sign in to gmail.com/);
+		assert.doesNotMatch(dom.text(), /Confirm server settings/);
 		assert.match(dom.text(), /create an app password/);
-		const link = dom.byText("a", "Get an app password");
+		const link = dom.byText("a", "How to create an app password");
 		assert.equal(
 			link.getAttribute("href"),
 			"https://support.google.com/accounts/answer/185833",
@@ -285,16 +263,13 @@ describe("OnboardingWizard — the first-run path", () => {
 	});
 
 	for (const skipWelcome of [false, true]) {
-		it(`confirms folders before completing ${skipWelcome ? "add-account" : "first-run"} setup`, async () => {
+		it(`opens the inbox immediately after ${skipWelcome ? "add-account" : "first-run"} setup`, async () => {
 			const dom = start({}, skipWelcome);
 			await walkToSync(dom);
 
 			assert.match(dom.text(), /INBOX/);
 			assert.match(dom.text(), /4 mailboxes found/);
-			clickText(dom, "Continue");
-			assert.deepEqual(completed, []);
-			await dom.waitFor(() => !!dom.query("select"));
-			clickText(dom, "Confirm folders");
+			clickText(dom, "Go to inbox");
 			await dom.waitFor(() => completed.length > 0);
 			assert.deepEqual(completed, ["acc-new"]);
 		});
@@ -714,8 +689,6 @@ describe("OnboardingWizard — what a Microsoft account syncs (#1183)", () => {
 	it("never offers the choice to a password account", async () => {
 		const dom = start();
 		await walkToServers(dom);
-		assert.doesNotMatch(dom.text(), /What should Remit sync/);
-		clickText(dom, "Continue");
 		assert.doesNotMatch(dom.text(), /What should Remit sync/);
 		assert.equal(dom.query('input[type="checkbox"]'), null);
 	});

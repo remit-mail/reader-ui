@@ -1,5 +1,4 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { HttpResponse, http } from "msw";
 import { expect, userEvent, waitFor, within } from "storybook/test";
 import {
 	REDIRECT_STALL_MESSAGE,
@@ -14,7 +13,6 @@ import {
 	onboardingHandlers,
 } from "../../mocks/story-frame/onboarding-handlers";
 import { makeAccount } from "../../test-support/fixtures";
-import { matthijs, matthijsFolders } from "../../test-support/special-folders";
 
 const EMAIL = "alice@northwind.example";
 
@@ -59,7 +57,8 @@ const toServers = async (canvas: Canvas, email = EMAIL) => {
 };
 
 const toCredentials = async (canvas: Canvas) => {
-	await toServers(canvas);
+	await toAddress(canvas);
+	await userEvent.type(await canvas.findByLabelText("Email address"), EMAIL);
 	await press(canvas, "Continue");
 	await canvas.findByText("Sign in to northwind.example");
 };
@@ -97,7 +96,7 @@ export const Walkthrough: Story = {
 			}),
 		).toBeVisible();
 		await expect(
-			await canvas.findByRole("button", { name: "Continue" }),
+			await canvas.findByRole("button", { name: "Go to inbox" }),
 		).toBeEnabled();
 	},
 };
@@ -238,27 +237,17 @@ export const AddressInvalid: Story = {
 	},
 };
 
-export const ServerConfirm: Story = {
+export const DetectedSettingsSkipReview: Story = {
 	play: async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
-		await toServers(canvas);
-		await expect(canvas.getByText(/Found via autodiscovery/)).toBeVisible();
-		await expect(canvas.getAllByText("detected")).toHaveLength(2);
-		await expect(
-			canvas.getAllByDisplayValue("mail.northwind.example"),
-		).toHaveLength(2);
+		await toCredentials(canvas);
+		await expect(canvas.queryByText("Confirm server settings")).toBeNull();
 	},
 };
 
-export const ServerConfirmPhone: Story = {
+export const DetectedSettingsSkipReviewPhone: Story = {
 	globals: phone,
-	play: async ({ canvasElement }) => {
-		const canvas = within(canvasElement);
-		await toServers(canvas);
-		for (const security of canvas.getAllByLabelText("Security")) {
-			await expect(security).toBeEnabled();
-		}
-	},
+	play: DetectedSettingsSkipReview.play,
 };
 
 export const ServerManualFallback: Story = {
@@ -290,13 +279,15 @@ export const ServerMissingHost: Story = {
 export const ServerProviderPreset: Story = {
 	play: async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
-		await toServers(canvas, "alice@icloud.com");
-		await expect(canvas.getByLabelText("Provider")).toHaveValue("icloud");
+		await toAddress(canvas);
+		await userEvent.type(
+			await canvas.findByLabelText("Email address"),
+			"alice@icloud.com",
+		);
+		await press(canvas, "Continue");
+		await canvas.findByText("Sign in to icloud.com");
 		await expect(
-			canvas.getByText(/pre-filled for iCloud and locked/),
-		).toBeVisible();
-		await expect(
-			canvas.getByRole("link", { name: "Get an app password" }),
+			canvas.getByRole("link", { name: "How to create an app password" }),
 		).toBeVisible();
 	},
 };
@@ -388,7 +379,7 @@ export const SyncProgress: Story = {
 			}),
 		).toBeVisible();
 		await expect(
-			canvas.getByRole("button", { name: "Continue" }),
+			canvas.getByRole("button", { name: "Go to inbox" }),
 		).toBeEnabled();
 	},
 };
@@ -405,10 +396,10 @@ export const SyncWaitingForFirstMail: Story = {
 		await expect(
 			await canvas.findByRole(
 				"button",
-				{ name: "Getting your mail…" },
+				{ name: "Go to inbox" },
 				{ timeout: 4000 },
 			),
-		).toBeDisabled();
+		).toBeEnabled();
 	},
 };
 
@@ -548,43 +539,5 @@ export const MicrosoftReconnectScopeNotGranted: Story = {
 		await expect(canvas.getByLabelText("Email address (optional)")).toHaveValue(
 			OUTLOOK.email,
 		);
-	},
-};
-
-export const SpecialFolders: Story = {
-	parameters: {
-		msw: {
-			handlers: [
-				http.post("/api/accounts", () =>
-					HttpResponse.json({ ...matthijs, accountId: NEW_ACCOUNT_ID }),
-				),
-				...onboardingHandlers(),
-				...mailHandlers(
-					mailWorld({
-						accounts: [{ ...matthijs, accountId: NEW_ACCOUNT_ID }],
-						mailboxes: matthijsFolders.map((mailbox) => ({
-							...mailbox,
-							accountId: NEW_ACCOUNT_ID,
-						})),
-					}),
-				),
-			],
-		},
-	},
-	play: async ({ canvasElement }) => {
-		const canvas = within(canvasElement);
-		await toTest(canvas);
-		await canvas.findByText(`Syncing ${EMAIL}`, undefined, { timeout: 4000 });
-		await press(canvas, "Continue");
-		await expect(await canvas.findByLabelText("Folder for Trash")).toHaveValue(
-			"trash",
-		);
-		await expect(canvas.getByLabelText("Folder for Sent")).toHaveValue("sent");
-		await expect(canvas.getByLabelText("Folder for Drafts")).toHaveValue(
-			"drafts",
-		);
-		await expect(
-			canvas.getByRole("button", { name: "Confirm folders" }),
-		).toBeEnabled();
 	},
 };

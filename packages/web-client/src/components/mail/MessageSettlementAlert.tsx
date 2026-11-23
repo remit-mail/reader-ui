@@ -50,22 +50,21 @@ export function MessageSettlementAlert({
 				? ("move_failed" as const)
 				: undefined;
 
-	// Only a move that gave up, and only where the caller has no account of its
+	// Only a mutation that gave up, and only where the caller has no account of its
 	// own, has anything to resolve — so every other row subscribes to nothing.
 	// Asking unconditionally would pull `/config` and every account's mailbox
 	// list into each expanded message, for a case almost none of them are.
 	const { accountId: mailboxAccountId } = useMailboxAccount(
-		settlement === "move_failed" && !accountId
+		settlement !== undefined && !accountId && !threadMessage.accountId
 			? threadMessage.mailboxId
 			: undefined,
 	);
-	const scopedAccountId = accountId ?? mailboxAccountId;
+	const scopedAccountId =
+		accountId ?? threadMessage.accountId ?? mailboxAccountId;
 
 	const { deleteMessages, isPending: isDeleting } = useDeleteMessages({
 		mailboxId: threadMessage.mailboxId,
 		threadId: threadMessage.threadId,
-		accountId: scopedAccountId,
-		messages: [threadMessage],
 	});
 	const { moveMessages, isPending: isMoving } = useMoveMessages({
 		mailboxId: threadMessage.mailboxId,
@@ -74,8 +73,20 @@ export function MessageSettlementAlert({
 	});
 
 	const onDeleteAgain = useCallback(() => {
-		deleteMessages([threadMessage.messageId]);
-	}, [deleteMessages, threadMessage.messageId]);
+		if (!scopedAccountId) throw new Error("Missing original message account");
+		deleteMessages([
+			{
+				id: threadMessage.messageId,
+				mailboxId: threadMessage.mailboxId,
+				accountId: scopedAccountId,
+			},
+		]);
+	}, [
+		deleteMessages,
+		threadMessage.messageId,
+		threadMessage.mailboxId,
+		scopedAccountId,
+	]);
 
 	const onMoveAgain = useCallback(
 		(destinationMailboxId: string) => {

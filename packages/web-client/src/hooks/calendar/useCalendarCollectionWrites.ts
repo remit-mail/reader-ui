@@ -24,10 +24,7 @@ import type {
 import { formatErrorMessage } from "@remit/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo } from "react";
-import { softErrorStatuses } from "../../lib/error-classifier";
 import { useInvalidateCalendarReads } from "./useCalendarWrites";
-
-const COLLECTION_WRITE_META = softErrorStatuses(400, 404);
 
 export type CalendarCollectionOutcome =
 	| { kind: "written" }
@@ -71,17 +68,14 @@ export function useCalendarCollectionWrites(): CalendarCollectionWrites {
 
 	const create = useMutation({
 		...calendarOperationsCreateCalendarMutation(),
-		meta: COLLECTION_WRITE_META,
 		onSuccess: invalidateListing,
 	});
 	const update = useMutation({
 		...calendarDetailOperationsUpdateCalendarMutation(),
-		meta: COLLECTION_WRITE_META,
 		onSuccess: invalidateAll,
 	});
 	const remove = useMutation({
 		...calendarDetailOperationsDeleteCalendarMutation(),
-		meta: COLLECTION_WRITE_META,
 		onSuccess: invalidateAll,
 	});
 

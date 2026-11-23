@@ -32,6 +32,7 @@ export const spellcheckFailure = (
 		title: "Spellcheck stopped",
 		detail: `${summary} Your browser is checking this message instead. ${status.detail}`,
 		action: {
+			kind: "link",
 			label: "Report this",
 			href: buildGitHubIssueUrl(
 				buildBugReportContext({

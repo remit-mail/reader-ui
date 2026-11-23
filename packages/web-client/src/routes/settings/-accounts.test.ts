@@ -291,8 +291,6 @@ describe("the Microsoft callback landing on the accounts page (#1183)", () => {
 
 		assert.match(dom.text(), /Access granted/);
 		dom.click(dom.byText("button", "Continue"));
-		await dom.waitFor(() => dom.text().includes("Set up later"));
-		dom.click(dom.byText("button", "Set up later"));
 		await settle(dom);
 		assert.match(dom.text(), /Account connected successfully\./);
 	});

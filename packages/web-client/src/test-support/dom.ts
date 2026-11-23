@@ -58,13 +58,7 @@ export interface DomOptions {
 	/** Screen posture `matchMedia` answers against — jsdom has no device. */
 	orientation?: "portrait" | "landscape";
 	pointer?: "coarse" | "fine";
-	/**
-	 * Use this `QueryClient` instead of the harness's default retry-disabled
-	 * one — e.g. one wired with the real `QueryCache`/`MutationCache` error
-	 * handlers from `lib/query-error-handler.ts`, the way `shell/index.tsx`
-	 * builds it, so a test can exercise the real global escalation path
-	 * instead of just the per-mutation `onError`.
-	 */
+
 	queryClient?: QueryClient;
 }
 

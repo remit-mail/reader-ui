@@ -29,11 +29,8 @@ import {
 	RouterContextProvider,
 } from "@tanstack/react-router";
 import { createElement, Fragment, useState } from "react";
+import { escalate } from "../../lib/escalate";
 import { __resetFatalError } from "../../lib/fatal-error";
-import {
-	handleMutationCacheError,
-	handleQueryCacheError,
-} from "../../lib/query-error-handler";
 import { isSignedOut, resetSignedOut } from "../../lib/signed-out";
 import { createDomHarness, type DomHarness } from "../../test-support/dom";
 import { type HttpMock, httpError, mockFetch } from "../../test-support/http";
@@ -174,8 +171,8 @@ const mount = async (options: MountOptions = {}): Promise<void> => {
 	});
 
 	const queryClient = new QueryClient({
-		queryCache: new QueryCache({ onError: handleQueryCacheError }),
-		mutationCache: new MutationCache({ onError: handleMutationCacheError }),
+		queryCache: new QueryCache({ onError: escalate }),
+		mutationCache: new MutationCache({ onError: escalate }),
 		defaultOptions: {
 			queries: { retry: false },
 			mutations: { retry: false },
@@ -347,12 +344,13 @@ describe("a failed autosave and the message it is holding", () => {
 		assert.equal(fatalOverlay(), null);
 	});
 
-	it("still escalates a 5xx from the same write", async () => {
+	it("shows a 5xx beside the draft and keeps the editor mounted", async () => {
 		await mount({ outboxMessageId: OUTBOX_MESSAGE_ID, patchStatus: 500 });
 
 		harness?.type(subjectField(), "Fwd: Lunch on Thursday");
 		await harness?.wait(AUTOSAVE_DEBOUNCE_MS + 300);
 
-		assert.ok(fatalOverlay(), "our API answering 'I'm broken' is never soft");
+		assert.equal(fatalOverlay(), null);
+		assert.match(harness?.text() ?? "", /Couldn.t save draft/);
 	});
 });

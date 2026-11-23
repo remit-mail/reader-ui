@@ -516,6 +516,7 @@ export const MessageList = ({
 				id: thread.messageId,
 				sender: thread.fromName ?? thread.fromEmail ?? "Unknown",
 				email: thread.fromEmail ?? "",
+				isRead: thread.isRead,
 				subject: thread.subject ?? "(No subject)",
 				date: formatEmailDate(thread.sentDate),
 				accountId,

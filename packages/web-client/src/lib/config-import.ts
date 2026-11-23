@@ -13,10 +13,6 @@ import type {
 	RemitImapConfigImportItemReport,
 	RemitImapConfigImportReport,
 } from "@remit/api-http-client/types.gen.ts";
-// `ApiError` above is the wire model for an error body; this is the thrown
-// wrapper `lib/client.ts` puts every HTTP failure in.
-import { ApiError as ThrownApiError } from "./api.js";
-import { getErrorStatus } from "./error-classifier.js";
 import { safeJsonParse } from "./json.js";
 
 export const IMPORT_SECTION_ORDER = [
@@ -226,45 +222,6 @@ const UNRECOGNISED_FAILURE = (error: ApiError): Omit<FailureCopy, "raw"> => ({
 });
 
 export const WRITE_FAILURE_CODE = "import_write_failed";
-
-export const CONFLICT_CODE = "config_not_empty";
-
-export interface ImportConflict {
-	message: string;
-	details?: Record<string, string>;
-}
-
-/**
- * The 409 a non-empty configuration answers with, or nothing.
- *
- * The endpoint's body is flat — `code`, `message`, `details` — but it does not
- * always arrive that way: `lib/client.ts` re-wraps every HTTP failure as an
- * `ApiError` so the fail-fast classifier can read a status off it, and that
- * moves the body onto `error.body`. Reading the code off the error itself finds
- * nothing there and turns the refusal into "check your connection", which is
- * how the abort-or-merge screen became unreachable. Both shapes are checked,
- * and the code is what decides: a status is confirmation where there is one,
- * never the thing being matched on.
- */
-export const readConflict = (error: unknown): ImportConflict | undefined => {
-	const status = getErrorStatus(error);
-	if (status !== undefined && status !== 409) return undefined;
-	const body: unknown = error instanceof ThrownApiError ? error.body : error;
-	if (typeof body !== "object" || body === null) return undefined;
-	const flat = body as {
-		code?: unknown;
-		message?: unknown;
-		details?: unknown;
-	};
-	if (flat.code !== CONFLICT_CODE) return undefined;
-	return {
-		message: typeof flat.message === "string" ? flat.message : "",
-		details:
-			typeof flat.details === "object" && flat.details !== null
-				? (flat.details as Record<string, string>)
-				: undefined,
-	};
-};
 
 /**
  * The blocking failure to render, when there is one. `import_write_failed` is

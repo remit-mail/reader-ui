@@ -35,6 +35,7 @@ export const bannerWayOut = (
 	if (input.action) return input.action;
 	if ((input.severity ?? "error") !== "error") return undefined;
 	return {
+		kind: "link",
 		label: "Report an issue",
 		href: buildGitHubIssueUrl(
 			buildBugReportContext({

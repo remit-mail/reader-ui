@@ -12,6 +12,7 @@ import { installAuthInterceptor } from "../auth/auth-interceptor";
 import { type AuthProvider, AuthProviderProvider } from "../auth/provider";
 import { InstallProvider } from "../components/install/InstallProvider";
 import { install as installConsoleErrorCatcher } from "../lib/console-errors";
+import { escalate } from "../lib/escalate";
 import { setFatalErrorTelemetry } from "../lib/fatal-error";
 import { NetworkError } from "../lib/network-error";
 import { OfflineProvider } from "../lib/OfflineProvider";
@@ -21,10 +22,6 @@ import {
 	type OfflineOptions,
 } from "../lib/offline-runtime";
 import { installPwaUpdateCoordinator } from "../lib/pwa-update";
-import {
-	handleMutationCacheError,
-	handleQueryCacheError,
-} from "../lib/query-error-handler";
 import { initRum } from "../lib/rum-adapter";
 import { installStaleBuildReload } from "../lib/stale-build";
 import { TelemetryContext } from "../lib/telemetry-context";
@@ -68,16 +65,11 @@ export const mountApp = ({
 	// Plug the live telemetry adapter into the single fatal-error seam.
 	setFatalErrorTelemetry(telemetry);
 
-	// Every query and mutation error flows through the global fail-fast
-	// classifier (#1059): a non-2xx escalates to the full-screen red overlay by
-	// DEFAULT — a 5xx always escalates (even on a background refetch). Only
-	// aborts, statusless connectivity blips, and non-5xx errors a call site
-	// explicitly opted out of via `meta.softError` stay soft. This is the v5
-	// equivalent of `defaultOptions.queries.onError` / `.mutations.onError`.
+	// Authentication refusals go to the session notice; request owners show other errors inline.
 	const queryClient = new QueryClient({
-		queryCache: new QueryCache({ onError: handleQueryCacheError }),
+		queryCache: new QueryCache({ onError: escalate }),
 		mutationCache: new MutationCache({
-			onError: handleMutationCacheError,
+			onError: escalate,
 			onMutate: async () => {
 				const runtime = getOfflineRuntime();
 				if (runtime)
@@ -105,7 +97,7 @@ export const mountApp = ({
 		installPwaBuildObservation();
 		installPwaUpdateCoordinator(() => queryClient.isMutating() > 0);
 	} else {
-		installStaleBuildReload();
+		installStaleBuildReload(() => queryClient.isMutating() > 0);
 	}
 
 	const offlineRuntime = offline ? installOfflineRuntime(offline) : undefined;

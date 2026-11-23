@@ -25,10 +25,7 @@ import { type ReactNode, useId, useState } from "react";
 import { useSaveClassification } from "../../../hooks/useClassificationSettings";
 import { useJunkMailboxIds } from "../../../hooks/useJunkMailboxIds";
 import { useLabelList } from "../../../hooks/useLabels";
-import {
-	isUnauthenticated,
-	softErrorStatuses,
-} from "../../../lib/error-classifier";
+import { isUnauthenticated } from "../../../lib/error-classifier";
 import { formatEmailDate } from "../../../lib/format";
 import {
 	flaggedVerdict,
@@ -44,8 +41,6 @@ import { NavLink } from "../../../routing";
 
 const SECTION_TITLE =
 	"text-xs font-semibold uppercase tracking-wider text-fg-subtle";
-
-const sectionMeta = softErrorStatuses(400, 403, 404);
 
 const LATEST_COUNT = 10;
 
@@ -115,7 +110,6 @@ function OverviewSection() {
 		...classificationStatsOperationsGetClassificationStatsOptions({
 			query: { since: spamOverviewSince(now) },
 		}),
-		meta: sectionMeta,
 	});
 	const skeleton = (
 		<>
@@ -222,7 +216,6 @@ function LatestSection() {
 				.sort((a, b) => b.sentDate - a.sentDate)
 				.slice(0, LATEST_COUNT),
 		enabled: labelList.isSuccess,
-		meta: sectionMeta,
 	});
 	const skeleton = (
 		<div className="space-y-2">
@@ -452,7 +445,6 @@ function PlacementSection({ spam }: { spam: RemitImapSpamSettings }) {
 function SettingsSections() {
 	const settings = useQuery({
 		...userSettingsOperationsGetUserSettingsOptions(),
-		meta: sectionMeta,
 	});
 	const skeleton = (
 		<>

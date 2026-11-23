@@ -1,16 +1,3 @@
-/**
- * A 401 escalates over `meta.softError` only when someone is waiting on the
- * answer. The self-update poll is the case that made that seam necessary: it is
- * mounted at the app root and answers 401 by design for anyone whose session has
- * lapsed, so escalating it put the full-screen fatal page over every screen in
- * the app at load — including the sign-in the shell was already about to ask
- * for.
- *
- * Held with the real caches wired to `lib/query-error-handler.ts`, because the
- * seam is in what those two handlers pass and a classifier unit test cannot see
- * a caller that never passed anything.
- */
-
 import assert from "node:assert/strict";
 import { afterEach, describe, it } from "node:test";
 import {
@@ -22,12 +9,8 @@ import {
 import { createElement, Fragment, useEffect } from "react";
 import { FatalErrorOverlay } from "../components/ui/FatalErrorOverlay";
 import { ApiError } from "../lib/api";
-import { softErrorMeta } from "../lib/error-classifier";
+import { escalate } from "../lib/escalate";
 import { __resetFatalError } from "../lib/fatal-error";
-import {
-	handleMutationCacheError,
-	handleQueryCacheError,
-} from "../lib/query-error-handler";
 import { isSignedOut, resetSignedOut } from "../lib/signed-out";
 import { createDomHarness, type DomHarness } from "../test-support/dom";
 import { type HttpMock, httpError, mockFetch } from "../test-support/http";
@@ -47,8 +30,8 @@ afterEach(() => {
 
 const escalatingClient = (): QueryClient =>
 	new QueryClient({
-		queryCache: new QueryCache({ onError: handleQueryCacheError }),
-		mutationCache: new MutationCache({ onError: handleMutationCacheError }),
+		queryCache: new QueryCache({ onError: escalate }),
+		mutationCache: new MutationCache({ onError: escalate }),
 		defaultOptions: {
 			queries: { retry: false },
 			mutations: { retry: false },
@@ -64,7 +47,6 @@ const SoftWrite = () => {
 		mutationFn: async (): Promise<void> => {
 			throw new ApiError("signed out", 401);
 		},
-		meta: softErrorMeta,
 	});
 	const { mutate } = mutation;
 	useEffect(() => {

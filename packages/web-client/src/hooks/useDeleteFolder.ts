@@ -102,22 +102,15 @@ const liveMessageCount = async (
 export type DeleteFolderPhase =
 	| "idle"
 	| "checking"
-	| "check-stalled"
 	| "moving"
 	| "deleting"
 	| "done"
 	| "error";
 
-/**
- * What a delete-as-empty did. `blocked` carries the count that stopped it;
- * `pending` means the server has not reported yet and the user decides whether
- * to wait on; `failed` means nothing was established. Neither is ever treated
- * as empty.
- */
+/** A fresh count either permits deletion or leaves the folder open with its mail. */
 export type EmptyDeleteOutcome =
 	| { status: "deleted" }
 	| { status: "blocked"; messageCount: number }
-	| { status: "pending" }
 	| { status: "failed" };
 
 interface UseDeleteFolderOptions {
@@ -137,9 +130,6 @@ export function useDeleteFolder({
 	const [errorMessage, setErrorMessage] = useState<string>();
 	const [checkStartedAt, setCheckStartedAt] = useState<number>();
 	const abortRef = useRef<AbortController | null>(null);
-	/** The folder's sync stamp before the round was asked for; set while a check
-	 * is running or paused, so resuming it re-uses the same baseline. */
-	const sinceRef = useRef<number | undefined>(undefined);
 
 	const invalidate = useCallback(() => {
 		queryClient.invalidateQueries({
@@ -199,10 +189,7 @@ export function useDeleteFolder({
 	 * that round read. A read failure or a folder gone from the account refuses
 	 * the delete: not knowing what a folder holds is never permission.
 	 *
-	 * The round can take minutes — it fans the whole account out behind INBOX —
-	 * so the wait runs in segments. A segment that ends unreported returns
-	 * `pending` and the user decides; calling again resumes the same wait against
-	 * the same baseline, and never asks for a second round.
+	 * Poll until the folder reports or the user cancels.
 	 */
 	const deleteIfEmpty = useCallback(async (): Promise<EmptyDeleteOutcome> => {
 		const controller = new AbortController();
@@ -211,49 +198,40 @@ export function useDeleteFolder({
 		setPhase("checking");
 		setErrorMessage(undefined);
 
-		const resuming = sinceRef.current !== undefined;
 		const counted = await attempt(
 			(async (): Promise<FreshCountOutcome> => {
-				if (!resuming) {
-					signal.throwIfAborted();
-					sinceRef.current = mailboxSyncStamp(
-						await readMailboxSyncStatus(),
-						mailboxId,
-					);
-					signal.throwIfAborted();
-					setCheckStartedAt(Date.now());
-					await syncOperationsTriggerSync({
-						path: { accountId },
-						throwOnError: true,
-					});
-				}
+				signal.throwIfAborted();
+				const since = mailboxSyncStamp(
+					await readMailboxSyncStatus(),
+					mailboxId,
+				);
+				signal.throwIfAborted();
+				setCheckStartedAt(Date.now());
+				await syncOperationsTriggerSync({
+					path: { accountId },
+					throwOnError: true,
+				});
 				return awaitFreshMailboxCount({
 					readMailboxes: readMailboxSyncStatus,
 					mailboxId,
-					since: sinceRef.current ?? 0,
+					since,
 					signal,
 				});
 			})(),
 		);
 
+		if (abortRef.current !== controller) return { status: "failed" };
 		if (signal.aborted) {
 			// The dialog is closing or the user cancelled; leave nothing running
 			// and no phase for a later caller to inherit.
 			setPhase("idle");
-			sinceRef.current = undefined;
 			return { status: "failed" };
 		}
 		if (!counted.ok) {
-			sinceRef.current = undefined;
 			setErrorMessage(counted.error);
 			setPhase("error");
 			return { status: "failed" };
 		}
-		if (counted.value.status === "pending") {
-			setPhase("check-stalled");
-			return { status: "pending" };
-		}
-		sinceRef.current = undefined;
 		if (counted.value.messageCount > 0) {
 			setPhase("idle");
 			invalidate();
@@ -350,7 +328,6 @@ export function useDeleteFolder({
 	const reset = useCallback(() => {
 		abortRef.current?.abort();
 		abortRef.current = null;
-		sinceRef.current = undefined;
 		setPhase("idle");
 		setProgress(null);
 		setErrorMessage(undefined);

@@ -267,8 +267,6 @@ function OutboxMessageRow({
 		...outboxDetailOperationsSendOutboxMessageMutation(),
 		onSuccess: invalidateOutbox,
 		onError: (error) => {
-			// A failed retry must not look successful — surface it. A fatal 5xx
-			// also escalates through the global MutationCache.onError sink.
 			pushError(
 				buildMutationErrorBanner(
 					"Couldn't resend message",

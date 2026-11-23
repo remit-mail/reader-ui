@@ -1,4 +1,6 @@
+import type { SyncOperationsGetSyncStatusResponse } from "@remit/api-http-client/types.gen.ts";
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { HttpResponse, http } from "msw";
 import { expect, userEvent, within } from "storybook/test";
 import { AppStory } from "../../mocks/story-frame/AppStory";
 import { mailHandlers } from "../../mocks/story-frame/mail-handlers";
@@ -28,6 +30,7 @@ const world = mailWorld({
 		folder("Travel/Flights", 41),
 		folder("Travel/Hotels", 96),
 		folder("Finance", 0),
+		folder("Empty", 0),
 		folder("Finance/Invoices", 12),
 		folder("Family", 230),
 	],
@@ -85,5 +88,48 @@ export const Renaming: Story = {
 			await page.findByRole("dialog", { name: "Rename Travel" }),
 		);
 		await expect(dialog.getByRole("textbox")).toBeVisible();
+	},
+};
+
+export const EmptyFolderChecksWithoutConfirming: Story = {
+	parameters: {
+		msw: {
+			handlers: [
+				http.get("/api/accounts/:accountId/sync/status", () =>
+					HttpResponse.json<SyncOperationsGetSyncStatusResponse>({
+						accountId: ACCOUNT_ID,
+						syncPhase: "syncing_others",
+						mailboxes: [
+							{
+								mailboxId: "mbx-empty",
+								fullPath: "Empty",
+								phase: "syncing",
+								messagesTotal: 0,
+								messagesSynced: 0,
+								highWaterMarkUid: 0,
+								lastSyncedAt: 0,
+							},
+						],
+					}),
+				),
+				http.post("/api/accounts/:accountId/sync", () =>
+					HttpResponse.json({ triggered: true, message: "Sync requested" }),
+				),
+				...mailHandlers(world),
+			],
+		},
+	},
+	play: async ({ canvasElement }) => {
+		const canvas = within(canvasElement);
+		const page = within(document.body);
+		await userEvent.click(
+			await canvas.findByRole("button", { name: "Delete Empty" }),
+		);
+		await expect(
+			await page.findByRole("dialog", { name: "Delete Empty" }),
+		).toBeVisible();
+		await expect(
+			page.queryByRole("button", { name: /^Delete folder$/ }),
+		).toBeNull();
 	},
 };

@@ -42,9 +42,11 @@ export const ReadFailed: Story = {
 		);
 		await page.findByText("Q3 planning");
 		document.querySelector<HTMLElement>("[data-list-row]")?.focus();
+		await userEvent.keyboard("j");
+		await userEvent.keyboard("k");
 		await userEvent.keyboard("#");
 		await expect(
-			await page.findByText("Move 1 message to Trash?"),
+			await page.findByRole("button", { name: "Undo" }),
 		).toBeVisible();
 	},
 };

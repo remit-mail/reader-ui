@@ -71,7 +71,13 @@ describe("a bulk selection at the server's cap", () => {
 	it("sends exactly 100 ids as one call", async () => {
 		const hook = mountHook(() => useDeleteMessages({ mailboxId: INBOX }));
 
-		hook().deleteMessages(ids(BULK_ACTION_CHUNK_SIZE));
+		hook().deleteMessages(
+			ids(BULK_ACTION_CHUNK_SIZE).map((id) => ({
+				id,
+				mailboxId: INBOX,
+				accountId: "acc-1",
+			})),
+		);
 		await settle();
 
 		assert.deepEqual(sentSizes(), [BULK_ACTION_CHUNK_SIZE]);
@@ -80,7 +86,13 @@ describe("a bulk selection at the server's cap", () => {
 	it("splits 101 ids rather than sending a call the server refuses", async () => {
 		const hook = mountHook(() => useDeleteMessages({ mailboxId: INBOX }));
 
-		hook().deleteMessages(ids(BULK_ACTION_CHUNK_SIZE + 1));
+		hook().deleteMessages(
+			ids(BULK_ACTION_CHUNK_SIZE + 1).map((id) => ({
+				id,
+				mailboxId: INBOX,
+				accountId: "acc-1",
+			})),
+		);
 		await settle();
 
 		assert.deepEqual(sentSizes(), [BULK_ACTION_CHUNK_SIZE, 1]);
@@ -90,7 +102,9 @@ describe("a bulk selection at the server's cap", () => {
 		const selection = ids(BULK_ACTION_CHUNK_SIZE * 2);
 		const hook = mountHook(() => useDeleteMessages({ mailboxId: INBOX }));
 
-		hook().deleteMessages(selection);
+		hook().deleteMessages(
+			selection.map((id) => ({ id, mailboxId: INBOX, accountId: "acc-1" })),
+		);
 		await settle();
 
 		assert.deepEqual(sentSizes(), [
@@ -105,7 +119,13 @@ describe("a bulk selection at the server's cap", () => {
 		http = mockFetch(() => httpError(409, "mailbox is locked"));
 		const hook = mountHook(() => useDeleteMessages({ mailboxId: INBOX }));
 
-		hook().deleteMessages(ids(BULK_ACTION_CHUNK_SIZE * 3));
+		hook().deleteMessages(
+			ids(BULK_ACTION_CHUNK_SIZE * 3).map((id) => ({
+				id,
+				mailboxId: INBOX,
+				accountId: "acc-1",
+			})),
+		);
 		await settle();
 
 		assert.deepEqual(sentSizes(), [BULK_ACTION_CHUNK_SIZE]);

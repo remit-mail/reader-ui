@@ -23,7 +23,6 @@ import {
 } from "react";
 import { useCreateMailbox } from "../../hooks/useCreateMailbox";
 import { useFolderLabelTranslator } from "../../hooks/useFolderLabelTranslator";
-import { softErrorStatuses } from "../../lib/error-classifier";
 import { folderDelimiter } from "../../lib/move-options";
 import { isMailboxNotSettledRefusal } from "../ui/folder-role-refusal";
 
@@ -90,9 +89,6 @@ export const RoleAppointmentPromptProvider = ({
 	const { createFolderIn } = useCreateMailbox(accountId);
 	const appointMutation = useMutation({
 		...folderRoleOperationsAppointFolderRoleMutation(),
-		// A mailbox still settling answers 409, and the prompt states that itself
-		// in `appoint-failed`. Escalating would take the screen the prompt is on.
-		meta: softErrorStatuses(409),
 	});
 
 	const account = config?.accounts.find((one) => one.accountId === accountId);

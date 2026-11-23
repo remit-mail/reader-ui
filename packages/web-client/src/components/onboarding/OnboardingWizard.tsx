@@ -1,8 +1,8 @@
 /**
  * OnboardingWizard — full account setup flow.
  *
- * Steps: Welcome → Connector → Address → Servers → Credentials → Test → Sync → Folders
- *        Microsoft path: Connector → MicrosoftEmail → redirect → MicrosoftGranted → Folders
+ * Steps: Welcome → Connector → Address → Servers → Credentials → Test → Sync → Inbox
+ *        Microsoft path: Connector → MicrosoftEmail → redirect → MicrosoftGranted → Inbox
  *
  * Entry points:
  *  - First-run (zero accounts): full-screen wizard via /onboarding route
@@ -69,7 +69,6 @@ import {
 	presetIdForEmail,
 } from "../../lib/provider-presets.js";
 import { computeSmtpAutoFill } from "../settings/account-form-helpers.js";
-import { SpecialFolderConfirmation } from "../settings/SpecialFolderConfirmation";
 import {
 	ConnectionTestStep,
 	CredentialsStep,
@@ -89,8 +88,7 @@ type WizardStep =
 	| "servers"
 	| "credentials"
 	| "test"
-	| "sync"
-	| "special-folders";
+	| "sync";
 
 const STEP_LABELS = [
 	"Connector",
@@ -99,7 +97,6 @@ const STEP_LABELS = [
 	"Credentials",
 	"Test",
 	"Sync",
-	"Folders",
 ];
 
 // Maps WizardStep to zero-based index in the rail (welcome hides rail)
@@ -113,7 +110,6 @@ const STEP_INDEX: Record<WizardStep, number> = {
 	credentials: 3,
 	test: 4,
 	sync: 5,
-	"special-folders": 6,
 };
 
 /* ------------------------------------------------------------------ */
@@ -993,13 +989,6 @@ export function StepServers({
 	);
 }
 
-/**
- * How long the sync step holds "Continue" shut while it waits for the first
- * messages. Long enough for a normal IMAP handshake and first batch, short
- * enough that a stalled or silent sync never becomes a dead end.
- */
-const INBOX_GATE_MAX_WAIT_MS = 20_000;
-
 function StepSync({
 	email,
 	displayName,
@@ -1087,7 +1076,7 @@ function StepSync({
 	// Poll sync status every 2s once account is created. Stop polling once the
 	// account reaches a terminal phase (complete/error) so we don't hammer the
 	// endpoint while the user lingers on this step (pattern from ComposeProvider).
-	const { data: syncStatus, isError: syncStatusUnavailable } = useQuery({
+	const { data: syncStatus } = useQuery({
 		...syncOperationsGetSyncStatusOptions({
 			path: { accountId: accountId ?? "" },
 		}),
@@ -1153,32 +1142,7 @@ function StepSync({
 				? "running"
 				: "ok";
 
-	// The inbox has something to show once the first messages have landed, the
-	// INBOX mailbox is drained, or the account's sync reached a terminal phase.
-	// Until then "Continue" leads to an empty list, so it does not offer (#452).
-	const inboxHasArrived =
-		inboxSynced > 0 ||
-		inboxMailbox?.phase === "complete" ||
-		syncPhase === "complete" ||
-		syncErrored;
-
-	// Nothing above is allowed to strand the user: if the first messages have not
-	// landed within the wait, or the status endpoint cannot answer at all, the
-	// button opens regardless. The brief tells the truth about an empty list on
-	// the other side, so an early exit costs a wait, not a lie.
-	const [waitedLongEnough, setWaitedLongEnough] = useState(false);
-	useEffect(() => {
-		if (!accountId) return;
-		const timer = setTimeout(
-			() => setWaitedLongEnough(true),
-			INBOX_GATE_MAX_WAIT_MS,
-		);
-		return () => clearTimeout(timer);
-	}, [accountId]);
-
-	const canGoToInbox =
-		!!accountId &&
-		(inboxHasArrived || syncStatusUnavailable || waitedLongEnough);
+	const canGoToInbox = !!accountId;
 
 	if (createError) {
 		return (
@@ -1241,7 +1205,7 @@ function StepSync({
 							variant="primary"
 							onClick={() => accountId && onGoToInbox(accountId)}
 						>
-							Continue
+							Go to inbox
 						</Button>
 					) : (
 						<Button
@@ -1249,7 +1213,7 @@ function StepSync({
 							disabled
 							icon={<LoaderCircle className="size-3.5 animate-spin" />}
 						>
-							Getting your mail…
+							Creating account…
 						</Button>
 					)}
 				</>
@@ -1351,68 +1315,10 @@ function StepSync({
 /* Main wizard orchestrator                                           */
 /* ------------------------------------------------------------------ */
 
-export function SpecialFoldersStep({
-	accountId,
-	onComplete,
-}: {
-	accountId: string;
-	onComplete: () => void;
-}) {
-	const status = useQuery({
-		...syncOperationsGetSyncStatusOptions({ path: { accountId } }),
-		refetchOnMount: "always",
-		refetchInterval: (query) => {
-			const phase = query.state.data?.syncPhase;
-			return phase === "idle" || phase === "discovering_mailboxes" || !phase
-				? 2000
-				: false;
-		},
-	});
-	const phase = status.data?.syncPhase;
-	const discovered =
-		status.isFetchedAfterMount &&
-		(phase === "syncing_inbox" ||
-			phase === "syncing_others" ||
-			phase === "complete");
-	return (
-		<WizardShell
-			steps={STEP_LABELS}
-			activeStep={STEP_INDEX["special-folders"]}
-			title="Confirm special folders"
-			subtitle="Check the folders Remit will use for this account."
-			footer={<span />}
-		>
-			{discovered ? (
-				<SpecialFolderConfirmation
-					accountId={accountId}
-					onComplete={onComplete}
-					onCancel={onComplete}
-					cancelLabel="Set up later"
-				/>
-			) : (
-				<div className="space-y-4">
-					{status.isError || phase === "error" ? (
-						<Banner tone="danger">
-							Mailbox discovery couldn't finish. You can confirm special folders
-							later in Settings › Folder roles.
-						</Banner>
-					) : (
-						<p role="status">Waiting for mailbox discovery…</p>
-					)}
-					<Button onClick={onComplete}>Set up later</Button>
-					{(status.isError || phase === "error") && (
-						<Button onClick={() => void status.refetch()}>Retry</Button>
-					)}
-				</div>
-			)}
-		</WizardShell>
-	);
-}
-
 export interface OnboardingWizardProps {
 	/** If false, show the Welcome step first */
 	skipWelcome?: boolean;
-	/** Called after folder confirmation, or when setup is deferred. */
+	/** Called when the reader opens the inbox. */
 	onComplete: (accountId: string) => void;
 	/** Called when the user cancels (Esc from connector picker) */
 	onCancel?: () => void;
@@ -1453,7 +1359,6 @@ export function OnboardingWizard({
 	onImportConfig,
 	microsoftReturn,
 }: OnboardingWizardProps) {
-	const [folderAccountId, setFolderAccountId] = useState<string | null>(null);
 	const [step, setStep] = useState<WizardStep>(
 		initialStep(skipWelcome, microsoftReturn),
 	);
@@ -1524,7 +1429,7 @@ export function OnboardingWizard({
 				discovered,
 				username: email,
 			}));
-			setStep("servers");
+			setStep(discovered ? "credentials" : "servers");
 		},
 		[],
 	);
@@ -1548,11 +1453,8 @@ export function OnboardingWizard({
 	// Test → Sync
 	const handleTestSuccess = useCallback(() => setStep("sync"), []);
 
-	// Sync → folder confirmation (the wizard owns its steps in memory).
-	const handleGoToInbox = useCallback((accountId: string) => {
-		setFolderAccountId(accountId);
-		setStep("special-folders");
-	}, []);
+	// Sync continues in the inbox.
+	const handleGoToInbox = onComplete;
 
 	const microsoftSignIn = (
 		<StepMicrosoftEmail
@@ -1655,16 +1557,6 @@ export function OnboardingWizard({
 					onSuccess={handleTestSuccess}
 					onBackToCredentials={() => setStep("credentials")}
 					onBackToServers={() => setStep("servers")}
-				/>
-			);
-
-		case "special-folders":
-			if (!folderAccountId)
-				throw new Error("Missing account for special folders");
-			return (
-				<SpecialFoldersStep
-					accountId={folderAccountId}
-					onComplete={() => onComplete(folderAccountId)}
 				/>
 			);
 

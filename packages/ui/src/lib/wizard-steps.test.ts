@@ -60,7 +60,6 @@ describe("stepsFor — the step ids for every verb × match mode × scope", () =
 	it("gives the ticked door an opening step and no editor", () => {
 		assert.deepEqual(stepsFor({ verb: "delete", mode: "selected" }), [
 			"match",
-			"review",
 			"run",
 		]);
 		assert.deepEqual(stepsFor({ verb: "markRead", mode: "properties" }), [
@@ -75,7 +74,6 @@ describe("stepsFor — the step ids for every verb × match mode × scope", () =
 		assert.deepEqual(stepsFor({ verb: "move", mode: "selected" }), [
 			"match",
 			"folder",
-			"review",
 			"run",
 		]);
 		assert.deepEqual(stepsFor({ verb: "move", mode: "properties" }), [
@@ -131,9 +129,12 @@ describe("stepsFor — the step ids for every verb × match mode × scope", () =
 				for (const scope of SCOPES) {
 					for (const fromSearch of [false, true]) {
 						const steps = stepsFor({ verb, mode, scope, fromSearch });
-						assert.ok(steps.length >= 3, `${verb}/${mode}/${scope}`);
+						assert.ok(steps.length >= 2, `${verb}/${mode}/${scope}`);
 						assert.equal(steps.at(-1), "run");
-						assert.equal(steps.at(-2), "review");
+						assert.equal(
+							steps.includes("review"),
+							mode !== "selected" || verb === "organize",
+						);
 						assert.equal(
 							new Set(steps).size,
 							steps.length,
@@ -223,7 +224,7 @@ describe("stepsFor — a branching answer only adds or drops a step after itself
 			"review",
 			"run",
 		]);
-		assert.deepEqual(withoutEditor, ["match", "folder", "review", "run"]);
+		assert.deepEqual(withoutEditor, ["match", "folder", "run"]);
 
 		const heldByNumber = withEditor.indexOf("properties");
 		assert.equal(withoutEditor[heldByNumber], "folder");
@@ -246,7 +247,11 @@ describe("backExits", () => {
 		const steps = stepsFor({ verb: "move", mode: "selected" });
 		assert.equal(backExits(steps, "match"), true);
 		assert.equal(backExits(steps, "folder"), false);
-		assert.equal(backExits(steps, "review"), false);
+		assert.equal(steps.includes("review"), false);
+		assert.equal(
+			backExits(stepsFor({ verb: "move", mode: "properties" }), "review"),
+			false,
+		);
 	});
 
 	it("leaves the wizard from the run, whose action has already happened", () => {

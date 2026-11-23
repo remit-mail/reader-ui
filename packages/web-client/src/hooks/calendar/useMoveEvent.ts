@@ -14,7 +14,6 @@ import {
 } from "@remit/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
-import { softErrorStatuses } from "../../lib/error-classifier";
 import { draftFromEvent, patchFromDrafts } from "./draft";
 import {
 	deviceTimeZone,
@@ -48,7 +47,6 @@ export function useMoveEvent(): MoveEvent {
 						path: { calendarObjectId },
 						query: { calendarId: event.calendarId },
 					}),
-					meta: softErrorStatuses(404),
 					staleTime: 0,
 				})
 				.catch((error: unknown) => ({ unread: formatErrorMessage(error) }));

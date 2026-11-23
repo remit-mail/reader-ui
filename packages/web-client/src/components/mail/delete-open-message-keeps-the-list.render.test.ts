@@ -21,6 +21,7 @@ import {
 } from "@tanstack/react-router";
 import { createElement } from "react";
 import { createDomHarness, type DomHarness } from "../../test-support/dom";
+import { makeAccount, makeMailbox } from "../../test-support/fixtures";
 import { type HttpMock, mockFetch } from "../../test-support/http";
 import { MessageActionMenu } from "./MessageActionMenu";
 
@@ -100,7 +101,15 @@ const settle = async (mounted: DomHarness): Promise<void> => {
 };
 
 const mountAt = async (href: string): Promise<[DomHarness, AnyRouter]> => {
-	http = mockFetch(() => ({}));
+	http = mockFetch((call) => {
+		if (call.path.endsWith("/config"))
+			return { accounts: [makeAccount({ accountId: "acc-1" })] };
+		if (call.path.endsWith("/mailboxes"))
+			return {
+				items: [makeMailbox({ mailboxId: MAILBOX_ID, fullPath: "INBOX" })],
+			};
+		return { successCount: 1, failureCount: 0 };
+	});
 	const router = testRouter(href);
 	await router.load();
 	const mounted = createDomHarness();

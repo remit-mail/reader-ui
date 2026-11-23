@@ -1,3 +1,4 @@
+import { ErrorState } from "@remit/ui";
 import {
 	createRootRouteWithContext,
 	type ErrorComponentProps,
@@ -18,7 +19,7 @@ import {
 } from "../components/ui/FatalErrorOverlay";
 import { SignedOutOverlay } from "../components/ui/SignedOutOverlay";
 import { SelfUpdateProvider } from "../hooks/use-system-update";
-import { isServerError, isUnauthenticated } from "../lib/error-classifier";
+import { isUnauthenticated } from "../lib/error-classifier";
 import { reportFatalError } from "../lib/fatal-error";
 import { reportSignedOut } from "../lib/signed-out";
 import type { RouterContext } from "../router";
@@ -29,19 +30,19 @@ const RootErrorComponent = ({ error, reset, info }: ErrorComponentProps) => {
 		reportSignedOut();
 		return <SignedOutOverlay />;
 	}
-	// Everything that bubbles to the route boundary escalates to the loud
-	// full-screen fatal page — never the soft grey "Something went wrong" that
-	// implied recovery. A bubbled 5xx is transient (Retry re-runs the loader via
-	// reset); a caught render exception is deterministic — retry re-crashes, so
-	// it is fatal with no Retry, offering a safe route out instead (issue #1231).
-	const recoverable = isServerError(error);
+	// Loader failures stay on the route; only a render crash takes over the screen.
+	if (!info?.componentStack)
+		return (
+			<ErrorState
+				title="Couldn't load this page"
+				error={error}
+				onRetry={reset}
+			/>
+		);
 	const fatal = reportFatalError(error, {
-		recoverable,
 		componentStack: info?.componentStack,
 	});
-	return (
-		<FatalErrorScreen fatal={fatal} onRetry={recoverable ? reset : undefined} />
-	);
+	return <FatalErrorScreen fatal={fatal} />;
 };
 
 export const Route = createRootRouteWithContext<RouterContext>()({

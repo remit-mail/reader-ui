@@ -11,10 +11,7 @@ import {
 	AuthProviderProvider,
 	noneAuthProvider,
 } from "../../auth/provider";
-import {
-	handleMutationCacheError,
-	handleQueryCacheError,
-} from "../../lib/query-error-handler";
+import { escalate } from "../../lib/escalate";
 import { noopTelemetry } from "../../lib/telemetry";
 import { createAppRouter } from "../../router";
 import { type SettingsSlot, SettingsSlotsProvider } from "../../settings-slots";
@@ -32,8 +29,8 @@ export interface AppStoryProps {
 
 const createStoryQueryClient = (): QueryClient =>
 	new QueryClient({
-		queryCache: new QueryCache({ onError: handleQueryCacheError }),
-		mutationCache: new MutationCache({ onError: handleMutationCacheError }),
+		queryCache: new QueryCache({ onError: escalate }),
+		mutationCache: new MutationCache({ onError: escalate }),
 		defaultOptions: {
 			queries: { staleTime: Number.POSITIVE_INFINITY, retry: false },
 			mutations: { retry: false },

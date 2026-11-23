@@ -14,11 +14,6 @@ import { createDomHarness, type DomHarness } from "../test-support/dom";
 import { type HttpMock, mockFetch } from "../test-support/http";
 import { useOrganizeJob } from "./useOrganizeJob";
 
-/**
- * A poll that could not be read reaches this screen only as a transport failure:
- * `shouldEscalate` puts every answered non-2xx on the full-screen fatal page, so
- * a status that is merely unreadable is a `fetch` that never landed.
- */
 const dropped = (): never => {
 	throw new TypeError("fetch failed");
 };

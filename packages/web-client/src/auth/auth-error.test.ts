@@ -119,11 +119,10 @@ describe("buildFatalAuthMessage", () => {
 describe("reportFatalAuthError", () => {
 	afterEach(() => __resetFatalError());
 
-	it("escalates to a non-recoverable fatal carrying the request detail", () => {
+	it("escalates to a fatal carrying the request detail", () => {
 		reportFatalAuthError({ status: 404, statusText: "Not Found" }, SIGN_UP);
 		const fatal = getCurrentFatalError();
 		assert.ok(fatal);
-		assert.equal(fatal.recoverable, false);
 		assert.match(fatal.message, /POST \/api\/auth\/sign-up\/email failed: 404/);
 	});
 });

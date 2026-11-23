@@ -12,13 +12,10 @@
 import assert from "node:assert/strict";
 import { afterEach, beforeEach, describe, it } from "node:test";
 import type { RemitImapThreadMessageResponse } from "@remit/api-http-client/types.gen.ts";
-import { QueryClientProvider } from "@tanstack/react-query";
 import { createElement } from "react";
 import { createDomHarness, type DomHarness } from "../../test-support/dom";
 import { type HttpMock, mockFetch } from "../../test-support/http";
-import { ErrorBannerProvider } from "../ui/ErrorBannerProvider";
 import { MessageSettlementAlert } from "./MessageSettlementAlert";
-import { RoleAppointmentPromptProvider } from "./RoleAppointmentPromptProvider";
 
 const ACCOUNT = "acc-1";
 const MAILBOX = "mbx-inbox";
@@ -78,20 +75,8 @@ const mount = (
 	accountId: string | undefined,
 ): void => {
 	harness = createDomHarness();
-	harness.render(
-		createElement(
-			QueryClientProvider,
-			{ client: harness.queryClient },
-			createElement(
-				ErrorBannerProvider,
-				null,
-				createElement(
-					RoleAppointmentPromptProvider,
-					null,
-					createElement(MessageSettlementAlert, { threadMessage, accountId }),
-				),
-			),
-		),
+	harness.renderApp(
+		createElement(MessageSettlementAlert, { threadMessage, accountId }),
 	);
 };
 

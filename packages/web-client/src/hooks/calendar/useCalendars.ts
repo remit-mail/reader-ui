@@ -1,12 +1,3 @@
-/**
- * The calendars the account holds.
- *
- * The listing provisions a default collection on first read, so this never
- * comes back empty for a working account and no surface has to know how a
- * calendar gets made. It carries no `softError` meta: a session that has lapsed
- * escalates to the signed-out state rather than drawing an empty week, which is
- * indistinguishable from a week with nothing in it.
- */
 import { calendarOperationsListCalendarsOptions } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
 import type { RemitImapCalendarResponse } from "@remit/api-http-client/types.gen.ts";
 import type { CalendarColorId, CalendarDescriptor } from "@remit/ui";

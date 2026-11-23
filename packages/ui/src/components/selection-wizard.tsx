@@ -1137,7 +1137,9 @@ export function SelectionWizard(props: SelectionWizardProps) {
 		return (
 			<FooterNav
 				onBack={onBack}
-				nextLabel="Continue"
+				nextLabel={
+					steps[stepIndex(steps, step) + 1] === "run" ? label : "Continue"
+				}
 				onNext={onContinue}
 				blockedReason={props.blockedReason}
 				nudged={props.nudged}

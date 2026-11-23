@@ -21,13 +21,11 @@ import {
 	QueryClientProvider,
 } from "@tanstack/react-query";
 import { act, createElement } from "react";
+import { BulkRunProvider } from "../components/mail/BulkRunProvider";
 import { RoleAppointmentPromptProvider } from "../components/mail/RoleAppointmentPromptProvider";
 import { ErrorBannerProvider } from "../components/ui/ErrorBannerProvider";
+import { escalate } from "../lib/escalate";
 import { __resetFatalError, getCurrentFatalError } from "../lib/fatal-error";
-import {
-	handleMutationCacheError,
-	handleQueryCacheError,
-} from "../lib/query-error-handler";
 import { createDomHarness, type DomHarness } from "../test-support/dom";
 import { type HttpMock, mockFetch } from "../test-support/http";
 import { useDeleteMessages } from "./useDeleteMessages";
@@ -103,10 +101,13 @@ const broken = (): Response =>
 	});
 
 const Probe = () => {
-	deleteMessages = useDeleteMessages({
+	const deletion = useDeleteMessages({
 		mailboxId: INBOX,
-		accountId: ACCOUNT,
-	}).deleteMessages;
+	});
+	deleteMessages = (ids) =>
+		deletion.deleteMessages(
+			ids.map((id) => ({ id, mailboxId: INBOX, accountId: ACCOUNT })),
+		);
 	moveMessages = useMoveMessages({
 		mailboxId: INBOX,
 		accountId: ACCOUNT,
@@ -118,8 +119,8 @@ const Probe = () => {
 /** The client `shell/index.tsx` builds: the real global escalation sink. */
 const appQueryClient = (): QueryClient =>
 	new QueryClient({
-		queryCache: new QueryCache({ onError: handleQueryCacheError }),
-		mutationCache: new MutationCache({ onError: handleMutationCacheError }),
+		queryCache: new QueryCache({ onError: escalate }),
+		mutationCache: new MutationCache({ onError: escalate }),
 		defaultOptions: {
 			queries: { retry: false },
 			mutations: { retry: false },
@@ -147,7 +148,7 @@ const mount = async (respond: (path: string) => unknown): Promise<void> => {
 				createElement(
 					RoleAppointmentPromptProvider,
 					null,
-					createElement(Probe),
+					createElement(BulkRunProvider, null, createElement(Probe)),
 				),
 			),
 		),
@@ -180,7 +181,7 @@ describe("a delete refused for its folder role", () => {
 		);
 	});
 
-	it("still escalates a 500 on the same delete", async () => {
+	it("shows a 500 beside the delete", async () => {
 		await mount(responder("/messages/delete", broken));
 
 		await act(async () => {
@@ -188,10 +189,8 @@ describe("a delete refused for its folder role", () => {
 		});
 		await settle();
 
-		assert.ok(
-			getCurrentFatalError(),
-			"the 409 opt-out must not cover anything else",
-		);
+		assert.equal(getCurrentFatalError(), null);
+		assert.match(harness?.text() ?? "", /Couldn.t (delete|move)/);
 	});
 });
 
@@ -213,7 +212,7 @@ describe("a move refused for an unsettled placement", () => {
 		assert.match(harness?.text() ?? "", /Try again in a moment/);
 	});
 
-	it("still escalates a 500 on the same move", async () => {
+	it("shows a 500 beside the move", async () => {
 		await mount(responder("/messages/move", broken));
 
 		await act(async () => {
@@ -221,10 +220,8 @@ describe("a move refused for an unsettled placement", () => {
 		});
 		await settle();
 
-		assert.ok(
-			getCurrentFatalError(),
-			"the 409 opt-out must not cover anything else",
-		);
+		assert.equal(getCurrentFatalError(), null);
+		assert.match(harness?.text() ?? "", /Couldn.t (delete|move)/);
 	});
 });
 

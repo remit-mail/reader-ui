@@ -22,11 +22,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useRef, useState } from "react";
 import { calendarFeedUrl } from "../../lib/calendar-feed-url";
-import {
-	isNotFound,
-	softErrorMeta,
-	softErrorStatuses,
-} from "../../lib/error-classifier";
+import { isNotFound } from "../../lib/error-classifier";
 
 export type CalendarFeedState =
 	| { status: "loading" }
@@ -61,7 +57,6 @@ export function useCalendarFeed(calendarId: string): CalendarFeedControls {
 		...calendarDetailOperationsGetCalendarFeedOptions({
 			path: { calendarId },
 		}),
-		meta: softErrorStatuses(404, 403),
 		retry: false,
 	});
 
@@ -77,7 +72,6 @@ export function useCalendarFeed(calendarId: string): CalendarFeedControls {
 
 	const revokeMutation = useMutation({
 		...calendarDetailOperationsRevokeCalendarFeedMutation(),
-		meta: softErrorMeta,
 		onMutate: () => {
 			resetMint.current();
 		},
@@ -89,7 +83,6 @@ export function useCalendarFeed(calendarId: string): CalendarFeedControls {
 
 	const mintMutation = useMutation({
 		...calendarDetailOperationsPutCalendarFeedMutation(),
-		meta: softErrorMeta,
 		// The answer to this write is the plaintext token. Nothing may hold it
 		// once the surface showing it lets go, so it is collected the moment the
 		// observer detaches — on dismissal, and on leaving the page — instead of

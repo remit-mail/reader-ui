@@ -204,10 +204,6 @@ export const AccountsOauthSuccess: Story = {
 		await userEvent.click(
 			canvas.getByRole("button", { name: /Go to inbox|Continue/ }),
 		);
-		await canvas.findByRole("button", { name: "Confirm folders" });
-		await userEvent.click(
-			await canvas.findByRole("button", { name: "Set up later" }),
-		);
 		await expect(
 			await canvas.findByText("Account connected successfully."),
 		).toBeVisible();
@@ -386,5 +382,43 @@ export const AccountsUnreadable: Story = {
 		await expect(
 			await canvas.findByText("Couldn't load accounts"),
 		).toBeVisible();
+	},
+};
+
+export const StopSyncingWithUndo: Story = {
+	globals: desktop,
+	parameters: {
+		msw: {
+			handlers: mailHandlers(
+				mailWorld({
+					accounts: [
+						makeAccount({
+							accountId: "acc-microsoft",
+							authType: "oauthMicrosoft",
+							syncedServices: ["Mail", "Calendar"],
+							grantedScopes: [
+								"https://outlook.office.com/IMAP.AccessAsUser.All",
+								"Calendars.ReadWrite",
+							],
+						}),
+					],
+				}),
+			),
+		},
+	},
+	play: async () => {
+		await userEvent.click(
+			await page.findByRole("switch", { name: "Sync mail" }),
+		);
+		await expect(
+			await page.findByRole("button", { name: "Undo" }),
+		).toBeVisible();
+		await expect(
+			page.queryByText("Stop syncing mail for this account?"),
+		).toBeNull();
+		await userEvent.click(page.getByRole("button", { name: "Undo" }));
+		await waitFor(() =>
+			expect(page.getByRole("switch", { name: "Sync mail" })).toBeChecked(),
+		);
 	},
 };

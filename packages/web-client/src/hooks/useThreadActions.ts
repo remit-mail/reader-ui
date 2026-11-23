@@ -14,7 +14,7 @@ import { useCallback } from "react";
 import { useDeleteMessages } from "./useDeleteMessages";
 import { useMailboxAccount } from "./useMailboxAccount";
 import { useMoveMessages } from "./useMoveMessages";
-import { useThreadMessageIds } from "./useThreadMessageIds";
+import { useThreadMessages } from "./useThreadMessages";
 import { useThreadConversation } from "./useThreadRow";
 import { useToggleStar } from "./useToggleStar";
 
@@ -64,12 +64,11 @@ export const useThreadActions = ({
 		knownAccountId ? undefined : resolvedMailboxId,
 	);
 	const resolvedAccountId = knownAccountId ?? mailboxAccountId;
-	const threadMessageIds = useThreadMessageIds();
+	const threadMessages = useThreadMessages();
 
 	const { deleteMessages } = useDeleteMessages({
 		mailboxId: resolvedMailboxId ?? "",
 		threadId: thread?.threadId,
-		accountId: resolvedAccountId,
 		onAfterOptimisticRemove,
 	});
 
@@ -100,15 +99,32 @@ export const useThreadActions = ({
 
 	const deleteThread = useCallback(() => {
 		if (!thread) return;
-		deleteMessages(threadMessageIds(thread));
-	}, [thread, threadMessageIds, deleteMessages]);
+		if (!resolvedAccountId || !resolvedMailboxId)
+			throw new Error("Missing original message placement");
+		deleteMessages(
+			threadMessages(thread).map((message) => ({
+				id: message.messageId,
+				accountId: message.accountId ?? resolvedAccountId,
+				mailboxId: message.mailboxId,
+			})),
+		);
+	}, [
+		thread,
+		threadMessages,
+		deleteMessages,
+		resolvedAccountId,
+		resolvedMailboxId,
+	]);
 
 	const moveThread = useCallback(
 		(destinationMailboxId: string) => {
 			if (!thread) return;
-			moveMessages(threadMessageIds(thread), destinationMailboxId);
+			moveMessages(
+				threadMessages(thread).map((message) => message.messageId),
+				destinationMailboxId,
+			);
 		},
-		[thread, threadMessageIds, moveMessages],
+		[thread, threadMessages, moveMessages],
 	);
 
 	const toggleStar = useCallback(() => {

@@ -4,16 +4,16 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
 
 /**
- * Every message id in a thread, read from the cached thread-messages listing.
+ * Every original message in a thread, read from the cached thread-messages listing.
  *
  * A toolbar verb acts on the whole conversation, not the one row that
  * represents it in a list. When the conversation has not been opened yet its
- * messages are not cached, and the representative message id is the best the
+ * messages are not cached, and the representative message is the best the
  * caller can do.
  */
-export const useThreadMessageIds = (): ((
+export const useThreadMessages = (): ((
 	thread: RemitImapThreadMessageResponse,
-) => string[]) => {
+) => RemitImapThreadMessageResponse[]) => {
 	const queryClient = useQueryClient();
 	return useCallback(
 		(thread: RemitImapThreadMessageResponse) => {
@@ -21,12 +21,10 @@ export const useThreadMessageIds = (): ((
 				path: { threadId: thread.threadId },
 			});
 			const cached = queryClient.getQueriesData<{
-				items: { messageId: string }[];
+				items: RemitImapThreadMessageResponse[];
 			}>({ queryKey: threadKey });
-			const ids = cached.flatMap(
-				([, data]) => data?.items.map((m) => m.messageId) ?? [],
-			);
-			return ids.length > 0 ? ids : [thread.messageId];
+			const messages = cached.flatMap(([, data]) => data?.items ?? []);
+			return messages.length > 0 ? messages : [thread];
 		},
 		[queryClient],
 	);

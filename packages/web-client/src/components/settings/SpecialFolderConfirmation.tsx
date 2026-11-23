@@ -17,7 +17,6 @@ import {
 } from "@remit/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { softErrorStatuses } from "../../lib/error-classifier";
 import {
 	NAV_ROLE_TO_CANONICAL,
 	toRoleAppointments,
@@ -120,7 +119,6 @@ function SpecialFolderChoices({
 			});
 		},
 		onSuccess: onComplete,
-		meta: softErrorStatuses(409),
 	});
 	const hasChoice = SPECIAL_FOLDER_ROLES.some((role) =>
 		mailboxes.some(

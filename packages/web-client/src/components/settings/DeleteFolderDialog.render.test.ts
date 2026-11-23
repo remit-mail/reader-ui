@@ -212,10 +212,13 @@ describe("DeleteFolderDialog", () => {
 		assert.equal(container.textContent, "");
 	});
 
-	it("confirms a single destructive step for an empty folder", () => {
+	it("checks an empty folder without a confirmation", () => {
 		render({ open: true, folder: mailboxes[2] as RemitImapMailboxResponse });
-		assert.match(container.textContent ?? "", /empty and will be removed/);
-		assert.ok(buttonByText(/^Delete folder$/), "delete folder button present");
+		assert.doesNotMatch(
+			container.textContent ?? "",
+			/empty and will be removed/,
+		);
+		assert.equal(buttonByText(/^Delete folder$/), undefined);
 	});
 
 	it("asks what happens to the mail for a non-empty folder", () => {
@@ -404,9 +407,6 @@ describe("DeleteFolderDialog", () => {
 				closed = true;
 			},
 		});
-		await act(async () => {
-			buttonByText(/^Delete folder$/)?.click();
-		});
 		await flush();
 		assert.equal(triggered, 1, "the delete asks the server for a sync round");
 		assert.equal(closed, true);
@@ -437,10 +437,7 @@ describe("DeleteFolderDialog", () => {
 				closed = true;
 			},
 		});
-		assert.match(container.textContent ?? "", /empty and will be removed/);
-		await act(async () => {
-			buttonByText(/^Delete folder$/)?.click();
-		});
+		assert.match(container.textContent ?? "", /Checking the folder/);
 		await flush();
 		assert.equal(deleted, false, "a fresh count above zero blocks the delete");
 		assert.equal(closed, false, "the dialog stays open on the mail it found");
@@ -470,9 +467,6 @@ describe("DeleteFolderDialog", () => {
 			return json({ items: mailboxes });
 		};
 		render({ open: true, folder: mailboxes[2] as RemitImapMailboxResponse });
-		await act(async () => {
-			buttonByText(/^Delete folder$/)?.click();
-		});
 		await flush();
 		assert.equal(deleted, false, "an unreadable count is not an empty folder");
 		assert.ok(
@@ -513,9 +507,6 @@ describe("DeleteFolderDialog", () => {
 				closed = true;
 			},
 		});
-		await act(async () => {
-			buttonByText(/^Delete folder$/)?.click();
-		});
 		await flush();
 		assert.ok(releaseStatus, "the check is waiting on the server");
 		await act(async () => {
@@ -531,9 +522,9 @@ describe("DeleteFolderDialog", () => {
 		assert.equal(deleted, false, "a cancelled check never reaches the delete");
 	});
 
-	it("asks whether to keep waiting, and resumes without a second round", async () => {
-		let deleted = false;
+	it("keeps checking until the server reports, with no Keep waiting gate", async () => {
 		let reported = false;
+		let deleted = false;
 		let triggered = 0;
 		route = ({ url, method }) => {
 			if (method === "DELETE") {
@@ -542,48 +533,23 @@ describe("DeleteFolderDialog", () => {
 			}
 			if (isSyncStatus(url)) return json(syncStatus({}, reported ? 1 : 0));
 			if (isSyncTrigger(url, method)) {
-				triggered += 1;
-				return json({ triggered: true, message: "ok" });
+				triggered++;
+				return json({ triggered: true });
 			}
 			return json({ items: mailboxes });
 		};
 		render({ open: true, folder: mailboxes[2] as RemitImapMailboxResponse });
-
-		// A sync fans the whole account out, so the folder's round can land long
-		// after the trigger. Run the clock forward instead of waiting on it.
-		const realNow = Date.now;
-		let fake = realNow();
-		// Past the segment in one step, so the stall is reached without a poll
-		// sleeping through it.
-		Date.now = () => {
-			fake += 200_000;
-			return fake;
-		};
-		try {
-			await act(async () => {
-				buttonByText(/^Delete folder$/)?.click();
-			});
-			await flush();
-		} finally {
-			Date.now = realNow;
-			// The reads taken under the fake clock cached a future timestamp, which
-			// reads as fresh once the real clock is back; drop them so the resumed
-			// wait talks to the server again.
-			queryClient.clear();
-		}
-
-		assert.equal(triggered, 1, "one round is asked for");
-		assert.equal(deleted, false, "an unreported folder is not deleted");
-		assert.match(container.textContent ?? "", /hasn't reported back/);
-		assert.ok(buttonByText(/^Keep waiting$/), "the wait is the user's call");
-
+		await flush();
+		assert.match(container.textContent ?? "", /Checking the folder/);
+		assert.doesNotMatch(container.textContent ?? "", /Keep waiting/);
+		assert.equal(deleted, false);
 		reported = true;
 		await act(async () => {
-			buttonByText(/^Keep waiting$/)?.click();
+			await new Promise((resolve) => setTimeout(resolve, 2100));
 		});
 		await flush();
-		assert.equal(triggered, 1, "resuming asks for no second round");
-		assert.equal(deleted, true, "the reported count settles the delete");
+		assert.equal(triggered, 1);
+		assert.equal(deleted, true);
 	});
 
 	it("moves the mail in batches then deletes the emptied folder", async () => {

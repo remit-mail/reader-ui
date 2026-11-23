@@ -12,6 +12,6 @@ export default meta;
 
 type Story = StoryObj<typeof McpErrorPage>;
 
-export const ExpiredSignIn: Story = {
-	args: { heading: "Sign-in expired", error: mcpErrorFixture },
+export const InvalidRequest: Story = {
+	args: { heading: "Invalid authorization request", error: mcpErrorFixture },
 };

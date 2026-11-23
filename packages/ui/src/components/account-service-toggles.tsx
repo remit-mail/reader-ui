@@ -77,7 +77,11 @@ export function AccountServiceToggles({
 							</span>
 							<Switch
 								checked={on}
-								aria-label={`Sync ${row.label.toLowerCase()}`}
+								aria-label={
+									needsConsent
+										? `Sign in with ${providerName} to add ${row.label.toLowerCase()}`
+										: `Sync ${row.label.toLowerCase()}`
+								}
 								aria-describedby={noteId}
 								disabled={disabled}
 								onToggle={() => onRequestChange(row.id, on ? "off" : "on")}

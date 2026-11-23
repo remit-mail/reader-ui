@@ -1,4 +1,5 @@
 import { APP_SHA } from "./app-info";
+import { canUpdate, registerUpdateBlocker } from "./pwa-update";
 import { sessionStore } from "./session-storage";
 
 export const STALE_BUILD_RELOAD_KEY_PREFIX = "remit.stale-build-reload:";
@@ -16,7 +17,7 @@ export const reloadOnceForChunkFailure = ({
 	guard,
 	commit,
 }: StaleBuildPorts): boolean => {
-	if (guard === null) return false;
+	if (guard === null || !canUpdate()) return false;
 	const key = `${STALE_BUILD_RELOAD_KEY_PREFIX}${commit}`;
 	if (guard.getItem(key) !== null) return false;
 	guard.setItem(key, String(Date.now()));
@@ -24,7 +25,8 @@ export const reloadOnceForChunkFailure = ({
 	return true;
 };
 
-export const installStaleBuildReload = (): void => {
+export const installStaleBuildReload = (pendingWrites: () => boolean): void => {
+	registerUpdateBlocker(pendingWrites);
 	window.addEventListener("vite:preloadError", (event) => {
 		const reloaded = reloadOnceForChunkFailure({
 			reload: () => window.location.reload(),

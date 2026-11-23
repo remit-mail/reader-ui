@@ -10,7 +10,6 @@ import {
 	ComposeAttachmentController,
 	type DraftForAttachment,
 } from "../lib/compose-attachment-controller";
-import { softErrorMeta } from "../lib/error-classifier";
 
 export type { DraftForAttachment };
 
@@ -35,15 +34,12 @@ export const useComposeAttachments = ({
 }: UseComposeAttachmentsOptions) => {
 	const mintMutation = useMutation({
 		...outboxDetailOperationsMintOutboxAttachmentMutation(),
-		meta: softErrorMeta,
 	});
 	const completeMutation = useMutation({
 		...outboxAttachmentOperationsCompleteOutboxAttachmentMutation(),
-		meta: softErrorMeta,
 	});
 	const updateMutation = useMutation({
 		...outboxDetailOperationsUpdateOutboxMessageMutation(),
-		meta: softErrorMeta,
 	});
 
 	const transportRef = useRef<AttachmentTransport | null>(null);

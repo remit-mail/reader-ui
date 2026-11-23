@@ -6,7 +6,6 @@
 
 import assert from "node:assert/strict";
 import { afterEach, describe, it } from "node:test";
-import { messageOperationsDescribeMessageQueryKey } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
 import type { RemitImapBodyPartResponse } from "@remit/api-http-client/types.gen.ts";
 import { createElement } from "react";
 import { createDomHarness, type DomHarness } from "../../test-support/dom";
@@ -153,12 +152,15 @@ describe("MessageAttachments", () => {
 		assert.match(alert.innerHTML, /issues\/new/);
 	});
 
-	it("retries the same part when the failure's retry is taken", async () => {
+	it("shows a failed request inline and retries the same part", async () => {
 		let attempts = 0;
 		globalThis.fetch = (async () => {
 			attempts += 1;
 			return attempts === 1
-				? new Response("gone", { status: 404, statusText: "Not Found" })
+				? new Response("failed", {
+						status: 500,
+						statusText: "Internal Server Error",
+					})
 				: new Response("payload", { status: 200 });
 		}) as unknown as typeof fetch;
 		const saved = captureSaves();
@@ -167,6 +169,10 @@ describe("MessageAttachments", () => {
 		dom.click(dom.byLabel("Download board-pack.pdf"));
 		await dom.flush();
 
+		assert.match(
+			dom.query('[data-testid="attachment-error"]')?.textContent ?? "",
+			/500/,
+		);
 		dom.click(dom.byText("button", "Try again"));
 		await dom.flush();
 
@@ -181,8 +187,15 @@ describe("MessageAttachments", () => {
 	// and uses the URL that read minted.
 	it("renews the content URL through describeMessage when the link expired", async () => {
 		const requested: string[] = [];
-		globalThis.fetch = (async (url: string) => {
-			requested.push(String(url));
+		globalThis.fetch = (async (url: RequestInfo | URL) => {
+			const address = url instanceof Request ? url.url : String(url);
+			requested.push(address);
+			if (address.includes("/messages/"))
+				return Response.json({
+					bodyParts: bodyParts({
+						contentUrl: "https://cdn.test/parts/2?exp=2&sig=new",
+					}),
+				});
 			return requested.length === 1
 				? new Response("expired", {
 						status: 403,
@@ -195,23 +208,13 @@ describe("MessageAttachments", () => {
 		const dom = mount(
 			bodyParts({ contentUrl: "https://cdn.test/parts/2?exp=1&sig=old" }),
 		);
-		dom.queryClient.setQueryData(
-			messageOperationsDescribeMessageQueryKey({
-				path: { messageId: MESSAGE_ID },
-			}),
-			{
-				bodyParts: bodyParts({
-					contentUrl: "https://cdn.test/parts/2?exp=2&sig=new",
-				}),
-			},
-		);
-
 		dom.click(dom.byLabel("Download report.pdf"));
 		await dom.flush();
 		await dom.flush();
 
 		assert.deepEqual(requested, [
 			"https://cdn.test/parts/2?exp=1&sig=old",
+			`https://api.remit.example.com/messages/${MESSAGE_ID}`,
 			"https://cdn.test/parts/2?exp=2&sig=new",
 		]);
 		assert.equal(saved.length, 1);

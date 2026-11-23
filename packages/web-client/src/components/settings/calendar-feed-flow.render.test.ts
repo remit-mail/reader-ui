@@ -1,26 +1,9 @@
-/**
- * Sharing a calendar by its secret address, and taking it back (#1067).
- *
- * What is asserted is the request that left and what the panel then shows,
- * because the address is only legible for one render: a control that posted
- * nothing and a control that posted and dropped the answer look identical.
- *
- * Held with the real caches from `lib/query-error-handler.ts` and the overlay
- * they escalate to. Which failures this card owns and which take the whole
- * screen is the decision under test: on the harness's quiet default client
- * every status stays inline, so a card that had quietly lost its 403 would
- * still pass.
- */
-
 import assert from "node:assert/strict";
 import { afterEach, describe, it } from "node:test";
 import { MutationCache, QueryCache, QueryClient } from "@tanstack/react-query";
 import { createElement, Fragment } from "react";
+import { escalate } from "../../lib/escalate";
 import { __resetFatalError } from "../../lib/fatal-error";
-import {
-	handleMutationCacheError,
-	handleQueryCacheError,
-} from "../../lib/query-error-handler";
 import { isSignedOut, resetSignedOut } from "../../lib/signed-out";
 import { createDomHarness, type DomHarness } from "../../test-support/dom";
 import {
@@ -54,8 +37,8 @@ type Responder = (call: HttpCall) => unknown;
 
 const escalatingClient = (): QueryClient =>
 	new QueryClient({
-		queryCache: new QueryCache({ onError: handleQueryCacheError }),
-		mutationCache: new MutationCache({ onError: handleMutationCacheError }),
+		queryCache: new QueryCache({ onError: escalate }),
+		mutationCache: new MutationCache({ onError: escalate }),
 		defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
 	});
 

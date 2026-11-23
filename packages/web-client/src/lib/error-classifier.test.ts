@@ -5,14 +5,8 @@ import {
 	getErrorStatus,
 	hasHttpStatus,
 	isAbortError,
-	isClientBug,
 	isNetworkError,
-	isNotFound,
 	isServerError,
-	ownsServerErrorsMeta,
-	restartExpectedMeta,
-	shouldEscalate,
-	softErrorStatuses,
 } from "./error-classifier";
 import { NetworkError, taggedFetch } from "./network-error";
 
@@ -166,7 +160,6 @@ describe("taggedFetch — where the decision is actually made", () => {
 					const error = await taggedFetch("/x").catch((e: unknown) => e);
 					assert.ok(error instanceof NetworkError);
 					assert.equal(isNetworkError(error), true);
-					assert.equal(shouldEscalate(error), false);
 				},
 			);
 		}
@@ -178,7 +171,6 @@ describe("taggedFetch — where the decision is actually made", () => {
 			async () => {
 				const error = await taggedFetch("/x").catch((e: unknown) => e);
 				assert.ok(error instanceof NetworkError);
-				assert.equal(shouldEscalate(error), false);
 			},
 		);
 	});
@@ -201,202 +193,6 @@ describe("taggedFetch — where the decision is actually made", () => {
 			async () => {
 				assert.equal(await taggedFetch("/x"), response);
 			},
-		);
-	});
-});
-
-describe("isClientBug", () => {
-	it("is true for an exception raised inside our own code", () => {
-		assert.equal(
-			isClientBug(
-				new TypeError('can\'t access property "map", x is undefined'),
-			),
-			true,
-		);
-	});
-
-	it("is false for a request that reached, or failed to reach, a server", () => {
-		assert.equal(isClientBug(new ApiError("boom", 500)), false);
-		assert.equal(isClientBug(new ApiError("not found", 404)), false);
-		assert.equal(
-			isClientBug(new NetworkError(new TypeError("Failed to fetch"))),
-			false,
-		);
-		assert.equal(isClientBug(abortError()), false);
-	});
-});
-
-describe("shouldEscalate (the fail-fast decision table — #1059)", () => {
-	it("escalates a 5xx by default", () => {
-		assert.equal(shouldEscalate(new ApiError("boom", 500)), true);
-		assert.equal(shouldEscalate(new ApiError("boom", 503)), true);
-	});
-
-	it("escalates a 5xx EVEN when the call site marked it soft (rule 2 wins)", () => {
-		assert.equal(
-			shouldEscalate(new ApiError("boom", 500), { softError: true }),
-			true,
-		);
-	});
-
-	it("escalates a 4xx by DEFAULT (no opt-out)", () => {
-		assert.equal(shouldEscalate(new ApiError("not found", 404)), true);
-		assert.equal(shouldEscalate(new ApiError("forbidden", 403)), true);
-	});
-
-	it("does NOT escalate a 4xx the call site opted out of via meta.softError", () => {
-		assert.equal(
-			shouldEscalate(new ApiError("not found", 404), { softError: true }),
-			false,
-		);
-	});
-
-	it("does NOT escalate an aborted/cancelled request", () => {
-		assert.equal(shouldEscalate(abortError()), false);
-	});
-
-	it("does NOT escalate a network/offline blip", () => {
-		assert.equal(
-			shouldEscalate(new NetworkError(new TypeError("Failed to fetch"))),
-			false,
-		);
-		assert.equal(
-			shouldEscalate(
-				new NetworkError(new TypeError("The network connection was lost.")),
-			),
-			false,
-		);
-	});
-
-	it("a network error is soft regardless of meta", () => {
-		assert.equal(
-			shouldEscalate(new NetworkError(new TypeError("Failed to fetch")), {
-				softError: false,
-			}),
-			false,
-		);
-	});
-
-	it("escalates an exception thrown by our own code, softError or not", () => {
-		const bug = new TypeError('can\'t access property "map", x is undefined');
-		assert.equal(shouldEscalate(bug), true);
-		assert.equal(shouldEscalate(bug, { softError: true }), true);
-	});
-
-	it("never puts a 401 on the fatal page — the signed-out notice owns it", () => {
-		assert.equal(
-			shouldEscalate(new ApiError("signed out", 401), { softError: true }),
-			false,
-		);
-		assert.equal(shouldEscalate(new ApiError("signed out", 401)), false);
-	});
-
-	it("leaves a soft 403 soft — the call site can state that refusal in place", () => {
-		assert.equal(
-			shouldEscalate(new ApiError("not yours", 403), { softError: true }),
-			false,
-		);
-	});
-});
-
-/**
- * The send watch reads a row the server deletes on success, so the 404 is the
- * outcome it is there to see. Everything else that endpoint can answer is still
- * news — a lapsed session most of all, because a background read that renders it
- * as nothing leaves the user on a screen that has quietly stopped working.
- */
-describe("meta.softErrorStatuses (one outcome owned, the rest not)", () => {
-	const ownsNotFound = softErrorStatuses(404);
-
-	it("does NOT escalate the status the call site named", () => {
-		assert.equal(
-			shouldEscalate(new ApiError("gone", 404), ownsNotFound),
-			false,
-		);
-	});
-
-	it("escalates every other 4xx", () => {
-		assert.equal(
-			shouldEscalate(new ApiError("not yours", 403), ownsNotFound),
-			true,
-		);
-	});
-
-	it("escalates a 5xx and a client bug, as every opt-out does", () => {
-		assert.equal(shouldEscalate(new ApiError("boom", 500), ownsNotFound), true);
-		assert.equal(
-			shouldEscalate(new TypeError("x is undefined"), ownsNotFound),
-			true,
-		);
-	});
-
-	it("does not open the restart gap for a call site that never claimed one", () => {
-		assert.equal(
-			shouldEscalate(new ApiError("bad gateway", 502), ownsNotFound),
-			true,
-		);
-	});
-
-	it("names the record's absence, whichever client raised it", () => {
-		assert.equal(isNotFound(new ApiError("gone", 404)), true);
-		assert.equal(isNotFound({ status: 404 }), true);
-		assert.equal(isNotFound(new ApiError("gone", 410)), false);
-		assert.equal(isNotFound(new TypeError("x is undefined")), false);
-	});
-});
-
-describe("meta.ownsServerErrors (a user action that shows its own failure)", () => {
-	it("keeps a 5xx off the fatal page", () => {
-		assert.equal(
-			shouldEscalate(new ApiError("boom", 500), ownsServerErrorsMeta),
-			false,
-		);
-	});
-
-	it("still escalates a client bug", () => {
-		assert.equal(
-			shouldEscalate(new TypeError("x is undefined"), ownsServerErrorsMeta),
-			true,
-		);
-	});
-});
-
-/**
- * A self-update stops and starts the backend, so for those seconds the proxy in
- * front of it has nothing to dial. That gap belongs to the surface that asked
- * for the restart; every other 5xx, on that call site and on any other, is still
- * the API reporting itself broken (#468).
- */
-describe("meta.restartExpected (the gap in a restart this call site asked for)", () => {
-	it("does NOT escalate the gateway statuses answered while the backend is down", () => {
-		for (const status of [502, 503, 504]) {
-			assert.equal(
-				shouldEscalate(new ApiError("gateway", status), restartExpectedMeta),
-				false,
-				`a ${status} inside the restart window belongs to the update surface`,
-			);
-		}
-	});
-
-	it("escalates a 500 — a server that answered is up, and up and broken is not designed", () => {
-		assert.equal(
-			shouldEscalate(new ApiError("boom", 500), restartExpectedMeta),
-			true,
-		);
-	});
-
-	it("escalates the same 502 without the claim, however soft the call site is", () => {
-		assert.equal(shouldEscalate(new ApiError("gateway", 502), undefined), true);
-		assert.equal(
-			shouldEscalate(new ApiError("gateway", 502), { softError: true }),
-			true,
-		);
-	});
-
-	it("escalates a client bug raised inside the window", () => {
-		assert.equal(
-			shouldEscalate(new TypeError("x is undefined"), restartExpectedMeta),
-			true,
 		);
 	});
 });

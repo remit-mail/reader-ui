@@ -34,7 +34,7 @@ export const Failed: Story = {
 		severity: "error",
 		title: "Couldn't move message",
 		detail: "Connection reset by peer",
-		action: { label: "Report an issue", href: REPORT_URL },
+		action: { kind: "link", label: "Report an issue", href: REPORT_URL },
 	},
 };
 
@@ -43,7 +43,7 @@ export const NoDetail: Story = {
 	args: {
 		severity: "error",
 		title: "Couldn't move message",
-		action: { label: "Report an issue", href: REPORT_URL },
+		action: { kind: "link", label: "Report an issue", href: REPORT_URL },
 	},
 };
 
@@ -58,7 +58,7 @@ export const NoJunkFolder: Story = {
 		title: "Couldn't report this message as spam",
 		detail:
 			"This account has no Junk folder. Create one named Junk or Spam in your mail provider, then report this message again.",
-		action: { label: "Report an issue", href: REPORT_URL },
+		action: { kind: "link", label: "Report an issue", href: REPORT_URL },
 	},
 };
 
@@ -71,7 +71,7 @@ export const ReportSpamFailed: Story = {
 		severity: "error",
 		title: "Couldn't report this message as spam",
 		detail: "The mail server did not answer.",
-		action: { label: "Report an issue", href: REPORT_URL },
+		action: { kind: "link", label: "Report an issue", href: REPORT_URL },
 	},
 };
 
@@ -85,7 +85,7 @@ export const CheckAgainRetryable: Story = {
 		title: "Couldn't check this message again",
 		detail:
 			"Quarterly report: a move is still settling. Remit will retry it once the move lands.",
-		action: { label: "Report an issue", href: REPORT_URL },
+		action: { kind: "link", label: "Report an issue", href: REPORT_URL },
 		onRetry: () => undefined,
 	},
 };
@@ -119,7 +119,7 @@ export const WithActionLink: Story = {
 		title: "Spellcheck stopped",
 		detail:
 			"Spellcheck for en is off: the checker could not start. Your browser is checking this message instead. Failed to fetch dynamically imported module.",
-		action: { label: "Report this", href: REPORT_URL },
+		action: { kind: "link", label: "Report this", href: REPORT_URL },
 	},
 };
 
@@ -134,7 +134,7 @@ export const PlacementInFlight: Story = {
 		title: "Couldn't delete this message yet",
 		detail:
 			"It is still being moved on the mail server. Try again in a moment.",
-		action: { label: "Report an issue", href: REPORT_URL },
+		action: { kind: "link", label: "Report an issue", href: REPORT_URL },
 	},
 };
 
@@ -148,7 +148,7 @@ export const PlacementUnverified: Story = {
 		title: "Couldn't delete 4 messages yet",
 		detail:
 			"An earlier move never finished, so where this message sits is unknown. Sync the folder, then delete it again.",
-		action: { label: "Report an issue", href: REPORT_URL },
+		action: { kind: "link", label: "Report an issue", href: REPORT_URL },
 	},
 };
 
@@ -157,4 +157,12 @@ export const WithActionLinkDark: Story = {
 	name: "With Action Link (dark)",
 	parameters: { theme: "dark" },
 	args: WithActionLink.args,
+};
+
+export const Undo: Story = {
+	args: {
+		severity: "info",
+		title: "Moved to Trash",
+		action: { kind: "button", label: "Undo", onClick: () => undefined },
+	},
 };

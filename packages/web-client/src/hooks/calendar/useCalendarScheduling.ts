@@ -135,7 +135,6 @@ export function useSendsFollowUp(
 			...outboxDetailOperationsGetOutboxMessageOptions({
 				path: { outboxMessageId: send.outboxMessageId },
 			}),
-			meta: { softErrorStatuses: [404] },
 			retry: false,
 			refetchInterval: (query: {
 				state: {

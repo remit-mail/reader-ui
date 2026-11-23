@@ -29,7 +29,9 @@ export const CalendarNeedsSignIn: Story = {
 	play: async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
 		await expect(
-			canvas.getByText(/signing in with Microsoft again/),
+			canvas.getByRole("switch", {
+				name: "Sign in with Microsoft to add calendar",
+			}),
 		).toBeVisible();
 	},
 };
