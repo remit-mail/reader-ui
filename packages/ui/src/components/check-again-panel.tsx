@@ -15,6 +15,7 @@ export interface CheckAgainSummary {
 	nowSpam: number;
 	nowSuspected: number;
 	noLongerSuspected: number;
+	moved: number;
 }
 
 export type CheckAgainPanelProps =
@@ -46,10 +47,10 @@ export function checkAgainSummarySentence(summary: CheckAgainSummary): string {
 	const changed =
 		summary.nowSpam + summary.nowSuspected + summary.noLongerSuspected;
 	const moved =
-		summary.nowSpam > 0
-			? "Nothing moved. Open a message to move it to Spam."
+		summary.moved > 0
+			? `${summary.moved} ${summary.moved === 1 ? "message moved" : "messages moved"}.`
 			: "Nothing moved.";
-	if (changed === 0) return `Nothing changed. ${moved}`;
+	if (changed === 0) return `No verdicts changed. ${moved}`;
 	return `${changed} changed: ${parts.join(", ")}. ${moved}`;
 }
 
