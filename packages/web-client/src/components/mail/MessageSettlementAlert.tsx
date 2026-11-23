@@ -50,7 +50,7 @@ export function MessageSettlementAlert({
 				? ("move_failed" as const)
 				: undefined;
 
-	// Only a move that gave up, and only where the caller has no account of its
+	// Only a mutation that gave up, and only where the caller has no account of its
 	// own, has anything to resolve — so every other row subscribes to nothing.
 	// Asking unconditionally would pull `/config` and every account's mailbox
 	// list into each expanded message, for a case almost none of them are.
