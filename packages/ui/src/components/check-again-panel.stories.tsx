@@ -23,7 +23,17 @@ export const Done: Story = {
 	args: {
 		state: "Done",
 		total: 35,
-		summary: { nowSpam: 2, nowSuspected: 0, noLongerSuspected: 4 },
+		summary: { nowSpam: 2, nowSuspected: 0, noLongerSuspected: 4, moved: 4 },
+		onDone: noop,
+	},
+};
+
+/** Placement can move a message even when its verdict is unchanged. */
+export const MovedWithoutVerdictChange: Story = {
+	args: {
+		state: "Done",
+		total: 1,
+		summary: { nowSpam: 0, nowSuspected: 0, noLongerSuspected: 0, moved: 1 },
 		onDone: noop,
 	},
 };

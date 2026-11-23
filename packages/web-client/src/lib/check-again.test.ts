@@ -82,7 +82,7 @@ describe("applyRescanResult", () => {
 						messageId: "m2",
 						verdict: checked("None"),
 						labels: [],
-						moved: false,
+						moved: true,
 					},
 					{
 						messageId: "m3",
@@ -98,6 +98,7 @@ describe("applyRescanResult", () => {
 			nowSpam: 1,
 			nowSuspected: 0,
 			noLongerSuspected: 1,
+			moved: 1,
 		});
 		assert.deepStrictEqual(outcome.failures, [
 			{
