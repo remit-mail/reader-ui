@@ -31,7 +31,6 @@ import {
 	StepCredentialsOverview,
 	StepDryRunReport,
 	StepFileRejected,
-	StepInstanceAlreadyConfigured,
 	StepPartialImport,
 	StepPendingFolders,
 } from "./steps";
@@ -252,22 +251,17 @@ export const DryRunReportLongShortViewport: Story = {
 	),
 };
 
-const HELD =
-	"2 accounts, 14 rules and 31 flagged senders are set up here already.";
-
-/** 409: the instance is already configured, and neither choice is preselected. */
+/** The warning is part of the preview, alongside every proposed change. */
 export const AlreadyConfigured: Story = {
-	render: () => <StepInstanceAlreadyConfigured held={HELD} />,
-};
-
-/** Abort chosen: nothing is written. */
-export const AlreadyConfiguredAbort: Story = {
-	render: () => <StepInstanceAlreadyConfigured held={HELD} choice="abort" />,
-};
-
-/** Merge chosen: adds and updates only, existing accounts keep their servers. */
-export const AlreadyConfiguredMerge: Story = {
-	render: () => <StepInstanceAlreadyConfigured held={HELD} choice="merge" />,
+	render: () => (
+		<StepDryRunReport
+			sections={dryRunSections}
+			fileName={CONFIG_FILE_NAME}
+			warnings={[
+				"This preview merges into the configuration already here. Existing accounts keep their server settings. Nothing changes until you apply.",
+			]}
+		/>
+	),
 };
 
 /** Two of three accounts cannot sync until someone signs in. */

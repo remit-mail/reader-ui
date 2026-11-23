@@ -57,30 +57,25 @@ describe("pushError — a banner is a soft surface only", () => {
 		);
 	});
 
-	it("escalates a 5xx to the fatal page instead of a toast", () => {
+	it("keeps a server failure in its banner", () => {
 		assert.equal(
 			push({
 				title: "Couldn't move 339 messages",
 				error: new ApiError("Internal error", 500),
 			}).escalated,
-			true,
+			false,
 		);
-		assert.equal(getCurrentFatalError()?.message, "Internal error");
+		assert.equal(getCurrentFatalError(), null);
 	});
 
-	it("escalates an exception thrown by our own code (issue #55)", () => {
+	it("keeps a failed action in its banner", () => {
 		const bug = new TypeError(
 			'can\'t access property "map", N.pages is undefined',
 		);
 		assert.equal(
 			push({ title: "Couldn't move 339 messages", error: bug }).escalated,
-			true,
-		);
-		assert.equal(getCurrentFatalError()?.message, bug.message);
-		assert.equal(
-			getCurrentFatalError()?.recoverable,
 			false,
-			"a bug is not something the user can retry away",
 		);
+		assert.equal(getCurrentFatalError(), null);
 	});
 });

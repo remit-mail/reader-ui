@@ -388,3 +388,41 @@ export const AccountsUnreadable: Story = {
 		).toBeVisible();
 	},
 };
+
+export const StopSyncingWithUndo: Story = {
+	globals: desktop,
+	parameters: {
+		msw: {
+			handlers: mailHandlers(
+				mailWorld({
+					accounts: [
+						makeAccount({
+							accountId: "acc-microsoft",
+							authType: "oauthMicrosoft",
+							syncedServices: ["Mail", "Calendar"],
+							grantedScopes: [
+								"https://outlook.office.com/IMAP.AccessAsUser.All",
+								"Calendars.ReadWrite",
+							],
+						}),
+					],
+				}),
+			),
+		},
+	},
+	play: async () => {
+		await userEvent.click(
+			await page.findByRole("switch", { name: "Sync mail" }),
+		);
+		await expect(
+			await page.findByRole("button", { name: "Undo" }),
+		).toBeVisible();
+		await expect(
+			page.queryByText("Stop syncing mail for this account?"),
+		).toBeNull();
+		await userEvent.click(page.getByRole("button", { name: "Undo" }));
+		await waitFor(() =>
+			expect(page.getByRole("switch", { name: "Sync mail" })).toBeChecked(),
+		);
+	},
+};

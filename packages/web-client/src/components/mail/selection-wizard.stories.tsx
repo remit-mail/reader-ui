@@ -77,12 +77,17 @@ export const OrganizePropertiesDoor: Story = {
 	},
 };
 
-export const DeleteReview: Story = {
+export const DeleteWithUndo: Story = {
 	play: async () => {
 		await openWizard(2, "Move selected messages to Trash");
 		await page().findByText("What should this apply to?");
-		await cont();
-		await expect(await page().findByText("Check before it runs")).toBeVisible();
+		await userEvent.click(
+			page().getByRole("button", { name: "Move to Trash" }),
+		);
+		await expect(
+			await page().findByRole("button", { name: "Undo" }),
+		).toBeVisible();
+		await expect(page().queryByText("Check before it runs")).toBeNull();
 	},
 };
 

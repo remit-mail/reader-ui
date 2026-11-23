@@ -50,3 +50,28 @@ describe("reloadOnceForChunkFailure", () => {
 		assert.equal(reloads, 1);
 	});
 });
+
+it("keeps unsaved work and does not consume the reload attempt while blocked", async () => {
+	const { registerUpdateBlocker } = await import("./pwa-update");
+	const guard = memoryGuard();
+	let reloads = 0;
+	const ports = {
+		guard,
+		commit: "blocked",
+		reload: () => {
+			reloads++;
+		},
+	};
+	const release = registerUpdateBlocker(() => true);
+	try {
+		assert.equal(reloadOnceForChunkFailure(ports), false);
+		assert.equal(reloads, 0);
+		assert.equal(
+			guard.getItem(`${STALE_BUILD_RELOAD_KEY_PREFIX}blocked`),
+			null,
+		);
+	} finally {
+		release();
+	}
+	assert.equal(reloadOnceForChunkFailure(ports), true);
+});

@@ -347,12 +347,13 @@ describe("a failed autosave and the message it is holding", () => {
 		assert.equal(fatalOverlay(), null);
 	});
 
-	it("still escalates a 5xx from the same write", async () => {
+	it("shows a 5xx beside the draft and keeps the editor mounted", async () => {
 		await mount({ outboxMessageId: OUTBOX_MESSAGE_ID, patchStatus: 500 });
 
 		harness?.type(subjectField(), "Fwd: Lunch on Thursday");
 		await harness?.wait(AUTOSAVE_DEBOUNCE_MS + 300);
 
-		assert.ok(fatalOverlay(), "our API answering 'I'm broken' is never soft");
+		assert.equal(fatalOverlay(), null);
+		assert.match(harness?.text() ?? "", /Couldn.t save draft/);
 	});
 });

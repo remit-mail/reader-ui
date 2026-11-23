@@ -21,7 +21,7 @@ const fatal = (overrides: Partial<FatalError>): FatalError => ({
 	...overrides,
 });
 
-export const RecoverableTransient: Story = {
+export const RequestFailureInline: Story = {
 	args: {
 		fatal: fatal({
 			message: "Request failed with status 500",
@@ -30,7 +30,10 @@ export const RecoverableTransient: Story = {
 	},
 	play: async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
-		await expect(canvas.getByRole("button", { name: "Retry" })).toBeVisible();
+		await expect(
+			canvas.getByText("Request failed with status 500"),
+		).toBeVisible();
+		await expect(canvas.queryByTestId("fatal-error-overlay")).toBeNull();
 		await expect(
 			canvas.queryByRole("link", { name: "Go to inbox" }),
 		).toBeNull();

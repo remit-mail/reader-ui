@@ -68,12 +68,7 @@ export const mountApp = ({
 	// Plug the live telemetry adapter into the single fatal-error seam.
 	setFatalErrorTelemetry(telemetry);
 
-	// Every query and mutation error flows through the global fail-fast
-	// classifier (#1059): a non-2xx escalates to the full-screen red overlay by
-	// DEFAULT — a 5xx always escalates (even on a background refetch). Only
-	// aborts, statusless connectivity blips, and non-5xx errors a call site
-	// explicitly opted out of via `meta.softError` stay soft. This is the v5
-	// equivalent of `defaultOptions.queries.onError` / `.mutations.onError`.
+	// Authentication refusals go to the session notice; request owners show other errors inline.
 	const queryClient = new QueryClient({
 		queryCache: new QueryCache({ onError: handleQueryCacheError }),
 		mutationCache: new MutationCache({
@@ -105,7 +100,7 @@ export const mountApp = ({
 		installPwaBuildObservation();
 		installPwaUpdateCoordinator(() => queryClient.isMutating() > 0);
 	} else {
-		installStaleBuildReload();
+		installStaleBuildReload(() => queryClient.isMutating() > 0);
 	}
 
 	const offlineRuntime = offline ? installOfflineRuntime(offline) : undefined;

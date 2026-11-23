@@ -37,9 +37,7 @@ export interface MailboxCountReading {
 }
 
 /** A count from a round that reported after the baseline, or no round yet. */
-export type FreshCountOutcome =
-	| { status: "fresh"; messageCount: number }
-	| { status: "pending" };
+export type FreshCountOutcome = { status: "fresh"; messageCount: number };
 
 export interface AwaitFreshMailboxCountOptions {
 	/** Reads every mailbox's sync-status entry; called once per poll. */
@@ -50,22 +48,11 @@ export interface AwaitFreshMailboxCountOptions {
 	since: number;
 	/** Aborts the wait; a round that lands afterwards resolves nothing. */
 	signal?: AbortSignal;
-	/** How long this stretch of waiting runs before reporting `pending`. */
-	segmentMs?: number;
 	pollIntervalMs?: number;
 	/** Injectable clock/sleep for tests. */
 	delay?: (ms: number, signal?: AbortSignal) => Promise<void>;
-	now?: () => number;
 }
 
-/**
- * How long one stretch of waiting runs before handing the decision back to the
- * user. An explicit sync fans the whole account out on one FIFO group with
- * INBOX first, so a folder on a large account can sit behind minutes of other
- * mailboxes: this is not long enough to conclude anything, only long enough
- * that someone watching a spinner deserves to be asked whether to keep waiting.
- */
-export const FRESH_COUNT_SEGMENT_MS = 120_000;
 export const FRESH_COUNT_POLL_INTERVAL_MS = 2_000;
 
 export const FRESH_COUNT_MISSING_MESSAGE =
@@ -86,29 +73,20 @@ export const mailboxSyncStamp = (
 	mailboxId: string,
 ): number => entryFor(mailboxes, mailboxId).lastSyncedAt ?? 0;
 
-/**
- * Poll for one segment. Resolves `fresh` with the count once a round reports
- * past `since`, `pending` when the segment runs out with the folder still
- * unreported — the caller asks the user whether to wait on, and calling again
- * with the same `since` resumes without triggering a second round.
- */
+/** Poll until the server reports a fresh count or the caller cancels. */
 export async function awaitFreshMailboxCount({
 	readMailboxes,
 	mailboxId,
 	since,
 	signal,
-	segmentMs = FRESH_COUNT_SEGMENT_MS,
 	pollIntervalMs = FRESH_COUNT_POLL_INTERVAL_MS,
 	delay = abortableDelay,
-	now = Date.now,
 }: AwaitFreshMailboxCountOptions): Promise<FreshCountOutcome> {
-	const deadline = now() + segmentMs;
 	for (;;) {
 		signal?.throwIfAborted();
 		const entry = entryFor(await readMailboxes(), mailboxId);
 		if ((entry.lastSyncedAt ?? 0) > since)
 			return { status: "fresh", messageCount: entry.messagesTotal };
-		if (now() >= deadline) return { status: "pending" };
 		await delay(pollIntervalMs, signal);
 	}
 }

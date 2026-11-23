@@ -40,11 +40,9 @@ import {
 	type ConfigDocument,
 	type FailureCopy,
 	groupReportSections,
-	type ImportConflict,
 	type PendingFolder,
 	pendingFolders,
 	readConfigText,
-	readConflict,
 	readFailure,
 	sectionResults,
 	WRITE_FAILURE_CODE,
@@ -65,7 +63,6 @@ import {
 	StepCredentialsOverview,
 	StepDryRunReport,
 	StepFileRejected,
-	StepInstanceAlreadyConfigured,
 	StepPartialImport,
 	StepPendingFolders,
 } from "./steps";
@@ -74,7 +71,6 @@ type Step =
 	| "file"
 	| "rejected"
 	| "review"
-	| "conflict"
 	| "partial"
 	| "credentials"
 	| "account-password"
@@ -130,25 +126,6 @@ const asImportedAccount = (
 	};
 };
 
-const heldSummary = (details: Record<string, string> | undefined): string => {
-	if (!details) return "This instance already holds configuration of its own.";
-	const parts = (
-		[
-			["accounts", "account"],
-			["labels", "label"],
-			["filters", "rule"],
-			["addressFlags", "flagged sender"],
-		] as const
-	)
-		.map(([key, noun]) => ({ count: Number(details[key] ?? 0), noun }))
-		.filter((part) => part.count > 0)
-		.map((part) => `${part.count} ${part.noun}${part.count === 1 ? "" : "s"}`);
-	if (parts.length === 0) {
-		return "This instance already holds configuration of its own.";
-	}
-	return `${parts.join(", ")} are set up here already.`;
-};
-
 const errorText = (error: unknown, fallback: string): string => {
 	if (error instanceof Error) return error.message;
 	if (typeof error === "object" && error !== null) {
@@ -183,13 +160,7 @@ export function ConfigImportWizard({ onDone }: ConfigImportWizardProps) {
 	const [report, setReport] = useState<RemitImapConfigImportReport | undefined>(
 		undefined,
 	);
-	const [onExisting, setOnExisting] = useState<"abort" | "merge">("abort");
-	const [conflictChoice, setConflictChoice] = useState<
-		"abort" | "merge" | undefined
-	>(undefined);
-	const [conflict, setConflict] = useState<ImportConflict | undefined>(
-		undefined,
-	);
+	const onExisting = "merge";
 	const [needingCredentials, setNeedingCredentials] = useState<string[]>([]);
 	/** Accounts this wizard signed in and stored a credential for. */
 	const [verifiedAccountIds, setVerifiedAccountIds] = useState<string[]>([]);
@@ -314,7 +285,6 @@ export function ConfigImportWizard({ onDone }: ConfigImportWizardProps) {
 	const runImport = useCallback(
 		(mode: "validate" | "apply", existing: "abort" | "merge") => {
 			if (!document) return;
-			setConflict(undefined);
 			importMutation.mutate(
 				{ body: { mode, onExisting: existing, document } },
 				{
@@ -344,13 +314,6 @@ export function ConfigImportWizard({ onDone }: ConfigImportWizardProps) {
 						setStep("folders");
 					},
 					onError: (cause: unknown) => {
-						const refused = readConflict(cause);
-						if (refused) {
-							setConflict(refused);
-							setConflictChoice(undefined);
-							setStep("conflict");
-							return;
-						}
 						setReadFailureCopy({
 							title: "The import could not be sent",
 							explanation:
@@ -481,11 +444,9 @@ export function ConfigImportWizard({ onDone }: ConfigImportWizardProps) {
 
 	const goToFile = useCallback(() => {
 		setReport(undefined);
-		setConflict(undefined);
 		setReadFailureCopy(undefined);
 		setFile(undefined);
 		setDocument(undefined);
-		setOnExisting("abort");
 		setStep("file");
 	}, []);
 
@@ -527,30 +488,15 @@ export function ConfigImportWizard({ onDone }: ConfigImportWizardProps) {
 				/>
 			);
 
-		case "conflict":
-			return (
-				<StepInstanceAlreadyConfigured
-					choice={conflictChoice}
-					held={heldSummary(conflict?.details)}
-					onChoose={setConflictChoice}
-					onBack={goToFile}
-					onNext={() => {
-						if (conflictChoice === "abort") {
-							onDone("abandoned");
-							return;
-						}
-						setOnExisting("merge");
-						runImport("validate", "merge");
-					}}
-				/>
-			);
-
 		case "review":
 			return (
 				<StepDryRunReport
 					sections={groupReportSections(report?.items ?? [])}
 					fileName={file?.name ?? "the config file"}
-					warnings={(report?.warnings ?? []).map((warning) => warning.message)}
+					warnings={[
+						"This preview merges into the configuration already here. Existing accounts keep their server settings. Nothing changes until you apply.",
+						...(report?.warnings ?? []).map((warning) => warning.message),
+					]}
 					applying={importMutation.isPending}
 					onBack={goToFile}
 					onNext={() => runImport("apply", onExisting)}

@@ -158,3 +158,11 @@ export const WithActionLinkDark: Story = {
 	parameters: { theme: "dark" },
 	args: WithActionLink.args,
 };
+
+export const Undo: Story = {
+	args: {
+		severity: "info",
+		title: "Moved to Trash",
+		action: { label: "Undo", onClick: () => undefined },
+	},
+};

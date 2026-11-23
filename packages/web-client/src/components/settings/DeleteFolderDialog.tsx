@@ -47,9 +47,9 @@ const emailCount = (count: number): string =>
 	`${count} ${count === 1 ? "email" : "emails"}`;
 
 /**
- * Per-folder delete wizard. An empty folder is a single destructive confirm,
+ * Per-folder delete wizard. An empty folder is deleted directly,
  * settled against a sync round asked for on the spot rather than the folder's
- * last synced count — a wait the user can watch, keep, or cancel, and which
+ * last synced count — a wait the user can watch or cancel, and which
  * deletes nothing until the server answers; a folder with mail asks what
  * happens to the messages first — delete them with the folder, or move them
  * elsewhere (batched, with visible progress) before the now-empty folder is
@@ -90,7 +90,7 @@ export function DeleteFolderDialog({
 
 	// The check has no progress to report — only that it is still waiting — so
 	// the wait itself is what the surface shows, ticking, for as long as it runs.
-	const waiting = phase === "checking" || phase === "check-stalled";
+	const waiting = phase === "checking";
 	useEffect(() => {
 		if (!waiting || checkStartedAt === undefined) return;
 		const update = () =>
@@ -99,17 +99,6 @@ export function DeleteFolderDialog({
 		const timer = setInterval(update, 1000);
 		return () => clearInterval(timer);
 	}, [waiting, checkStartedAt]);
-
-	// Opening the dialog stages it; a count arriving later deliberately does not.
-	// The refusal below invalidates the folder list on purpose, and re-staging on
-	// the count that refetch brings back would wipe the refusal off the screen.
-	// biome-ignore lint/correctness/useExhaustiveDependencies: folder.messageCount is read at open and must not re-run this.
-	useEffect(() => {
-		if (!open) return;
-		setStage(initialStage(folder.messageCount));
-		setArrivedSinceSync(undefined);
-		reset();
-	}, [open, reset]);
 
 	useEffect(() => {
 		if (!open) return;
@@ -129,6 +118,19 @@ export function DeleteFolderDialog({
 		setArrivedSinceSync(outcome.messageCount);
 		setStage("choose-fate");
 	}, [deleteIfEmpty]);
+
+	// Stage and start only when opening; later count updates must not erase a server refusal.
+	// biome-ignore lint/correctness/useExhaustiveDependencies: snapshot the folder and start callback at open, not again on a count or phase update.
+	useEffect(() => {
+		if (!open) {
+			cancel();
+			return;
+		}
+		setStage(initialStage(folder.messageCount));
+		setArrivedSinceSync(undefined);
+		reset();
+		if (folder.messageCount === 0) void handleDeleteEmpty();
+	}, [open, reset, cancel]);
 
 	const destinations = useMemo<FolderTreeNode[]>(
 		() =>
@@ -187,28 +189,6 @@ export function DeleteFolderDialog({
 			);
 		}
 
-		if (phase === "check-stalled") {
-			return (
-				<div className="space-y-4 px-5 py-4">
-					<Banner tone="warning" variant="soft">
-						{`The mail server hasn't reported back on this folder yet — ${checkElapsed} so far. Nothing has been deleted.`}
-					</Banner>
-					<p className="text-xs text-fg-muted">
-						A sync covers the whole account, so a busy mailbox can take a while
-						to come round to this folder.
-					</p>
-					<div className="flex justify-end gap-2">
-						<Button variant="secondary" size="sm" onClick={handleClose}>
-							Cancel
-						</Button>
-						<Button size="sm" onClick={() => handleDeleteEmpty()}>
-							Keep waiting
-						</Button>
-					</div>
-				</div>
-			);
-		}
-
 		if (phase === "deleting" || phase === "done") {
 			return (
 				<div className="flex flex-col items-center gap-3 px-5 py-10 text-center">
@@ -239,31 +219,7 @@ export function DeleteFolderDialog({
 			);
 		}
 
-		if (stage === "confirm-empty") {
-			return (
-				<>
-					<div className="space-y-3 px-5 py-4 text-sm text-fg-muted">
-						<p>
-							Delete <strong className="text-fg">{name}</strong>? This folder is
-							empty and will be removed from the server.
-						</p>
-					</div>
-					<footer className="flex items-center justify-end gap-2 border-t border-line px-5 py-3">
-						<Button variant="secondary" size="sm" onClick={handleClose}>
-							Cancel
-						</Button>
-						<Button
-							variant="danger"
-							size="sm"
-							icon={<Trash className="size-3.5" />}
-							onClick={() => handleDeleteEmpty()}
-						>
-							Delete folder
-						</Button>
-					</footer>
-				</>
-			);
-		}
+		if (stage === "confirm-empty") return null;
 
 		if (stage === "choose-fate") {
 			return (

@@ -1,4 +1,8 @@
 import { mailboxOperationsListMailboxesOptions } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
+import {
+	messageBulkOperationsMoveMessages,
+	messageBulkOperationsUpdateFlags,
+} from "@remit/api-http-client/sdk.gen.ts";
 import type { RemitImapAccountResponse } from "@remit/api-http-client/types.gen.ts";
 import {
 	type ClauseDraft,
@@ -28,7 +32,7 @@ import {
 	type WizardMessage,
 	wizardScopeFor,
 } from "@remit/ui";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useBlocker } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -38,6 +42,7 @@ import {
 } from "../../hooks/useArchiveMailbox";
 import { useClauseSuggestions } from "../../hooks/useClauseSuggestions";
 import { useCreateMailbox } from "../../hooks/useCreateMailbox";
+import { useDeleteOutcome } from "../../hooks/useDeleteOutcome";
 import {
 	type EscalationSearchQuery,
 	useEscalatedActions,
@@ -75,6 +80,7 @@ import { searchRuleAccountId } from "../../lib/organize/search-to-rule";
 import { useSearchConversion } from "../../lib/search-conversion";
 import type { WizardSelectionMessage } from "../../lib/wizard-selection";
 import { useWizardEntryValue, useWizardStep } from "../../routing";
+import { useErrorBanners } from "../ui/error-banner-context";
 import { bulkRunReport } from "./bulk-run-state";
 import { organizeRunState } from "./organize-run-state";
 import {
@@ -526,7 +532,21 @@ function SelectionWizardSession({
 	});
 	const { runAction } = bulk;
 
-	const steps = stepsFor({ verb, mode, scope: draft.scope, fromSearch });
+	const { pushError, dismissError } = useErrorBanners();
+	const queryClient = useQueryClient();
+	const selectionDelete = useDeleteOutcome(
+		selection.map((message) => ({
+			accountId: message.accountId,
+			mailboxId: message.mailboxId ?? mailboxId ?? "",
+		})),
+	);
+	const steps = stepsFor({
+		verb,
+		mode,
+		scope: draft.scope,
+		fromSearch,
+		requiresReview: verb === "delete" && selectionDelete.outcome !== "trash",
+	});
 	// The step the screens are on, which is the held one only while the answers
 	// still hold it. Reading the URL's step here and the resolved one on screen
 	// is how a footer comes to name a screen nobody is looking at.
@@ -615,16 +635,6 @@ function SelectionWizardSession({
 		});
 	}, []);
 
-	const advance = useCallback(() => {
-		if (blockedReason) {
-			setNudgedStep(current);
-			return;
-		}
-		setNudgedStep(undefined);
-		const next = steps[stepIndex(steps, current) + 1];
-		if (next) goToStep(next);
-	}, [blockedReason, current, steps, goToStep]);
-
 	const runBulk = useCallback(
 		async (targets: readonly BulkActionTarget[]) => {
 			const action = bulkActionFor(verb, named.moveMailboxId, junkMailboxId);
@@ -638,6 +648,62 @@ function SelectionWizardSession({
 			}
 			setBulkRun({ matched: targets.length, sent: targets });
 			const started = await runAction(action, targets, claimEnding);
+			if (
+				mode === "selected" &&
+				started.kind === "ran" &&
+				started.outcome.refused === 0 &&
+				!started.outcome.cancelled &&
+				started.outcome.failedIds.length === 0 &&
+				(verb !== "delete" || selectionDelete.outcome === "trash")
+			) {
+				const originals = selection.filter((message) =>
+					targets.some((target) => target.id === message.id),
+				);
+				const id = pushError({
+					severity: "info",
+					title: "Selection updated",
+					action: {
+						label: "Undo",
+						onClick: () => {
+							dismissError(id);
+							const groups = new Map<string, string[]>();
+							for (const message of originals) {
+								if (verb === "markRead" && message.isRead) continue;
+								const source = message.mailboxId ?? mailboxId;
+								if (!source)
+									throw new Error("Missing original folder for Undo");
+								groups.set(source, [...(groups.get(source) ?? []), message.id]);
+							}
+							void Promise.all(
+								[...groups].map(async ([source, ids]) => {
+									for (let offset = 0; offset < ids.length; offset += 100) {
+										const messageIds = ids.slice(offset, offset + 100);
+										const { data } =
+											verb === "markRead"
+												? await messageBulkOperationsUpdateFlags({
+														body: { messageIds, isRead: false },
+														throwOnError: true,
+													})
+												: await messageBulkOperationsMoveMessages({
+														body: { messageIds, destinationMailboxId: source },
+														throwOnError: true,
+													});
+										if (data.failureCount > 0)
+											throw new Error(
+												"Some messages could not be restored. Try again from their current folder.",
+											);
+									}
+								}),
+							).then(
+								() => queryClient.invalidateQueries(),
+								(error) => {
+									pushError({ title: "Couldn't undo selection update", error });
+								},
+							);
+						},
+					},
+				});
+			}
 			setBulkRun({
 				matched: targets.length,
 				sent: targets,
@@ -645,7 +711,20 @@ function SelectionWizardSession({
 				failureReason: started.kind === "refused" ? started.reason : undefined,
 			});
 		},
-		[verb, named.moveMailboxId, junkMailboxId, runAction, claimEnding],
+		[
+			verb,
+			named.moveMailboxId,
+			junkMailboxId,
+			runAction,
+			claimEnding,
+			mode,
+			selectionDelete.outcome,
+			selection,
+			mailboxId,
+			pushError,
+			dismissError,
+			queryClient,
+		],
 	);
 
 	// The escalated predicate, run by the chunked runner the list already owns.
@@ -750,6 +829,17 @@ function SelectionWizardSession({
 		goToStep("run");
 		sendCommit();
 	}, [blockedReason, current, goToStep, sendCommit]);
+
+	const advance = useCallback(() => {
+		if (blockedReason) {
+			setNudgedStep(current);
+			return;
+		}
+		setNudgedStep(undefined);
+		const next = steps[stepIndex(steps, current) + 1];
+		if (next === "run") commit();
+		else if (next) goToStep(next);
+	}, [blockedReason, current, steps, commit, goToStep]);
 
 	const jobSnapshot = useCallback(
 		(ruleSaved: boolean): RunSnapshot => {

@@ -216,7 +216,7 @@ describe("handleBackgroundSyncFailure", () => {
 		console.warn = () => undefined;
 	};
 
-	test("a background-sync 5xx escalates to the fatal overlay", () => {
+	test("a background-sync 5xx leaves the app mounted", () => {
 		silenceWarn();
 		const seen: string[] = [];
 		subscribeFatalError((fatal) => seen.push(fatal.message));
@@ -226,7 +226,7 @@ describe("handleBackgroundSyncFailure", () => {
 		// Fail-fast contract (#1059, rule 2): a 5xx is OUR API broken and always
 		// escalates — even from a best-effort background probe. (This reverses the
 		// #758 swallow, which let a real 500 vanish silently.)
-		assert.deepEqual(seen, ["boom"]);
+		assert.deepEqual(seen, []);
 	});
 
 	test("a background-sync 4xx (the account's own problem) does NOT escalate", () => {
@@ -275,7 +275,7 @@ describe("handleBackgroundSyncFailure", () => {
 		assert.equal(escalated, false);
 	});
 
-	test("an exception from our own code on the probe DOES escalate", () => {
+	test("a failed background probe leaves the app mounted", () => {
 		silenceWarn();
 		let escalated = false;
 		subscribeFatalError(() => {
@@ -287,7 +287,7 @@ describe("handleBackgroundSyncFailure", () => {
 		// otherwise go unnoticed.
 		handleBackgroundSyncFailure("a-1", new TypeError("x is not a function"));
 
-		assert.equal(escalated, true);
+		assert.equal(escalated, false);
 	});
 
 	test("drops the per-account guard so a later remount can retry", () => {

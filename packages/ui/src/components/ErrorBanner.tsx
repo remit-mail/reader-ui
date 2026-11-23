@@ -10,7 +10,8 @@ export type ErrorBannerSeverity = "error" | "warning" | "info";
  */
 export interface ErrorBannerAction {
 	label: string;
-	href: string;
+	href?: string;
+	onClick?: () => void;
 }
 
 export interface ErrorBannerEntry {
@@ -116,15 +117,21 @@ export const ErrorBanner = ({
 								Try again
 							</Button>
 						)}
-						{action && (
-							<a
-								href={action.href}
-								target="_blank"
-								rel="noopener noreferrer"
-								className="inline-block text-xs font-medium text-accent-2 underline underline-offset-2"
-							>
+						{action?.onClick ? (
+							<Button variant="secondary" size="sm" onClick={action.onClick}>
 								{action.label}
-							</a>
+							</Button>
+						) : (
+							action && (
+								<a
+									href={action.href}
+									target="_blank"
+									rel="noopener noreferrer"
+									className="inline-block text-xs font-medium text-accent-2 underline underline-offset-2"
+								>
+									{action.label}
+								</a>
+							)
 						)}
 					</div>
 				)}

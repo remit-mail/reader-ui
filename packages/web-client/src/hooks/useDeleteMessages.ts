@@ -1,9 +1,13 @@
 import {
+	configOperationsGetConfigQueryKey,
 	mailboxOperationsListMailboxesQueryKey,
 	messageBulkOperationsDeleteMessagesMutation,
 	threadDetailOperationsListThreadMessagesQueryKey,
 } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
-import type { RemitImapThreadMessageResponse } from "@remit/api-http-client/types.gen.ts";
+import type {
+	RemitImapConfigDescriptionResponse,
+	RemitImapThreadMessageResponse,
+} from "@remit/api-http-client/types.gen.ts";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef } from "react";
 import { useRoleAppointmentPrompt } from "../components/mail/RoleAppointmentPromptProvider";
@@ -16,6 +20,7 @@ import {
 } from "../components/ui/placement-refusal";
 import { runChunkedMutation } from "../lib/bulk-actions";
 import { softErrorStatuses } from "../lib/error-classifier";
+import { isInfiniteThreadData } from "../lib/thread-cache";
 import {
 	cancelThreadListQueries,
 	invalidateThreadListQueries,
@@ -27,6 +32,7 @@ import {
 	threadListCacheKeys,
 } from "../lib/thread-list-cache";
 import { resolveMailboxesForMessages } from "./useMarkAsRead";
+import { useMoveMessages } from "./useMoveMessages";
 
 interface UseDeleteMessagesOptions {
 	mailboxId: string;
@@ -68,7 +74,8 @@ export const useDeleteMessages = ({
 	onAfterOptimisticRemove,
 }: UseDeleteMessagesOptions) => {
 	const queryClient = useQueryClient();
-	const { pushError } = useErrorBanners();
+	const { pushError, dismissError } = useErrorBanners();
+	const { moveMessages } = useMoveMessages({ mailboxId, accountId });
 	const { requestAppointment } = useRoleAppointmentPrompt();
 
 	// The refused chunk is not what the user asked for. The whole selection is
@@ -223,11 +230,72 @@ export const useDeleteMessages = ({
 	});
 
 	const runSelection = useCallback(
-		(messageIds: string[]): Promise<void> =>
-			runChunkedMutation(messageIds, (chunk) =>
-				mutateAsync({ body: { messageIds: chunk } }),
-			),
-		[mutateAsync],
+		async (messageIds: string[]): Promise<void> => {
+			const snapshots = snapshotThreadListQueries(
+				queryClient,
+				threadListCacheKeys(
+					resolveMailboxesForMessages(
+						new Set(messageIds),
+						messages ?? [],
+						mailboxId,
+					),
+				),
+			);
+			const cached = snapshots.flatMap(({ data }) =>
+				isInfiniteThreadData(data)
+					? data.pages.flatMap((page) => page.items)
+					: data.items,
+			);
+			const originals = new Map(
+				[...cached, ...(messages ?? [])].map((message) => [
+					message.messageId,
+					message,
+				]),
+			);
+			const config =
+				queryClient.getQueryData<RemitImapConfigDescriptionResponse>(
+					configOperationsGetConfigQueryKey(),
+				);
+			const groups = new Map<string, string[]>();
+			await runChunkedMutation(messageIds, async (chunk) => {
+				const data = await mutateAsync({ body: { messageIds: chunk } });
+				if (data.failureCount > 0) return;
+				for (const messageId of chunk) {
+					const message = originals.get(messageId);
+					const source = message?.mailboxId ?? mailboxId;
+					const owner = message?.accountId ?? accountId;
+					const trash = config?.accounts
+						.find((account) => account.accountId === owner)
+						?.folderAppointments.find(
+							(appointment) => appointment.role === "Trash",
+						)?.mailboxId;
+					if (!source || !owner || source === trash) continue;
+					groups.set(source, [...(groups.get(source) ?? []), messageId]);
+				}
+			});
+			if (groups.size === 0) return;
+			const id = pushError({
+				severity: "info",
+				title: "Moved to Trash",
+				action: {
+					label: "Undo",
+					onClick: () => {
+						dismissError(id);
+						for (const [source, ids] of groups) moveMessages(ids, source);
+					},
+				},
+			});
+		},
+		[
+			mutateAsync,
+			queryClient,
+			messages,
+			mailboxId,
+			accountId,
+			pushError,
+			dismissError,
+			moveMessages,
+		],
 	);
 
 	useEffect(() => {

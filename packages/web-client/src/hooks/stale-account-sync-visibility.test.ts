@@ -17,7 +17,6 @@
 
 import assert from "node:assert/strict";
 import { afterEach, beforeEach, describe, mock, test } from "node:test";
-import { QueryClientProvider } from "@tanstack/react-query";
 import { act, createElement } from "react";
 import {
 	__resetHotSyncWindow,
@@ -71,13 +70,7 @@ const mount = async (): Promise<DomHarness> => {
 	http = mockFetch(() => ({ status: "queued" }));
 	const dom = createDomHarness();
 	harness = dom;
-	dom.render(
-		createElement(
-			QueryClientProvider,
-			{ client: dom.queryClient },
-			createElement(PollLoop),
-		),
-	);
+	dom.renderApp(createElement(PollLoop));
 	await settle(dom);
 	return dom;
 };

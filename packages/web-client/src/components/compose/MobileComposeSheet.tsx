@@ -11,36 +11,12 @@ import {
 import { ComposeForm } from "./ComposeForm";
 import { composeSurfaceTitle } from "./compose-title";
 
-/**
- * Returns true when the draft has meaningful content (subject or body
- * typed by the user). Used to gate drag-to-dismiss with a confirmation.
- */
-const useIsDraftDirty = (): (() => boolean) => {
-	const dirtyRef = useRef(false);
-
-	// We peek at the DOM: if subject has text or the editor has non-empty
-	// text content, the draft is dirty. This avoids threading form state
-	// back up — ComposeForm owns the source of truth.
-	const check = useCallback((): boolean => {
-		const subject =
-			document.querySelector<HTMLInputElement>("[data-subject-field]")?.value ??
-			"";
-		const editorEl = document.querySelector('[data-testid="compose-body"]');
-		const bodyText = editorEl?.textContent ?? "";
-		// Strip signature separator "-- " to avoid false positives
-		const cleaned = bodyText.replace(/--\s*/g, "").trim();
-		dirtyRef.current = subject.trim().length > 0 || cleaned.length > 0;
-		return dirtyRef.current;
-	}, []);
-
-	return check;
-};
-
 export const MobileComposeSheet = () => {
 	const outboxMessageId = useComposeDraftId();
 	const adoptCreatedDraft = useAdoptComposeDraft();
 	const closeCompose = useCloseCompose();
-	const isDraftDirty = useIsDraftDirty();
+	const closeRequestRef = useRef<(() => Promise<boolean>) | null>(null);
+	const closingRef = useRef(false);
 	const [showConfirm, setShowConfirm] = useState(false);
 
 	const {
@@ -53,16 +29,18 @@ export const MobileComposeSheet = () => {
 	});
 
 	const handleOpenChange = useCallback(
-		(open: boolean) => {
-			if (open) return;
-			// User is trying to dismiss
-			if (isDraftDirty()) {
-				setShowConfirm(true);
-			} else {
-				closeCompose();
+		async (open: boolean) => {
+			if (open || closingRef.current) return;
+			closingRef.current = true;
+			try {
+				const saved = await closeRequestRef.current?.();
+				if (saved !== false) closeCompose();
+				else setShowConfirm(true);
+			} finally {
+				closingRef.current = false;
 			}
 		},
-		[closeCompose, isDraftDirty],
+		[closeCompose],
 	);
 
 	const handleConfirmDiscard = useCallback(() => {
@@ -112,6 +90,7 @@ export const MobileComposeSheet = () => {
 								mode="new"
 								outboxMessageId={outboxMessageId}
 								onDraftCreated={adoptCreatedDraft}
+								closeRequestRef={closeRequestRef}
 								onClose={closeCompose}
 							/>
 						</div>

@@ -1,4 +1,6 @@
+import type { SyncOperationsGetSyncStatusResponse } from "@remit/api-http-client/types.gen.ts";
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { HttpResponse, http } from "msw";
 import { expect, userEvent, within } from "storybook/test";
 import { AppStory } from "../../mocks/story-frame/AppStory";
 import { mailHandlers } from "../../mocks/story-frame/mail-handlers";
@@ -85,5 +87,46 @@ export const Renaming: Story = {
 			await page.findByRole("dialog", { name: "Rename Travel" }),
 		);
 		await expect(dialog.getByRole("textbox")).toBeVisible();
+	},
+};
+
+export const EmptyFolderChecksWithoutConfirming: Story = {
+	parameters: {
+		msw: {
+			handlers: [
+				http.get("/api/accounts/:accountId/sync/status", () =>
+					HttpResponse.json<SyncOperationsGetSyncStatusResponse>({
+						accountId: ACCOUNT_ID,
+						syncPhase: "syncing_others",
+						mailboxes: [
+							{
+								mailboxId: "mbx-finance",
+								fullPath: "Finance",
+								phase: "syncing",
+								messagesTotal: 0,
+								messagesSynced: 0,
+								highWaterMarkUid: 0,
+								lastSyncedAt: 0,
+							},
+						],
+					}),
+				),
+				http.post("/api/accounts/:accountId/sync", () =>
+					HttpResponse.json({ triggered: true, message: "Sync requested" }),
+				),
+				...mailHandlers(world),
+			],
+		},
+	},
+	play: async () => {
+		await userEvent.click(
+			await page.findByRole("button", { name: "Delete Finance" }),
+		);
+		await expect(
+			await page.findByRole("dialog", { name: "Delete Finance" }),
+		).toBeVisible();
+		await expect(
+			page.queryByRole("button", { name: /^Delete folder$/ }),
+		).toBeNull();
 	},
 };

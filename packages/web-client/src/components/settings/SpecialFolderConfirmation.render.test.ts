@@ -10,7 +10,6 @@ import {
 	matthijs,
 	matthijsFolders,
 } from "../../test-support/special-folders";
-import { SpecialFoldersStep } from "../onboarding/OnboardingWizard";
 import { SpecialFolderConfirmation } from "./SpecialFolderConfirmation";
 import { SpecialFolderPrompt } from "./SpecialFolderPrompt";
 
@@ -113,30 +112,6 @@ it("preselects info's proposed Trash without hiding any of its alternatives", as
 		(button("Confirm folders") as HTMLButtonElement).disabled,
 		false,
 	);
-});
-
-it("waits for discovery before refetching config and showing choices", async () => {
-	let phase = "discovering_mailboxes";
-	http = mockFetch((call) => {
-		if (call.path.endsWith("/sync/status")) return { syncPhase: phase };
-		if (call.path === "/config") return { accounts: [matthijs] };
-		return { items: matthijsFolders };
-	});
-	dom = createDomHarness();
-	dom.renderApp(
-		createElement(SpecialFoldersStep, {
-			accountId: matthijs.accountId,
-			onComplete: () => {},
-		}),
-	);
-	await dom.waitFor(() => http.to("/sync/status").length > 0);
-	assert.equal(http.to("/config").length, 0);
-	assert.equal(dom.query("select"), null);
-	phase = "syncing_inbox";
-	await dom.queryClient.invalidateQueries();
-	await dom.waitFor(() => !!dom.query("select"));
-	assert.equal(select("Trash").value, "trash");
-	assert.equal(http.to("/config").length, 1);
 });
 
 it("leaves failed writes open and never signals completion", async () => {

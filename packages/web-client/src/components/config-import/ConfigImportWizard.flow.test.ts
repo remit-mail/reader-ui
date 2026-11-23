@@ -177,51 +177,14 @@ describe("ConfigImportWizard — a file that cannot be sent", () => {
 });
 
 describe("ConfigImportWizard — an instance that is not empty", () => {
-	const conflicted = () =>
-		refusal(409, {
-			code: "config_not_empty",
-			message: "already holds configuration",
-			details: { accounts: "2", filters: "14" },
-		});
-
-	it("offers abort or merge on the 409 rather than a connection error", async () => {
-		const dom = start({ onImport: conflicted });
+	it("folds the merge warning into the preview without writing", async () => {
+		const dom = start();
 		await pickFile(dom, "config.json", CONFIG);
 		dom.click(checkButton(dom));
 		await dom.flush();
-
-		assert.match(dom.text(), /This instance already has configuration/);
-		assert.match(dom.text(), /2 accounts, 14 rules are set up here already/);
-	});
-
-	/**
-	 * The other half of reaching that screen: the refusal must not also take the
-	 * app to the fatal page over it. Driven through the wizard, so it holds the
-	 * whole chain — the error interceptor stamping the status on the thrown
-	 * `ApiError`, and the mutation's meta telling `shouldEscalate` to leave 409
-	 * to the caller.
-	 */
-	it("keeps the 409 off the fatal page", async () => {
-		const dom = start({ onImport: conflicted });
-		await pickFile(dom, "config.json", CONFIG);
-		dom.click(checkButton(dom));
-		await dom.flush();
-
-		assert.equal(getCurrentFatalError(), null);
-	});
-
-	it("does not record an import when the reader aborts the 409", async () => {
-		const dom = start({ onImport: conflicted });
-		await pickFile(dom, "config.json", CONFIG);
-		dom.click(checkButton(dom));
-		await dom.flush();
-
-		dom.click(dom.byText("button", "Stop, keep this instance"));
-		await dom.flush();
-		dom.click(dom.byText("button", "Continue"));
-		await dom.flush();
-
-		assert.deepEqual(done, ["abandoned"]);
+		assert.match(dom.text(), /Existing accounts keep their server settings/);
+		assert.doesNotMatch(dom.text(), /Stop, keep this instance/);
+		assert.deepEqual(done, []);
 	});
 });
 

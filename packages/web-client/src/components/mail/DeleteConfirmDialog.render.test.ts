@@ -200,10 +200,14 @@ const mount = (options: {
 };
 
 describe("DeleteConfirmDialog — the wording follows the consequence", () => {
-	it("offers the reversible move outside Trash", () => {
-		const view = mount({ outcome: "trash" });
-		assert.match(view.text(), /Move 1 message to Trash\?/);
-		assert.equal(view.button("Move to Trash")?.disabled, false);
+	it("moves to Trash at once without a dialog", () => {
+		const deleted: string[][] = [];
+		const view = mount({
+			outcome: "trash",
+			onConfirm: (ids) => deleted.push(ids),
+		});
+		assert.deepEqual(deleted, [["msg-0"]]);
+		assert.equal(view.button("Move to Trash"), undefined);
 	});
 
 	it("asks about destruction inside Trash", () => {
@@ -224,8 +228,14 @@ describe("DeleteConfirmDialog — the wording follows the consequence", () => {
 	});
 
 	it("holds the confirm while a delete is already in flight", () => {
-		const view = mount({ outcome: "trash", isDeleting: true });
-		assert.equal(view.button("Move to Trash")?.disabled, true);
+		const deleted: string[][] = [];
+		const view = mount({
+			outcome: "trash",
+			isDeleting: true,
+			onConfirm: (ids) => deleted.push(ids),
+		});
+		assert.deepEqual(deleted, []);
+		assert.equal(view.button("Move to Trash"), undefined);
 	});
 });
 

@@ -1,7 +1,7 @@
 /**
  * Integration: prove the global React Query caches route a first-party error
  * through the fail-fast handlers → `reportFatalError`, which is what drives the
- * full-screen escalation overlay. React Query's core runs headless (no DOM),
+ * full-screen error ownership overlay. React Query's core runs headless (no DOM),
  * so this exercises the real `QueryCache`/`MutationCache` wiring from main.tsx
  * without rendering.
  */
@@ -28,8 +28,8 @@ const makeClient = () =>
 		defaultOptions: { queries: { retry: false } },
 	});
 
-describe("global query/mutation escalation", () => {
-	it("a first-party 5xx from a query escalates to the fatal overlay seam", async () => {
+describe("global query/mutation error ownership", () => {
+	it("a first-party 5xx from a query stays inline to the fatal overlay seam", async () => {
 		const seen: string[] = [];
 		subscribeFatalError((fatal) => seen.push(fatal.message));
 		const client = makeClient();
@@ -43,10 +43,10 @@ describe("global query/mutation escalation", () => {
 			})
 			.catch(() => {});
 
-		assert.deepEqual(seen, ["internal server error"]);
+		assert.deepEqual(seen, []);
 	});
 
-	it("a 5xx on a background REFETCH escalates — the exact #1059 bug (search-style query that 500s after first rendering data)", async () => {
+	it("a 5xx on a background REFETCH stays inline — the exact #1059 bug (search-style query that 500s after first rendering data)", async () => {
 		const seen: string[] = [];
 		subscribeFatalError((fatal) => seen.push(fatal.message));
 		const client = makeClient();
@@ -63,10 +63,10 @@ describe("global query/mutation escalation", () => {
 		await client.fetchQuery({ queryKey, queryFn });
 		await client.refetchQueries({ queryKey }).catch(() => {});
 
-		assert.deepEqual(seen, ["search exploded"]);
+		assert.deepEqual(seen, []);
 	});
 
-	it("a first-party 5xx from a mutation escalates to the fatal overlay seam", async () => {
+	it("a first-party 5xx from a mutation stays inline to the fatal overlay seam", async () => {
 		const seen: string[] = [];
 		subscribeFatalError((fatal) => seen.push(fatal.message));
 		const client = makeClient();
@@ -78,7 +78,7 @@ describe("global query/mutation escalation", () => {
 		});
 		await mutation.execute(undefined).catch(() => {});
 
-		assert.deepEqual(seen, ["mutation blew up"]);
+		assert.deepEqual(seen, []);
 	});
 
 	it("a 404 on a query marked meta.softError does NOT escalate (call site owns the empty state)", async () => {
@@ -101,7 +101,7 @@ describe("global query/mutation escalation", () => {
 		assert.equal(escalated, false);
 	});
 
-	it("a 404 on a query that did NOT opt out escalates by default", async () => {
+	it("a 404 on a query that did NOT opt out stays inline by default", async () => {
 		const seen: string[] = [];
 		subscribeFatalError((fatal) => seen.push(fatal.message));
 		const client = makeClient();
@@ -115,7 +115,7 @@ describe("global query/mutation escalation", () => {
 			})
 			.catch(() => {});
 
-		assert.deepEqual(seen, ["not found"]);
+		assert.deepEqual(seen, []);
 	});
 
 	it("an offline blip tagged at the fetch boundary does NOT escalate", async () => {

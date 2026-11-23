@@ -174,7 +174,13 @@ function WizardDriver({
 		entry.startAt ?? (fromSearch ? "properties" : "match"),
 	);
 
-	const steps = stepsFor({ verb: entry.verb, mode, scope, fromSearch });
+	const steps = stepsFor({
+		verb: entry.verb,
+		mode,
+		scope,
+		fromSearch,
+		requiresReview: entry.verb === "delete",
+	});
 	const index = stepIndex(steps, step);
 	const current = steps[index];
 

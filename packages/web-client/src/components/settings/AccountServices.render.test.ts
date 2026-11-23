@@ -84,7 +84,13 @@ const mount = async (
 };
 
 const switchFor = (mounted: DomHarness, name: string): HTMLButtonElement =>
-	mounted.byLabel(`Sync ${name}`) as HTMLButtonElement;
+	(mounted
+		.queryAll<HTMLButtonElement>("[role=switch]")
+		.find(
+			(button) =>
+				button.getAttribute("aria-label") === `Sync ${name}` ||
+				button.getAttribute("aria-label")?.endsWith(`add ${name}`),
+		) ?? mounted.byLabel(`Sync ${name}`)) as HTMLButtonElement;
 
 const checked = (mounted: DomHarness, name: string): string | null =>
 	switchFor(mounted, name).getAttribute("aria-checked");
@@ -162,17 +168,13 @@ describe("AccountServices", () => {
 		assert.equal(switchFor(mounted, "calendar").disabled, false);
 	});
 
-	it("asks before mail goes off and keeps mail on when the server refuses", async () => {
+	it("switches mail off directly and restores it when the server refuses", async () => {
 		const mounted = await mount(
 			outlook({ syncedServices: ["Mail", "Calendar"] }),
 			() => httpError(400, REFUSAL),
 		);
 
 		mounted.click(switchFor(mounted, "mail"));
-		assert.match(mounted.text(), /Mail already in Remit stays/);
-		assert.equal(patches().length, 0);
-
-		press(mounted, "Stop syncing mail");
 		await mounted.waitFor(
 			() => mounted.text().includes(REFUSAL),
 			"the refusal to show",
@@ -205,9 +207,6 @@ describe("AccountServices", () => {
 
 		assert.match(mounted.text(), /signing in with Microsoft again/);
 		mounted.click(switchFor(mounted, "calendar"));
-		assert.match(mounted.text(), /Sign in with Microsoft to add calendar\?/);
-
-		press(mounted, "Continue to Microsoft");
 		await mounted.waitFor(
 			() => window.location.hash === "#microsoft-consent",
 			"the redirect to Microsoft",
@@ -230,16 +229,16 @@ describe("AccountServices", () => {
 		assert.doesNotMatch(mounted.text(), /signing in with Microsoft again/);
 	});
 
-	it("leaves mail on when the question is cancelled", async () => {
+	it("offers Undo after switching a service off", async () => {
 		const mounted = await mount(
 			outlook({ syncedServices: ["Mail", "Calendar"] }),
+			() => undefined,
 		);
-
 		mounted.click(switchFor(mounted, "mail"));
-		press(mounted, "Cancel");
-
-		assert.equal(patches().length, 0);
-		assert.equal(checked(mounted, "mail"), "true");
+		await mounted.waitFor(() => mounted.text().includes("Undo"));
+		assert.equal(checked(mounted, "mail"), "false");
+		press(mounted, "Undo");
+		await mounted.waitFor(() => checked(mounted, "mail") === "true");
 	});
 
 	it("routes switching off the last service to removing the account", async () => {
@@ -249,7 +248,6 @@ describe("AccountServices", () => {
 		});
 
 		mounted.click(switchFor(mounted, "mail"));
-		press(mounted, "Remove account");
 
 		assert.equal(removals, 1);
 		assert.equal(patches().length, 0);

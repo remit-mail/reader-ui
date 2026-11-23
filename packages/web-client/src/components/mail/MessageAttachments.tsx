@@ -1,8 +1,5 @@
-import { messageOperationsDescribeMessageQueryKey } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
-import type {
-	RemitImapBodyPartResponse,
-	RemitImapDescribeMessageResponse,
-} from "@remit/api-http-client/types.gen.ts";
+import { messageOperationsDescribeMessageOptions } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
+import type { RemitImapBodyPartResponse } from "@remit/api-http-client/types.gen.ts";
 import { encapsulatedParts } from "@remit/data-ports/message-parts";
 import { type AttachmentDownloadState, AttachmentList } from "@remit/ui";
 import { useQueryClient } from "@tanstack/react-query";
@@ -62,7 +59,7 @@ export const MessageAttachments = ({
 		[bodyParts],
 	);
 
-	const describeKey = messageOperationsDescribeMessageQueryKey({
+	const describeOptions = messageOperationsDescribeMessageOptions({
 		path: { messageId },
 	});
 
@@ -84,22 +81,22 @@ export const MessageAttachments = ({
 			if (!isRepairableByRefetch(extractAttachmentFailureReason(error))) {
 				throw error;
 			}
-			return queryClient.refetchQueries({ queryKey: describeKey }).then(() => {
-				const refreshed =
-					queryClient.getQueryData<RemitImapDescribeMessageResponse>(
-						describeKey,
+			return queryClient
+				.fetchQuery({ ...describeOptions, staleTime: 0 })
+				.then((refreshed) => {
+					const renewed = selectMessageAttachments(refreshed.bodyParts).find(
+						(candidate) => candidate.bodyPartId === attachment.bodyPartId,
 					);
-				const renewed = refreshed
-					? selectMessageAttachments(refreshed.bodyParts).find(
-							(candidate) => candidate.bodyPartId === attachment.bodyPartId,
-						)
-					: undefined;
-				return fetchAttachment(
-					renewed?.contentUrl ?? attachment.contentUrl,
-					getToken,
-					renewed?.contentType ?? attachment.contentType,
-				);
-			});
+					if (!renewed)
+						throw new Error(
+							"The attachment is no longer listed on this message.",
+						);
+					return fetchAttachment(
+						renewed.contentUrl,
+						getToken,
+						renewed.contentType,
+					);
+				});
 		});
 
 	const setState = (id: string, state: AttachmentDownloadState) =>

@@ -1,4 +1,4 @@
-import { useOverlayScope } from "@remit/ui";
+import { ErrorState, useOverlayScope } from "@remit/ui";
 import { OctagonAlert } from "@remit/ui/icons";
 import { useEffect, useState } from "react";
 import {
@@ -19,20 +19,7 @@ import {
  */
 const SAFE_ROUTE = "/mail";
 
-/**
- * The full-screen red escalation page. A first-party fatal — an escalated 5xx,
- * or a render exception caught by the route error boundary — takes over the
- * entire viewport here: loud, red, impossible to miss. Never a benign grey
- * label.
- *
- * It is intentionally NOT dismissible: a fatal means the app is in an unknown
- * state. The affordances depend on whether the error is recoverable:
- *  - recoverable (transient 5xx / network / abort) → Retry the same action.
- *  - fatal (deterministic render exception) → NO Retry (it re-crashes); offer a
- *    way out to a safe route instead.
- * Both states can Report a bug (prefilled with the stacktrace) and Copy full
- * details.
- */
+/** The full-screen boundary for render crashes. Request failures stay inline. */
 export const FatalErrorOverlay = () => {
 	const [fatal, setFatal] = useState<FatalError | null>(() =>
 		getCurrentFatalError(),
@@ -68,20 +55,8 @@ const seedFromFatal = (fatal: FatalError): BugReportSeed => ({
 export const FatalErrorScreen = ({ fatal, onRetry }: FatalErrorScreenProps) => {
 	// Nothing under it is in a state to act, and there is no dismissal to offer:
 	// the screen's own controls are the only way out.
-	useOverlayScope({ id: "fatal-error", open: true });
+	useOverlayScope({ id: "fatal-error", open: !fatal.recoverable });
 	const [copied, setCopied] = useState(false);
-
-	const handleReload = () => {
-		window.location.reload();
-	};
-
-	const handleRetry = () => {
-		if (onRetry) {
-			onRetry();
-			return;
-		}
-		handleReload();
-	};
 
 	const handleReportBug = () => {
 		const url = buildGitHubIssueUrl(
@@ -99,9 +74,18 @@ export const FatalErrorScreen = ({ fatal, onRetry }: FatalErrorScreenProps) => {
 		window.setTimeout(() => setCopied(false), 2000);
 	};
 
-	const description = fatal.recoverable
-		? "The server returned an unexpected error. This is not your fault — nothing was saved or sent. Retry, or report a bug so we can fix it."
-		: "Something went wrong and this page can't recover. This is not your fault — nothing was saved or sent. Go to your inbox, or report a bug so we can fix it.";
+	if (fatal.recoverable)
+		return (
+			<ErrorState
+				variant="inline"
+				title="Request failed"
+				error={fatal.error}
+				onRetry={onRetry}
+			/>
+		);
+
+	const description =
+		"Something went wrong and this page can't recover. Go to your inbox, or report a bug so we can fix it.";
 
 	return (
 		<div
@@ -122,22 +106,12 @@ export const FatalErrorScreen = ({ fatal, onRetry }: FatalErrorScreenProps) => {
 				</p>
 			</div>
 			<div className="flex flex-wrap items-center justify-center gap-3">
-				{fatal.recoverable ? (
-					<button
-						type="button"
-						onClick={handleRetry}
-						className="inline-flex min-h-11 items-center rounded-md bg-white px-5 text-sm font-semibold text-red-700 transition-colors hover:bg-red-50"
-					>
-						Retry
-					</button>
-				) : (
-					<a
-						href={SAFE_ROUTE}
-						className="inline-flex min-h-11 items-center rounded-md bg-white px-5 text-sm font-semibold text-red-700 transition-colors hover:bg-red-50"
-					>
-						Go to inbox
-					</a>
-				)}
+				<a
+					href={SAFE_ROUTE}
+					className="inline-flex min-h-11 items-center rounded-md bg-white px-5 text-sm font-semibold text-red-700 transition-colors hover:bg-red-50"
+				>
+					Go to inbox
+				</a>
 				<button
 					type="button"
 					onClick={handleReportBug}

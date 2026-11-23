@@ -7,23 +7,14 @@
  * against the same components the app runs.
  */
 
-import {
-	Badge,
-	Banner,
-	Button,
-	CheckRow,
-	ConnectorTile,
-	WizardShell,
-} from "@remit/ui";
+import { Badge, Banner, Button, CheckRow, WizardShell } from "@remit/ui";
 import {
 	FileBraces,
 	FolderClock,
 	Inbox,
 	KeyRound,
 	LoaderCircle,
-	Merge,
 	Upload,
-	X,
 } from "@remit/ui/icons";
 import type { DragEvent, ReactNode } from "react";
 import { useId, useRef } from "react";
@@ -340,67 +331,6 @@ export function StepDryRunReport({
 				{sections.map((section) => (
 					<SectionReport key={section.id} section={section} />
 				))}
-			</div>
-		</WizardShell>
-	);
-}
-
-export function StepInstanceAlreadyConfigured({
-	choice,
-	held,
-	onChoose,
-	onBack,
-	onNext,
-}: {
-	choice?: "abort" | "merge";
-	/** What the instance already holds, as the 409 counted it. */
-	held: string;
-	onChoose?: (choice: "abort" | "merge") => void;
-} & StepNav) {
-	return (
-		<WizardShell
-			steps={IMPORT_STEPS}
-			activeStep={1}
-			title="This instance already has configuration"
-			subtitle={held}
-			footer={
-				<>
-					<Button variant="ghost" onClick={onBack}>
-						Choose another file
-					</Button>
-					<Button variant="primary" disabled={!choice} onClick={onNext}>
-						{choice === "merge" ? "Continue with merge" : "Continue"}
-					</Button>
-				</>
-			}
-		>
-			<div className="space-y-4">
-				<Banner tone="warning">
-					An import into a configured instance can only add and update — it
-					never deletes what is here. Pick how the two should meet.
-				</Banner>
-				<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-					<ConnectorTile
-						name="Stop, keep this instance"
-						description="Nothing is written. Use this if you meant to import into a fresh instance."
-						icon={<X className="size-5" />}
-						selected={choice === "abort"}
-						onSelect={() => onChoose?.("abort")}
-					/>
-					<ConnectorTile
-						name="Merge the file in"
-						description="Adds what is missing and updates what differs. Existing accounts keep their server settings."
-						icon={<Merge className="size-5" />}
-						selected={choice === "merge"}
-						onSelect={() => onChoose?.("merge")}
-					/>
-				</div>
-				{choice === "merge" && (
-					<p className="text-xs text-fg-muted">
-						The next screen lists every add and update before anything is
-						written.
-					</p>
-				)}
 			</div>
 		</WizardShell>
 	);

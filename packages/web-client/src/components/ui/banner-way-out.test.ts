@@ -21,16 +21,16 @@ describe("bannerWayOut — no failure banner is a dead end", () => {
 
 		assert.equal(action?.label, "Report an issue");
 		assert.ok(
-			action?.href.startsWith(
+			action?.href?.startsWith(
 				"https://github.com/remit-mail/reader/issues/new?",
 			),
 		);
 		assert.match(
-			issueTitle(action.href),
+			issueTitle(action.href ?? ""),
 			/Couldn't report this message as spam/,
 		);
 		assert.match(
-			issueBody(action.href),
+			issueBody(action.href ?? ""),
 			/Couldn't report this message as spam/,
 		);
 	});
@@ -42,7 +42,7 @@ describe("bannerWayOut — no failure banner is a dead end", () => {
 			error,
 		});
 
-		assert.ok(action !== undefined);
+		assert.ok(action?.href);
 		assert.match(issueBody(action.href), /Stacktrace/);
 	});
 

@@ -102,6 +102,7 @@ interface ComposeFormProps {
 	/** The draft the first autosave created, for the owner to record. */
 	onDraftCreated: (outboxMessageId: string) => void;
 	onClose: () => void;
+	closeRequestRef?: { current: (() => Promise<boolean>) | null };
 	onAccountChange?: (account: RemitImapAccountResponse) => void;
 	/**
 	 * How the surface takes its height. A window in its own pane fills that
@@ -419,6 +420,7 @@ export const ComposeForm = ({
 	insertion,
 	onDraftCreated,
 	onClose,
+	closeRequestRef,
 	onAccountChange,
 	layout = "fill",
 }: ComposeFormProps) => {
@@ -1140,6 +1142,69 @@ export const ComposeForm = ({
 		composeLanguage,
 		quotedBlock,
 		saveDraft,
+	]);
+
+	useEffect(() => {
+		if (!closeRequestRef) return;
+		closeRequestRef.current = async () => {
+			const committed = [
+				fieldHandles.to.current?.commitPending(),
+				fieldHandles.cc.current?.commitPending(),
+				fieldHandles.bcc.current?.commitPending(),
+			];
+			if (committed.some((field) => field?.unparsed)) return false;
+			const to = committed[0]?.addresses ?? toAddresses;
+			const cc = committed[1]?.addresses ?? ccAddresses;
+			const bcc = committed[2]?.addresses ?? bccAddresses;
+			if (
+				isFormEmpty(to, cc, bcc, subject, body) ||
+				(!outboxMessageId &&
+					!seed &&
+					body.text === initialText &&
+					!subject.trim() &&
+					to.length + cc.length + bcc.length === 0)
+			)
+				return true;
+			if (!selectedAccountId || (!outboxMessageId && to.length === 0))
+				return false;
+			const { htmlBody, textBody } = outgoingBody(
+				bodyMode,
+				body,
+				composeLanguage,
+				quotedBlock,
+			);
+			const payload = {
+				accountId: selectedAccountId,
+				toAddresses: to.map((a) => a.email),
+				ccAddresses: cc.length > 0 ? cc.map((a) => a.email) : undefined,
+				bccAddresses: bcc.length > 0 ? bcc.map((a) => a.email) : undefined,
+				subject: subject || undefined,
+				textBody,
+				htmlBody,
+			};
+			if (loadedPayloadRef.current === JSON.stringify(payload)) return true;
+			const result = await saveImmediately(payload);
+			return result.outcome === "saved";
+		};
+		return () => {
+			closeRequestRef.current = null;
+		};
+	}, [
+		closeRequestRef,
+		fieldHandles,
+		initialText,
+		seed,
+		selectedAccountId,
+		outboxMessageId,
+		toAddresses,
+		ccAddresses,
+		bccAddresses,
+		subject,
+		body,
+		bodyMode,
+		composeLanguage,
+		quotedBlock,
+		saveImmediately,
 	]);
 
 	const handleSend = useCallback(

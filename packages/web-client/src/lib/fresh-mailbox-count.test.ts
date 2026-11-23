@@ -26,15 +26,6 @@ const reading = (
 
 const noDelay = () => Promise.resolve();
 
-/** A clock that jumps a minute per reading, so a segment expires in two polls. */
-const impatientClock = () => {
-	let clock = 0;
-	return () => {
-		clock += 60_000;
-		return clock;
-	};
-};
-
 describe("mailboxSyncStamp", () => {
 	it("reads the folder's stamp, and zero for a folder never synced", () => {
 		assert.equal(mailboxSyncStamp([reading(0, 100)], "mbx-1"), 100);
@@ -62,40 +53,18 @@ describe("awaitFreshMailboxCount", () => {
 		assert.equal(call, 3);
 	});
 
-	it("never reports a count from a round older than the baseline", async () => {
-		// The stamp stands still — the folder was never re-read, so the zero
-		// sitting in the row is exactly the stale count that must not be trusted.
-		const outcome = await awaitFreshMailboxCount({
+	it("keeps polling past two minutes without another decision", async () => {
+		let elapsed = 0;
+		const result = await awaitFreshMailboxCount({
 			mailboxId: "mbx-1",
 			since: 100,
-			readMailboxes: async () => [reading(0, 100)],
-			delay: noDelay,
-			now: impatientClock(),
+			readMailboxes: async () => [reading(0, elapsed > 120_000 ? 200 : 100)],
+			delay: async (ms) => {
+				elapsed += ms;
+			},
 		});
-		assert.deepEqual(outcome, { status: "pending" });
-	});
-
-	it("resumes against the same baseline and then reports the count", async () => {
-		let stamp = 100;
-		const readMailboxes = async () => [reading(2, stamp)];
-		const first = await awaitFreshMailboxCount({
-			mailboxId: "mbx-1",
-			since: 100,
-			readMailboxes,
-			delay: noDelay,
-			now: impatientClock(),
-		});
-		assert.deepEqual(first, { status: "pending" });
-
-		stamp = 300;
-		const second = await awaitFreshMailboxCount({
-			mailboxId: "mbx-1",
-			since: 100,
-			readMailboxes,
-			delay: noDelay,
-			now: impatientClock(),
-		});
-		assert.deepEqual(second, { status: "fresh", messageCount: 2 });
+		assert.deepEqual(result, { status: "fresh", messageCount: 0 });
+		assert.ok(elapsed > 120_000);
 	});
 
 	it("refuses a folder the account no longer lists", async () => {

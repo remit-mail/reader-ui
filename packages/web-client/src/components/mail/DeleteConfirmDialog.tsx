@@ -15,7 +15,9 @@
  * the folder and then runs this delete. None of them may render as "this
  * folder is not Trash".
  */
+
 import { ConfirmDialog } from "@remit/ui";
+import { useEffect, useRef } from "react";
 import { useAuthProvider } from "../../auth/provider";
 import { type DeleteOutcome, deleteConfirmationCopy } from "../../lib/format";
 import { useRoleAppointmentPrompt } from "./RoleAppointmentPromptProvider";
@@ -57,6 +59,16 @@ export const DeleteConfirmDialog = ({
 }: DeleteConfirmDialogProps) => {
 	const { Account } = useAuthProvider();
 	const { requestAppointment } = useRoleAppointmentPrompt();
+	const sent = useRef(false);
+	useEffect(() => {
+		if (!isOpen) {
+			sent.current = false;
+			return;
+		}
+		if (outcome !== "trash" || isDeleting || sent.current) return;
+		sent.current = true;
+		onConfirm([...messageIds]);
+	}, [isOpen, outcome, isDeleting, messageIds, onConfirm]);
 	const count = messageIds.length;
 	const confirm = () => onConfirm([...messageIds]);
 	const copy = deleteConfirmationCopy(count, outcome, {
@@ -126,6 +138,8 @@ export const DeleteConfirmDialog = ({
 			</Account>
 		);
 	}
+
+	if (outcome === "trash") return null;
 
 	return (
 		<ConfirmDialog

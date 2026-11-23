@@ -91,11 +91,11 @@ const mount = async (pollStatus: number): Promise<void> => {
 };
 
 describe("a send watch the server refuses (#924)", () => {
-	it("escalates once and stops polling", async () => {
+	it("keeps the request failure off the fatal screen and stops polling", async () => {
 		await mount(500);
 		await harness?.wait(POLL_INTERVAL_MS * 3);
 
-		assert.equal(fatals, 1, "the refusal escalated exactly once");
+		assert.equal(fatals, 0, "a request failure leaves the app mounted");
 		assert.equal(
 			polls(),
 			2,

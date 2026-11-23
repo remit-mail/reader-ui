@@ -40,13 +40,13 @@ afterEach(() => {
 });
 
 describe("handleQueryCacheError (fail-fast contract #1059)", () => {
-	it("escalates a 5xx EVEN when the query is marked meta.softError (rule 2 wins)", () => {
+	it("leaves a background 5xx with its query", () => {
 		const seen = escalations();
 		handleQueryCacheError(
 			new ApiError("internal", 500),
 			fakeQuery({ softError: true }, 123456),
 		);
-		assert.deepEqual(seen, ["internal"]);
+		assert.deepEqual(seen, []);
 	});
 
 	it("does NOT escalate an aborted request", () => {
@@ -60,7 +60,7 @@ describe("handleQueryCacheError (fail-fast contract #1059)", () => {
 });
 
 describe("handleMutationCacheError (fail-fast contract #1059)", () => {
-	it("escalates a mutation 4xx by DEFAULT", () => {
+	it("leaves a mutation refusal with its action", () => {
 		const seen = escalations();
 		handleMutationCacheError(
 			new ApiError("conflict", 409),
@@ -68,7 +68,7 @@ describe("handleMutationCacheError (fail-fast contract #1059)", () => {
 			undefined,
 			fakeMutation(),
 		);
-		assert.deepEqual(seen, ["conflict"]);
+		assert.deepEqual(seen, []);
 	});
 
 	it("does NOT escalate a mutation 4xx marked meta.softError", () => {

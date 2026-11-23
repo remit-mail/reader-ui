@@ -7,8 +7,6 @@ import type { RemitImapAccountResponse } from "@remit/api-http-client/types.gen.
 import { microsoftServicesGranted } from "@remit/mail-oauth-service";
 import {
 	type AccountService,
-	type AccountServiceChange,
-	AccountServiceChangeDialog,
 	type AccountServiceIntent,
 	formatErrorMessage,
 } from "@remit/ui";
@@ -19,6 +17,7 @@ import {
 	useRedirectEnded,
 } from "../../hooks/useRedirectEnded";
 import { softErrorMeta } from "../../lib/error-classifier";
+import { useErrorBanners } from "../ui/error-banner-context";
 import {
 	type AccountServiceRefusal,
 	AccountServicesCard,
@@ -48,7 +47,7 @@ export function AccountServices({
 	onRemoveAccount,
 }: AccountServicesProps) {
 	const queryClient = useQueryClient();
-	const [change, setChange] = useState<AccountServiceChange | null>(null);
+	const { pushError, dismissError } = useErrorBanners();
 	const [refusal, setRefusal] = useState<AccountServiceRefusal | null>(null);
 	const [redirecting, setRedirecting] = useState<AccountService | null>(null);
 
@@ -87,6 +86,7 @@ export function AccountServices({
 		service: AccountService,
 		intent: AccountServiceIntent,
 	) => {
+		const previous = [...enabled];
 		setRefusal(null);
 		save.mutate(
 			{
@@ -94,6 +94,20 @@ export function AccountServices({
 				body: { syncedServices: services },
 			},
 			{
+				onSuccess: () => {
+					if (intent !== "off") return;
+					const id = pushError({
+						severity: "info",
+						title: `Stopped syncing ${service.toLowerCase()}`,
+						action: {
+							label: "Undo",
+							onClick: () => {
+								dismissError(id);
+								commit(previous, service, "on");
+							},
+						},
+					});
+				},
 				onError: (error) =>
 					setRefusal({ service, intent, message: formatErrorMessage(error) }),
 			},
@@ -130,52 +144,31 @@ export function AccountServices({
 		intent: AccountServiceIntent,
 	) => {
 		if (intent === "off") {
-			setChange({ kind: enabled.length === 1 ? "last" : "disable", service });
+			if (enabled.length === 1) onRemoveAccount();
+			else
+				commit(
+					enabled.filter((candidate) => candidate !== service),
+					service,
+					"off",
+				);
 			return;
 		}
 		if (!consented.includes(service)) {
-			setChange({ kind: "enable", service });
+			startConsent(service);
 			return;
 		}
 		commit(withService(enabled, service), service, "on");
 	};
 
-	const confirm = () => {
-		const confirmed = change;
-		setChange(null);
-		if (confirmed === null) return;
-		if (confirmed.kind === "last") {
-			onRemoveAccount();
-			return;
-		}
-		if (confirmed.kind === "enable") {
-			startConsent(confirmed.service);
-			return;
-		}
-		commit(
-			enabled.filter((service) => service !== confirmed.service),
-			confirmed.service,
-			"off",
-		);
-	};
-
 	return (
-		<>
-			<AccountServicesCard
-				providerName={PROVIDER_NAME}
-				offered={offered}
-				enabled={enabled}
-				consented={consented}
-				disabled={save.isPending || consent.isPending || redirecting !== null}
-				refusal={refusal}
-				onRequestChange={requestChange}
-			/>
-			<AccountServiceChangeDialog
-				change={change}
-				providerName={PROVIDER_NAME}
-				onConfirm={confirm}
-				onCancel={() => setChange(null)}
-			/>
-		</>
+		<AccountServicesCard
+			providerName={PROVIDER_NAME}
+			offered={offered}
+			enabled={enabled}
+			consented={consented}
+			disabled={save.isPending || consent.isPending || redirecting !== null}
+			refusal={refusal}
+			onRequestChange={requestChange}
+		/>
 	);
 }

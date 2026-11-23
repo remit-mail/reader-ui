@@ -10,7 +10,7 @@ export const mcpPermissionsFixture: readonly McpPermission[] = [
 ];
 
 export const mcpErrorFixture: McpPageError = {
-	message: "This sign-in link has expired.",
-	fix: "Go back to Claude and connect remit again.",
+	message: "The authorization request is missing its client identifier.",
+	fix: "Check the client configuration and try the authorization request again.",
 	reportUrl: "https://github.com/remit-mail/reader/issues/new",
 };

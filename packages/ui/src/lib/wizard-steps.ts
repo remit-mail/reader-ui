@@ -112,6 +112,8 @@ export interface WizardAnswers {
 	 * nothing ticked and the query has already answered what this applies to, so the match step is dropped rather than opened past.
 	 */
 	fromSearch?: boolean;
+	/** Irreversible deletes keep their review even over a bounded selection. */
+	requiresReview?: boolean;
 }
 
 /**
@@ -125,20 +127,23 @@ export const stepsFor = ({
 	mode,
 	scope,
 	fromSearch,
+	requiresReview = false,
 }: WizardAnswers): StepId[] => {
 	const opening: StepId[] = fromSearch
 		? ["properties"]
 		: mode === "properties"
 			? ["match", "properties"]
 			: ["match"];
-	if (verb === "move") return [...opening, "folder", "review", "run"];
+	const review: StepId[] =
+		mode === "selected" && !requiresReview ? [] : ["review"];
+	if (verb === "move") return [...opening, "folder", ...review, "run"];
 	if (verb === "organize") {
 		if (scope === "standing" || scope === "until") {
 			return [...opening, "folder", "rule", "name", "review", "run"];
 		}
 		return [...opening, "folder", "rule", "review", "run"];
 	}
-	return [...opening, "review", "run"];
+	return [...opening, ...review, "run"];
 };
 
 /**

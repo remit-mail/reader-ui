@@ -10,13 +10,7 @@ export interface PushErrorInput {
 	detail?: string;
 	action?: ErrorBannerAction;
 	onRetry?: () => void;
-	/**
-	 * The error being reported, when there is one. Pass it: a banner is a soft
-	 * surface, and `pushError` uses this to refuse errors that are not soft —
-	 * a 5xx or a client-side exception is escalated to the full-screen fatal
-	 * page (which offers Retry, a way out, and a bug report) instead of being
-	 * reduced to a dismissible toast.
-	 */
+	/** The error whose detail and stack belong to this banner. */
 	error?: unknown;
 }
 
