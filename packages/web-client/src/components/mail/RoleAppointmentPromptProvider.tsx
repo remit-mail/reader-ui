@@ -24,8 +24,7 @@ import {
 import { useCreateMailbox } from "../../hooks/useCreateMailbox";
 import { useFolderLabelTranslator } from "../../hooks/useFolderLabelTranslator";
 import { softErrorStatuses } from "../../lib/error-classifier";
-import { buildMailboxRoleMap, labelForMailbox } from "../../lib/folder-roles";
-import { buildMoveOptions, folderDelimiter } from "../../lib/move-options";
+import { folderDelimiter } from "../../lib/move-options";
 import { isMailboxNotSettledRefusal } from "../ui/folder-role-refusal";
 
 export interface AppointmentRequest {
@@ -34,7 +33,7 @@ export interface AppointmentRequest {
 	/** From the refusal that opened this, never re-derived from live state. */
 	reason: PromptReason;
 	action: PromptAction;
-	/** `unconfirmed`: the folder reader guessed. Filled from `/config` if absent. */
+	/** Caller label; the prompt resolves the provider path from mailbox data. */
 	trashFolderLabel?: string;
 	/** `stale`: the folder that vanished. Filled from `/config` if absent. */
 	staleFolderLabel?: string;
@@ -105,14 +104,16 @@ export const RoleAppointmentPromptProvider = ({
 		[account],
 	);
 
+	// Appointing a role can use any account folder, including Sent and Drafts.
 	const folders = useMemo(
 		() =>
-			buildMoveOptions({
-				mailboxes,
-				folderAppointments: appointments,
-				translator,
-			}),
-		[mailboxes, appointments, translator],
+			mailboxes.map((mailbox) => ({
+				id: mailbox.mailboxId,
+				label: mailbox.fullPath,
+				path: mailbox.fullPath,
+				messageCount: mailbox.messageCount,
+			})),
+		[mailboxes],
 	);
 
 	const trash = appointments.find(
@@ -122,15 +123,11 @@ export const RoleAppointmentPromptProvider = ({
 	const guessed = mailboxes.find(
 		(mailbox) => mailbox.mailboxId === guessedMailboxId,
 	);
-	const trashFolderLabel =
-		request?.trashFolderLabel ??
-		(guessed
-			? labelForMailbox(
-					guessed,
-					buildMailboxRoleMap(appointments).get(guessed.mailboxId),
-					translator,
-				)
-			: undefined);
+	// Callers may only know a sidebar label; wait for the real provider path.
+	const trashFolderLabel = guessed?.fullPath;
+	const effectiveSelectedId =
+		selectedId ??
+		(request?.reason === "unconfirmed" ? guessedMailboxId : undefined);
 
 	// Written synchronously so a refusal raised during the replay is already the
 	// live request by the time the finished ceremony tries to tear itself down.
@@ -216,6 +213,7 @@ export const RoleAppointmentPromptProvider = ({
 					folders={folders}
 					delimiter={folderDelimiter(mailboxes)}
 					trashFolderLabel={trashFolderLabel}
+					trashRoleLabel={translator("sidebar.trash", "Trash")}
 					guessedMailboxId={guessedMailboxId}
 					staleFolderLabel={
 						request.staleFolderLabel ?? trash?.staleAppointmentPath
@@ -224,7 +222,7 @@ export const RoleAppointmentPromptProvider = ({
 						(config?.accounts.length ?? 0) > 1 ? account?.email : undefined
 					}
 					phase={phase}
-					selectedId={selectedId}
+					selectedId={effectiveSelectedId}
 					onSelect={setSelectedId}
 					onCreateFolder={createFolderIn}
 					onConfirm={handleConfirm}

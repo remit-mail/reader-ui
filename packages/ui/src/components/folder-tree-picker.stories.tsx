@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import type { StepId } from "../lib/wizard-steps.js";
 import { type FolderTreeNode, FolderTreePicker } from "./folder-tree-picker.js";
 import { FolderStepBody, FooterNav, WizardScreen } from "./selection-wizard.js";
@@ -423,4 +423,27 @@ export const PhoneWizardStep: Story = {
 	play: async ({ canvasElement }) => {
 		await expand(canvasElement, "Travel");
 	},
+};
+
+function LateFolders() {
+	const [known, setKnown] = useState<readonly FolderTreeNode[]>([]);
+	const [selected, setSelected] = useState("mbx-travel-hotels-receipts");
+	useEffect(() => {
+		const timer = setTimeout(() => setKnown(folders), 500);
+		return () => clearTimeout(timer);
+	}, []);
+	return (
+		<Frame>
+			<FolderTreePicker
+				folders={known}
+				selectedId={selected}
+				onSelect={setSelected}
+			/>
+		</Frame>
+	);
+}
+
+export const SelectedFolderArrivesAfterMount: Story = {
+	name: "Selected folder arrives after mount",
+	render: () => <LateFolders />,
 };

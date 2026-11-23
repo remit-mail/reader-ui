@@ -32,8 +32,10 @@ export interface RoleAppointmentPromptCopy {
 }
 
 export interface RoleAppointmentPromptCopyContext {
-	/** `unconfirmed`: the folder reader guessed from its name. */
+	/** `unconfirmed`: the real provider path of the folder reader guessed. */
 	trashFolderLabel?: string;
+	/** Translated role label, kept separate from the provider path. */
+	trashRoleLabel?: string;
 	/** `stale`: the folder that vanished from the mail server. */
 	staleFolderLabel?: string;
 	/** The chosen folder's message count, so the confirm re-words with it. */
@@ -76,7 +78,12 @@ export const roleAppointmentPromptCopy = (
 	action: PromptAction,
 	context: RoleAppointmentPromptCopyContext = {},
 ): RoleAppointmentPromptCopy => {
-	const { trashFolderLabel, staleFolderLabel, selectedCount } = context;
+	const {
+		trashFolderLabel,
+		trashRoleLabel = "Trash",
+		staleFolderLabel,
+		selectedCount,
+	} = context;
 	const stopped = nothingHappened(action);
 
 	if (reason === "none") {
@@ -108,7 +115,7 @@ export const roleAppointmentPromptCopy = (
 	return {
 		title: "Confirm this account's Trash folder",
 		description: trashFolderLabel
-			? `${stopped} reader files this account's deleted mail in ${trashFolderLabel} because of its name — you never chose it, and the mail server doesn't mark it as Trash. ${irreversible}`
+			? `${stopped} reader files this account's deleted mail in ${trashFolderLabel} as ${trashRoleLabel} because of its name — you never chose it, and the mail server doesn't mark it as Trash. ${irreversible}`
 			: `${stopped} reader files this account's deleted mail in a folder it matched by name — you never chose it, and the mail server doesn't mark it as Trash. ${irreversible}`,
 		pickerPrompt: trashFolderLabel
 			? `Confirm ${trashFolderLabel}, or pick the folder this account really uses.`
@@ -180,8 +187,10 @@ export interface RoleAppointmentPromptProps {
 	/** The account's real folders, with counts — a real Trash is told from an empty look-alike by its count. */
 	folders: readonly FolderTreeNode[];
 	delimiter: string;
-	/** `unconfirmed`: the folder reader guessed from its name. */
+	/** `unconfirmed`: the real provider path of the folder reader guessed. */
 	trashFolderLabel?: string;
+	/** Translated role label, kept separate from the provider path. */
+	trashRoleLabel?: string;
 	/**
 	 * `unconfirmed`: that same folder, by id. Confirming it completes a delete of
 	 * rows already inside it, which erases them rather than moving them.
@@ -216,6 +225,7 @@ export const RoleAppointmentPrompt = ({
 	folders,
 	delimiter,
 	trashFolderLabel,
+	trashRoleLabel,
 	guessedMailboxId,
 	staleFolderLabel,
 	accountEmail,
@@ -240,6 +250,7 @@ export const RoleAppointmentPrompt = ({
 	const selected = folders.find((folder) => folder.id === selectedId);
 	const copy = roleAppointmentPromptCopy(reason, action, {
 		trashFolderLabel,
+		trashRoleLabel,
 		staleFolderLabel,
 		selectedCount: selected?.messageCount,
 	});

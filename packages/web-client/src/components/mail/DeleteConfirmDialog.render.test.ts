@@ -348,11 +348,12 @@ describe("DeleteConfirmDialog — a refusal answers itself", () => {
 		// DeleteConfirmDialog's own "unconfirmed" copy shares its title with the
 		// appointment prompt's, so the title alone cannot tell the two dialogs
 		// apart — matching only that string would pass whether or not the
-		// prompt actually replaced the dialog. The picker prompt is the
+		// prompt actually replaced the dialog. Until mailbox data arrives, the
+		// caller's sidebar label must not stand in for a provider path. The picker prompt is the
 		// prompt's own wording and never appears in DeleteConfirmDialog's copy.
 		assert.match(
 			view.text(),
-			/Confirm Deleted Messages, or pick the folder this account really uses\./,
+			/Pick the folder this account really uses for deleted mail\./,
 		);
 		await waitFor(() => !!view.byLabel("Set Prullenbak, 3 messages, as Trash"));
 		act(() => view.byLabel("Set Prullenbak, 3 messages, as Trash")?.click());

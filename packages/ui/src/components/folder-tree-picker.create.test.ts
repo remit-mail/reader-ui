@@ -165,6 +165,28 @@ const resolving = (name: string, parentPath: string) =>
 	Promise.resolve(created(name, parentPath));
 
 describe("opening folders", () => {
+	for (const cold of [false, true]) {
+		it(`reveals the selected folder with ${cold ? "cold" : "warm"} data and preserves later expansion`, async () => {
+			if (cold) {
+				await mount({ folders: [], selectedId: "receipts" });
+				assert.equal(byAriaLabel("Move to Receipts"), null);
+			}
+			await mount({ selectedId: "receipts" });
+			assert.equal(
+				byAriaLabel("Move to Receipts")?.getAttribute("aria-selected"),
+				"true",
+			);
+			await open("Travel");
+			await open("Archive");
+			await mount({ folders: [...folders], selectedId: "receipts" });
+			assert.equal(byAriaLabel("Move to Receipts"), null);
+			assert.equal(
+				byAriaLabel("Move to Archive")?.getAttribute("aria-expanded"),
+				"true",
+			);
+		});
+	}
+
 	it("starts at the top level with everything closed", async () => {
 		await mount({});
 		assert.ok(byAriaLabel("Move to Travel"));
