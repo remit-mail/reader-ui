@@ -106,6 +106,11 @@ describe("RoleAppointmentList", () => {
 			render({ drafts: { mailboxId: "mb-concepten", source: "Flagged" } }),
 			/The mail server marks it as Drafts · INBOX\/Concepten/,
 		);
+		const detected = render({
+			drafts: { mailboxId: "mb-concepten", source: "Detected" },
+		});
+		assert.match(detected, /Detected automatically · INBOX\/Concepten/);
+		assert.doesNotMatch(detected, /Matched by name|Set as Drafts/);
 		assert.match(
 			render({ inbox: { mailboxId: "mb-inbox", source: "Reserved" } }),
 			/The account&#x27;s own INBOX · INBOX/,

@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { info, matthijs } from "../test-support/special-folders";
+import {
+	info,
+	matthijs,
+	matthijsFolders,
+} from "../test-support/special-folders";
 import { toRoleAppointments } from "./folder-roles";
 import { hasUnresolvedSpecialFolders } from "./special-folders";
 
@@ -8,6 +12,17 @@ describe("special folders", () => {
 	it("preselects the account's appointments, never guesses from similar names", () => {
 		const appointments = toRoleAppointments(matthijs.folderAppointments);
 		assert.equal(appointments.trash.mailboxId, "trash");
+		assert.equal(appointments.trash.source, "Detected");
+		assert.equal(
+			matthijsFolders.find(
+				(folder) => folder.mailboxId === appointments.trash.mailboxId,
+			)?.fullPath,
+			"INBOX/Deleted Messages",
+		);
+		assert.equal(
+			hasUnresolvedSpecialFolders(matthijs.folderAppointments),
+			false,
+		);
 		assert.equal(appointments.sent.mailboxId, "sent");
 		assert.equal(appointments.drafts.mailboxId, "drafts");
 		assert.equal(appointments.archive.mailboxId, "archive");

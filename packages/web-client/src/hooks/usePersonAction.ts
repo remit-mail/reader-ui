@@ -28,10 +28,11 @@ const runAction = async (
 	stepUpToken: string,
 ): Promise<PersonActionResult> => {
 	const path = { userId: person.userId };
+	const headers = { "X-Remit-Step-Up": stepUpToken };
 	if (action === "SignOut") {
 		const { data } = await peopleOperationsSignOutPerson({
 			path,
-			body: { stepUpToken },
+			headers,
 			throwOnError: true,
 		});
 		return { person: data, resetUrl: undefined };
@@ -39,16 +40,16 @@ const runAction = async (
 	if (action === "ResetPassword") {
 		const { data } = await peopleOperationsCreatePasswordReset({
 			path,
-			body: { stepUpToken },
+			headers,
 			throwOnError: true,
 		});
 		return { person: data.person, resetUrl: data.resetUrl };
 	}
 	const { data } = await peopleOperationsUpdatePerson({
 		path,
+		headers,
 		body: {
 			status: action === "Disable" ? "Disabled" : "Active",
-			stepUpToken,
 		},
 		throwOnError: true,
 	});
