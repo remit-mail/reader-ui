@@ -1,4 +1,4 @@
-import { PARTITION_HEADER, type Partition } from "./offline-store";
+import { admitContent, type Partition } from "./offline-store";
 
 /** Read the complete stream before any bytes can be displayed or saved. */
 export const externalImageBytes = async (
@@ -11,13 +11,10 @@ export const externalImageBytes = async (
 		?.trim()
 		.toLowerCase();
 	if (
-		response.status !== 200 ||
-		response.redirected ||
-		!["basic", "cors", "default"].includes(response.type) ||
 		!mime ||
 		!/^image\/[a-z0-9.+-]+$/.test(mime) ||
 		mime === "image/svg+xml" ||
-		(partition && response.headers.get(PARTITION_HEADER) !== partition.key)
+		!(await admitContent(response, mime, partition))
 	)
 		throw new Error(
 			"External image refused: unexpected status, MIME, redirect or tenant",

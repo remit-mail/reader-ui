@@ -72,7 +72,9 @@ export const DeleteConfirmOutlastsAKeystroke: Story = {
 		await userEvent.keyboard("#");
 		const dialog = await page().findByRole("dialog");
 		await expect(
-			within(dialog).getByText("Move 1 message to Trash?"),
+			await within(dialog).findByRole("button", {
+				name: "Move to Trash",
+			}),
 		).toBeVisible();
 
 		await userEvent.keyboard("j");

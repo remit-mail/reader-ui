@@ -53,6 +53,7 @@ test("admission refuses wrong partition, MIME, status, redirects and interrupted
 		response({ "x-remit-partition": "other" }),
 		response({ "x-remit-partition": "" }),
 		response({ "content-type": "text/html" }),
+		response({ "cache-control": "private, no-store" }),
 		response({ "content-type": "image/svg+xml" }),
 		response({}, 206),
 		response({}, 500),

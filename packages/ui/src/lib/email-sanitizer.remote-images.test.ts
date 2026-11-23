@@ -147,21 +147,25 @@ describe("permitted external image resolver", () => {
 		})(markup).html;
 		assert.deepEqual(remoteUrlsOutsideBlockedSrc(html), []);
 	});
-	test("CSS image-set strings use the gate, and escaped CSS cannot bypass it", () => {
-		const calls: string[] = [];
-		const signed = `${TRACKER}?token=one;two`;
-		const raw = `<div style='background:image-set("${signed}" 1x type("image/png"), "${TRACKER_2X}" 2x)'></div><div style="background:u\\72l(${POSTER})"></div>`;
-		for (const allowed of [false, true]) {
-			calls.length = 0;
-			const html = createEmailSanitizer({
-				allowExternalImages: allowed,
-				resolveExternalImage: (url) => {
-					calls.push(url);
-					return "blob:https://mail.example/image";
-				},
-			})(raw).html;
-			assert.deepEqual(calls, allowed ? [signed, TRACKER_2X] : []);
-			assert.deepEqual(remoteUrlsOutsideBlockedSrc(html), []);
+	test("image-set strings, comments and escaped CSS cannot bypass the gate, with or without a proxy", () => {
+		for (const allowExternalImages of [false, true]) {
+			for (const proxy of [false, true]) {
+				const calls: string[] = [];
+				const html = createEmailSanitizer({
+					allowExternalImages,
+					resolveExternalImage: proxy
+						? (url) => {
+								calls.push(url);
+								return "blob:https://mail.example/image";
+							}
+						: undefined,
+				})(
+					`<div style='background:image-set(/**/"${TRACKER}" 1x)'></div><img src="data:image/png;base64,abcd" style='background:image-set("${TRACKER_2X}" 2x)'><div style="background:u\\72l(${POSTER})"></div>`,
+				).html;
+				assert.deepEqual(calls, []);
+				assert.deepEqual(remoteUrlsOutsideBlockedSrc(html), []);
+				assert.doesNotMatch(html, /image-set/);
+			}
 		}
 	});
 });

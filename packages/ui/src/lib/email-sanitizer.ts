@@ -339,42 +339,10 @@ export const sanitizeInlineStyle = (
 	style: string,
 	resolveImage?: (url: string) => string | undefined,
 ): string => {
-	if (resolveImage) {
-		// Escaped CSS is unsupported: it can hide a fetch from the URL scrub.
-		if (style.includes("\\")) return "";
-		// image-set also accepts bare string URLs. Normalize those candidates
-		// to url() so they pass through the same permission/resolution gate.
-		const sets = /(?:-webkit-)?image-set\s*\(/gi;
-		const output: string[] = [];
-		let offset = 0;
-		for (const match of style.matchAll(sets)) {
-			if (match.index < offset) continue;
-			let depth = 1;
-			let quote = "";
-			let end = match.index + match[0].length;
-			for (; end < style.length && depth; end++) {
-				const char = style[end];
-				if (quote) {
-					if (char === quote) quote = "";
-				} else if (char === '"' || char === "'") quote = char;
-				else if (char === "(") depth++;
-				else if (char === ")") depth--;
-			}
-			if (depth) return "";
-			output.push(
-				style.slice(offset, match.index),
-				style
-					.slice(match.index, end)
-					.replace(
-						/(image-set\s*\(|,)\s*(["'])(.*?)\2/gi,
-						(_match, prefix: string, _quote: string, url: string) =>
-							`${prefix}url("${url}")`,
-					),
-			);
-			offset = end;
-		}
-		style = output.join("") + style.slice(offset);
-	}
+	// Reject unsupported CSS rather than letting string URLs bypass the image gate.
+	if (style.includes("\\") || /(?:-webkit-)?image-set\s*\(/i.test(style))
+		return "";
+
 	return style
 		.replace(/url\s*\(([^)]*)\)/gi, (_match, value: string) => {
 			const url = value.trim().replace(/^["']|["']$/g, "");
@@ -440,14 +408,15 @@ export const createEmailSanitizer = (options: SanitizeOptions = {}) => {
 
 	// Hook: Process elements after attribute sanitization
 	purify.addHook("afterSanitizeAttributes", (node) => {
+		if (node.hasAttribute("style"))
+			node.setAttribute(
+				"style",
+				sanitizeInlineStyle(node.getAttribute("style") || "", resolveImage),
+			);
+
 		// Rewrite every sanitized image candidate before it can reach the frame.
 		// CSS uses the same permission and resolver as image attributes.
 		if (options.resolveExternalImage) {
-			if (node.hasAttribute("style"))
-				node.setAttribute(
-					"style",
-					sanitizeInlineStyle(node.getAttribute("style") || "", resolveImage),
-				);
 			const resolve = (src: string): string => {
 				if (src.startsWith("#") || /^(?:cid|blob|data):/i.test(src)) return src;
 				const resolved = resolveImage?.(src);
@@ -568,12 +537,6 @@ export const createEmailSanitizer = (options: SanitizeOptions = {}) => {
 
 			// Add visual indicator for external links
 			node.classList.add("external-link");
-		}
-
-		// Sanitize inline styles — security only, colors pass through.
-		if (node.hasAttribute("style") && !options.resolveExternalImage) {
-			const style = node.getAttribute("style") || "";
-			node.setAttribute("style", sanitizeInlineStyle(style, resolveImage));
 		}
 	});
 
