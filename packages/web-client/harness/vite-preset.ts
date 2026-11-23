@@ -9,6 +9,7 @@ import react from "@vitejs/plugin-react";
 import type { Plugin, PluginOption, ProxyOptions, UserConfig } from "vite";
 import { spellcheckPlugin } from "../spellcheck/vite-plugin.ts";
 import { spellcheckWorkerStub } from "../spellcheck/worker-stub.ts";
+import type { RawRuntimeConfig } from "../src/runtime-config.ts";
 import { type PwaOptions, pwaPlugins } from "./pwa/plugin.ts";
 
 export interface WebClientPresetOptions {
@@ -16,7 +17,7 @@ export interface WebClientPresetOptions {
 	entry: string;
 	pwa?: PwaOptions;
 	/** Written to `config.js` in the build; the package default otherwise. */
-	runtimeConfig?: Record<string, unknown>;
+	runtimeConfig?: RawRuntimeConfig & Record<string, unknown>;
 	/** The commit the bundle names; GITHUB_SHA or `git rev-parse HEAD` otherwise. */
 	commit?: string;
 }
@@ -83,7 +84,9 @@ const indexHtml = (entry: string): Plugin => {
 	};
 };
 
-const runtimeConfigFile = (runtimeConfig?: Record<string, unknown>): Plugin => {
+const runtimeConfigFile = (
+	runtimeConfig?: RawRuntimeConfig & Record<string, unknown>,
+): Plugin => {
 	const served = (): string | undefined =>
 		process.env.REMIT_RUNTIME_CONFIG ??
 		(runtimeConfig ? JSON.stringify(runtimeConfig) : undefined);

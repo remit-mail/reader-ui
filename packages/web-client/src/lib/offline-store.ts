@@ -106,13 +106,13 @@ export const wipeOffline = async (): Promise<void> =>
 export const admitContent = async (
 	response: Response,
 	mime: string,
-	partition: Partition,
+	partition?: Partition,
 ): Promise<boolean> => {
 	if (
 		response.status !== 200 ||
 		response.redirected ||
 		!["basic", "cors", "default"].includes(response.type) ||
-		response.headers.get(PARTITION_HEADER) !== partition.key ||
+		(partition && response.headers.get(PARTITION_HEADER) !== partition.key) ||
 		/(?:^|,)\s*no-store\b/i.test(response.headers.get("cache-control") ?? "") ||
 		response.headers
 			.get("content-type")

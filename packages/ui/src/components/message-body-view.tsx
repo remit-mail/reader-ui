@@ -1,4 +1,4 @@
-import { type ReactNode, useMemo } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import type { CidResolver } from "../lib/cid-resolver.js";
 import { cn } from "../lib/cn.js";
 import {
@@ -38,6 +38,9 @@ export interface MessageBodyViewProps {
 	allowImages?: boolean;
 	/** Resolve `cid:` inline-image references to fetchable URLs. */
 	resolveCid?: CidResolver;
+	/** Optional host image loader. Called only after explicit image permission. */
+	loadExternalImage?: (url: string) => Promise<Blob>;
+	onImageError?: (error: unknown) => void;
 	/** Extra classes for the body wrapper. */
 	className?: string;
 	/**
@@ -98,9 +101,24 @@ export const MessageBodyView = ({
 	category,
 	allowImages = false,
 	resolveCid,
+	loadExternalImage,
+	onImageError,
 	className,
 	renderBlockedNotice,
 }: MessageBodyViewProps) => {
+	const plan = useMemo(
+		() => ({
+			html,
+			allowImages,
+			loadExternalImage,
+			urls: new Set<string>(),
+		}),
+		[html, allowImages, loadExternalImage],
+	);
+	const [loaded, setLoaded] = useState<{
+		plan: typeof plan;
+		urls: Map<string, string>;
+	}>();
 	const sanitized = useMemo(() => {
 		// DOMPurify needs a DOM. In a no-DOM context (SSR / unit render) we
 		// cannot sanitize, so we never emit the HTML — rendering unsanitized
@@ -110,9 +128,35 @@ export const MessageBodyView = ({
 		const sanitize = createEmailSanitizer({
 			allowExternalImages: allowImages,
 			resolveCid,
+			resolveExternalImage: loadExternalImage
+				? (url) => {
+						plan.urls.add(url);
+						return loaded?.plan === plan ? loaded.urls.get(url) : undefined;
+					}
+				: undefined,
 		});
 		return sanitize(html);
-	}, [html, allowImages, resolveCid]);
+	}, [html, allowImages, resolveCid, loadExternalImage, loaded, plan]);
+	useEffect(() => {
+		if (!allowImages || !loadExternalImage) return;
+		let stopped = false;
+		const urls = new Map<string, string>();
+		void Promise.all(
+			[...plan.urls].map(async (url) => {
+				const bytes = await loadExternalImage(url).catch((error: unknown) => {
+					if (!stopped) onImageError?.(error);
+					return undefined;
+				});
+				if (bytes && !stopped) urls.set(url, URL.createObjectURL(bytes));
+			}),
+		).then(() => {
+			if (!stopped) setLoaded({ plan, urls });
+		});
+		return () => {
+			stopped = true;
+			for (const url of urls.values()) URL.revokeObjectURL(url);
+		};
+	}, [plan, allowImages, loadExternalImage, onImageError]);
 
 	const sanitizedHtml = sanitized?.html ?? null;
 
@@ -133,8 +177,11 @@ export const MessageBodyView = ({
 
 	const blockedImageCount = useMemo(() => {
 		if (!sanitizedHtml || allowImages) return 0;
-		return (sanitizedHtml.match(/data-blocked-src/g) || []).length;
-	}, [sanitizedHtml, allowImages]);
+		return (
+			sanitized?.blockedExternalImageCount ??
+			(sanitizedHtml.match(/data-blocked-src/g) || []).length
+		);
+	}, [sanitizedHtml, allowImages, sanitized?.blockedExternalImageCount]);
 
 	if (!sanitizedHtml && !text) {
 		return (

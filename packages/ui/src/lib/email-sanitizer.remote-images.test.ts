@@ -109,3 +109,63 @@ describe("loading images restores every vector (#352)", () => {
 		assert.match(html, /poster="https:\/\/tracker\.example\/poster\.jpg"/);
 	});
 });
+
+describe("permitted external image resolver", () => {
+	const markup = `<img src="${TRACKER}" srcset="${TRACKER} 1x, ${TRACKER_2X} 2x"><picture><source srcset="${TRACKER_2X} 600w"></picture><video poster="${POSTER}"></video><svg><image href="${TRACKER}" /></svg><table background="${TRACKER}"><tr><td>Image</td></tr></table><img src="data:image/png;base64,abcd" style="background:url('${TRACKER}')"><div style="background:url('${TRACKER}')"></div><style>.x {background:url('${TRACKER}')}</style>`;
+	test("blocked sources never call the resolver, and CSS remains scrubbed", () => {
+		let calls = 0;
+		const html = createEmailSanitizer({
+			allowExternalImages: false,
+			resolveExternalImage: () => {
+				calls++;
+				return undefined;
+			},
+		})(markup).html;
+		assert.equal(calls, 0);
+		assert.doesNotMatch(html, /url\(/);
+		assert.deepEqual(remoteUrlsOutsideBlockedSrc(html), []);
+	});
+	test("rewrites src, sanitized srcset and posters, preserving local sources", () => {
+		const calls: string[] = [];
+		const html = createEmailSanitizer({
+			allowExternalImages: true,
+			resolveExternalImage: (url) => {
+				calls.push(url);
+				return "blob:https://mail.example/image";
+			},
+		})(markup).html;
+		assert.deepEqual(new Set(calls), new Set([TRACKER, TRACKER_2X, POSTER]));
+		assert.deepEqual(remoteUrlsOutsideBlockedSrc(html), []);
+		assert.match(html, /srcset="blob:[^"]* 1x, blob:[^"]* 2x"/);
+		assert.match(html, /data:image\/png;base64,abcd/);
+		assert.match(html, /url\(&quot;blob:|url\("blob:/);
+	});
+	test("pending remote bytes never leave a direct image URL in the output", () => {
+		const html = createEmailSanitizer({
+			allowExternalImages: true,
+			resolveExternalImage: () => undefined,
+		})(markup).html;
+		assert.deepEqual(remoteUrlsOutsideBlockedSrc(html), []);
+	});
+	test("image-set strings, comments and escaped CSS cannot bypass the gate, with or without a proxy", () => {
+		for (const allowExternalImages of [false, true]) {
+			for (const proxy of [false, true]) {
+				const calls: string[] = [];
+				const html = createEmailSanitizer({
+					allowExternalImages,
+					resolveExternalImage: proxy
+						? (url) => {
+								calls.push(url);
+								return "blob:https://mail.example/image";
+							}
+						: undefined,
+				})(
+					`<div style='background:image-set(/**/"${TRACKER}" 1x)'></div><img src="data:image/png;base64,abcd" style='background:image-set("${TRACKER_2X}" 2x)'><div style="background:u\\72l(${POSTER})"></div>`,
+				).html;
+				assert.deepEqual(calls, []);
+				assert.deepEqual(remoteUrlsOutsideBlockedSrc(html), []);
+				assert.doesNotMatch(html, /image-set/);
+			}
+		}
+	});
+});

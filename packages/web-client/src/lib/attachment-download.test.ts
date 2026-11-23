@@ -35,9 +35,9 @@ afterEach(() => {
 });
 
 describe("classifyAttachmentFailure", () => {
-	it("reads an edge denial as an expired session", () => {
+	it("requires an authentication refusal to offer sign-in", () => {
 		assert.equal(classifyAttachmentFailure(401, null), "auth");
-		assert.equal(classifyAttachmentFailure(403, "tenant-mismatch"), "auth");
+		assert.equal(classifyAttachmentFailure(403, "tenant-mismatch"), "generic");
 	});
 
 	it("reads an origin 403/404 as a missing object", () => {

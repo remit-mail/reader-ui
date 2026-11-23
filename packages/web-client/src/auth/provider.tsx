@@ -1,4 +1,12 @@
-import { createContext, type FC, type ReactNode, useContext } from "react";
+import {
+	createContext,
+	type FC,
+	type ReactNode,
+	useContext,
+	useMemo,
+} from "react";
+
+import { getOfflineRuntime } from "../lib/offline-runtime";
 
 /**
  * The auth-integration seam. A deployment composes the web client against
@@ -18,7 +26,14 @@ export interface AuthAccountProps {
 	fallback?: ReactNode;
 }
 
+/** Reload through the sign-in gate at this address without deleting the session. */
+export const navigateToSignIn = (): void => {
+	window.location.reload();
+};
+
 export interface AuthProvider {
+	/** Host renewal navigation; must never revoke the login session. */
+	reauthenticate: () => void | Promise<void>;
 	/** Called once at boot, before render, to initialize the identity SDK. */
 	configure(): void;
 	/**
@@ -57,6 +72,7 @@ const Passthrough: FC<{ children?: ReactNode }> = ({ children }) => (
  * render, a harness) degrades to "signed out" instead of crashing.
  */
 export const noneAuthProvider: AuthProvider = {
+	reauthenticate: navigateToSignIn,
 	configure: () => {},
 	getToken: async () => null,
 	resetToken: () => {},
@@ -66,7 +82,36 @@ export const noneAuthProvider: AuthProvider = {
 
 const AuthProviderContext = createContext<AuthProvider>(noneAuthProvider);
 
-export const AuthProviderProvider = AuthProviderContext.Provider;
+export const AuthProviderProvider = ({
+	value,
+	children,
+}: {
+	value: AuthProvider;
+	children?: ReactNode;
+}) => {
+	const provider = useMemo<AuthProvider>(
+		() => ({
+			...value,
+			Account: ({ children, ...props }) => (
+				<value.Account {...props}>
+					{(account) =>
+						children({
+							...account,
+							signOut: () => {
+								const runtime = getOfflineRuntime();
+								return runtime
+									? runtime.removeDownloads().then(() => account.signOut())
+									: account.signOut();
+							},
+						})
+					}
+				</value.Account>
+			),
+		}),
+		[value],
+	);
+	return <AuthProviderContext value={provider}>{children}</AuthProviderContext>;
+};
 
 export const useAuthProvider = (): AuthProvider =>
 	useContext(AuthProviderContext);

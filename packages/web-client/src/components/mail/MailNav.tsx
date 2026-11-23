@@ -11,7 +11,7 @@
 import type { RemitImapAccountResponse } from "@remit/api-http-client/types.gen.ts";
 import { AttentionDot, useAppShellLayout } from "@remit/ui";
 import { LogOut, Settings } from "@remit/ui/icons";
-import { AccountSession } from "../../auth/AccountSession";
+import { useAuthProvider } from "../../auth/provider";
 import { useWarningsAttention } from "../../hooks/useWarningsAttention";
 import { NavLink } from "../../routing";
 import { InstallApp } from "../install/InstallApp";
@@ -24,6 +24,7 @@ interface MailNavProps {
 }
 
 export function MailNav({ accounts, onMailboxSelect }: MailNavProps) {
+	const { Account } = useAuthProvider();
 	const layout = useAppShellLayout();
 	const isPane = layout?.showNavPane ?? true;
 	const settingsAttention = useWarningsAttention();
@@ -57,7 +58,7 @@ export function MailNav({ accounts, onMailboxSelect }: MailNavProps) {
 				</NavLink>
 				<InstallApp onInstall={onMailboxSelect} />
 				<BugReportButton />
-				<AccountSession>
+				<Account>
 					{({ signOut }) => (
 						<button
 							type="button"
@@ -72,7 +73,7 @@ export function MailNav({ accounts, onMailboxSelect }: MailNavProps) {
 							<span className="flex-1 truncate text-left">Sign out</span>
 						</button>
 					)}
-				</AccountSession>
+				</Account>
 			</div>
 		</div>
 	);

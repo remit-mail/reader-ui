@@ -15,10 +15,10 @@
  * the folder and then runs this delete. None of them may render as "this
  * folder is not Trash".
  */
-
-import { ConfirmDialog } from "@remit/ui";
+import { configOperationsGetConfigOptions } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
+import { ConfirmDialog, formatErrorMessage } from "@remit/ui";
+import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
-import { useAuthProvider } from "../../auth/provider";
 import { type DeleteOutcome, deleteConfirmationCopy } from "../../lib/format";
 import { useRoleAppointmentPrompt } from "./RoleAppointmentPromptProvider";
 
@@ -57,7 +57,10 @@ export const DeleteConfirmDialog = ({
 	onConfirm,
 	onCancel,
 }: DeleteConfirmDialogProps) => {
-	const { Account } = useAuthProvider();
+	const settings = useQuery({
+		...configOperationsGetConfigOptions(),
+		enabled: false,
+	});
 	const { requestAppointment } = useRoleAppointmentPrompt();
 	const sent = useRef(false);
 	useEffect(() => {
@@ -114,28 +117,19 @@ export const DeleteConfirmDialog = ({
 	}
 	if (outcome === "unavailable") {
 		return (
-			<Account
-				fallback={
-					<ConfirmDialog
-						isOpen={isOpen}
-						{...copy}
-						// Nothing to sign back into on a deployment with no identity
-						// system, so the way forward is the read itself.
-						confirmLabel="Reload reader"
-						onConfirm={() => window.location.reload()}
-						onCancel={onCancel}
-					/>
+			<ConfirmDialog
+				isOpen={isOpen}
+				{...copy}
+				description={
+					settings.error
+						? `${copy.description} ${formatErrorMessage(settings.error)}`
+						: copy.description
 				}
-			>
-				{({ signOut }) => (
-					<ConfirmDialog
-						isOpen={isOpen}
-						{...copy}
-						onConfirm={() => signOut()}
-						onCancel={onCancel}
-					/>
-				)}
-			</Account>
+				onConfirm={() => {
+					void settings.refetch();
+				}}
+				onCancel={onCancel}
+			/>
 		);
 	}
 

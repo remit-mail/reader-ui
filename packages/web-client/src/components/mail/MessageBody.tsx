@@ -5,13 +5,18 @@ import {
 	type EmailRenderCategory,
 	MessageBodyView,
 } from "@remit/ui";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuthProvider } from "../../auth/provider";
 import { useIsDark } from "../../hooks/useIsDark";
 import { useMessageBodyContent } from "../../hooks/useMessageBodyContent";
 import { useToggleTrusted } from "../../hooks/useToggleTrusted";
 import { fetchAttachment } from "../../lib/attachment-download";
+import {
+	externalImageBytes,
+	requestExternalImage,
+} from "../../lib/external-image";
 import { getOfflineRuntime } from "../../lib/offline-runtime";
+import { getRuntimeConfig } from "../../runtime-config";
 import { BlockedImagesNotice } from "./BlockedImagesNotice";
 import { MessageBodyErrorBanner } from "./MessageBodyErrorBanner";
 
@@ -128,6 +133,24 @@ export const MessageBody = ({
 		setAllowImagesOnce(false);
 	}
 	const allowImages = !isBlocked && (isTrusted || allowImagesOnce);
+	const proxyUrl = getRuntimeConfig().externalImageProxyUrl;
+	const loadExternalImage = useCallback(
+		async (remoteUrl: string) => {
+			const resolvedRemoteUrl = new URL(remoteUrl, document.baseURI).href;
+			const runtime = getOfflineRuntime();
+			return runtime
+				? runtime.externalImage(proxyUrl!, resolvedRemoteUrl)
+				: externalImageBytes(
+						await requestExternalImage(proxyUrl!, resolvedRemoteUrl),
+					);
+		},
+		[proxyUrl],
+	);
+	const [imageError, setImageError] = useState<unknown>();
+	const reportImageError = useCallback((error: unknown) => {
+		getOfflineRuntime()?.report(error);
+		setImageError(error);
+	}, []);
 	const isDark = useIsDark();
 	const { toggleTrusted, isPending: isTrustPending } = useToggleTrusted({
 		messageId: messageId ?? "",
@@ -263,6 +286,9 @@ export const MessageBody = ({
 					onRetry={() => refetchBody()}
 				/>
 			)}
+			{imageError !== undefined && (
+				<MessageBodyErrorBanner error={imageError} />
+			)}
 			<MessageBodyView
 				className={className}
 				html={renderedHtml}
@@ -270,6 +296,8 @@ export const MessageBody = ({
 				isDark={isDark}
 				category={category}
 				allowImages={allowImages}
+				loadExternalImage={proxyUrl ? loadExternalImage : undefined}
+				onImageError={reportImageError}
 				resolveCid={resolveCid}
 				renderBlockedNotice={(blockedImageCount) => (
 					<BlockedImagesNotice
