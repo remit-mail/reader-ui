@@ -8,6 +8,11 @@ describe("special folders", () => {
 	it("preselects the account's appointments, never guesses from similar names", () => {
 		const appointments = toRoleAppointments(matthijs.folderAppointments);
 		assert.equal(appointments.trash.mailboxId, "trash");
+		assert.equal(appointments.trash.source, "Detected");
+		assert.equal(
+			hasUnresolvedSpecialFolders(matthijs.folderAppointments),
+			false,
+		);
 		assert.equal(appointments.sent.mailboxId, "sent");
 		assert.equal(appointments.drafts.mailboxId, "drafts");
 		assert.equal(appointments.archive.mailboxId, "archive");

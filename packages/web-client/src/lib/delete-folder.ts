@@ -51,13 +51,14 @@ export const hasChildFolders = (
 
 /**
  * Sources that vouch for the mailbox they name: a person chose it, or the
- * server flagged it. `Proposed` is a guess at a folder's name and vouches for
- * nothing. `Reserved` is unreachable behind the inbox branch below and stays
+ * server flagged it, or it was detected unambiguously. `Proposed` is a guess
+ * at a folder's name and vouches for nothing. `Reserved` is unreachable behind the inbox branch below and stays
  * anyway — this set is a statement about evidence, not about branch order.
  */
 const VOUCHED_SOURCES: readonly RoleAppointmentSource[] = [
 	"Appointed",
 	"Flagged",
+	"Detected",
 	"Reserved",
 ];
 
