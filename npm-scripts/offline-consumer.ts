@@ -464,6 +464,38 @@ export async function testOfflineReading(
 			.getByRole("alert")
 			.filter({ hasText: "Query quota exceeded" })
 			.waitFor();
+		await page.goto(`${origin}/settings/advanced`);
+		await page
+			.getByRole("button", { name: "Remove downloads", exact: true })
+			.waitFor();
+		await page.evaluate(() => {
+			const put = IDBObjectStore.prototype.put;
+			IDBObjectStore.prototype.put = function (value, key) {
+				if (key === "epoch") {
+					IDBObjectStore.prototype.put = put;
+					throw new DOMException(
+						"Download removal failed",
+						"QuotaExceededError",
+					);
+				}
+				return put.call(this, value, key);
+			};
+		});
+		await page
+			.getByRole("button", { name: "Remove downloads", exact: true })
+			.click();
+		await page
+			.getByRole("alert")
+			.filter({ hasText: "Download removal failed" })
+			.waitFor();
+		await page
+			.getByRole("button", { name: "Remove downloads", exact: true })
+			.click();
+		await page.waitForFunction(
+			() => !!window.pwaTest?.offline()?.state.verified,
+		);
+		await page.goto(`${origin}/downloads/old-mail`);
+		await imagesReady(page);
 		// A second tab removes downloads before its initial identity read completes.
 		// Delay only the first real IDB read; all stores and messaging stay native.
 		const starting = await context.newPage();

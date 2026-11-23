@@ -229,7 +229,8 @@ export class OfflineRuntime {
 		this.pending++;
 		try {
 			this.revoked = true;
-			this.update({ verified: false, partition: undefined });
+			// Keep the error-banner owner mounted until the wipe commits.
+			this.update({ verified: false });
 			await wipeOffline();
 			this.channel.postMessage("wipe");
 			await this.revokeMemory();
