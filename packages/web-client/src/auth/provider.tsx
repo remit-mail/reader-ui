@@ -1,4 +1,12 @@
-import { createContext, type FC, type ReactNode, useContext } from "react";
+import {
+	createContext,
+	type FC,
+	type ReactNode,
+	useContext,
+	useMemo,
+} from "react";
+
+import { getOfflineRuntime } from "../lib/offline-runtime";
 
 /**
  * The auth-integration seam. A deployment composes the web client against
@@ -66,7 +74,36 @@ export const noneAuthProvider: AuthProvider = {
 
 const AuthProviderContext = createContext<AuthProvider>(noneAuthProvider);
 
-export const AuthProviderProvider = AuthProviderContext.Provider;
+export const AuthProviderProvider = ({
+	value,
+	children,
+}: {
+	value: AuthProvider;
+	children?: ReactNode;
+}) => {
+	const provider = useMemo<AuthProvider>(
+		() => ({
+			...value,
+			Account: ({ children, ...props }) => (
+				<value.Account {...props}>
+					{(account) =>
+						children({
+							...account,
+							signOut: () => {
+								const runtime = getOfflineRuntime();
+								return runtime
+									? runtime.removeDownloads().then(() => account.signOut())
+									: account.signOut();
+							},
+						})
+					}
+				</value.Account>
+			),
+		}),
+		[value],
+	);
+	return <AuthProviderContext value={provider}>{children}</AuthProviderContext>;
+};
 
 export const useAuthProvider = (): AuthProvider =>
 	useContext(AuthProviderContext);

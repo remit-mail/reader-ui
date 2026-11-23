@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import { getOfflineRuntime } from "../lib/offline-runtime";
 import { type AuthAccount, useAuthProvider } from "./provider";
 
 export type AccountSessionValue = AuthAccount;
@@ -16,17 +15,5 @@ interface AccountSessionProps {
  */
 export const AccountSession = ({ children }: AccountSessionProps) => {
 	const { Account } = useAuthProvider();
-	return (
-		<Account>
-			{(account) =>
-				children({
-					...account,
-					signOut: async () => {
-						await getOfflineRuntime()?.removeDownloads();
-						await account.signOut();
-					},
-				})
-			}
-		</Account>
-	);
+	return <Account>{children}</Account>;
 };

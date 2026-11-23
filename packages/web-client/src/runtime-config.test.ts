@@ -41,3 +41,29 @@ describe("getRuntimeConfig updateMode", () => {
 		assert.equal(getRuntimeConfig().updateMode, "self");
 	});
 });
+
+describe("external image proxy config", () => {
+	it("is opt-in and accepts only a same-origin URL without destination parameters", () => {
+		assert.equal(getRuntimeConfig().externalImageProxyUrl, undefined);
+		for (const value of [
+			"/api/image-proxy",
+			`${window.location.origin}/api/image-proxy`,
+		]) {
+			globalThis.__REMIT_CONFIG__ = { externalImageProxyUrl: value };
+			assert.equal(getRuntimeConfig().externalImageProxyUrl, value);
+		}
+		for (const value of [
+			"https://other.example/proxy",
+			"//other.example/proxy",
+			"/api/image-proxy?url=secret",
+			"/api/image-proxy#secret",
+			"/api/image-proxy?",
+			"/api/image-proxy#",
+			"",
+			"data:image/png,hello",
+		]) {
+			globalThis.__REMIT_CONFIG__ = { externalImageProxyUrl: value };
+			assert.throws(() => getRuntimeConfig(), /External image proxy/);
+		}
+	});
+});

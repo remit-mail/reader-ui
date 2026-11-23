@@ -117,14 +117,14 @@ The host contract for C2 is:
   nonredirected, nonopaque responses with expected MIME/provenance are saved.
 - `reauthenticate` performs explicit foreground navigation through Access
   (including `?reauth=1` so U1 does not intercept it). Returning from login
-  re-verifies identity before refreshing. A host performing logout outside the
-  shared account menu must first await
-  `getOfflineRuntime()?.removeDownloads()` from `@remit/web-client/offline`,
-  including when offline, before clearing credentials or navigating away.
-- C2 owns the authenticated, destination-validated external-image proxy. This
-  chunk saves CID images and fetched attachment bytes and recreates object URLs;
-  it does not fetch or prefetch remote tracking images. Remote images continue
-  to follow the existing explicit display permission.
+  re-verifies identity before refreshing. The shared account-provider boundary wipes downloads before sign-out, including
+  offline logout. The host sign-out callback only clears credentials/navigates;
+  it must not wipe a second time. Host-only logout outside that boundary must
+  still await `getOfflineRuntime()?.removeDownloads()` before navigating.
+- C2 owns the authenticated, destination-validated external-image proxy. U2b
+  connects permitted remote images to it through the opt-in runtime setting
+  described below. CID images and attachments retain their existing handling;
+  remote images are never prefetched.
 
 The retained describe-message queries are the downloaded-message index.
 Decoded bodies are rebuilt from Cache Storage on reopen rather than duplicated
@@ -181,3 +181,29 @@ Standalone display mode, iOS's `navigator.standalone`, and `appinstalled` hide i
 Dismissal uses the device-local `remit.installDismissed` key; Settings → Advanced
 can clear it. Chromium still needs a fresh browser eligibility event after its
 native prompt has been consumed. There is no server preference or worker change.
+
+# External images and logout (U2b)
+
+Cloudflare sets `externalImageProxyUrl: "/api/image-proxy"` in runtime config
+(or the preset's `runtimeConfig`). The optional URL must be same-origin and have
+no query string or fragment. With no setting, the renderer keeps its existing
+direct-image behavior. The host accepts a POST with the complete absolute image
+URL in a `text/plain;charset=UTF-8` body, same-origin credentials and manual
+redirects. Destination queries stay in the body and in the binary storage key,
+never in the proxy request URL.
+
+Only explicit load-once permission or sender trust starts these requests; blocked
+senders never do. Permitted image sources, including srcset, posters and CSS URLs,
+are replaced with local object URLs after the full response is read. Only complete
+200 image responses with matching `X-Remit-Partition` are admitted (SVG is refused,
+as in the host contract). The offline runtime stores blobs in the authenticated
+partition/generation namespace under `JSON.stringify(["external-image", resolvedRemoteUrl])`;
+a reopened message creates fresh object URLs from those bytes. Failed refreshes
+retain the previous bytes, and storage failures remain visible.
+
+The shared account-provider boundary awaits `removeDownloads()` exactly once
+before invoking the provider's sign-out action, for every shared logout and
+sign-in-again surface. Hosts must delete their own `removeDownloads()` call from
+their account `signOut`: the host logout should only perform its existing
+credential/navigation work. This includes offline logout. A host-only logout
+outside the shared `Account` boundary still owns its cleanup.

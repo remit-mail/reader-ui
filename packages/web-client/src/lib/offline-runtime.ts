@@ -7,6 +7,7 @@ import type {
 	PersistedClient,
 	Persister,
 } from "@tanstack/react-query-persist-client";
+import { externalImageBytes, requestExternalImage } from "./external-image";
 import { OfflineUnavailableError } from "./offline-error";
 import {
 	admitContent,
@@ -334,6 +335,32 @@ export class OfflineRuntime {
 		}
 		await requirePartition(partition);
 		return response;
+	}
+	/** Binary records use the complete destination URL, including authorization queries. */
+	async externalImage(
+		proxyUrl: string,
+		resolvedRemoteUrl: string,
+	): Promise<Blob> {
+		const partition = this.state.partition;
+		if (!partition)
+			throw new OfflineUnavailableError("No remembered offline identity");
+		if (!navigator.serviceWorker?.controller)
+			throw new OfflineUnavailableError(
+				"Reload after offline support finishes installing",
+			);
+		const key = `external-image:${partition.generation}:${JSON.stringify(["external-image", resolvedRemoteUrl])}`;
+		const saved = await commitOffline(partition, () =>
+			offlineRecord<Blob>(key),
+		);
+		if (saved && !this.refreshing) return saved;
+		await this.authorizeNetwork("POST");
+		const bytes = await externalImageBytes(
+			await requestExternalImage(proxyUrl, resolvedRemoteUrl),
+			partition,
+		);
+		await this.write(partition, () => writeOfflineRecord(key, bytes));
+		await requirePartition(partition);
+		return bytes;
 	}
 	async storage(requestPersistence = false): Promise<void> {
 		const persistent = requestPersistence
