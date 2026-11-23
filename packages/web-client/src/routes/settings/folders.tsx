@@ -19,7 +19,6 @@ import {
 	type FolderRole,
 	FolderRolesHelp,
 	type ManagedFolder,
-	type RoleAppointment,
 	RoleAppointmentList,
 	SettingsShell,
 } from "@remit/ui";
@@ -35,9 +34,9 @@ import { softErrorStatuses } from "../../lib/error-classifier";
 import { folderFailure } from "../../lib/folder-failure";
 import {
 	buildMailboxRoleMap,
-	CANONICAL_TO_NAV_ROLE,
 	labelForMailbox,
 	NAV_ROLE_TO_CANONICAL,
+	toRoleAppointments,
 } from "../../lib/folder-roles";
 import { useOpenSettingsSection } from "../../routing/sections";
 import { useSettingsNavItems } from "../settings";
@@ -157,16 +156,7 @@ function AccountFolders({ account }: { account: RemitImapAccountResponse }) {
 		messageCount: mailbox.messageCount,
 	}));
 
-	const appointments: Record<string, RoleAppointment> = {};
-	for (const appointment of account.folderAppointments) {
-		const role = CANONICAL_TO_NAV_ROLE[appointment.role];
-		if (!role) continue;
-		appointments[role] = {
-			mailboxId: appointment.mailboxId ?? null,
-			source: appointment.source,
-			staleFolderPath: appointment.staleAppointmentPath,
-		};
-	}
+	const appointments = toRoleAppointments(account.folderAppointments);
 
 	const displayNames: Record<string, string> = {};
 	for (const mailbox of mailboxes) {

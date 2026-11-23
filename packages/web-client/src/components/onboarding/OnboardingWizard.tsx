@@ -69,13 +69,12 @@ import {
 	presetIdForEmail,
 } from "../../lib/provider-presets.js";
 import { computeSmtpAutoFill } from "../settings/account-form-helpers.js";
+import { SpecialFolderConfirmation } from "../settings/SpecialFolderConfirmation";
 import {
 	ConnectionTestStep,
 	CredentialsStep,
 	type ServerConfig,
 } from "./credential-steps.js";
-
-import { SpecialFoldersStep } from "./SpecialFoldersStep";
 
 /* ------------------------------------------------------------------ */
 /* Wizard step definitions                                            */
@@ -1352,6 +1351,64 @@ function StepSync({
 /* Main wizard orchestrator                                           */
 /* ------------------------------------------------------------------ */
 
+export function SpecialFoldersStep({
+	accountId,
+	onComplete,
+}: {
+	accountId: string;
+	onComplete: () => void;
+}) {
+	const status = useQuery({
+		...syncOperationsGetSyncStatusOptions({ path: { accountId } }),
+		refetchOnMount: "always",
+		refetchInterval: (query) => {
+			const phase = query.state.data?.syncPhase;
+			return phase === "idle" || phase === "discovering_mailboxes" || !phase
+				? 2000
+				: false;
+		},
+	});
+	const phase = status.data?.syncPhase;
+	const discovered =
+		status.isFetchedAfterMount &&
+		(phase === "syncing_inbox" ||
+			phase === "syncing_others" ||
+			phase === "complete");
+	return (
+		<WizardShell
+			steps={STEP_LABELS}
+			activeStep={STEP_INDEX["special-folders"]}
+			title="Confirm special folders"
+			subtitle="Check the folders Remit will use for this account."
+			footer={<span />}
+		>
+			{discovered ? (
+				<SpecialFolderConfirmation
+					accountId={accountId}
+					onComplete={onComplete}
+					onCancel={onComplete}
+					cancelLabel="Set up later"
+				/>
+			) : (
+				<div className="space-y-4">
+					{status.isError || phase === "error" ? (
+						<Banner tone="danger">
+							Mailbox discovery couldn't finish. You can confirm special folders
+							later in Settings › Folder roles.
+						</Banner>
+					) : (
+						<p role="status">Waiting for mailbox discovery…</p>
+					)}
+					<Button onClick={onComplete}>Set up later</Button>
+					{(status.isError || phase === "error") && (
+						<Button onClick={() => void status.refetch()}>Retry</Button>
+					)}
+				</div>
+			)}
+		</WizardShell>
+	);
+}
+
 export interface OnboardingWizardProps {
 	/** If false, show the Welcome step first */
 	skipWelcome?: boolean;
@@ -1607,7 +1664,6 @@ export function OnboardingWizard({
 			return (
 				<SpecialFoldersStep
 					accountId={folderAccountId}
-					steps={STEP_LABELS}
 					onComplete={() => onComplete(folderAccountId)}
 				/>
 			);

@@ -10,7 +10,7 @@ import {
 	matthijs,
 	matthijsFolders,
 } from "../../test-support/special-folders";
-import { SpecialFoldersStep } from "../onboarding/SpecialFoldersStep";
+import { SpecialFoldersStep } from "../onboarding/OnboardingWizard";
 import { SpecialFolderConfirmation } from "./SpecialFolderConfirmation";
 import { SpecialFolderPrompt } from "./SpecialFolderPrompt";
 
@@ -126,7 +126,6 @@ it("waits for discovery before refetching config and showing choices", async () 
 	dom.renderApp(
 		createElement(SpecialFoldersStep, {
 			accountId: matthijs.accountId,
-			steps: ["Sync", "Folders"],
 			onComplete: () => {},
 		}),
 	);

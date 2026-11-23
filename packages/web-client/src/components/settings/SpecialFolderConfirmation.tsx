@@ -18,11 +18,11 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { softErrorStatuses } from "../../lib/error-classifier";
-import { NAV_ROLE_TO_CANONICAL } from "../../lib/folder-roles";
 import {
-	SPECIAL_FOLDER_ROLES,
-	specialFolderAppointments,
-} from "../../lib/special-folders";
+	NAV_ROLE_TO_CANONICAL,
+	toRoleAppointments,
+} from "../../lib/folder-roles";
+import { SPECIAL_FOLDER_ROLES } from "../../lib/special-folders";
 import { isMailboxNotSettledRefusal } from "../ui/folder-role-refusal";
 
 interface Props {
@@ -100,7 +100,7 @@ function SpecialFolderChoices({
 	const queryClient = useQueryClient();
 	const [appointments, setAppointments] = useState<
 		Record<string, RoleAppointment>
-	>(() => specialFolderAppointments(account.folderAppointments));
+	>(() => toRoleAppointments(account.folderAppointments));
 	const save = useMutation({
 		mutationFn: async () => {
 			for (const role of SPECIAL_FOLDER_ROLES) {

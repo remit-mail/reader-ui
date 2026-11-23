@@ -6,7 +6,7 @@ import {
 	type MailboxPath,
 	mailboxLeafName,
 } from "@remit/data-ports/mailbox-name";
-import type { NavMailboxRole } from "@remit/ui";
+import type { NavMailboxRole, RoleAppointment } from "@remit/ui";
 
 /**
  * RFC 032 exclusive-folder-appointment (#976): the sidebar, the move-to
@@ -108,3 +108,19 @@ const COUNTLESS_ROLES = new Set<NavMailboxRole>(["sent", "drafts", "trash"]);
 export const shouldShowUnreadBadgeForRole = (
 	role: NavMailboxRole | undefined,
 ): boolean => role === undefined || !COUNTLESS_ROLES.has(role);
+
+export function toRoleAppointments(
+	appointments: readonly RemitImapFolderAppointment[],
+): Record<string, RoleAppointment> {
+	const result: Record<string, RoleAppointment> = {};
+	for (const appointment of appointments) {
+		const role = CANONICAL_TO_NAV_ROLE[appointment.role];
+		if (!role) continue;
+		result[role] = {
+			mailboxId: appointment.mailboxId ?? null,
+			source: appointment.source,
+			staleFolderPath: appointment.staleAppointmentPath,
+		};
+	}
+	return result;
+}
