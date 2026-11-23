@@ -5,7 +5,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { dirname, extname, join } from "node:path";
 import { promisify } from "node:util";
-import { chromium } from "playwright";
+import { chromium, firefox } from "playwright";
 import type { OfflineRuntime } from "../packages/web-client/src/lib/offline-runtime.ts";
 import {
 	makeAccount,
@@ -61,6 +61,7 @@ const types: Record<string, string> = {
 	".png": "image/png",
 };
 let serving = dist;
+let failInstall = false;
 let savedSubject: string | undefined;
 let pendingSubject: string | undefined;
 const missingStatic = new Set<string>();
@@ -280,6 +281,11 @@ const server = createServer(async (request, response) => {
 	} else if (path === "/index.html") {
 		response.writeHead(308, { Location: "/" });
 		response.end();
+	} else if (path === "/sw.js" && failInstall) {
+		response.setHeader("Content-Type", "application/javascript");
+		response.end(
+			`${readFileSync(file, "utf8")}\nself.addEventListener("install", event => event.waitUntil(Promise.reject(new Error("Install failure probe"))));`,
+		);
 	} else if (existsSync(file) && extname(file)) {
 		response.setHeader(
 			"Content-Type",
@@ -308,6 +314,90 @@ await once(server, "listening");
 const address = server.address();
 assert.ok(address && typeof address !== "string");
 const origin = `http://127.0.0.1:${address.port}`;
+const firefoxBrowser = await firefox.launch();
+try {
+	const context = await firefoxBrowser.newContext();
+	const page = await context.newPage();
+	const threadRequests: string[] = [];
+	page.on("request", (request) => {
+		if (new URL(request.url()).pathname === "/api/threads")
+			threadRequests.push(request.url());
+	});
+	page.on("console", (message) => console.log("Firefox:", message.text()));
+	page.on("pageerror", (error) =>
+		console.log("Firefox page error:", error.message),
+	);
+	await page.goto(`${origin}/mail/brief`);
+	await page.waitForFunction(
+		() => navigator.serviceWorker.controller !== null,
+		null,
+		{ timeout: 30_000 },
+	);
+	await page.waitForLoadState("networkidle");
+	assert.equal(
+		threadRequests.length,
+		17,
+		"eight section pages, eight counts and the selection listing",
+	);
+	assert.equal(
+		new Set(threadRequests).size,
+		17,
+		"no duplicate thread requests",
+	);
+	await page.evaluate(() =>
+		navigator.serviceWorker.dispatchEvent(new Event("controllerchange")),
+	);
+	await page.waitForLoadState("networkidle");
+	assert.equal(
+		threadRequests.length,
+		17,
+		"controllerchange must not refetch the brief",
+	);
+	console.log("Firefox PWA installation OK");
+	await context.close();
+
+	failInstall = true;
+	const failedContext = await firefoxBrowser.newContext();
+	const failed = await failedContext.newPage();
+	const warnings: string[] = [];
+	const errors: string[] = [];
+	failed.on("console", (message) => {
+		if (message.text().startsWith("Service worker unavailable"))
+			warnings.push(message.text());
+	});
+	failed.on("pageerror", (error) => errors.push(error.message));
+	const warned = failed.waitForEvent("console", {
+		predicate: (message) =>
+			message.text().startsWith("Service worker unavailable"),
+		timeout: 30_000,
+	});
+	await Promise.all([failed.goto(`${origin}/mail/brief`), warned]);
+	await failed.waitForFunction(() => !!window.pwaTest);
+	assert.equal(warnings.length, 1);
+	assert.deepEqual(errors, []);
+	assert.equal(await failed.getByTestId("fatal-error-overlay").count(), 0);
+	await failed
+		.getByRole("link", { name: "Starred", exact: true })
+		.first()
+		.click();
+	await failed.waitForURL("**/mail/flagged");
+	assert.equal(warnings.length, 1);
+	assert.equal(
+		await failed.evaluate(() => document.documentElement.inert),
+		false,
+	);
+	assert.equal(
+		await failed.evaluate(() => navigator.serviceWorker.controller),
+		null,
+	);
+	await failedContext.close();
+	failInstall = false;
+	console.log(
+		"Firefox failed install OK: usable app, one warning, no unhandled rejection or fatal",
+	);
+} finally {
+	await firefoxBrowser.close();
+}
 const browser = await chromium.launch({
 	headless: true,
 	channel: "chromium",

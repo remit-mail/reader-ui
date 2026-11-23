@@ -95,7 +95,7 @@ export const mountApp = ({
 		"serviceWorker" in navigator
 	) {
 		installPwaBuildObservation();
-		installPwaUpdateCoordinator(() => queryClient.isMutating() > 0);
+		installPwaUpdateCoordinator(() => queryClient.isMutating() > 0, telemetry);
 	} else {
 		installStaleBuildReload(() => queryClient.isMutating() > 0);
 	}

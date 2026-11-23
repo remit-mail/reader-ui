@@ -27,6 +27,13 @@ assets. Regular asset fetches still use the precache.
 Hosts must serve worker/manifest MIME types, prevent missing-static-file SPA
 fallback, and configure Access bypass paths themselves.
 
+Registration, installation and update failures leave the online app running.
+The coordinator catches its background promises and records one warning per
+document in telemetry and the recent-errors report, without opening a banner
+or the fatal overlay. Installation failure after registration resolves is
+detected from the installing worker's state; retiring an installed worker is
+not an installation failure.
+
 # Update and U2 contracts
 
 The waiting worker asks every window client, including uncontrolled clients,
@@ -64,8 +71,10 @@ waiting caches are preserved.
 # Verification and release
 
 `npm run check:web-client-consumer` packs and installs both packages, checks
-every generated asset against the worker manifest and runs Chromium against
-the packed build. It checks offline shell navigation and lazy chunk downloads,
+every generated asset against the worker manifest and runs Firefox and Chromium
+against the packed build. Firefox checks installation, a rejected installation
+with a usable app and one warning, and the brief's request count across
+controller changes. Chromium checks offline shell navigation and lazy chunk downloads,
 private endpoint exclusion, and a two-tab deployment with an unsaved draft,
 followed by one reload per tab. Unit tests cover vetoes, suspended/new tabs,
 navigation exclusions and version mismatch requests.

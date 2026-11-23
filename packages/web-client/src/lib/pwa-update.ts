@@ -1,4 +1,5 @@
 import { APP_BUILD_TIME, APP_SHA } from "./app-info";
+import { recordError } from "./console-errors";
 import {
 	askClient,
 	CHECK_UPDATE,
@@ -10,9 +11,24 @@ import {
 	shellCacheName,
 	WORKER_VERSION,
 } from "./pwa-protocol";
+import { noopTelemetry, type Telemetry } from "./telemetry";
 
 const blockers = new Set<() => boolean>();
 let prepared = false;
+let warningReported = false;
+let telemetry = noopTelemetry;
+
+const reportPwaWarning = (reason: unknown): void => {
+	if (warningReported) return;
+	warningReported = true;
+	const error = reason instanceof Error ? reason : new Error(String(reason));
+	recordError(`Warning: Service worker unavailable: ${error.message}`);
+	console.warn("Service worker unavailable", error);
+	telemetry.recordError(error, {
+		severity: "warning",
+		feature: "service-worker",
+	});
+};
 
 /** Return true while an operation (including a U2 storage write) blocks updating.
  * Synchronous readers must reflect current state, not a delayed React effect.
@@ -33,12 +49,14 @@ export const observeServerBuild = (
 	registration: Pick<ServiceWorkerRegistration, "update">,
 ): void => {
 	if (typeof commit === "string" && commit !== APP_SHA)
-		void registration.update();
+		void registration.update().catch(reportPwaWarning);
 };
 
 export const installPwaUpdateCoordinator = (
 	pendingWrites: () => boolean,
+	sink: Telemetry = noopTelemetry,
 ): void => {
+	telemetry = sink;
 	registerUpdateBlocker(pendingWrites);
 	if (!("serviceWorker" in navigator)) return;
 	const sw = navigator.serviceWorker;
@@ -86,6 +104,12 @@ export const installPwaUpdateCoordinator = (
 			throw error;
 		}
 	};
+	const recoverSafely = () => {
+		void recover().catch((error) => {
+			release();
+			reportPwaWarning(error);
+		});
+	};
 	sw.addEventListener("message", (event) => {
 		if (event.data === SHELL_VERSION)
 			event.ports[0]?.postMessage(shellCacheName(APP_SHA, APP_BUILD_TIME));
@@ -111,7 +135,7 @@ export const installPwaUpdateCoordinator = (
 	});
 	sw.addEventListener("controllerchange", () => {
 		sw.controller?.postMessage(CLEAN_SHELL_CACHES);
-		void recover();
+		recoverSafely();
 	});
 	let serverBuild: unknown;
 	window.addEventListener("remit:server-build", (event) => {
@@ -122,25 +146,37 @@ export const installPwaUpdateCoordinator = (
 		// First installation activates itself; there is no old worker to replace.
 		if (registered?.active?.state === "activated")
 			registered.waiting?.postMessage(CHECK_UPDATE);
-		void recover();
+		recoverSafely();
 	};
 	let chunkFailed = false;
 	window.addEventListener("vite:preloadError", (event) => {
 		event.preventDefault();
 		chunkFailed = true;
-		if (registered) void registered.update().then(check);
+		if (registered)
+			void registered.update().then(check).catch(reportPwaWarning);
 	});
 	void sw
 		.register("/sw.js", { scope: "/", updateViaCache: "none" })
 		.then((registration) => {
 			registered = registration;
+			const watchInstall = () => {
+				const installing = registration.installing;
+				if (!installing) return;
+				let installed = false;
+				installing.addEventListener("statechange", () => {
+					if (installing.state === "installed") installed = true;
+					if (installing.state === "redundant" && !installed)
+						reportPwaWarning(new Error("Service worker installation failed"));
+					check();
+				});
+			};
+			watchInstall();
 			observeServerBuild(serverBuild, registration);
-			if (chunkFailed) void registration.update().then(check);
+			if (chunkFailed)
+				void registration.update().then(check).catch(reportPwaWarning);
 			sw.controller?.postMessage(CLEAN_SHELL_CACHES);
 			check();
-			registration.addEventListener("updatefound", () => {
-				registration.installing?.addEventListener("statechange", check);
-			});
+			registration.addEventListener("updatefound", watchInstall);
 			let timer: ReturnType<typeof setInterval> | undefined;
 			const resume = () => {
 				clearInterval(timer);
@@ -155,5 +191,6 @@ export const installPwaUpdateCoordinator = (
 			window.addEventListener("pageshow", (event) => {
 				if (event.persisted) resume();
 			});
-		});
+		})
+		.catch(reportPwaWarning);
 };
