@@ -81,9 +81,7 @@ export const DeleteWithUndo: Story = {
 	play: async () => {
 		await openWizard(2, "Move selected messages to Trash");
 		await page().findByText("What should this apply to?");
-		await userEvent.click(
-			page().getByRole("button", { name: "Move to Trash" }),
-		);
+		await userEvent.click(page().getByRole("button", { name: "Delete" }));
 		await expect(
 			await page().findByRole("button", { name: "Undo" }),
 		).toBeVisible();

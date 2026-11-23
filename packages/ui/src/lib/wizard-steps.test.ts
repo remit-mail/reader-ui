@@ -247,7 +247,11 @@ describe("backExits", () => {
 		const steps = stepsFor({ verb: "move", mode: "selected" });
 		assert.equal(backExits(steps, "match"), true);
 		assert.equal(backExits(steps, "folder"), false);
-		assert.equal(backExits(steps, "review"), false);
+		assert.equal(steps.includes("review"), false);
+		assert.equal(
+			backExits(stepsFor({ verb: "move", mode: "properties" }), "review"),
+			false,
+		);
 	});
 
 	it("leaves the wizard from the run, whose action has already happened", () => {

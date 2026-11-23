@@ -716,25 +716,6 @@ export const MoveNewFolderCreateFailed: Story = {
 	},
 };
 
-export const MoveReview: Story = {
-	name: "Move — review",
-	play: shows(["Move 3 messages."]),
-	render: () => (
-		<Flow preselected={3} openAt={{ verb: "move", startAt: "review" }} />
-	),
-};
-
-export const MarkReadReview: Story = {
-	name: "Mark read — review",
-	play: shows(["Mark read 20 messages."]),
-	render: () => (
-		<Flow
-			preselected={SELECTION_SAMPLE.length}
-			openAt={{ verb: "markRead", startAt: "review" }}
-		/>
-	),
-};
-
 export const OrganizeApplyTo: Story = {
 	name: "Organize — apply to",
 	play: shows(["What should this apply to?", "3 messages match"]),
