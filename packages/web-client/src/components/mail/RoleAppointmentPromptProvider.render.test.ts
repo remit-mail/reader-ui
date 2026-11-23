@@ -180,9 +180,7 @@ describe("the appointment ceremony", () => {
 			return {};
 		});
 		const request = mountProvider();
-		request(
-			refusedDelete({ reason: "unconfirmed", trashFolderLabel: "Prullenbak" }),
-		);
+		request(refusedDelete({ reason: "unconfirmed" }));
 		await settle();
 		assert.match(harness?.text() ?? "", /in INBOX\/Deleted Messages as Trash/);
 		assert.ok(

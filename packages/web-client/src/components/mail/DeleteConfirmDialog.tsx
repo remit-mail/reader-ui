@@ -92,7 +92,6 @@ export const DeleteConfirmDialog = ({
 						reason,
 						action: { kind: "delete", count },
 						staleFolderLabel,
-						trashFolderLabel,
 						guessedMailboxId,
 						onAppointed: async () => onConfirm(replay),
 					});

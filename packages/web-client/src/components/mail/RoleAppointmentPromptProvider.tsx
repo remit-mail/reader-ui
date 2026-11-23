@@ -33,8 +33,6 @@ export interface AppointmentRequest {
 	/** From the refusal that opened this, never re-derived from live state. */
 	reason: PromptReason;
 	action: PromptAction;
-	/** Caller label; the prompt resolves the provider path from mailbox data. */
-	trashFolderLabel?: string;
 	/** `stale`: the folder that vanished. Filled from `/config` if absent. */
 	staleFolderLabel?: string;
 	guessedMailboxId?: string;
