@@ -44,17 +44,18 @@ describe("guardFolderDeletion", () => {
 		assert.match(guard.message ?? "", /Archive/);
 	});
 
-	it("blocks a folder the mail server flagged for the role", () => {
-		const target = folder({ mailboxId: "sent", fullPath: "Sent" });
-		const guard = guardFolderDeletion(
-			target,
-			[target],
-			[{ role: "Sent", source: "Flagged", mailboxId: "sent" }],
-		);
-		assert.equal(guard.deletable, false);
-		assert.equal(guard.reason, "role");
-	});
-
+	for (const source of ["Flagged", "Detected"] as const) {
+		it(`blocks a folder whose role is ${source}`, () => {
+			const target = folder({ mailboxId: "sent", fullPath: "Sent" });
+			const guard = guardFolderDeletion(
+				target,
+				[target],
+				[{ role: "Sent", source, mailboxId: "sent" }],
+			);
+			assert.equal(guard.deletable, false);
+			assert.equal(guard.reason, "role");
+		});
+	}
 	it("deletes a folder whose only role claim is a name proposal", () => {
 		const target = folder({ mailboxId: "arch", fullPath: "Archive" });
 		const guard = guardFolderDeletion(

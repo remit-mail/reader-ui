@@ -614,7 +614,14 @@ export const mailHandlers = (
 					successful: input.messageIds.flatMap((messageId) => {
 						const row = byMessageId.get(messageId);
 						return row
-							? [{ messageId, verdict: row.spamVerdict, labels: [] }]
+							? [
+									{
+										messageId,
+										verdict: row.spamVerdict,
+										labels: [],
+										moved: false,
+									},
+								]
 							: [];
 					}),
 					failed: input.messageIds

@@ -34,16 +34,7 @@ it("preselects real folders and saves all four, including unchanged choices, bef
 	let completed = false;
 	http = mockFetch((call) =>
 		call.path === "/config"
-			? {
-					accounts: [
-						{
-							...matthijs,
-							folderAppointments: matthijs.folderAppointments.map(
-								(appointment) => ({ ...appointment, source: "Detected" }),
-							),
-						},
-					],
-				}
+			? { accounts: [matthijs] }
 			: call.path.endsWith("/mailboxes")
 				? { items: matthijsFolders }
 				: {},
