@@ -48,6 +48,8 @@ export const Authenticator = Object.assign(passthrough, {
 
 export const ThemeProvider = passthrough;
 
+export const createTheme = (theme) => theme;
+
 export const useTheme = () => ({
 	tokens: {},
 });

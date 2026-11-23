@@ -4,6 +4,7 @@ import {
 	AuthHero,
 	Banner,
 	Button,
+	formatErrorMessage,
 	Input,
 	PasswordInput,
 } from "@remit/ui";
@@ -31,7 +32,6 @@ import {
 	isSignUpDisabledError,
 } from "./better-auth-config";
 import { ResetPasswordPage, resetPasswordToken } from "./ResetPasswordPage";
-import { SessionCheckFailed } from "./SessionCheckFailed";
 import { SessionRateLimited } from "./SessionRateLimited";
 import { classifySessionQuery, type SessionQuery } from "./session-state";
 
@@ -276,8 +276,18 @@ export const SessionGate = ({
 	if (state.kind === "rateLimited") {
 		return <SessionRateLimited onRetry={onRetry} onReport={openBugReport} />;
 	}
-	if (state.kind === "failed")
-		return <SessionCheckFailed error={state.cause} onRetry={onRetry} />;
+	if (state.kind === "failed") {
+		return (
+			<AuthCard>
+				<AuthHero />
+				<Banner tone="danger">
+					<p>Could not check your session</p>
+					<p>{formatErrorMessage(state.cause)}</p>
+				</Banner>
+				<Button onClick={onRetry}>Retry</Button>
+			</AuthCard>
+		);
+	}
 	if (state.kind === "refused") {
 		return <SignInForm key={state.refusal} notice={state.refusal} />;
 	}

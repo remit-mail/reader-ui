@@ -4,11 +4,7 @@ import { isBetterAuthEnabled } from "./better-auth-config";
 import { betterAuthProvider } from "./better-auth-provider";
 import { CognitoProvider, CognitoSessionGate } from "./cognito/CognitoShell";
 import { cognitoAuthProvider } from "./cognito-provider";
-import {
-	type AuthAccountProps,
-	type AuthProvider,
-	navigateToSignIn,
-} from "./provider";
+import type { AuthAccountProps, AuthProvider } from "./provider";
 
 /**
  * Both identity systems in one build, selected at runtime by
@@ -33,7 +29,10 @@ const CombinedAccount = (props: AuthAccountProps) =>
 	);
 
 export const combinedAuthProvider: AuthProvider = {
-	reauthenticate: navigateToSignIn,
+	reauthenticate: () =>
+		isBetterAuthEnabled()
+			? betterAuthProvider.reauthenticate()
+			: cognitoAuthProvider.reauthenticate(),
 	configure: configureAmplify,
 	getToken: () =>
 		isBetterAuthEnabled()

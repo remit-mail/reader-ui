@@ -12,7 +12,10 @@ import { type AuthProvider, navigateToSignIn } from "./provider";
  * provider ships no Cognito code.
  */
 export const betterAuthProvider: AuthProvider = {
-	reauthenticate: navigateToSignIn,
+	reauthenticate: () => {
+		resetBetterAuthTokenCache();
+		navigateToSignIn();
+	},
 	configure: () => {},
 	getToken: fetchBetterAuthToken,
 	resetToken: resetBetterAuthTokenCache,
