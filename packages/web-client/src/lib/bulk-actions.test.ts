@@ -35,9 +35,10 @@ const ids = (count: number, prefix = "m"): string[] =>
 /** Ids from one account, as a materialized selection hands them over. */
 const targets = (
 	count: number,
-	accountId: string | undefined = undefined,
+	accountId: string = "acc-1",
 	prefix = "m",
-): BulkActionTarget[] => ids(count, prefix).map((id) => ({ id, accountId }));
+): BulkActionTarget[] =>
+	ids(count, prefix).map((id) => ({ id, accountId, mailboxId: "inbox" }));
 
 describe("chunkIds", () => {
 	test("empty input yields no chunks", () => {
@@ -79,9 +80,9 @@ describe("chunkTargets", () => {
 		assert.deepEqual(
 			chunkTargets(
 				[
-					{ id: "a1", accountId: "acct-a" },
-					{ id: "b1", accountId: "acct-b" },
-					{ id: "a2", accountId: "acct-a" },
+					{ id: "a1", accountId: "acct-a", mailboxId: "inbox" },
+					{ id: "b1", accountId: "acct-b", mailboxId: "inbox" },
+					{ id: "a2", accountId: "acct-a", mailboxId: "inbox" },
 				],
 				100,
 			),
@@ -93,10 +94,10 @@ describe("chunkTargets", () => {
 		assert.deepEqual(
 			chunkTargets(
 				[
-					{ id: "a1", accountId: "acct-a" },
-					{ id: "a2", accountId: "acct-a" },
-					{ id: "a3", accountId: "acct-a" },
-					{ id: "b1", accountId: "acct-b" },
+					{ id: "a1", accountId: "acct-a", mailboxId: "inbox" },
+					{ id: "a2", accountId: "acct-a", mailboxId: "inbox" },
+					{ id: "a3", accountId: "acct-a", mailboxId: "inbox" },
+					{ id: "b1", accountId: "acct-b", mailboxId: "inbox" },
 				],
 				2,
 			),
@@ -104,14 +105,10 @@ describe("chunkTargets", () => {
 		);
 	});
 
-	test("targets with no account keep their place in the run as a group of their own", () => {
+	test("already scoped ids keep their place in the run as a group of their own", () => {
 		assert.deepEqual(
 			chunkTargets(
-				[
-					{ id: "u1", accountId: undefined },
-					{ id: "a1", accountId: "acct-a" },
-					{ id: "u2", accountId: undefined },
-				],
+				["u1", { id: "a1", accountId: "acct-a", mailboxId: "inbox" }, "u2"],
 				100,
 			),
 			[["u1", "u2"], ["a1"]],
@@ -140,6 +137,7 @@ describe("runChunkedAction", () => {
 			Array.from({ length: 250 }, (_, i) => ({
 				id: `m${i}`,
 				accountId: "acc-1",
+				mailboxId: "inbox",
 			})),
 			async (chunk) => ({
 				successCount: chunk.length - 1,
@@ -246,9 +244,9 @@ describe("runChunkedAction", () => {
 		const calls: string[][] = [];
 		const outcome = await runChunkedAction(
 			[
-				{ id: "a1", accountId: "acct-a" },
-				{ id: "b1", accountId: "acct-b" },
-				{ id: "a2", accountId: "acct-a" },
+				{ id: "a1", accountId: "acct-a", mailboxId: "inbox" },
+				{ id: "b1", accountId: "acct-b", mailboxId: "inbox" },
+				{ id: "a2", accountId: "acct-a", mailboxId: "inbox" },
 			],
 			async (chunk) => {
 				calls.push(chunk);
@@ -266,8 +264,8 @@ describe("runChunkedAction", () => {
 		const seen: { done: number; total: number }[] = [];
 		await runChunkedAction(
 			[
-				{ id: "a1", accountId: "acct-a" },
-				{ id: "b1", accountId: "acct-b" },
+				{ id: "a1", accountId: "acct-a", mailboxId: "inbox" },
+				{ id: "b1", accountId: "acct-b", mailboxId: "inbox" },
 			],
 			async (chunk) => ({ successCount: chunk.length, failureCount: 0 }),
 			(p) => seen.push(p),
@@ -283,9 +281,9 @@ describe("runChunkedAction", () => {
 		const stop = new AbortController();
 		const outcome = await runChunkedAction(
 			[
-				{ id: "a1", accountId: "acct-a" },
-				{ id: "b1", accountId: "acct-b" },
-				{ id: "c1", accountId: "acct-c" },
+				{ id: "a1", accountId: "acct-a", mailboxId: "inbox" },
+				{ id: "b1", accountId: "acct-b", mailboxId: "inbox" },
+				{ id: "c1", accountId: "acct-c", mailboxId: "inbox" },
 			],
 			async (chunk) => {
 				stop.abort();
@@ -303,8 +301,8 @@ describe("runChunkedAction", () => {
 		const boom = new Error("500");
 		const outcome = await runChunkedAction(
 			[
-				{ id: "a1", accountId: "acct-a" },
-				{ id: "b1", accountId: "acct-b" },
+				{ id: "a1", accountId: "acct-a", mailboxId: "inbox" },
+				{ id: "b1", accountId: "acct-b", mailboxId: "inbox" },
 			],
 			async (chunk) => {
 				if (chunk[0] === "b1") throw boom;
@@ -322,9 +320,9 @@ describe("runChunkedAction", () => {
 		const calls: string[][] = [];
 		const outcome = await runChunkedAction(
 			[
-				{ id: "a1", accountId: "acct-a" },
-				{ id: "b1", accountId: "acct-b" },
-				{ id: "c1", accountId: "acct-c" },
+				{ id: "a1", accountId: "acct-a", mailboxId: "inbox" },
+				{ id: "b1", accountId: "acct-b", mailboxId: "inbox" },
+				{ id: "c1", accountId: "acct-c", mailboxId: "inbox" },
 			],
 			async (chunk) => {
 				calls.push(chunk);

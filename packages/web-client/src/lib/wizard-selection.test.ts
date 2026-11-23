@@ -9,6 +9,8 @@ const row = (over: Partial<ThreadRowData> & { id: string }): ThreadRowData => ({
 	subject: "Quarterly report",
 	snippet: "",
 	timeLabel: "Jan 1",
+	accountId: "acc-1",
+	mailboxId: "inbox",
 	...over,
 });
 
@@ -19,22 +21,26 @@ describe("the ticked rows the wizard is handed", () => {
 		const got = wizardSelectionFrom(
 			[
 				row({ id: "m1", accountId: "acc-work" }),
-				row({ id: "m2", accountId: "acc-personal" }),
+				row({ id: "m2", accountId: "acc-personal", mailboxId: "archive" }),
 			],
 			new Set(["m1", "m2"]),
 		);
 		assert.deepEqual(
-			got.map((message) => message.accountId),
-			["acc-work", "acc-personal"],
+			got.map(({ accountId, mailboxId }) => ({ accountId, mailboxId })),
+			[
+				{ accountId: "acc-work", mailboxId: "inbox" },
+				{ accountId: "acc-personal", mailboxId: "archive" },
+			],
 		);
 	});
 
-	it("keeps a row whose list carries no account rather than dropping it", () => {
-		const got = wizardSelectionFrom([row({ id: "m1" })], new Set(["m1"]));
-		assert.deepEqual(
-			got.map((message) => ({ id: message.id, accountId: message.accountId })),
-			[{ id: "m1", accountId: undefined }],
-		);
+	it("rejects a selected row without original placement", () => {
+		for (const missing of [{ accountId: undefined }, { mailboxId: undefined }])
+			assert.throws(
+				() =>
+					wizardSelectionFrom([row({ id: "m1", ...missing })], new Set(["m1"])),
+				/no original placement/,
+			);
 	});
 
 	it("takes only the ticked rows", () => {

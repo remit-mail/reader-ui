@@ -512,6 +512,9 @@ export const MessageList = ({
 		const rows: WizardSelectionMessage[] = [];
 		for (const thread of threads) {
 			if (!selectedIds.has(thread.messageId)) continue;
+			const originalAccountId = thread.accountId ?? accountId;
+			if (!originalAccountId)
+				throw new Error("Selected message has no original account");
 			rows.push({
 				id: thread.messageId,
 				sender: thread.fromName ?? thread.fromEmail ?? "Unknown",
@@ -519,12 +522,12 @@ export const MessageList = ({
 				isRead: thread.isRead,
 				subject: thread.subject ?? "(No subject)",
 				date: formatEmailDate(thread.sentDate),
-				accountId,
-				mailboxId: thread.mailboxId,
+				accountId: originalAccountId,
+				mailboxId: thread.mailboxId ?? mailboxId,
 			});
 		}
 		return rows;
-	}, [threads, selectedIds, accountId]);
+	}, [threads, selectedIds, accountId, mailboxId]);
 	const checkAgain = useCheckAgain();
 	const junkMailboxIds = useJunkMailboxIds();
 	const checkAgainSelection = checkAgain

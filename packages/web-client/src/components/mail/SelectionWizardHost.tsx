@@ -361,7 +361,7 @@ function SelectionWizardSession({
 				matched: number;
 				/** What the run was sent, so a retry of what it missed keeps each
 				 *  id's account. Empty for an escalated run, which has no id list. */
-				sent: readonly BulkActionTarget[];
+				sent: readonly (string | BulkActionTarget)[];
 				outcome?: BulkRunOutcome;
 				failureReason?: string;
 		  }
@@ -372,17 +372,6 @@ function SelectionWizardSession({
 	const messageIds = useMemo(
 		() => selection.map((message) => message.id),
 		[selection],
-	);
-	// What a bulk run over the ticked rows covers, each row still naming its
-	// account so the run can batch per account.
-	const bulkTargets = useMemo<BulkActionTarget[]>(
-		() =>
-			selection.map((message) => ({
-				id: message.id,
-				accountId: message.accountId,
-				mailboxId: message.mailboxId ?? mailboxId,
-			})),
-		[selection, mailboxId],
 	);
 	const senders = useMemo(
 		() => selection.map((message) => message.email).filter(Boolean),
@@ -397,16 +386,7 @@ function SelectionWizardSession({
 	const outsideInbox = useMemo<BulkActionTarget[]>(
 		() =>
 			inboxMailboxId
-				? selection
-						.filter(
-							(message) =>
-								message.mailboxId !== undefined &&
-								message.mailboxId !== inboxMailboxId,
-						)
-						.map((message) => ({
-							id: message.id,
-							accountId: message.accountId,
-						}))
+				? selection.filter((message) => message.mailboxId !== inboxMailboxId)
 				: [],
 		[selection, inboxMailboxId],
 	);
@@ -532,12 +512,7 @@ function SelectionWizardSession({
 
 	const { offerUndo } = useBulkRun();
 	const { trashByAccount } = useTrashByAccount();
-	const selectionDelete = useDeleteOutcome(
-		selection.map((message) => ({
-			accountId: message.accountId,
-			mailboxId: message.mailboxId ?? mailboxId ?? "",
-		})),
-	);
+	const selectionDelete = useDeleteOutcome(selection);
 	const steps = stepsFor({
 		verb,
 		mode,
@@ -634,7 +609,7 @@ function SelectionWizardSession({
 	}, []);
 
 	const runBulk = useCallback(
-		async (targets: readonly BulkActionTarget[]) => {
+		async (targets: readonly (string | BulkActionTarget)[]) => {
 			const action = bulkActionFor(verb, named.moveMailboxId, junkMailboxId);
 			if (!action) {
 				setBulkRun({
@@ -655,30 +630,32 @@ function SelectionWizardSession({
 				(verb !== "delete" || selectionDelete.outcome === "trash")
 			) {
 				const originals = selection.filter((message) =>
-					targets.some((target) => target.id === message.id),
+					targets.some(
+						(target) => typeof target !== "string" && target.id === message.id,
+					),
 				);
 				offerUndo(
 					"Selection updated",
 					verb === "markRead"
 						? {
 								kind: "markRead",
-								targets: originals.map((message) => ({
-									...message,
-									mailboxId: message.mailboxId ?? mailboxId,
-								})),
+								targets: originals,
 							}
 						: {
 								kind: "move",
-								targets: originals.map((message) => ({
-									id: message.id,
-									accountId: message.accountId ?? accountId,
-									originalMailboxId: message.mailboxId ?? mailboxId ?? "",
-									mailboxId:
+								targets: originals.map((message) => {
+									const destinationMailboxId =
 										action.kind === "move"
 											? action.destinationMailboxId
-											: trashByAccount.get(message.accountId ?? accountId ?? "")
-													?.mailboxId,
-								})),
+											: trashByAccount.get(message.accountId)?.mailboxId;
+									if (!destinationMailboxId)
+										throw new Error("Missing Trash for completed delete");
+									return {
+										...message,
+										originalMailboxId: message.mailboxId,
+										mailboxId: destinationMailboxId,
+									};
+								}),
 							},
 					mailboxId ?? "",
 				);
@@ -701,7 +678,6 @@ function SelectionWizardSession({
 			selection,
 			mailboxId,
 			offerUndo,
-			accountId,
 			trashByAccount,
 		],
 	);
@@ -774,19 +750,14 @@ function SelectionWizardSession({
 		}
 		// A widened match is resolved by the account's own preview, so every id it
 		// returned belongs to the account the wizard is scoped to.
-		void runBulk(
-			scope === "just-these"
-				? bulkTargets
-				: matchedIds.map((id) => ({ id, accountId })),
-		);
+		void runBulk(scope === "just-these" ? selection : matchedIds);
 	}, [
 		escalated,
 		runEscalated,
 		door,
 		named,
 		verb,
-		accountId,
-		bulkTargets,
+		selection,
 		matchedIds,
 		createFilterAsync,
 		watchJob,
@@ -924,7 +895,9 @@ function SelectionWizardSession({
 			const failed = new Set(bulkRun.outcome?.failedIds ?? []);
 			void runBulk(
 				failed.size > 0
-					? bulkRun.sent.filter((target) => failed.has(target.id))
+					? bulkRun.sent.filter((target) =>
+							failed.has(typeof target === "string" ? target : target.id),
+						)
 					: bulkRun.sent,
 			);
 			return;
@@ -937,7 +910,7 @@ function SelectionWizardSession({
 			backApplyPending: createdFilter !== undefined,
 			widenRunsAsJob: widenedRunsAsJob(verb),
 			failedIds: bulkRun?.outcome?.failedIds ?? [],
-			sent: bulkRun?.sent ?? bulkTargets,
+			sent: bulkRun?.sent ?? selection,
 		});
 		switch (intent.kind) {
 			case "refreshStatus":

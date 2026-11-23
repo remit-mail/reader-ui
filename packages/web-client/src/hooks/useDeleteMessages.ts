@@ -19,7 +19,7 @@ import {
 	isPlacementRefusal,
 	placementRefusalBanner,
 } from "../components/ui/placement-refusal";
-import { runChunkedMutation } from "../lib/bulk-actions";
+import { type BulkActionTarget, runChunkedMutation } from "../lib/bulk-actions";
 import {
 	cancelThreadListQueries,
 	invalidateThreadListQueries,
@@ -30,12 +30,6 @@ import {
 	type ThreadMutationContext,
 	threadListCacheKeys,
 } from "../lib/thread-list-cache";
-
-export interface DeleteMessageTarget {
-	id: string;
-	mailboxId: string;
-	accountId: string;
-}
 
 interface UseDeleteMessagesOptions {
 	mailboxId: string;
@@ -73,13 +67,13 @@ export const useDeleteMessages = ({
 
 	// The refused chunk is not what the user asked for. The whole selection is
 	// held here so the appointment's confirm replays all of it (#887).
-	const selectionRef = useRef<DeleteMessageTarget[]>([]);
-	const runRef = useRef<(targets: DeleteMessageTarget[]) => Promise<void>>(
+	const selectionRef = useRef<BulkActionTarget[]>([]);
+	const runRef = useRef<(targets: BulkActionTarget[]) => Promise<void>>(
 		async () => {},
 	);
 
 	const { mutateAsync, isPending } = useMutation({
-		mutationFn: async (targets: DeleteMessageTarget[]) =>
+		mutationFn: async (targets: BulkActionTarget[]) =>
 			(
 				await messageBulkOperationsDeleteMessages({
 					body: { messageIds: targets.map((target) => target.id) },
@@ -225,13 +219,13 @@ export const useDeleteMessages = ({
 	});
 
 	const runSelection = useCallback(
-		async (targets: DeleteMessageTarget[]): Promise<void> => {
+		async (targets: BulkActionTarget[]): Promise<void> => {
 			const config =
 				queryClient.getQueryData<RemitImapConfigDescriptionResponse>(
 					configOperationsGetConfigQueryKey(),
 				);
 			const byId = new Map(targets.map((target) => [target.id, target]));
-			const originals: (DeleteMessageTarget & { originalMailboxId: string })[] =
+			const originals: (BulkActionTarget & { originalMailboxId: string })[] =
 				[];
 			await runChunkedMutation(targets, async (ids) => {
 				const chunk = ids.map((id) => {
@@ -269,7 +263,7 @@ export const useDeleteMessages = ({
 	}, [runSelection]);
 
 	const deleteMessages = useCallback(
-		(targets: DeleteMessageTarget[]) => {
+		(targets: BulkActionTarget[]) => {
 			if (targets.length === 0) return;
 			selectionRef.current = targets;
 			void runSelection(targets);

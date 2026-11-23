@@ -9,7 +9,7 @@ import assert from "node:assert/strict";
 import { afterEach, describe, it } from "node:test";
 import { createElement } from "react";
 import { createDomHarness, type DomHarness } from "../test-support/dom";
-import { type HttpMock, mockFetch } from "../test-support/http";
+import { type HttpMock, httpError, mockFetch } from "../test-support/http";
 import { useReportSpam } from "./useReportSpam";
 
 let harness: DomHarness | undefined;
@@ -109,5 +109,31 @@ describe("useReportSpam pending state (#648 review)", () => {
 		const calls = http.to("/messages/report-spam");
 		assert.equal(calls.length, 1);
 		assert.deepEqual(calls[0].body, { messageIds: ["msg-1"] });
+	});
+});
+
+const bannerAlerts = () =>
+	harness?.queryAll('[aria-label="Notifications"] [role="alert"]') ?? [];
+
+describe("useReportSpam failures", () => {
+	for (const action of ["reportSpam", "notSpam"] as const) {
+		it(`${action} shows a per-message failure once`, async () => {
+			http = mockFetch(() => ({ failureCount: 1 }));
+			const hook = mountHook(() => useReportSpam({ mailboxId: "mbx-inbox" }));
+			hook()[action](["msg-1"]);
+			await waitFor(() => bannerAlerts().length > 0);
+			assert.equal(bannerAlerts().length, 1);
+			assert.match(
+				bannerAlerts()[0]?.textContent ?? "",
+				/This message could not be processed/,
+			);
+		});
+	}
+	it("shows a 500 beside the spam action", async () => {
+		http = mockFetch(() => httpError(500, "spam service is down"));
+		const hook = mountHook(() => useReportSpam({ mailboxId: "mbx-inbox" }));
+		hook().reportSpam(["msg-1"]);
+		await waitFor(() => bannerAlerts().length > 0);
+		assert.match(bannerAlerts()[0]?.textContent ?? "", /spam service is down/);
 	});
 });

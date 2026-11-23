@@ -135,7 +135,7 @@ const mount = async (respond: (path: string) => unknown): Promise<void> => {
 const runDelete = async (): Promise<void> => {
 	await act(async () => {
 		await hook?.runAction({ kind: "delete" }, [
-			{ id: "msg-1", accountId: ACCOUNT },
+			{ id: "msg-1", accountId: ACCOUNT, mailboxId: "inbox" },
 		]);
 	});
 	await settle();
@@ -262,7 +262,7 @@ const deleteOne = (mailboxId: string, id: string, claimed: boolean): void => {
 	const mounted = screen(mailboxId);
 	void mounted.hook.runAction(
 		{ kind: "delete" },
-		[{ id, accountId: ACCOUNT }],
+		[{ id, accountId: ACCOUNT, mailboxId }],
 		claimed ? mounted.claimEnding : undefined,
 	);
 };

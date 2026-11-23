@@ -94,15 +94,9 @@ export const chunkIds = (
 /** One message a run covers, as the surface that selected it knows it. */
 export interface BulkActionTarget {
 	id: string;
-	/** The listing to invalidate when this target changes placement. */
-	mailboxId?: string;
-	/**
-	 * Owning IMAP account — the `accountId` of the account API, never the
-	 * caller's `accountConfigId` (#456). Undefined on a row from a per-mailbox
-	 * listing, which does not carry one because every row in it shares the same
-	 * account.
-	 */
-	accountId: string | undefined;
+	/** Original placement, captured by the surface that assembled the selection. */
+	mailboxId: string;
+	accountId: string;
 }
 
 /**
@@ -116,26 +110,24 @@ export interface BulkActionTarget {
  * cover whatever was ticked, and this is where that becomes one call per
  * account.
  *
- * Targets with no account form a group of their own, which keeps the id in the
- * run rather than dropping a message the user asked to be acted on. A surface
- * that carries no account is single-account by construction; one that carries
- * it for some rows and not others sends the unattributed ones together, and if
- * the server refuses that batch the run reports it like any other failure.
+ * Plain ids are already scoped to one account.
  *
  * Accounts and ids keep the order they were selected in.
  */
 export const chunkTargets = (
-	targets: readonly BulkActionTarget[],
+	targets: readonly (string | BulkActionTarget)[],
 	size = BULK_ACTION_CHUNK_SIZE,
 ): string[][] => {
 	const byAccount = new Map<string | undefined, string[]>();
 	for (const target of targets) {
-		const held = byAccount.get(target.accountId);
+		const accountId = typeof target === "string" ? undefined : target.accountId;
+		const id = typeof target === "string" ? target : target.id;
+		const held = byAccount.get(accountId);
 		if (held) {
-			held.push(target.id);
+			held.push(id);
 			continue;
 		}
-		byAccount.set(target.accountId, [target.id]);
+		byAccount.set(accountId, [id]);
 	}
 	return [...byAccount.values()].flatMap((ids) => chunkIds(ids, size));
 };
@@ -204,7 +196,7 @@ export interface BulkActionOutcome {
  * rather than restarting per account.
  */
 export const runChunkedAction = async (
-	targets: readonly BulkActionTarget[],
+	targets: readonly (string | BulkActionTarget)[],
 	applyBatch: ApplyBatch,
 	onProgress: (progress: BulkActionProgress) => void,
 	signal: AbortSignal,
@@ -268,11 +260,7 @@ export const runChunkedMutation = async (
 	send: (chunk: string[]) => Promise<unknown>,
 ): Promise<void> => {
 	await runChunkedAction(
-		ids.map((target) =>
-			typeof target === "string"
-				? { id: target, accountId: undefined }
-				: target,
-		),
+		ids,
 		async (chunk) => {
 			await send(chunk);
 			return { successCount: chunk.length, failureCount: 0 };

@@ -10,7 +10,7 @@ export interface RetryContext {
 	backApplyPending: boolean;
 	widenRunsAsJob: boolean;
 	failedIds: readonly string[];
-	sent: readonly BulkActionTarget[];
+	sent: readonly (string | BulkActionTarget)[];
 }
 
 export type RetryIntent =
@@ -20,7 +20,7 @@ export type RetryIntent =
 	| { kind: "resend" }
 	| { kind: "startBackApply" }
 	| { kind: "waitOnJob" }
-	| { kind: "rerunBulk"; targets: readonly BulkActionTarget[] };
+	| { kind: "rerunBulk"; targets: readonly (string | BulkActionTarget)[] };
 
 /**
  * What pressing the run screen's retry asks for, given where the commit got to.
@@ -54,7 +54,9 @@ export const retryIntent = (context: RetryContext): RetryIntent => {
 		kind: "rerunBulk",
 		targets:
 			outstanding.size > 0
-				? context.sent.filter((target) => outstanding.has(target.id))
+				? context.sent.filter((target) =>
+						outstanding.has(typeof target === "string" ? target : target.id),
+					)
 				: context.sent,
 	};
 };

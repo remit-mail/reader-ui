@@ -42,12 +42,7 @@ import { buildMutationErrorBanner } from "../ui/error-banners";
 import { isFolderRoleRefusal } from "../ui/folder-role-refusal";
 import { useRoleAppointmentPrompt } from "./RoleAppointmentPromptProvider";
 
-/**
- * What the run pages, which is the one thing a bounded and an escalated run do
- * differently: a ticked selection is a list of ids the surface already holds,
- * an escalated one is a predicate the server re-resolves page by page.
- */
-export const applyBulkAction =
+const applyBulkAction =
 	(action: EscalatedAction): ApplyBatch =>
 	async (ids, signal) => {
 		if (action.kind === "move")
@@ -88,8 +83,13 @@ export type MailUndo =
 			targets: readonly (BulkActionTarget & { isRead: boolean })[];
 	  };
 
+/**
+ * What the run pages, which is the one thing a bounded and an escalated run do
+ * differently: a ticked selection is a list of ids the surface already holds,
+ * an escalated one is a predicate the server re-resolves page by page.
+ */
 export type BulkRunSource =
-	| { kind: "targets"; targets: readonly BulkActionTarget[] }
+	| { kind: "targets"; targets: readonly (string | BulkActionTarget)[] }
 	| { kind: "predicate"; fetchPage: FetchIdsPage };
 
 export interface BulkRunRequest {
@@ -103,8 +103,6 @@ export interface BulkRunRequest {
 	/** The count the run was offered against, for the bar and for the ending. */
 	matched: number;
 	source: BulkRunSource;
-	/** Issues one batch of the action. Closed over the SDK, never over a screen. */
-	applyBatch: ApplyBatch;
 	/**
 	 * States how the run ended, once no screen is left reporting on it in place.
 	 * Called by the provider rather than by the caller, so an ending that lands
@@ -212,7 +210,7 @@ export const BulkRunProvider = ({ children }: { children: ReactNode }) => {
 					...mailboxesTouchedBy(request.action, request.mailboxId),
 					...(request.source.kind === "targets"
 						? request.source.targets.flatMap((target) =>
-								target.mailboxId ? [target.mailboxId] : [],
+								typeof target === "string" ? [] : [target.mailboxId],
 							)
 						: []),
 				]),
@@ -221,7 +219,7 @@ export const BulkRunProvider = ({ children }: { children: ReactNode }) => {
 			if (request.accountId) touched.add(request.accountId);
 			if (request.source.kind === "targets") {
 				for (const target of request.source.targets) {
-					if (target.accountId) touched.add(target.accountId);
+					if (typeof target !== "string") touched.add(target.accountId);
 				}
 			}
 			for (const accountId of touched) {
@@ -276,14 +274,14 @@ export const BulkRunProvider = ({ children }: { children: ReactNode }) => {
 				request.source.kind === "targets"
 					? await runChunkedAction(
 							request.source.targets,
-							request.applyBatch,
+							applyBulkAction(request.action),
 							onProgress,
 							controller.signal,
 						)
 					: await runPredicateAction(
 							request.source.fetchPage,
 							request.matched,
-							request.applyBatch,
+							applyBulkAction(request.action),
 							onProgress,
 							controller.signal,
 						);
@@ -366,7 +364,7 @@ export const BulkRunProvider = ({ children }: { children: ReactNode }) => {
 			if (inverse.kind === "markRead") {
 				for (const target of inverse.targets) {
 					if (target.isRead) continue;
-					const folder = target.mailboxId ?? "";
+					const folder = target.mailboxId;
 					groups.set(folder, [...(groups.get(folder) ?? []), target]);
 				}
 			} else {
@@ -403,7 +401,6 @@ export const BulkRunProvider = ({ children }: { children: ReactNode }) => {
 									accountId: next.targets[0]?.accountId,
 									matched: next.targets.length,
 									source: { kind: "targets", targets: next.targets },
-									applyBatch: applyBulkAction(next.action),
 								});
 								if (result.kind === "refused") {
 									pushError({

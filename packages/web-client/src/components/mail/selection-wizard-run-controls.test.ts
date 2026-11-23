@@ -19,7 +19,11 @@ import {
 	wizardExit,
 } from "./selection-wizard-run-controls";
 
-const target = (id: string): BulkActionTarget => ({ id, accountId: "acc-1" });
+const target = (id: string): BulkActionTarget => ({
+	id,
+	accountId: "acc-1",
+	mailboxId: "inbox",
+});
 
 const context = (over: Partial<RetryContext> = {}): RetryContext => ({
 	runState: "backApplyComplete",
@@ -131,12 +135,12 @@ describe("retrying a bounded run", () => {
 
 	it("keeps each id's own account, so a cross-account retry still batches", () => {
 		const sent = [
-			{ id: "m1", accountId: "acc-work" },
-			{ id: "m2", accountId: "acc-personal" },
+			{ id: "m1", accountId: "acc-work", mailboxId: "inbox" },
+			{ id: "m2", accountId: "acc-personal", mailboxId: "inbox" },
 		];
 		assert.deepEqual(retryIntent(context({ sent, failedIds: ["m2"] })), {
 			kind: "rerunBulk",
-			targets: [{ id: "m2", accountId: "acc-personal" }],
+			targets: [{ id: "m2", accountId: "acc-personal", mailboxId: "inbox" }],
 		});
 	});
 });
