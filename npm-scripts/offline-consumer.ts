@@ -111,7 +111,7 @@ export async function testOfflineReading(
 				},
 			});
 		});
-		await installed.goto(`${origin}/sign-in`);
+		await installed.goto(`${origin}/settings/advanced`);
 		await installed.waitForFunction(
 			() => document.documentElement.dataset.persistCalls === "1",
 		);
