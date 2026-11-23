@@ -8,7 +8,7 @@ import type {
 	Persister,
 } from "@tanstack/react-query-persist-client";
 import { externalImageBytes, requestExternalImage } from "./external-image";
-import { OfflineUnavailableError } from "./offline-error";
+import { OFFLINE_ERROR_EVENT, OfflineUnavailableError } from "./offline-error";
 import {
 	admitContent,
 	commitOffline,
@@ -24,6 +24,7 @@ import {
 	writeOfflineRecord,
 } from "./offline-store";
 import { isUpdatePrepared, registerUpdateBlocker } from "./pwa-update";
+import { reportSignedOut, resetSignedOut } from "./signed-out";
 
 export interface OfflineOptions {
 	/** Fresh authenticated no-store request. null means authentication is required;
@@ -34,7 +35,6 @@ export interface OfflineOptions {
 export interface OfflineState {
 	partition?: Partition;
 	verified: boolean;
-	error?: string;
 	usage?: number;
 	quota?: number;
 	persistent?: boolean;
@@ -85,6 +85,7 @@ export class OfflineRuntime {
 	private revoked = false;
 	private queryClient?: QueryClient;
 	private refreshing = 0;
+	private persistenceRequested = false;
 	constructor(readonly options: OfflineOptions) {
 		registerUpdateBlocker(
 			() => this.pending > 0 || this.verifying !== undefined,
@@ -111,9 +112,9 @@ export class OfflineRuntime {
 		for (const listener of this.listeners) listener();
 	}
 	report = (error: unknown): void => {
-		this.update({
-			error: error instanceof Error ? error.message : String(error),
-		});
+		window.dispatchEvent(
+			new CustomEvent(OFFLINE_ERROR_EVENT, { detail: error }),
+		);
 	};
 	private async revokeMemory() {
 		this.update({ verified: false, partition: undefined });
@@ -142,6 +143,9 @@ export class OfflineRuntime {
 		if (this.revoked) return;
 		this.update({ partition });
 		await this.verify().catch(this.report);
+		void this.storage(
+			window.matchMedia("(display-mode: standalone)").matches,
+		).catch(this.report);
 		window.addEventListener("offline", () => this.update({ verified: false }));
 		window.addEventListener("online", () => {
 			void this.verify().catch(this.report);
@@ -174,7 +178,10 @@ export class OfflineRuntime {
 			return false;
 		}
 		const session = await this.options.verifySession();
-		if (!session || this.revoked) return false;
+		if (!session || this.revoked) {
+			if (!session && !this.revoked && navigator.onLine) reportSignedOut();
+			return false;
+		}
 		const unchanged = await offlineRecord<Partition>("partition");
 		if (observed && !samePartition(unchanged, observed)) return false;
 		if (!session.partitionKey)
@@ -206,7 +213,8 @@ export class OfflineRuntime {
 			return next;
 		});
 		if (this.revoked) return false;
-		this.update({ partition, verified: true, error: undefined });
+		this.update({ partition, verified: true });
+		resetSignedOut();
 		if (!wasVerified) window.dispatchEvent(new Event("remit:session-verified"));
 		return true;
 	}
@@ -221,7 +229,8 @@ export class OfflineRuntime {
 		this.pending++;
 		try {
 			this.revoked = true;
-			this.update({ verified: false, partition: undefined });
+			// Keep the error-banner owner mounted until the wipe commits.
+			this.update({ verified: false });
 			await wipeOffline();
 			this.channel.postMessage("wipe");
 			await this.revokeMemory();
@@ -231,6 +240,10 @@ export class OfflineRuntime {
 		} finally {
 			this.pending--;
 		}
+	}
+	async removeDownloadsAndReload(): Promise<void> {
+		await this.removeDownloads();
+		window.location.reload();
 	}
 	/** Capture the generation at request start, never at completion. */
 	async authorizeNetwork(method: string): Promise<Partition> {
@@ -249,7 +262,9 @@ export class OfflineRuntime {
 			);
 		this.pending++;
 		try {
-			return await commitOffline(partition, work);
+			const result = await commitOffline(partition, work);
+			void this.storage(!this.persistenceRequested).catch(this.report);
+			return result;
 		} catch (error) {
 			this.report(error);
 			if (error instanceof DOMException)
@@ -363,6 +378,7 @@ export class OfflineRuntime {
 		return bytes;
 	}
 	async storage(requestPersistence = false): Promise<void> {
+		if (requestPersistence) this.persistenceRequested = true;
 		const persistent = requestPersistence
 			? await navigator.storage.persist()
 			: await navigator.storage.persisted();
