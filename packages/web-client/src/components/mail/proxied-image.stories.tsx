@@ -5,6 +5,7 @@ import { expect, userEvent, waitFor, within } from "storybook/test";
 import { AppStory } from "../../mocks/story-frame/AppStory";
 import {
 	composeWorld,
+	LUNCH_SUBJECT,
 	messageUrl,
 } from "../../mocks/story-frame/compose-world";
 import { mailHandlers } from "../../mocks/story-frame/mail-handlers";
@@ -68,6 +69,9 @@ type Story = StoryObj<typeof meta>;
 
 export const LoadOnce: Story = {
 	play: async ({ canvasElement }) => {
+		const canvas = within(canvasElement);
+		await canvas.findByRole("heading", { level: 1, name: LUNCH_SUBJECT });
+		await canvas.findByTitle("Email content");
 		await userEvent.click(
 			await within(canvasElement).findByRole("button", { name: "Load once" }),
 		);
@@ -98,6 +102,9 @@ export const CssOnly: Story = {
 		},
 	},
 	play: async ({ canvasElement }) => {
+		const canvas = within(canvasElement);
+		await canvas.findByRole("heading", { level: 1, name: LUNCH_SUBJECT });
+		await canvas.findByTitle("Email content");
 		const load = await within(canvasElement).findByRole("button", {
 			name: "Load once",
 		});
