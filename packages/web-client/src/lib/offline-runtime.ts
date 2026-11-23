@@ -85,6 +85,7 @@ export class OfflineRuntime {
 	private revoked = false;
 	private queryClient?: QueryClient;
 	private refreshing = 0;
+	private persistenceRequested = false;
 	constructor(readonly options: OfflineOptions) {
 		registerUpdateBlocker(
 			() => this.pending > 0 || this.verifying !== undefined,
@@ -142,6 +143,9 @@ export class OfflineRuntime {
 		if (this.revoked) return;
 		this.update({ partition });
 		await this.verify().catch(this.report);
+		void this.storage(
+			window.matchMedia("(display-mode: standalone)").matches,
+		).catch(this.report);
 		window.addEventListener("offline", () => this.update({ verified: false }));
 		window.addEventListener("online", () => {
 			void this.verify().catch(this.report);
@@ -249,7 +253,9 @@ export class OfflineRuntime {
 			);
 		this.pending++;
 		try {
-			return await commitOffline(partition, work);
+			const result = await commitOffline(partition, work);
+			void this.storage(!this.persistenceRequested).catch(this.report);
+			return result;
 		} catch (error) {
 			this.report(error);
 			if (error instanceof DOMException)
@@ -363,6 +369,7 @@ export class OfflineRuntime {
 		return bytes;
 	}
 	async storage(requestPersistence = false): Promise<void> {
+		if (requestPersistence) this.persistenceRequested = true;
 		const persistent = requestPersistence
 			? await navigator.storage.persist()
 			: await navigator.storage.persisted();

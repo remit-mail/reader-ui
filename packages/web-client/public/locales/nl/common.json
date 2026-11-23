@@ -9,5 +9,9 @@
     "dismiss": "Installatieoptie verbergen",
     "hidden": "De installatieoptie is verborgen op dit apparaat.",
     "restore": "Installatieoptie opnieuw tonen"
+  },
+  "offlineStorage": {
+    "usage": "Gedownloade e-mail: {{usage}} MiB gebruikt",
+    "remove": "Downloads verwijderen"
   }
 }

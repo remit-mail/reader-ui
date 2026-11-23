@@ -12,5 +12,9 @@
     "dismiss": "Dismiss install option",
     "hidden": "The install option is hidden on this device.",
     "restore": "Show install option again"
+  },
+  "offlineStorage": {
+    "usage": "Downloaded mail: {{usage}} MiB used",
+    "remove": "Remove downloads"
   }
 }

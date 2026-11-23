@@ -72,6 +72,23 @@ export async function testOfflineReading(
 	try {
 		let page = await context.newPage();
 		await page.addInitScript(() => {
+			Object.defineProperty(navigator.storage, "persist", {
+				value: async () => {
+					document.documentElement.dataset.persistCalls = String(
+						Number(document.documentElement.dataset.persistCalls ?? 0) + 1,
+					);
+					return true;
+				},
+			});
+			const estimate = navigator.storage.estimate.bind(navigator.storage);
+			Object.defineProperty(navigator.storage, "estimate", {
+				value: async () => {
+					const count =
+						Number(document.documentElement.dataset.estimateCalls ?? 0) + 1;
+					document.documentElement.dataset.estimateCalls = String(count);
+					return count === 1 ? { usage: 0, quota: 10737418240 } : estimate();
+				},
+			});
 			localStorage.setItem("pwa-offline-test", "yes");
 			localStorage.setItem("pwa-auth", "better");
 		});
@@ -79,6 +96,26 @@ export async function testOfflineReading(
 		context.on("request", (request) => {
 			if (request.url().includes("tracking.invalid")) tracking++;
 		});
+		const installed = await context.newPage();
+		await installed.addInitScript(() => {
+			localStorage.setItem("pwa-offline-test", "yes");
+			const matchMedia = window.matchMedia.bind(window);
+			window.matchMedia = (query) =>
+				query === "(display-mode: standalone)"
+					? Object.defineProperty(matchMedia(query), "matches", { value: true })
+					: matchMedia(query);
+			Object.defineProperty(navigator.storage, "persist", {
+				value: async () => {
+					document.documentElement.dataset.persistCalls = "1";
+					return true;
+				},
+			});
+		});
+		await installed.goto(`${origin}/sign-in`);
+		await installed.waitForFunction(
+			() => document.documentElement.dataset.persistCalls === "1",
+		);
+		await installed.close();
 		await page.goto(`${origin}/downloads/old-mail`);
 		await page.waitForFunction(
 			() =>
@@ -89,6 +126,10 @@ export async function testOfflineReading(
 		await page.getByRole("heading", { name: "Old retained mail" }).waitFor();
 		await imagesReady(page);
 		await attachment(page);
+		assert.doesNotMatch(
+			await page.locator("body").innerText(),
+			/Session verified|session unverified|Opening downloads|Restoring downloads|MiB used|may be removed|Keep downloads on this device|Remove downloads/,
+		);
 		assert.equal(
 			await page.evaluate(() => window.pwaTest.offline()?.state.verified),
 			true,
@@ -104,6 +145,16 @@ export async function testOfflineReading(
 			controls.contentRequests.some((path) => path.endsWith("/unused")),
 			false,
 			"unreferenced CIDs are not fetched",
+		);
+		await page.waitForFunction(
+			() =>
+				Number(document.documentElement.dataset.estimateCalls) > 1 &&
+				(window.pwaTest.offline()?.state.usage ?? 0) > 0,
+		);
+		assert.equal(
+			await page.evaluate(() => document.documentElement.dataset.persistCalls),
+			"1",
+			"first successful save requests persistence once",
 		);
 		assert.equal(tracking, 0, "remote tracking images remain blocked");
 		assert.deepEqual(
@@ -243,18 +294,17 @@ export async function testOfflineReading(
 		// Reconnect verifies identity; server/transport rejection never starts login.
 		controls.setSession("tenant-a", 503);
 		await context.setOffline(false);
-		await page
-			.getByRole("alert")
-			.filter({ hasText: "Session verification failed: 503" })
-			.waitFor();
+		await page.waitForFunction(
+			() =>
+				window.pwaTest.offline()?.state.error ===
+				"Session verification failed: 503",
+		);
 		assert.equal(
 			await page.evaluate(() => window.pwaTest.reauthentications),
 			0,
 		);
 		controls.setSession("tenant-a");
-		await page
-			.getByRole("button", { name: "Verify session / sign in" })
-			.click();
+		await page.evaluate(() => window.pwaTest.offline()!.verify());
 		await page.waitForFunction(
 			() => !!window.pwaTest.offline()?.state.verified,
 		);
@@ -281,10 +331,9 @@ export async function testOfflineReading(
 			}
 		});
 		assert.match(imageQuotaFailure, /Image quota exceeded/);
-		await page
-			.getByRole("alert")
-			.filter({ hasText: "Image quota exceeded" })
-			.waitFor();
+		await page.waitForFunction(
+			() => window.pwaTest.offline()?.state.error === "Image quota exceeded",
+		);
 		const retainedImage = await page.evaluate(async () => {
 			const runtime = window.pwaTest.offline()!;
 			const bytes = await runtime.externalImage(
@@ -326,7 +375,9 @@ export async function testOfflineReading(
 			}
 		});
 		assert.match(cacheFailure, /quota/i);
-		await page.getByRole("alert").filter({ hasText: /quota/i }).waitFor();
+		await page.waitForFunction(() =>
+			/quota/i.test(window.pwaTest.offline()?.state.error ?? ""),
+		);
 		const persistenceFailure = await page.evaluate(async () => {
 			const runtime = window.pwaTest.offline()!;
 			const persister = runtime.persister(runtime.state.partition!);
@@ -350,10 +401,9 @@ export async function testOfflineReading(
 			}
 		});
 		assert.match(persistenceFailure, /Query quota exceeded/);
-		await page
-			.getByRole("alert")
-			.filter({ hasText: "Query quota exceeded" })
-			.waitFor();
+		await page.waitForFunction(
+			() => window.pwaTest.offline()?.state.error === "Query quota exceeded",
+		);
 		// A second tab removes downloads before its initial identity read completes.
 		// Delay only the first real IDB read; all stores and messaging stay native.
 		const starting = await context.newPage();
@@ -364,6 +414,7 @@ export async function testOfflineReading(
 				const request = get.call(this, key);
 				if (first && key === "partition") {
 					first = false;
+					document.documentElement.dataset.offlineStart = "waiting";
 					request.addEventListener(
 						"success",
 						(event) => {
@@ -383,14 +434,15 @@ export async function testOfflineReading(
 			};
 		});
 		await starting.goto(`${origin}/downloads`);
-		await starting.getByText("Opening downloads…", { exact: true }).waitFor();
+		await starting.waitForFunction(
+			() => document.documentElement.dataset.offlineStart === "waiting",
+		);
+		assert.equal(await starting.locator("body").innerText(), "");
 		assert.equal(
 			await starting.evaluate(() => window.pwaTest.offline()?.state.partition),
 			undefined,
 		);
-		await starting
-			.getByRole("button", { name: "Remove downloads", exact: true })
-			.click();
+		await starting.evaluate(() => window.pwaTest.offline()!.removeDownloads());
 		await page.waitForFunction(
 			() => !window.pwaTest.offline()?.state.partition,
 			undefined,
@@ -402,9 +454,9 @@ export async function testOfflineReading(
 		await starting.evaluate(() =>
 			window.dispatchEvent(new Event("release-offline-start")),
 		);
-		await starting
-			.getByText("Opening downloads…", { exact: true })
-			.waitFor({ state: "detached" });
+		await starting.waitForFunction(() =>
+			document.querySelector("[data-online-gate]"),
+		);
 		assert.equal(
 			await starting.evaluate(() => window.pwaTest.offline()?.state.partition),
 			undefined,

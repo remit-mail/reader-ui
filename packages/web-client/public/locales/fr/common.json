@@ -9,5 +9,9 @@
     "dismiss": "Masquer l’option d’installation",
     "hidden": "L’option d’installation est masquée sur cet appareil.",
     "restore": "Afficher à nouveau l’option d’installation"
+  },
+  "offlineStorage": {
+    "usage": "Courrier téléchargé : {{usage}} Mio utilisés",
+    "remove": "Supprimer les téléchargements"
   }
 }

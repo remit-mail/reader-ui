@@ -1,4 +1,3 @@
-export { OfflineStatus, type OfflineStatusProps } from "./OfflineProvider";
 export {
 	getOfflineRuntime,
 	type OfflineOptions,

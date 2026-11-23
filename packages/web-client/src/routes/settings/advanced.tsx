@@ -7,6 +7,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { InstallSettings } from "../../components/install/InstallApp";
 import { ConfigTransferPanel } from "../../components/settings/ConfigTransferPanel";
+import { OfflineStorageSettings } from "../../components/settings/OfflineStorageSettings";
 import { SelfUpdatePanel } from "../../components/settings/SelfUpdatePanel";
 import { TlsRootCaDownload } from "../../components/settings/TlsRootCaDownload";
 import { AppVersion } from "../../components/ui/AppVersion";
@@ -38,6 +39,7 @@ function AdvancedSettings() {
 			onBackToMail={() => void navigate({ to: "/mail" })}
 		>
 			<InstallSettings />
+			<OfflineStorageSettings />
 			{getRuntimeConfig().updateMode === "self" && <SelfUpdatePanel />}
 			<div className="mt-6 border-t border-line pt-4">
 				<ConfigTransferPanel />

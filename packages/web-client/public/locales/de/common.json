@@ -9,5 +9,9 @@
     "dismiss": "Installationsoption ausblenden",
     "hidden": "Die Installationsoption ist auf diesem Gerät ausgeblendet.",
     "restore": "Installationsoption wieder anzeigen"
+  },
+  "offlineStorage": {
+    "usage": "Heruntergeladene E-Mails: {{usage}} MiB belegt",
+    "remove": "Downloads entfernen"
   }
 }
