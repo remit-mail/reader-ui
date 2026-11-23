@@ -487,7 +487,8 @@ export async function testOfflineReading(
 		await page
 			.getByRole("alert")
 			.filter({ hasText: "Download removal failed" })
-			.waitFor();
+			.getByRole("button", { name: "Dismiss error" })
+			.click();
 		await page
 			.getByRole("button", { name: "Remove downloads", exact: true })
 			.click();
