@@ -336,15 +336,30 @@ export async function testOfflineReading(
 		// Reconnect verifies identity; server/transport rejection never starts login.
 		controls.setSession("tenant-a", 503);
 		await context.setOffline(false);
-		await page.waitForFunction(
-			() =>
-				window.pwaTest.offline()?.state.error ===
-				"Session verification failed: 503",
-		);
+		await page
+			.getByRole("alert")
+			.filter({ hasText: "Session verification failed: 503" })
+			.waitFor();
 		assert.equal(
 			await page.evaluate(() => window.pwaTest.reauthentications),
 			0,
 		);
+		controls.setSession("tenant-a", 401);
+		await page.evaluate(() => window.pwaTest.offline()!.verify());
+		await page.getByRole("alertdialog").waitFor();
+		await page
+			.getByRole("button", { name: "Continue reading downloaded mail" })
+			.click();
+		await imagesReady(page);
+		await page.evaluate(() => window.pwaTest.offline()!.verify());
+		await page.getByRole("button", { name: "Sign in", exact: true }).click();
+		assert.equal(
+			await page.evaluate(() => window.pwaTest.reauthentications),
+			1,
+		);
+		await page.evaluate(() => {
+			window.pwaTest.reauthentications = 0;
+		});
 		controls.setSession("tenant-a");
 		await page.evaluate(() => window.pwaTest.offline()!.verify());
 		await page.waitForFunction(
@@ -373,9 +388,10 @@ export async function testOfflineReading(
 			}
 		});
 		assert.match(imageQuotaFailure, /Image quota exceeded/);
-		await page.waitForFunction(
-			() => window.pwaTest.offline()?.state.error === "Image quota exceeded",
-		);
+		await page
+			.getByRole("alert")
+			.filter({ hasText: "Image quota exceeded" })
+			.waitFor();
 		const retainedImage = await page.evaluate(async () => {
 			const runtime = window.pwaTest.offline()!;
 			const bytes = await runtime.externalImage(
@@ -417,9 +433,10 @@ export async function testOfflineReading(
 			}
 		});
 		assert.match(cacheFailure, /quota/i);
-		await page.waitForFunction(() =>
-			/quota/i.test(window.pwaTest.offline()?.state.error ?? ""),
-		);
+		await page
+			.getByRole("alert")
+			.filter({ hasText: "Cache quota exceeded" })
+			.waitFor();
 		const persistenceFailure = await page.evaluate(async () => {
 			const runtime = window.pwaTest.offline()!;
 			const persister = runtime.persister(runtime.state.partition!);
@@ -443,9 +460,10 @@ export async function testOfflineReading(
 			}
 		});
 		assert.match(persistenceFailure, /Query quota exceeded/);
-		await page.waitForFunction(
-			() => window.pwaTest.offline()?.state.error === "Query quota exceeded",
-		);
+		await page
+			.getByRole("alert")
+			.filter({ hasText: "Query quota exceeded" })
+			.waitFor();
 		// A second tab removes downloads before its initial identity read completes.
 		// Delay only the first real IDB read; all stores and messaging stay native.
 		const starting = await context.newPage();

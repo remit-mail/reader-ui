@@ -8,7 +8,7 @@ import type {
 	Persister,
 } from "@tanstack/react-query-persist-client";
 import { externalImageBytes, requestExternalImage } from "./external-image";
-import { OfflineUnavailableError } from "./offline-error";
+import { OFFLINE_ERROR_EVENT, OfflineUnavailableError } from "./offline-error";
 import {
 	admitContent,
 	commitOffline,
@@ -24,6 +24,7 @@ import {
 	writeOfflineRecord,
 } from "./offline-store";
 import { isUpdatePrepared, registerUpdateBlocker } from "./pwa-update";
+import { reportSignedOut, resetSignedOut } from "./signed-out";
 
 export interface OfflineOptions {
 	/** Fresh authenticated no-store request. null means authentication is required;
@@ -34,7 +35,6 @@ export interface OfflineOptions {
 export interface OfflineState {
 	partition?: Partition;
 	verified: boolean;
-	error?: string;
 	usage?: number;
 	quota?: number;
 	persistent?: boolean;
@@ -112,9 +112,9 @@ export class OfflineRuntime {
 		for (const listener of this.listeners) listener();
 	}
 	report = (error: unknown): void => {
-		this.update({
-			error: error instanceof Error ? error.message : String(error),
-		});
+		window.dispatchEvent(
+			new CustomEvent(OFFLINE_ERROR_EVENT, { detail: error }),
+		);
 	};
 	private async revokeMemory() {
 		this.update({ verified: false, partition: undefined });
@@ -178,7 +178,10 @@ export class OfflineRuntime {
 			return false;
 		}
 		const session = await this.options.verifySession();
-		if (!session || this.revoked) return false;
+		if (!session || this.revoked) {
+			if (!session && !this.revoked && navigator.onLine) reportSignedOut();
+			return false;
+		}
 		const unchanged = await offlineRecord<Partition>("partition");
 		if (observed && !samePartition(unchanged, observed)) return false;
 		if (!session.partitionKey)
@@ -210,7 +213,8 @@ export class OfflineRuntime {
 			return next;
 		});
 		if (this.revoked) return false;
-		this.update({ partition, verified: true, error: undefined });
+		this.update({ partition, verified: true });
+		resetSignedOut();
 		if (!wasVerified) window.dispatchEvent(new Event("remit:session-verified"));
 		return true;
 	}

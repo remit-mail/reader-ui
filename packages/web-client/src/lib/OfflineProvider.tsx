@@ -35,8 +35,7 @@ export const OfflineProvider = ({
 		void runtime
 			.start(client)
 			.then(() => setStartup("ready"))
-			.catch((error: unknown) => {
-				runtime.report(error);
+			.catch(() => {
 				setStartup("failed");
 			});
 	}, [runtime, client]);
@@ -49,7 +48,7 @@ export const OfflineProvider = ({
 		return (
 			<OfflineStartupFailure
 				onRemove={() => {
-					void runtime.removeDownloadsAndReload().catch(runtime.report);
+					return runtime.removeDownloadsAndReload();
 				}}
 			/>
 		);
@@ -92,17 +91,34 @@ const VerifyAuthenticatedSession = ({
 	return null;
 };
 
-export function OfflineStartupFailure({ onRemove }: { onRemove(): void }) {
+export function OfflineStartupFailure({
+	onRemove,
+}: {
+	onRemove(): void | Promise<void>;
+}) {
+	const [removeFailed, setRemoveFailed] = useState(false);
+	const remove = async () => {
+		try {
+			await onRemove();
+		} catch {
+			setRemoveFailed(true);
+		}
+	};
 	const { t } = useTranslation("common", { useSuspense: false });
 	return (
 		<div className="mx-auto max-w-lg space-y-4 p-6">
 			<Banner tone="danger">
-				{t(
-					"offlineStorage.startupFailed",
-					"Downloaded mail could not be opened. Remove downloads on this device to reopen the app.",
-				)}
+				{removeFailed
+					? t(
+							"offlineStorage.removeFailed",
+							"Downloads could not be removed. Try again.",
+						)
+					: t(
+							"offlineStorage.startupFailed",
+							"Downloaded mail could not be opened. Remove downloads on this device to reopen the app.",
+						)}
 			</Banner>
-			<Button variant="secondary" onClick={onRemove}>
+			<Button variant="secondary" onClick={() => void remove()}>
 				{t("offlineStorage.removeAndReload", "Remove downloads and reload")}
 			</Button>
 		</div>

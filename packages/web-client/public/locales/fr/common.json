@@ -14,6 +14,9 @@
     "usage": "Courrier téléchargé : {{usage}} Mio utilisés",
     "remove": "Supprimer les téléchargements",
     "startupFailed": "Le courrier téléchargé n’a pas pu être ouvert. Supprimez les téléchargements sur cet appareil pour rouvrir l’application.",
-    "removeAndReload": "Supprimer les téléchargements et recharger"
+    "removeAndReload": "Supprimer les téléchargements et recharger",
+    "failed": "Les téléchargements n’ont pas pu être mis à jour",
+    "removeFailed": "Les téléchargements n’ont pas pu être supprimés. Réessayez.",
+    "continueReading": "Continuer à lire le courrier téléchargé"
   }
 }

@@ -21,3 +21,20 @@ export const IncompatibleDownloads: Story = {
 		await expect(args.onRemove).toHaveBeenCalledOnce();
 	},
 };
+
+export const RemoveFailed: Story = {
+	args: {
+		onRemove: fn(async () => {
+			throw new Error("Storage unavailable");
+		}),
+	},
+	play: async ({ canvasElement }) => {
+		const canvas = within(canvasElement);
+		await userEvent.click(
+			canvas.getByRole("button", { name: "Remove downloads and reload" }),
+		);
+		await expect(
+			await canvas.findByText("Downloads could not be removed. Try again."),
+		).toBeVisible();
+	},
+};
