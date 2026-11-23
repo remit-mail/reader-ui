@@ -9,7 +9,7 @@ import {
 	getCognitoToken,
 	resetCognitoTokenCache,
 } from "./cognito/cognito-token";
-import type { AuthProvider } from "./provider";
+import { type AuthProvider, navigateToSignIn } from "./provider";
 
 /**
  * Cognito (AWS Amplify) identity. Importing this module is what pulls Amplify
@@ -18,6 +18,7 @@ import type { AuthProvider } from "./provider";
  * bundle.
  */
 export const cognitoAuthProvider: AuthProvider = {
+	reauthenticate: navigateToSignIn,
 	configure: configureAmplify,
 	getToken: getCognitoToken,
 	resetToken: resetCognitoTokenCache,

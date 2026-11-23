@@ -29,6 +29,10 @@ const CombinedAccount = (props: AuthAccountProps) =>
 	);
 
 export const combinedAuthProvider: AuthProvider = {
+	reauthenticate: () =>
+		isBetterAuthEnabled()
+			? betterAuthProvider.reauthenticate()
+			: cognitoAuthProvider.reauthenticate(),
 	configure: configureAmplify,
 	getToken: () =>
 		isBetterAuthEnabled()

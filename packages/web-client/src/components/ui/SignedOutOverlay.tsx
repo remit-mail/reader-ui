@@ -14,11 +14,11 @@ const SIGN_IN_CLASS =
 /**
  * The signed-out notice every screen shares. It covers the screen so nothing
  * behind it reads as empty data, stays until the reader signs in, and its sign
- * in clears the dead session so the sign-in screen opens at the same address.
+ * in renews authentication without revoking the login session.
  */
 export function SignedOutOverlay() {
 	const [open, setOpen] = useState(isSignedOut);
-	const { Account } = useAuthProvider();
+	const { reauthenticate } = useAuthProvider();
 	const dialogRef = useRef<HTMLDivElement>(null);
 
 	useEffect(() => subscribeSignedOut(setOpen), []);
@@ -45,35 +45,17 @@ export function SignedOutOverlay() {
 					The server no longer accepts this session. Sign in again to carry on
 					here; you will come back to this screen.
 				</p>
-				<Account
-					fallback={
-						<button
-							type="button"
-							onClick={() => {
-								resetSignedOut();
-								window.location.reload();
-							}}
-							className={SIGN_IN_CLASS}
-						>
-							<LogIn className="size-4" aria-hidden="true" />
-							Sign in
-						</button>
-					}
+				<button
+					type="button"
+					onClick={() => {
+						resetSignedOut();
+						void reauthenticate();
+					}}
+					className={SIGN_IN_CLASS}
 				>
-					{({ signOut }) => (
-						<button
-							type="button"
-							onClick={() => {
-								resetSignedOut();
-								void signOut();
-							}}
-							className={SIGN_IN_CLASS}
-						>
-							<LogIn className="size-4" aria-hidden="true" />
-							Sign in
-						</button>
-					)}
-				</Account>
+					<LogIn className="size-4" aria-hidden="true" />
+					Sign in
+				</button>
 			</div>
 		</div>
 	);

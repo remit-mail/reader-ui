@@ -12,20 +12,7 @@ interface MessageBodyErrorBannerProps {
 	onRetry?: () => void;
 }
 
-/**
- * Inline alert banner for a body-fetch failure. Renders variant-specific copy
- * for auth-expired vs. body-missing-in-storage 403s (issue #401), with a
- * Retry button (always) and a Sign-in button (auth variant only, and only
- * when a session is active to sign out of). Dismissible — once dismissed, the
- * message body area falls back to an empty state until Retry is clicked.
- *
- * The sign-in affordance goes through the composed auth provider's `Account`
- * render-prop: it renders only when there is a session to sign out of, so no
- * identity SDK hook fires in a build (or a local-dev run) that has none.
- *
- * Uses the same destructive colour palette as `ErrorState(variant="inline")`
- * so it looks at home in the message body slot.
- */
+/** Inline content failures; only confirmed authentication refusals offer renewal. */
 export const MessageBodyErrorBanner = ({
 	error,
 	onRetry,
@@ -34,7 +21,7 @@ export const MessageBodyErrorBanner = ({
 	const fallback = extractFallbackDetail(error);
 	const { title, detail } = contentForReason(reason, fallback);
 	const [dismissed, setDismissed] = useState(false);
-	const { Account } = useAuthProvider();
+	const { reauthenticate } = useAuthProvider();
 
 	if (dismissed) return null;
 
@@ -55,17 +42,13 @@ export const MessageBodyErrorBanner = ({
 			</div>
 			<div className="flex shrink-0 items-center gap-3">
 				{reason === "auth" && (
-					<Account>
-						{({ signOut }) => (
-							<button
-								type="button"
-								onClick={() => signOut()}
-								className="text-sm font-medium text-accent hover:underline"
-							>
-								Sign in again
-							</button>
-						)}
-					</Account>
+					<button
+						type="button"
+						onClick={() => void reauthenticate()}
+						className="text-sm font-medium text-accent hover:underline"
+					>
+						Sign in again
+					</button>
 				)}
 				{onRetry && (
 					<button
