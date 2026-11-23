@@ -15,6 +15,7 @@ import {
 } from "../../hooks/useRedirectEnded";
 import { createDomHarness, type DomHarness } from "../../test-support/dom";
 import { type HttpMock, mockFetch } from "../../test-support/http";
+import { matthijs, matthijsFolders } from "../../test-support/special-folders";
 import { type MicrosoftReturn, OnboardingWizard } from "./OnboardingWizard";
 
 let harness: DomHarness | undefined;
@@ -71,10 +72,13 @@ const start = (
 		}
 		if (call.path === "/config") {
 			return {
-				accounts: [{ accountId: "acc-new", lastError: backend.lastError }],
+				accounts: [
+					{ ...matthijs, accountId: "acc-new", lastError: backend.lastError },
+				],
 				mailboxes: [],
 			};
 		}
+		if (call.path.endsWith("/mailboxes")) return { items: matthijsFolders };
 		if (call.path.endsWith("/sync/status")) {
 			return {
 				accountId: "acc-new",
@@ -134,7 +138,10 @@ const walkToServers = async (
 	dom: DomHarness,
 	email = "alice@fastmail.com",
 ): Promise<void> => {
-	clickText(dom, "Add your first account");
+	const welcome = dom
+		.queryAll("button")
+		.find((button) => button.textContent?.includes("Add your first account"));
+	if (welcome) dom.click(welcome);
 	clickText(dom, "Continue");
 	const emailField = dom.query<HTMLInputElement>("#onboarding-email");
 	assert.ok(emailField);
@@ -277,15 +284,21 @@ describe("OnboardingWizard — the first-run path", () => {
 		assert.equal(created.body?.password, "app-password");
 	});
 
-	it("reports sync progress and hands the new account to the caller", async () => {
-		const dom = start();
-		await walkToSync(dom);
+	for (const skipWelcome of [false, true]) {
+		it(`confirms folders before completing ${skipWelcome ? "add-account" : "first-run"} setup`, async () => {
+			const dom = start({}, skipWelcome);
+			await walkToSync(dom);
 
-		assert.match(dom.text(), /INBOX/);
-		assert.match(dom.text(), /4 mailboxes found/);
-		clickText(dom, "Go to inbox");
-		assert.deepEqual(completed, ["acc-new"]);
-	});
+			assert.match(dom.text(), /INBOX/);
+			assert.match(dom.text(), /4 mailboxes found/);
+			clickText(dom, "Continue");
+			assert.deepEqual(completed, []);
+			await dom.waitFor(() => !!dom.query("select"));
+			clickText(dom, "Confirm folders");
+			await dom.waitFor(() => completed.length > 0);
+			assert.deepEqual(completed, ["acc-new"]);
+		});
+	}
 });
 
 describe("OnboardingWizard — a connection that does not work", () => {

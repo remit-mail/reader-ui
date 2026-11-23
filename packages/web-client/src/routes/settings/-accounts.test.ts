@@ -103,6 +103,7 @@ const REAUTH_ACCOUNT = {
 	connectionState: "reauth_required",
 	syncedServices: ["Mail", "Calendar"],
 	grantedScopes: [],
+	folderAppointments: [],
 };
 
 // The router reads `self` at construction; the shared jsdom globals stop at
@@ -289,7 +290,9 @@ describe("the Microsoft callback landing on the accounts page (#1183)", () => {
 		);
 
 		assert.match(dom.text(), /Access granted/);
-		dom.click(dom.byText("button", "Go to inbox"));
+		dom.click(dom.byText("button", "Continue"));
+		await dom.waitFor(() => dom.text().includes("Set up later"));
+		dom.click(dom.byText("button", "Set up later"));
 		await settle(dom);
 		assert.match(dom.text(), /Account connected successfully\./);
 	});

@@ -29,6 +29,7 @@ import {
 import { AccountFormPanel } from "../../components/settings/AccountFormPanel";
 import { AccountServices } from "../../components/settings/AccountServices";
 import { DangerZone } from "../../components/settings/DangerZone";
+import { SpecialFolderPrompt } from "../../components/settings/SpecialFolderPrompt";
 import {
 	REDIRECT_STALL_MESSAGE,
 	useRedirectEnded,
@@ -573,6 +574,7 @@ function AccountsSettings() {
 									}
 									trailing={trailingButton}
 								/>
+								<SpecialFolderPrompt account={account} />
 								<AccountServices
 									account={account}
 									onRemoveAccount={() =>
