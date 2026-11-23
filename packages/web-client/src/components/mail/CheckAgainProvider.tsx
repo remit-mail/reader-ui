@@ -83,7 +83,10 @@ const sendBatch = async (
 ): Promise<RemitImapRescanResult | "SignedOut"> => {
 	const response = await accountMessageOperationsRescanMessages({
 		path: { accountId: batch.accountId },
-		body: { messageIds: batch.targets.map((target) => target.messageId) },
+		body: {
+			messageIds: batch.targets.map((target) => target.messageId),
+			move: true,
+		},
 	});
 	if (response.data) return response.data;
 	if (!response.response) throw response.error;
