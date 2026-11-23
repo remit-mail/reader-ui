@@ -202,8 +202,9 @@ a reopened message creates fresh object URLs from those bytes. Failed refreshes
 retain the previous bytes, and storage failures remain visible.
 
 The shared account-provider boundary awaits `removeDownloads()` exactly once
-before invoking the provider's sign-out action, for every shared logout and
-sign-in-again surface. Hosts must delete their own `removeDownloads()` call from
+before invoking the provider's sign-out action, for every shared logout surface.
+Authentication recovery calls `reauthenticate` without wiping downloads or
+revoking the live session. Hosts must delete their own `removeDownloads()` call from
 their account `signOut`: the host logout should only perform its existing
 credential/navigation work. This includes offline logout. A host-only logout
 outside the shared `Account` boundary still owns its cleanup.

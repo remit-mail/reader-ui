@@ -8,14 +8,9 @@ import {
 	RouterContextProvider,
 } from "@tanstack/react-router";
 import { createElement } from "react";
-import { DeleteConfirmDialog } from "../components/mail/DeleteConfirmDialog";
 import { MailNav } from "../components/mail/MailNav";
-import { MessageBodyErrorBanner } from "../components/mail/MessageBodyErrorBanner";
 import { DeleteAccountDialog } from "../components/settings/DeleteAccountDialog";
-import { SignedOutOverlay } from "../components/ui/SignedOutOverlay";
-import { BodyFetchError } from "../hooks/useMessageBodyContent";
 import { installOfflineRuntime } from "../lib/offline-runtime";
-import { reportSignedOut, resetSignedOut } from "../lib/signed-out";
 import { createDomHarness } from "../test-support/dom";
 import { AccountMenu } from "./AccountMenu";
 import {
@@ -23,7 +18,6 @@ import {
 	AuthProviderProvider,
 	noneAuthProvider,
 } from "./provider";
-import { SignInAgain } from "./SignInAgain";
 
 Object.defineProperty(globalThis, "self", {
 	configurable: true,
@@ -140,208 +134,6 @@ test("mobile navigation awaits exactly one wipe before provider logout", async (
 	);
 	await view.flush();
 	view.click(document.querySelector('[data-testid="sign-out-button"]')!);
-	await view.waitFor(() => wipe.mock.callCount() === 1, "wipe started");
-	assert.deepEqual(order, ["wipe"]);
-	finish();
-	await view.waitFor(() => order.includes("logout"), "provider signed out");
-	assert.deepEqual(order, ["wipe", "logout"]);
-	assert.equal(wipe.mock.callCount(), 1);
-});
-
-test("sign in again awaits exactly one wipe before provider logout", async (t) => {
-	const view = createDomHarness();
-	const runtime = installOfflineRuntime({
-		verifySession: async () => null,
-		reauthenticate: () => {},
-	});
-	t.after(() => {
-		view.close();
-		(Reflect.get(runtime, "channel") as BroadcastChannel).close();
-	});
-
-	const order: string[] = [];
-	let finish!: () => void;
-	const wipe = t.mock.method(runtime, "removeDownloads", async () => {
-		order.push("wipe");
-		await new Promise<void>((resolve) => {
-			finish = resolve;
-		});
-	});
-	const provider = {
-		...noneAuthProvider,
-		Account: ({ children }: AuthAccountProps) =>
-			children({
-				email: "reader@example.test",
-				signOut: () => {
-					order.push("logout");
-				},
-			}),
-	};
-
-	view.renderApp(
-		createElement(
-			AuthProviderProvider,
-			{ value: provider },
-			createElement(SignInAgain),
-		),
-	);
-	await view.flush();
-	view.click(view.byText("button", "Sign in again"));
-	await view.waitFor(() => wipe.mock.callCount() === 1, "wipe started");
-	assert.deepEqual(order, ["wipe"]);
-	finish();
-	await view.waitFor(() => order.includes("logout"), "provider signed out");
-	assert.deepEqual(order, ["wipe", "logout"]);
-	assert.equal(wipe.mock.callCount(), 1);
-});
-
-test("body authentication error awaits exactly one wipe before provider logout", async (t) => {
-	const view = createDomHarness();
-	const runtime = installOfflineRuntime({
-		verifySession: async () => null,
-		reauthenticate: () => {},
-	});
-	t.after(() => {
-		view.close();
-		(Reflect.get(runtime, "channel") as BroadcastChannel).close();
-	});
-
-	const order: string[] = [];
-	let finish!: () => void;
-	const wipe = t.mock.method(runtime, "removeDownloads", async () => {
-		order.push("wipe");
-		await new Promise<void>((resolve) => {
-			finish = resolve;
-		});
-	});
-	const provider = {
-		...noneAuthProvider,
-		Account: ({ children }: AuthAccountProps) =>
-			children({
-				email: "reader@example.test",
-				signOut: () => {
-					order.push("logout");
-				},
-			}),
-	};
-
-	view.renderApp(
-		createElement(
-			AuthProviderProvider,
-			{ value: provider },
-			createElement(MessageBodyErrorBanner, {
-				error: new BodyFetchError("auth", "expired"),
-			}),
-		),
-	);
-	await view.flush();
-	view.click(view.byText("button", "Sign in again"));
-	await view.waitFor(() => wipe.mock.callCount() === 1, "wipe started");
-	assert.deepEqual(order, ["wipe"]);
-	finish();
-	await view.waitFor(() => order.includes("logout"), "provider signed out");
-	assert.deepEqual(order, ["wipe", "logout"]);
-	assert.equal(wipe.mock.callCount(), 1);
-});
-
-test("signed-out overlay awaits exactly one wipe before provider logout", async (t) => {
-	const view = createDomHarness();
-	const runtime = installOfflineRuntime({
-		verifySession: async () => null,
-		reauthenticate: () => {},
-	});
-	t.after(() => {
-		view.close();
-		resetSignedOut();
-		(Reflect.get(runtime, "channel") as BroadcastChannel).close();
-	});
-
-	const order: string[] = [];
-	let finish!: () => void;
-	const wipe = t.mock.method(runtime, "removeDownloads", async () => {
-		order.push("wipe");
-		await new Promise<void>((resolve) => {
-			finish = resolve;
-		});
-	});
-	const provider = {
-		...noneAuthProvider,
-		Account: ({ children }: AuthAccountProps) =>
-			children({
-				email: "reader@example.test",
-				signOut: () => {
-					order.push("logout");
-				},
-			}),
-	};
-
-	reportSignedOut();
-	view.renderApp(
-		createElement(
-			AuthProviderProvider,
-			{ value: provider },
-			createElement(SignedOutOverlay),
-		),
-	);
-	await view.flush();
-	view.click(view.byText("button", "Sign in"));
-	await view.waitFor(() => wipe.mock.callCount() === 1, "wipe started");
-	assert.deepEqual(order, ["wipe"]);
-	finish();
-	await view.waitFor(() => order.includes("logout"), "provider signed out");
-	assert.deepEqual(order, ["wipe", "logout"]);
-	assert.equal(wipe.mock.callCount(), 1);
-});
-
-test("delete unavailable awaits exactly one wipe before provider logout", async (t) => {
-	const view = createDomHarness();
-	const runtime = installOfflineRuntime({
-		verifySession: async () => null,
-		reauthenticate: () => {},
-	});
-	t.after(() => {
-		view.close();
-		(Reflect.get(runtime, "channel") as BroadcastChannel).close();
-	});
-
-	const order: string[] = [];
-	let finish!: () => void;
-	const wipe = t.mock.method(runtime, "removeDownloads", async () => {
-		order.push("wipe");
-		await new Promise<void>((resolve) => {
-			finish = resolve;
-		});
-	});
-	const provider = {
-		...noneAuthProvider,
-		Account: ({ children }: AuthAccountProps) =>
-			children({
-				email: "reader@example.test",
-				signOut: () => {
-					order.push("logout");
-				},
-			}),
-	};
-
-	view.renderApp(
-		createElement(
-			AuthProviderProvider,
-			{ value: provider },
-			createElement(DeleteConfirmDialog, {
-				isOpen: true,
-				messageIds: ["message"],
-				outcome: "unavailable",
-				onConfirm: () => {},
-				onCancel: () => {},
-			}),
-		),
-	);
-	await view.flush();
-	view.click(
-		[...document.querySelectorAll("button")].find((button) =>
-			button.textContent?.includes("Sign in"),
-		)!,
-	);
 	await view.waitFor(() => wipe.mock.callCount() === 1, "wipe started");
 	assert.deepEqual(order, ["wipe"]);
 	finish();
