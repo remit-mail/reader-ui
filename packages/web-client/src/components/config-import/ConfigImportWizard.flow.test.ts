@@ -1,30 +1,10 @@
-/**
- * Walking the config import wizard against a mocked instance.
- *
- * Every state here is one the components could already render in Storybook; the
- * question this file answers is whether the app can ever reach them. Each of
- * these was unreachable at one point: the 409 came back with its code on the
- * thrown wrapper's body rather than on the error, an account whose password had
- * just been verified stayed red because `connectionState` is written later by a
- * worker, and "Check the file" was live before there was a document to send.
- *
- * Held with the real caches wired to `lib/query-error-handler.ts`, because
- * "does the fatal overlay swallow this" is a question about what those two
- * handlers pass, and nothing below them can see it. The overlay itself is not
- * mounted — `getCurrentFatalError` is the same signal without a second app's
- * worth of chrome in the tree.
- */
-
 import assert from "node:assert/strict";
 import { afterEach, describe, it } from "node:test";
 import { MutationCache, QueryCache, QueryClient } from "@tanstack/react-query";
 import { createElement } from "react";
 import "../../lib/client";
+import { escalate } from "../../lib/escalate";
 import { __resetFatalError, getCurrentFatalError } from "../../lib/fatal-error";
-import {
-	handleMutationCacheError,
-	handleQueryCacheError,
-} from "../../lib/query-error-handler";
 import { isSignedOut, resetSignedOut } from "../../lib/signed-out";
 import { createDomHarness, type DomHarness } from "../../test-support/dom";
 import {
@@ -51,8 +31,8 @@ const ACCOUNT_ID = "acct-imported";
 
 const escalatingClient = (): QueryClient =>
 	new QueryClient({
-		queryCache: new QueryCache({ onError: handleQueryCacheError }),
-		mutationCache: new MutationCache({ onError: handleMutationCacheError }),
+		queryCache: new QueryCache({ onError: escalate }),
+		mutationCache: new MutationCache({ onError: escalate }),
 		defaultOptions: {
 			queries: { retry: false },
 			mutations: { retry: false },

@@ -20,15 +20,7 @@ import type { CalendarViewId } from "@remit/ui";
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo } from "react";
 import { stepCalendarDate } from "../../lib/calendar-route";
-import { softErrorStatuses } from "../../lib/error-classifier";
 import { type CalendarWindow, calendarWindow } from "./window";
-
-/**
- * The refusals this surface answers itself: a window the server will not read,
- * and a calendar the address names that is no longer there. Everything else —
- * a lapsed session above all — escalates.
- */
-const CALENDAR_READ_META = softErrorStatuses(400, 404);
 
 /**
  * How long a window stays worth reusing.
@@ -75,7 +67,6 @@ export function useCalendarEventWindow(
 		...calendarEventOperationsListCalendarEventsOptions(
 			requestOptions(request),
 		),
-		meta: CALENDAR_READ_META,
 		staleTime: CALENDAR_WINDOW_STALE_TIME,
 		enabled: request.enabled ?? true,
 	});
@@ -123,7 +114,6 @@ export function useCalendarEventWeeks(
 			...calendarEventOperationsListCalendarEventsOptions(
 				requestOptions({ ...window, calendarIds }),
 			),
-			meta: CALENDAR_READ_META,
 			staleTime: CALENDAR_WINDOW_STALE_TIME,
 			enabled,
 		})),

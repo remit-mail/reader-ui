@@ -9,7 +9,6 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useErrorBanners } from "../components/ui/error-banner-context";
 import { formatErrorDetail } from "../components/ui/error-banners";
 import { runChunkedMutation } from "../lib/bulk-actions";
-import { softErrorMeta } from "../lib/error-classifier";
 import { getOfflineRuntime } from "../lib/offline-runtime";
 import {
 	cancelThreadListQueries,
@@ -129,7 +128,6 @@ export const useMarkAsRead = ({
 	// of its failure, so a refusal must not take the screen down with it.
 	const { mutate: markAsRead } = useMutation({
 		...messageBulkOperationsUpdateFlagsMutation(),
-		meta: softErrorMeta,
 		onMutate: async (variables): Promise<ThreadMutationContext> => {
 			const messageIds = new Set(variables.body.messageIds ?? []);
 			const isRead = variables.body.isRead ?? true;

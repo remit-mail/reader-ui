@@ -71,31 +71,6 @@ export const humanizeSpamFailureReason = (
 	messageId: string,
 ): string => reason.replace(`Message ${messageId}'s`, "This message's");
 
-/**
- * `settleSpamReportBulk` (backend) runs the batch with `Promise.allSettled`
- * and always answers 200, folding per-message outcomes into
- * `successCount`/`failureCount`/`failures` rather than rejecting the HTTP
- * call — a partial (or total) failure is not a thrown error on the wire. The
- * generated mutation helpers only ever reject on a non-2xx response, so
- * without this the hook would report success for a message whose report or
- * undo never actually happened. The thrown error carries the batch's
- * `failureCount` for the banner title and the first failure's reason as its
- * message.
- *
- * Throws `ApiError` — not a bare `Error` — carrying a 4xx status. The
- * client's fail-fast contract (`lib/error-classifier.ts`'s `shouldEscalate`,
- * wired globally on the `MutationCache` in `lib/query-error-handler.ts`)
- * escalates anything that isn't a 5xx by default UNLESS the call site opts
- * out via `meta.softError` — a statusless `Error` escalates too, as a client
- * bug. Either way, without both the status AND `meta.softError` (set on the
- * `useMutation` calls below) this would crash to the full-screen fatal
- * overlay for a designed, expected, retryable outcome the backend wrote
- * user-facing copy for. Every other call site in this app forwards a
- * status-carrying error the generated client already threw and never needs
- * the opt-out because none of them are a routine, expected-failure signal
- * like this one; this is the one place synthesizing a failure from a 200
- * body, so it has to synthesize both.
- */
 export class SpamBulkFailureError extends ApiError {
 	constructor(
 		message: string,
@@ -204,12 +179,6 @@ export function useReportSpam({
 			throwOnBulkFailure(data);
 			return data;
 		},
-		// A per-message report failure is a routine, expected, retryable outcome
-		// with backend-written user-facing copy — never the fatal overlay. See
-		// `throwOnBulkFailure`'s doc for why the thrown ApiError's status alone
-		// isn't enough: `shouldEscalate` defaults to escalate for a non-5xx that
-		// doesn't opt out here.
-		meta: { softError: true },
 		onSuccess,
 		onSettled: invalidateAffectedQueries,
 		onError: buildOnError((count) =>
@@ -221,7 +190,6 @@ export function useReportSpam({
 
 	const restore = useMutation({
 		mutationFn: sendNotSpam,
-		meta: { softError: true },
 		onSuccess,
 		onSettled: invalidateAffectedQueries,
 		onError: buildOnError((count) =>
@@ -233,7 +201,6 @@ export function useReportSpam({
 
 	const moveOut = useMutation({
 		mutationFn: sendNotSpam,
-		meta: { softError: true },
 		onSuccess,
 		onSettled: invalidateAffectedQueries,
 		onError: buildOnError((count) =>

@@ -21,12 +21,20 @@ const messages = [
 const Delete = () => {
 	const { deleteMessages } = useDeleteMessages({
 		mailboxId: "inbox",
-		accountId: "acc-1",
-		messages,
 	});
 	return createElement(
 		"button",
-		{ type: "button", onClick: () => deleteMessages(["m1", "m2"]) },
+		{
+			type: "button",
+			onClick: () =>
+				deleteMessages(
+					messages.map((message) => ({
+						id: message.messageId,
+						mailboxId: message.mailboxId,
+						accountId: "acc-1",
+					})),
+				),
+		},
 		"Delete",
 	);
 };

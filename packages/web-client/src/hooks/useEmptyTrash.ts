@@ -22,7 +22,6 @@ import {
 	type FolderRoleRefusal,
 	isFolderRoleRefusal,
 } from "../components/ui/folder-role-refusal";
-import { softErrorStatuses } from "../lib/error-classifier";
 import {
 	invalidateThreadListQueries,
 	threadListCacheKeys,
@@ -110,9 +109,6 @@ export const useEmptyTrash = ({
 
 	const { mutateAsync, isPending } = useMutation({
 		...trashOperationsEmptyTrashMutation(),
-		// The refusal is rendered in the pane, so it must not also take the whole
-		// screen. Only 409 — every other status is still the fatal page's (#1059).
-		meta: softErrorStatuses(409),
 		onMutate: (): EmptyTrashContext => {
 			inFlight.current = scope;
 			return { scope, listMailboxId: listMailboxIdNow() };

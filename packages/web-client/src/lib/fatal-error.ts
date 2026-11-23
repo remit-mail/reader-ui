@@ -52,16 +52,6 @@ export interface ReportFatalOptions {
 	componentStack?: string;
 }
 
-/**
- * Default recoverable classification for an error with no explicit override.
- * Only a 5xx is treated as recoverable — the one clearly transient class, where
- * retrying the same action may succeed. Everything that reaches the fatal seam
- * is otherwise deterministic: aborts and offline/network blips never escalate
- * here (they are filtered upstream by `shouldEscalate`), so a statusless error
- * arriving here is an uncaught/unhandled crash, not a benign network blip.
- * A caught render exception is deterministic too — the error boundary reports
- * it with an explicit `recoverable: false` for good measure.
- */
 const defaultRecoverable = (error: unknown): boolean => isServerError(error);
 
 type FatalErrorListener = (fatal: FatalError) => void;

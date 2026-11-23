@@ -20,6 +20,7 @@ import {
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
 import { useDeleteMessages } from "../../hooks/useDeleteMessages";
+import { useMailboxAccount } from "../../hooks/useMailboxAccount";
 import { setReadOnItems } from "../../hooks/useMarkAsRead";
 import { useMoveMessages } from "../../hooks/useMoveMessages";
 import { useToggleTrusted } from "../../hooks/useToggleTrusted";
@@ -180,6 +181,9 @@ export const MessageActionMenu = ({
 		[selectedMessageId, closeThread],
 	);
 
+	const { accountId: mailboxAccountId } = useMailboxAccount(
+		accountId ? undefined : mailboxId,
+	);
 	const { deleteMessages, isPending: isDeleting } = useDeleteMessages({
 		mailboxId,
 		threadId,
@@ -210,7 +214,9 @@ export const MessageActionMenu = ({
 	};
 
 	const handleDelete = () => {
-		deleteMessages([messageId]);
+		const owner = accountId ?? mailboxAccountId;
+		if (!owner) throw new Error("Missing original message account");
+		deleteMessages([{ id: messageId, mailboxId, accountId: owner }]);
 	};
 
 	const handleToggleTrusted = () => {

@@ -522,12 +522,6 @@ describe("the brief's sections come from the server (#312)", () => {
 		}
 	});
 
-	// Seven requests, seven answers. A request that never got one states itself
-	// where that category would have been; the six that came back stay on screen.
-	//
-	// A transport failure, not a 5xx: the fail-fast contract escalates every 5xx
-	// to the full-screen overlay and there is no opt-out here, so a 500 would
-	// never reach this state in the app however this test is mounted (#1059).
 	it("keeps the other sections when one category's request fails", async () => {
 		const dom = await mountWith((call) => {
 			const params = new URL(call.url, "http://localhost").searchParams;

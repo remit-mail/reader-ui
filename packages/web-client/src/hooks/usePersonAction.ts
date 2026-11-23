@@ -11,7 +11,7 @@ import type {
 	RemitImapStepUpAction,
 } from "@remit/api-http-client/types.gen.ts";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { peopleActionMeta, replacePerson } from "../lib/people";
+import { replacePerson } from "../lib/people";
 
 export interface PersonActionInput {
 	action: RemitImapStepUpAction;
@@ -28,10 +28,11 @@ const runAction = async (
 	stepUpToken: string,
 ): Promise<PersonActionResult> => {
 	const path = { userId: person.userId };
+	const headers = { "X-Remit-Step-Up": stepUpToken };
 	if (action === "SignOut") {
 		const { data } = await peopleOperationsSignOutPerson({
 			path,
-			body: { stepUpToken },
+			headers,
 			throwOnError: true,
 		});
 		return { person: data, resetUrl: undefined };
@@ -39,16 +40,16 @@ const runAction = async (
 	if (action === "ResetPassword") {
 		const { data } = await peopleOperationsCreatePasswordReset({
 			path,
-			body: { stepUpToken },
+			headers,
 			throwOnError: true,
 		});
 		return { person: data.person, resetUrl: data.resetUrl };
 	}
 	const { data } = await peopleOperationsUpdatePerson({
 		path,
+		headers,
 		body: {
 			status: action === "Disable" ? "Disabled" : "Active",
-			stepUpToken,
 		},
 		throwOnError: true,
 	});
@@ -66,7 +67,6 @@ export const usePersonAction = (password: string) => {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		meta: peopleActionMeta,
 		gcTime: 0,
 		mutationFn: async (
 			input: PersonActionInput,

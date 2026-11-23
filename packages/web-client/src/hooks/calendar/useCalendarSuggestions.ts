@@ -33,10 +33,7 @@ import {
 	useQueryClient,
 } from "@tanstack/react-query";
 import { useCallback, useMemo } from "react";
-import { softErrorStatuses } from "../../lib/error-classifier";
 import { listPages } from "../../lib/list-pages";
-
-const SUGGESTION_META = softErrorStatuses(400, 404);
 
 /** Every read an answer can change: the cards, the calendar, the sender rules. */
 const ANSWERED_QUERY_IDS = new Set([
@@ -72,7 +69,6 @@ export function useMessageCalendarSuggestions(
 		...messageCalendarSuggestionOperationsListMessageCalendarSuggestionsOptions(
 			{ path: { messageId } },
 		),
-		meta: SUGGESTION_META,
 	});
 	return {
 		suggestions: data?.items ?? [],
@@ -87,7 +83,6 @@ export function usePendingCalendarSuggestions(): CalendarSuggestionsResult {
 		...calendarSuggestionOperationsListCalendarSuggestionsOptions({
 			query: { state: "Pending" },
 		}),
-		meta: SUGGESTION_META,
 	});
 	return {
 		suggestions: data?.items ?? [],
@@ -132,7 +127,6 @@ export function usePendingCalendarSuggestion(
 			},
 		],
 		queryFn: ({ signal }) => findPending(suggestionId, signal),
-		meta: SUGGESTION_META,
 	});
 	return { suggestion: data, isLoading, error: error ?? null };
 }
@@ -179,23 +173,19 @@ export function useCalendarSuggestionAnswers(): CalendarSuggestionAnswers {
 
 	const accept = useMutation({
 		...calendarSuggestionActionOperationsAcceptCalendarSuggestionMutation(),
-		meta: SUGGESTION_META,
 		onSuccess,
 	});
 	const decline = useMutation({
 		...calendarSuggestionActionOperationsDeclineCalendarSuggestionMutation(),
-		meta: SUGGESTION_META,
 		onSuccess,
 	});
 	const dismiss = useMutation({
 		...calendarSuggestionActionOperationsDismissCalendarSuggestionMutation(),
-		meta: SUGGESTION_META,
 		onSuccess,
 	});
 
 	const reopen = useMutation({
 		...calendarSuggestionActionOperationsReopenCalendarSuggestionMutation(),
-		meta: SUGGESTION_META,
 		onSuccess,
 	});
 

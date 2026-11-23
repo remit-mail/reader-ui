@@ -16,11 +16,8 @@ import { calendarFreeBusyOperationsListCalendarFreeBusyOptions } from "@remit/ap
 import type { RemitImapCalendarFreeBusySpan } from "@remit/api-http-client/types.gen.ts";
 import { useQueries } from "@tanstack/react-query";
 import { useMemo } from "react";
-import { softErrorStatuses } from "../../lib/error-classifier";
 import { CALENDAR_WINDOW_STALE_TIME } from "./useCalendarEvents";
 import type { CalendarWindow } from "./window";
-
-const CALENDAR_READ_META = softErrorStatuses(400, 404);
 
 export interface CalendarFreeBusyResult {
 	spans: RemitImapCalendarFreeBusySpan[];
@@ -43,7 +40,6 @@ export function useCalendarFreeBusyWeeks(
 			...calendarFreeBusyOperationsListCalendarFreeBusyOptions({
 				query: { from: window.from, to: window.to },
 			}),
-			meta: CALENDAR_READ_META,
 			staleTime: CALENDAR_WINDOW_STALE_TIME,
 		})),
 	});

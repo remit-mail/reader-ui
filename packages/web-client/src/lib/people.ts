@@ -5,29 +5,8 @@ import type {
 import { PeopleErrorCode } from "@remit/domain-enums";
 import { codedApiErrorBody } from "./api";
 import { buildBugReportContext, buildGitHubIssueUrl } from "./bug-report";
-import {
-	getErrorStatus,
-	isNetworkError,
-	ownsServerErrorsMeta,
-	softErrorStatuses,
-} from "./error-classifier";
+import { getErrorStatus, isNetworkError } from "./error-classifier";
 import { formatDatePreset } from "./format";
-
-/**
- * The list read owns its refusals: a 404 means this server has no People page
- * (self sign-up is open, or it is not a self-host), and a 403 means the caller
- * may no longer act, which the page turns into the signed-out notice.
- */
-export const peopleQueryMeta = softErrorStatuses(403, 404);
-
-/**
- * The action dialogs own every refusal the People operations answer, and a
- * server failure too: it shows as the banner over the list.
- */
-export const peopleActionMeta = {
-	...softErrorStatuses(403, 404, 409, 429),
-	...ownsServerErrorsMeta,
-};
 
 const SIGNED_OUT_CODES = new Set<string>([
 	PeopleErrorCode.SignInDisabled,

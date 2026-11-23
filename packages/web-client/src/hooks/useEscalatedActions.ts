@@ -211,7 +211,7 @@ export const useEscalatedActions = ({
 				}
 				if (action.kind === "markRead") {
 					const { data } = await messageBulkOperationsUpdateFlags({
-						body: { messageIds: ids, isRead: true },
+						body: { messageIds: ids, isRead: action.isRead ?? true },
 						signal,
 						throwOnError: true,
 					});

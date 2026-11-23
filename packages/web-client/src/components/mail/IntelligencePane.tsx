@@ -26,7 +26,6 @@ import { useIntelligenceCalendar } from "../../hooks/useIntelligenceCalendar";
 import { useIntelligenceData } from "../../hooks/useIntelligenceData";
 import { useReportSpam } from "../../hooks/useReportSpam";
 import { useUpdateAddressFlags } from "../../hooks/useUpdateAddressFlags";
-import { softErrorStatuses } from "../../lib/error-classifier";
 import { isRescueCandidate } from "../../lib/rescue-candidates";
 import { recordRescueSentToJunk } from "../../lib/rescue-telemetry";
 import { remitSpamLabel, unknownReasonReportHref } from "../../lib/spam";
@@ -266,7 +265,6 @@ function SpamVerdictSection({
 }) {
 	const settings = useQuery({
 		...userSettingsOperationsGetUserSettingsOptions(),
-		meta: softErrorStatuses(403),
 	});
 	const filterId =
 		verdict.state === "ScreenedOut" && verdict.screen.rule === "Filter"

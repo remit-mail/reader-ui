@@ -16,7 +16,6 @@ import {
 	REDIRECT_STALL_MESSAGE,
 	useRedirectEnded,
 } from "../../hooks/useRedirectEnded";
-import { softErrorMeta } from "../../lib/error-classifier";
 import { useErrorBanners } from "../ui/error-banner-context";
 import {
 	type AccountServiceRefusal,
@@ -53,7 +52,6 @@ export function AccountServices({
 
 	const save = useMutation({
 		...accountDetailOperationsUpdateAccountMutation(),
-		meta: softErrorMeta,
 		onSuccess: () =>
 			queryClient.invalidateQueries({
 				queryKey: configOperationsGetConfigQueryKey(),
@@ -62,7 +60,6 @@ export function AccountServices({
 
 	const consent = useMutation({
 		...microsoftOAuthOperationsMicrosoftOAuthStartMutation(),
-		meta: softErrorMeta,
 	});
 
 	const markRedirectStarted = useRedirectEnded((end) => {

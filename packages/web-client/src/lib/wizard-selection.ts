@@ -4,7 +4,7 @@ import type { ThreadRowData, WizardMessage } from "@remit/ui";
 export interface WizardSelectionMessage extends WizardMessage {
 	/** Sender address — the properties prefill matches on it. */
 	email: string;
-	isRead?: boolean;
+	isRead: boolean;
 	/**
 	 * Owning account, which a bulk run splits its batches by (#872) — the bulk
 	 * endpoints refuse a batch spanning accounts before applying any of it.
@@ -37,7 +37,7 @@ export const wizardSelectionFrom = (
 			id: row.id,
 			sender: row.fromName,
 			email: row.fromEmail,
-			isRead: row.isRead,
+			isRead: row.isRead ?? false,
 			subject: row.subject,
 			date: row.timeLabel,
 			accountId: row.accountId,

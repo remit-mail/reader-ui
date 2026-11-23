@@ -99,9 +99,6 @@ export function useInitialSyncProgress(
 			// only stops the interval.
 			enabled: enabled && !settled,
 			refetchInterval: POLL_MS,
-			// A failed sync-status read is not the account failing — it must not
-			// raise the global fatal overlay over a question about an empty list.
-			meta: { softError: true },
 		})),
 	});
 

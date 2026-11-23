@@ -14,11 +14,8 @@ import {
 	RouterContextProvider,
 } from "@tanstack/react-router";
 import { createElement } from "react";
+import { escalate } from "../../lib/escalate";
 import { __resetFatalError } from "../../lib/fatal-error";
-import {
-	handleMutationCacheError,
-	handleQueryCacheError,
-} from "../../lib/query-error-handler";
 import { createDomHarness, type DomHarness } from "../../test-support/dom";
 import { type HttpMock, httpError, mockFetch } from "../../test-support/http";
 import { ComposeForm } from "./ComposeForm";
@@ -96,8 +93,8 @@ it("banners a refused draft discard instead of closing as if it worked", async (
 	});
 
 	const queryClient = new QueryClient({
-		queryCache: new QueryCache({ onError: handleQueryCacheError }),
-		mutationCache: new MutationCache({ onError: handleMutationCacheError }),
+		queryCache: new QueryCache({ onError: escalate }),
+		mutationCache: new MutationCache({ onError: escalate }),
 		defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
 	});
 

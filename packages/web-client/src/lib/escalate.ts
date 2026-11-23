@@ -1,25 +1,14 @@
-import { isUnauthenticated, shouldEscalate } from "./error-classifier";
-import { reportFatalError } from "./fatal-error";
+import { isUnauthenticated } from "./error-classifier";
 import { getOfflineRuntime } from "./offline-runtime";
 import { reportSignedOut } from "./signed-out";
 
-/**
- * Where a failed request goes when its call site does not answer it: a 401 to
- * the signed-out notice, whatever the call site declared, and anything else
- * the fail-fast contract escalates to the fatal page.
- */
-export const escalate = (
-	error: unknown,
-	meta?: Record<string, unknown>,
-): void => {
-	if (isUnauthenticated(error)) {
-		const runtime = getOfflineRuntime();
-		if (runtime) {
-			runtime.sessionUnverified();
-			return;
-		}
-		reportSignedOut();
+/** Confirmed authentication refusals invalidate the session; other errors stay with their owner. */
+export const escalate = (error: unknown): void => {
+	if (!isUnauthenticated(error)) return;
+	const runtime = getOfflineRuntime();
+	if (runtime) {
+		runtime.sessionUnverified();
 		return;
 	}
-	if (shouldEscalate(error, meta)) reportFatalError(error);
+	reportSignedOut();
 };

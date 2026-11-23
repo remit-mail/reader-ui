@@ -7,6 +7,7 @@ import { BadgeCheck, Check, Code } from "@remit/ui/icons";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
 import { useDeleteMessages } from "../../hooks/useDeleteMessages";
+import { useMailboxAccount } from "../../hooks/useMailboxAccount";
 import { useMoveMessages } from "../../hooks/useMoveMessages";
 import { useToggleTrusted } from "../../hooks/useToggleTrusted";
 import {
@@ -57,6 +58,9 @@ export const MobileMessageBar = ({
 }: MobileMessageBarProps) => {
 	const queryClient = useQueryClient();
 
+	const { accountId: mailboxAccountId } = useMailboxAccount(
+		accountId ? undefined : mailboxId,
+	);
 	const { deleteMessages } = useDeleteMessages({ mailboxId, threadId });
 	const { moveMessages } = useMoveMessages({ mailboxId, threadId, accountId });
 	const { toggleTrusted } = useToggleTrusted({ messageId });
@@ -84,8 +88,10 @@ export const MobileMessageBar = ({
 	);
 
 	const handleDelete = useCallback(() => {
-		deleteMessages([messageId]);
-	}, [deleteMessages, messageId]);
+		const owner = accountId ?? mailboxAccountId;
+		if (!owner) throw new Error("Missing original message account");
+		deleteMessages([{ id: messageId, mailboxId, accountId: owner }]);
+	}, [deleteMessages, messageId, mailboxId, accountId, mailboxAccountId]);
 
 	const handleToggleRead = useCallback(() => {
 		updateFlags({ body: { messageIds: [messageId], isRead: !isRead } });

@@ -169,7 +169,7 @@ export const handleBackgroundSyncFailure = (
 ): void => {
 	triggeredAccountIds.delete(accountId);
 	if (isUnauthenticated(error)) {
-		escalate(error, { softError: true });
+		escalate(error);
 		return;
 	}
 	console.warn("[remit] background mailbox sync failed", {

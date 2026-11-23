@@ -1,8 +1,4 @@
 import { mailboxOperationsListMailboxesOptions } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
-import {
-	messageBulkOperationsMoveMessages,
-	messageBulkOperationsUpdateFlags,
-} from "@remit/api-http-client/sdk.gen.ts";
 import type { RemitImapAccountResponse } from "@remit/api-http-client/types.gen.ts";
 import {
 	type ClauseDraft,
@@ -32,13 +28,14 @@ import {
 	type WizardMessage,
 	wizardScopeFor,
 } from "@remit/ui";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useBlocker } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
 	useFolderAppointments,
 	useInboxMailbox,
 	useJunkMailbox,
+	useTrashByAccount,
 } from "../../hooks/useArchiveMailbox";
 import { useClauseSuggestions } from "../../hooks/useClauseSuggestions";
 import { useCreateMailbox } from "../../hooks/useCreateMailbox";
@@ -383,8 +380,9 @@ function SelectionWizardSession({
 			selection.map((message) => ({
 				id: message.id,
 				accountId: message.accountId,
+				mailboxId: message.mailboxId ?? mailboxId,
 			})),
-		[selection],
+		[selection, mailboxId],
 	);
 	const senders = useMemo(
 		() => selection.map((message) => message.email).filter(Boolean),
@@ -533,7 +531,7 @@ function SelectionWizardSession({
 	const { runAction } = bulk;
 
 	const { pushError, dismissError } = useErrorBanners();
-	const queryClient = useQueryClient();
+	const { trashByAccount } = useTrashByAccount();
 	const selectionDelete = useDeleteOutcome(
 		selection.map((message) => ({
 			accountId: message.accountId,
@@ -664,42 +662,51 @@ function SelectionWizardSession({
 					title: "Selection updated",
 					action: {
 						label: "Undo",
-						onClick: () => {
-							dismissError(id);
-							const groups = new Map<string, string[]>();
+						onClick: async () => {
+							const groups = new Map<string, BulkActionTarget[]>();
 							for (const message of originals) {
 								if (verb === "markRead" && message.isRead) continue;
-								const source = message.mailboxId ?? mailboxId;
-								if (!source)
+								const originalFolder = message.mailboxId ?? mailboxId;
+								if (!originalFolder)
 									throw new Error("Missing original folder for Undo");
-								groups.set(source, [...(groups.get(source) ?? []), message.id]);
+								const owner = message.accountId ?? accountId;
+								const currentFolder =
+									action.kind === "move"
+										? action.destinationMailboxId
+										: action.kind === "delete"
+											? trashByAccount.get(owner ?? "")?.mailboxId
+											: originalFolder;
+								groups.set(originalFolder, [
+									...(groups.get(originalFolder) ?? []),
+									{
+										id: message.id,
+										accountId: owner,
+										mailboxId: currentFolder,
+									},
+								]);
 							}
-							void Promise.all(
-								[...groups].map(async ([source, ids]) => {
-									for (let offset = 0; offset < ids.length; offset += 100) {
-										const messageIds = ids.slice(offset, offset + 100);
-										const { data } =
-											verb === "markRead"
-												? await messageBulkOperationsUpdateFlags({
-														body: { messageIds, isRead: false },
-														throwOnError: true,
-													})
-												: await messageBulkOperationsMoveMessages({
-														body: { messageIds, destinationMailboxId: source },
-														throwOnError: true,
-													});
-										if (data.failureCount > 0)
-											throw new Error(
-												"Some messages could not be restored. Try again from their current folder.",
-											);
-									}
-								}),
-							).then(
-								() => queryClient.invalidateQueries(),
-								(error) => {
-									pushError({ title: "Couldn't undo selection update", error });
-								},
-							);
+							for (const [destinationMailboxId, targets] of groups) {
+								const result = await runAction(
+									verb === "markRead"
+										? { kind: "markRead", isRead: false }
+										: { kind: "move", destinationMailboxId },
+									targets,
+								);
+								if (result.kind === "refused") {
+									pushError({
+										title: "Couldn't undo selection update",
+										detail: result.reason,
+									});
+									return;
+								}
+								dismissError(id);
+								if (
+									result.outcome.cancelled ||
+									result.outcome.failedIds.length ||
+									result.outcome.refused
+								)
+									return;
+							}
 						},
 					},
 				});
@@ -723,7 +730,8 @@ function SelectionWizardSession({
 			mailboxId,
 			pushError,
 			dismissError,
-			queryClient,
+			accountId,
+			trashByAccount,
 		],
 	);
 

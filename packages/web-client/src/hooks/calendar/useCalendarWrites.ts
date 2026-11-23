@@ -29,10 +29,7 @@ import type { RecurrenceScope } from "@remit/ui";
 import { formatErrorMessage } from "@remit/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo } from "react";
-import { getErrorStatus, softErrorStatuses } from "../../lib/error-classifier";
-
-/** The refusals a calendar surface renders itself. A 401 is not among them. */
-export const CALENDAR_WRITE_META = softErrorStatuses(400, 404, 412);
+import { getErrorStatus } from "../../lib/error-classifier";
 
 /** Every read whose answer a write can change. */
 const CALENDAR_QUERY_IDS = new Set([
@@ -119,17 +116,14 @@ export function useCalendarWrites(): CalendarWrites {
 
 	const create = useMutation({
 		...calendarEventOperationsCreateCalendarEventMutation(),
-		meta: CALENDAR_WRITE_META,
 		onSuccess: invalidate,
 	});
 	const update = useMutation({
 		...calendarEventDetailOperationsUpdateCalendarEventMutation(),
-		meta: CALENDAR_WRITE_META,
 		onSuccess: invalidate,
 	});
 	const remove = useMutation({
 		...calendarEventDetailOperationsDeleteCalendarEventMutation(),
-		meta: CALENDAR_WRITE_META,
 		onSuccess: invalidate,
 	});
 

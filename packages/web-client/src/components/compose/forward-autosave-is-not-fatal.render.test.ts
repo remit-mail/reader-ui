@@ -29,11 +29,8 @@ import {
 	RouterContextProvider,
 } from "@tanstack/react-router";
 import { createElement, Fragment, useState } from "react";
+import { escalate } from "../../lib/escalate";
 import { __resetFatalError } from "../../lib/fatal-error";
-import {
-	handleMutationCacheError,
-	handleQueryCacheError,
-} from "../../lib/query-error-handler";
 import { isSignedOut, resetSignedOut } from "../../lib/signed-out";
 import { createDomHarness, type DomHarness } from "../../test-support/dom";
 import { type HttpMock, httpError, mockFetch } from "../../test-support/http";
@@ -174,8 +171,8 @@ const mount = async (options: MountOptions = {}): Promise<void> => {
 	});
 
 	const queryClient = new QueryClient({
-		queryCache: new QueryCache({ onError: handleQueryCacheError }),
-		mutationCache: new MutationCache({ onError: handleMutationCacheError }),
+		queryCache: new QueryCache({ onError: escalate }),
+		mutationCache: new MutationCache({ onError: escalate }),
 		defaultOptions: {
 			queries: { retry: false },
 			mutations: { retry: false },

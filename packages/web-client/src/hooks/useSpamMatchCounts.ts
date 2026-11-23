@@ -1,32 +1,3 @@
-/**
- * How much of a search sits in Spam: one `listAllThreads` count per junk folder
- * the search reached, under the search's own criteria.
- *
- * One request per folder rather than one for all of them, because the scope
- * parameter names a single mailbox — and because the offer needs the folders
- * apart as well as together: the sum is what it states, the largest is where its
- * button goes. Accounts have one junk folder each, so this is one request per
- * account and it is issued when the committed criteria change, never on a
- * keystroke.
- *
- * `accountId` rides along on the criteria whenever the account pill is set, and
- * the server intersects the two scopes: a junk folder of another account counts
- * nothing. That is what keeps the sum the size of the list the reader is looking
- * at rather than of every account they have.
- *
- * A count that has not arrived, failed, or came back absent is `unknown` for
- * that folder, and `spamOfferFromCounts` turns any one of those into an unknown
- * total. Nothing here substitutes a page length for a count the server did not
- * give (#313).
- *
- * A failure is reported apart from the rest, because the three are not the same
- * answer: a folder that could not be counted has not said it holds nothing, and
- * an offer that vanished on a failed request is indistinguishable from a search
- * that reaches no spam. These queries carry no `meta.softError` and must not:
- * a 401 or 403 here escalates on the fail-fast contract (`shouldEscalate`,
- * #1059) and puts the reader in front of the signed-out surface, which is the
- * one thing a read must never answer with an empty result.
- */
 import { unifiedThreadOperationsListAllThreadsQueryKey } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
 import { unifiedThreadOperationsListAllThreads } from "@remit/api-http-client/sdk.gen.ts";
 import { useQueries } from "@tanstack/react-query";

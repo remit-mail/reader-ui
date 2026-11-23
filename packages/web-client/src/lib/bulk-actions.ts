@@ -45,7 +45,7 @@ export const BULK_ACTION_CHUNK_SIZE = 100;
 export type EscalatedAction =
 	| { kind: "delete" }
 	| { kind: "move"; destinationMailboxId: string }
-	| { kind: "markRead" };
+	| { kind: "markRead"; isRead?: boolean };
 
 /**
  * The mailboxes whose cached listings a bulk run affects: the mailbox it ran
@@ -94,6 +94,8 @@ export const chunkIds = (
 /** One message a run covers, as the surface that selected it knows it. */
 export interface BulkActionTarget {
 	id: string;
+	/** The listing to invalidate when this target changes placement. */
+	mailboxId?: string;
 	/**
 	 * Owning IMAP account — the `accountId` of the account API, never the
 	 * caller's `accountConfigId` (#456). Undefined on a row from a per-mailbox
@@ -254,21 +256,23 @@ export const runChunkedAction = async (
  * patch, rollback and error banner. The run stops at the first rejected chunk
  * and reports nothing itself: the hook that owns the call has already raised it.
  *
- * Every call site on this path hands over ids from a single account — a
- * focused row, or a selection the surface already scoped — so nothing here
- * carries an account to split by. A caller with a cross-account selection
- * belongs on `runChunkedAction`, whose targets name one (#872).
+ * Targets retain their account for the shared runner's account splitting.
+ * Plain ids are for selections already scoped to one account.
  *
  * These callers have no Stop control to wire a signal to — a mutation over a
  * handful of ids has no progress surface to stop from — so the run is handed a
  * signal that never aborts.
  */
 export const runChunkedMutation = async (
-	ids: readonly string[],
+	ids: readonly (string | BulkActionTarget)[],
 	send: (chunk: string[]) => Promise<unknown>,
 ): Promise<void> => {
 	await runChunkedAction(
-		ids.map((id) => ({ id, accountId: undefined })),
+		ids.map((target) =>
+			typeof target === "string"
+				? { id: target, accountId: undefined }
+				: target,
+		),
 		async (chunk) => {
 			await send(chunk);
 			return { successCount: chunk.length, failureCount: 0 };

@@ -188,7 +188,6 @@ function BriefPaneProvider({ thread, children }: BriefPaneProps) {
 	// only the fallback.
 	const { deleteMessages } = useDeleteMessages({
 		mailboxId: selectedThread?.mailboxId ?? "",
-		messages: briefThreads,
 		onAfterOptimisticRemove: handleDeselectIfRemoved,
 	});
 	const { toggleReadFor } = useToggleReadFor({
@@ -285,7 +284,21 @@ function BriefPaneProvider({ thread, children }: BriefPaneProps) {
 		actions,
 		onReply: replyToOpenThread,
 		triage,
-		onDeleteMessages: deleteMessages,
+		onDeleteMessages: (ids) =>
+			deleteMessages(
+				ids.map((id) => {
+					const message = briefThreads.find(
+						(message) => message.messageId === id,
+					);
+					if (!message?.accountId)
+						throw new Error("Missing original message placement");
+					return {
+						id,
+						accountId: message.accountId,
+						mailboxId: message.mailboxId,
+					};
+				}),
+			),
 		handleDeselectIfRemoved,
 	};
 

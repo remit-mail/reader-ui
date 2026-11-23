@@ -161,9 +161,14 @@ export const BulkRunProvider = ({ children }: { children: ReactNode }) => {
 		(request: BulkRunRequest) => {
 			invalidateThreadListQueries(
 				queryClient,
-				threadListCacheKeys(
-					mailboxesTouchedBy(request.action, request.mailboxId),
-				),
+				threadListCacheKeys([
+					...mailboxesTouchedBy(request.action, request.mailboxId),
+					...(request.source.kind === "targets"
+						? request.source.targets.flatMap((target) =>
+								target.mailboxId ? [target.mailboxId] : [],
+							)
+						: []),
+				]),
 			);
 			const touched = new Set<string>();
 			if (request.accountId) touched.add(request.accountId);

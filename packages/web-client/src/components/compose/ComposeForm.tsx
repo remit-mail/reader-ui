@@ -50,7 +50,7 @@ import { useInlineImages } from "../../hooks/useInlineImages";
 import { useMessageBodyContent } from "../../hooks/useMessageBodyContent";
 import { useSaveDraft } from "../../hooks/useSaveDraft";
 import { useSignature } from "../../hooks/useSignature.js";
-import { isNotFound, softErrorMeta } from "../../lib/error-classifier";
+import { isNotFound } from "../../lib/error-classifier";
 import type { ComposeSeed } from "../../lib/mail-search";
 import { registerUpdateBlocker } from "../../lib/pwa-update";
 import { accountIsMissingSmtp } from "../settings/account-form-helpers.js";
@@ -83,7 +83,7 @@ const LazyComposeBody = lazy(() =>
 import { useIsDesktop } from "../../hooks/useMediaQuery.js";
 import { useVisualViewport } from "../../hooks/useVisualViewport.js";
 import type { ComposeMode } from "./ComposeProvider";
-import { OUTBOX_ROW_META, useCompose } from "./ComposeProvider";
+import { useCompose } from "./ComposeProvider";
 import { FromSelector } from "./FromSelector";
 
 interface ComposeFormProps {
@@ -632,7 +632,6 @@ export const ComposeForm = ({
 			path: { outboxMessageId: outboxMessageId ?? "" },
 		}),
 		enabled: !!outboxMessageId && !draftLoaded,
-		meta: OUTBOX_ROW_META,
 		retry: (failureCount, error) => !isNotFound(error) && failureCount < 1,
 	});
 
@@ -822,6 +821,68 @@ export const ComposeForm = ({
 			onDraftCreated: adoptCreatedDraft,
 		});
 
+	const draftPayload = useCallback(
+		(
+			accountId = selectedAccountId,
+			recipients: Recipients = {
+				to: toAddresses,
+				cc: ccAddresses,
+				bcc: bccAddresses,
+			},
+		) => {
+			if (
+				!accountId ||
+				(openDocumentId !== undefined && openDocumentId !== outboxMessageId) ||
+				(outboxMessageId && !draftLoaded)
+			)
+				return;
+			const { htmlBody, textBody } = outgoingBody(
+				bodyMode,
+				body,
+				composeLanguage,
+				quotedBlock,
+			);
+			return {
+				accountId,
+				toAddresses: recipients.to.map((address) => address.email),
+				ccAddresses:
+					recipients.cc.length > 0
+						? recipients.cc.map((address) => address.email)
+						: undefined,
+				bccAddresses:
+					recipients.bcc.length > 0
+						? recipients.bcc.map((address) => address.email)
+						: undefined,
+				subject: subject || undefined,
+				textBody,
+				htmlBody,
+				...(sourceMessage && (mode === "reply" || mode === "reply-all")
+					? getReferences(sourceMessage)
+					: {}),
+			};
+		},
+		[
+			selectedAccountId,
+			toAddresses,
+			ccAddresses,
+			bccAddresses,
+			openDocumentId,
+			outboxMessageId,
+			draftLoaded,
+			bodyMode,
+			body,
+			composeLanguage,
+			quotedBlock,
+			subject,
+			sourceMessage,
+			mode,
+		],
+	);
+	const draftIsUnchanged = useCallback(
+		(payload: unknown) => loadedPayloadRef.current === JSON.stringify(payload),
+		[],
+	);
+
 	const ensureDraftForAttachment =
 		useCallback(async (): Promise<DraftForAttachment> => {
 			if (outboxMessageId) return { outcome: "ready", outboxMessageId };
@@ -834,28 +895,10 @@ export const ComposeForm = ({
 			if (toAddresses.length === 0) {
 				return { outcome: "refused", reason: ATTACH_NEEDS_TO_ADDRESS };
 			}
-			const { htmlBody, textBody } = outgoingBody(
-				bodyMode,
-				body,
-				composeLanguage,
-				quotedBlock,
-			);
-			const saved = await saveImmediately({
-				accountId: selectedAccountId,
-				toAddresses: toAddresses.map((a) => a.email),
-				ccAddresses:
-					ccAddresses.length > 0 ? ccAddresses.map((a) => a.email) : undefined,
-				bccAddresses:
-					bccAddresses.length > 0
-						? bccAddresses.map((a) => a.email)
-						: undefined,
-				subject: subject || undefined,
-				textBody,
-				htmlBody,
-				...(sourceMessage && (mode === "reply" || mode === "reply-all")
-					? getReferences(sourceMessage)
-					: {}),
-			});
+			const payload = draftPayload();
+			if (!payload)
+				return { outcome: "refused", reason: "The draft is still loading." };
+			const saved = await saveImmediately(payload);
 			if (saved.outcome === "failed") {
 				return {
 					outcome: "refused",
@@ -866,16 +909,8 @@ export const ComposeForm = ({
 		}, [
 			outboxMessageId,
 			selectedAccountId,
-			toAddresses,
-			ccAddresses,
-			bccAddresses,
-			subject,
-			body,
-			bodyMode,
-			composeLanguage,
-			quotedBlock,
-			sourceMessage,
-			mode,
+			toAddresses.length,
+			draftPayload,
 			saveImmediately,
 		]);
 
@@ -938,10 +973,6 @@ export const ComposeForm = ({
 		loadAttachments(draftData.outboxMessageId, draftData.attachments);
 	}, [draftData, outboxMessageId, loadAttachments]);
 
-	// Auto-save runs on a debounce, so a failure has no inline call site to
-	// surface it. Push the real error detail to a banner instead of leaving only
-	// the muted "Save failed" status dot. A fatal 5xx also hits the global
-	// escalation overlay via MutationCache.onError.
 	useEffect(() => {
 		if (!saveError) return;
 		pushError({
@@ -951,21 +982,13 @@ export const ComposeForm = ({
 		});
 	}, [saveError, pushError]);
 
-	// A refused send is reported below, next to the message it did not send, and
-	// the composer stays up so the user can fix the address and press it again.
-	// A 5xx still escalates.
 	const sendMutation = useMutation({
 		...outboxDetailOperationsSendOutboxMessageMutation(),
-		meta: softErrorMeta,
 	});
 
 	const deleteMutation = useMutation({
 		...outboxDetailOperationsDeleteOutboxMessageMutation(),
-		meta: softErrorMeta,
 		onError: (error) => {
-			// Discard closes the dialog optimistically. A soft 4xx (409/404 the
-			// draft is already gone) must not pass silently as success — surface a
-			// banner. A fatal 5xx still escalates through MutationCache.onError.
 			pushError(
 				buildMutationErrorBanner(
 					"Couldn't discard draft",
@@ -1078,69 +1101,29 @@ export const ComposeForm = ({
 	const sendState: ComposeSendState = sendReadiness;
 
 	useEffect(() => {
-		if (!selectedAccountId) return;
-		// Nor one that is on its way out. Send commits the address fields as it
-		// goes, which lands here as a recipient change and would re-arm the timer
-		// `stopAutoSave` has just dropped — a draft write arriving after the send
-		// took the row out of draft (#845.6).
-		if (sendInFlightRef.current) return;
-		// Don't autosave a document the fields are no longer on. They trail the
-		// address by a commit whenever it changes, so writing here sends the
-		// message just left to whatever the address now names — the previous
-		// draft's content onto the next draft, or, with no draft named at all, a
-		// spurious second one holding it (#535/#536).
-		if (openDocumentId !== undefined && openDocumentId !== outboxMessageId)
+		if (
+			sendInFlightRef.current ||
+			isFormEmpty(toAddresses, ccAddresses, bccAddresses, subject, body)
+		)
 			return;
-		// Nor one still arriving: opening an existing draft leaves the fields
-		// mid-population until the read lands.
-		if (outboxMessageId && !draftLoaded) return;
-		if (isFormEmpty(toAddresses, ccAddresses, bccAddresses, subject, body))
-			return;
-
-		const { htmlBody, textBody } = outgoingBody(
-			bodyMode,
-			body,
-			composeLanguage,
-			quotedBlock,
-		);
-
-		const payload = {
-			accountId: selectedAccountId,
-			toAddresses: toAddresses.map((a) => a.email),
-			ccAddresses:
-				ccAddresses.length > 0 ? ccAddresses.map((a) => a.email) : undefined,
-			bccAddresses:
-				bccAddresses.length > 0 ? bccAddresses.map((a) => a.email) : undefined,
-			subject: subject || undefined,
-			textBody,
-			htmlBody,
-		};
-
-		// Nor a document nobody has touched. Reopening one is not editing it, and
-		// a PATCH is now a status change as well as a content one (#933).
-		const fingerprint = JSON.stringify(payload);
+		const payload = draftPayload();
+		if (!payload) return;
 		if (captureLoadedPayloadRef.current) {
 			captureLoadedPayloadRef.current = false;
-			loadedPayloadRef.current = fingerprint;
+			loadedPayloadRef.current = JSON.stringify(payload);
 			return;
 		}
-		if (loadedPayloadRef.current === fingerprint) return;
+		if (draftIsUnchanged(payload)) return;
 		loadedPayloadRef.current = undefined;
-
 		saveDraft(payload);
 	}, [
-		selectedAccountId,
-		outboxMessageId,
-		openDocumentId,
-		draftLoaded,
+		draftPayload,
+		draftIsUnchanged,
 		toAddresses,
 		ccAddresses,
 		bccAddresses,
 		subject,
 		body,
-		bodyMode,
-		composeLanguage,
-		quotedBlock,
 		saveDraft,
 	]);
 
@@ -1167,22 +1150,9 @@ export const ComposeForm = ({
 				return true;
 			if (!selectedAccountId || (!outboxMessageId && to.length === 0))
 				return false;
-			const { htmlBody, textBody } = outgoingBody(
-				bodyMode,
-				body,
-				composeLanguage,
-				quotedBlock,
-			);
-			const payload = {
-				accountId: selectedAccountId,
-				toAddresses: to.map((a) => a.email),
-				ccAddresses: cc.length > 0 ? cc.map((a) => a.email) : undefined,
-				bccAddresses: bcc.length > 0 ? bcc.map((a) => a.email) : undefined,
-				subject: subject || undefined,
-				textBody,
-				htmlBody,
-			};
-			if (loadedPayloadRef.current === JSON.stringify(payload)) return true;
+			const payload = draftPayload(selectedAccountId, { to, cc, bcc });
+			if (!payload) return false;
+			if (draftIsUnchanged(payload)) return true;
 			const result = await saveImmediately(payload);
 			return result.outcome === "saved";
 		};
@@ -1191,6 +1161,8 @@ export const ComposeForm = ({
 		};
 	}, [
 		closeRequestRef,
+		draftPayload,
+		draftIsUnchanged,
 		fieldHandles,
 		initialText,
 		seed,
@@ -1201,9 +1173,6 @@ export const ComposeForm = ({
 		bccAddresses,
 		subject,
 		body,
-		bodyMode,
-		composeLanguage,
-		quotedBlock,
 		saveImmediately,
 	]);
 
@@ -1216,39 +1185,10 @@ export const ComposeForm = ({
 			try {
 				stopAutoSave();
 
-				const replyData =
-					sourceMessage && (mode === "reply" || mode === "reply-all")
-						? getReferences(sourceMessage)
-						: {};
-
-				const { htmlBody, textBody } = outgoingBody(
-					bodyMode,
-					body,
-					composeLanguage,
-					quotedBlock,
-				);
+				const payload = draftPayload(accountId, recipients);
+				if (!payload) return;
 				const createdThisAttempt = !outboxMessageId;
-
-				// The debounce dropped above may have been holding the last two seconds
-				// of typing, and an existing entry would otherwise go out as the server
-				// last saw it (#674). What is on screen is written first, and a write
-				// that fails stops the send rather than transmitting the older copy.
-				const flushed = await saveImmediately({
-					accountId,
-					toAddresses: recipients.to.map((a) => a.email),
-					ccAddresses:
-						recipients.cc.length > 0
-							? recipients.cc.map((a) => a.email)
-							: undefined,
-					bccAddresses:
-						recipients.bcc.length > 0
-							? recipients.bcc.map((a) => a.email)
-							: undefined,
-					subject: subject || undefined,
-					textBody,
-					htmlBody,
-					...replyData,
-				});
+				const flushed = await saveImmediately(payload);
 
 				if (flushed.outcome === "failed") {
 					pushError({
@@ -1292,13 +1232,7 @@ export const ComposeForm = ({
 			}
 		},
 		[
-			subject,
-			body,
-			bodyMode,
-			composeLanguage,
-			quotedBlock,
-			mode,
-			sourceMessage,
+			draftPayload,
 			outboxMessageId,
 			saveImmediately,
 			sendMutation,

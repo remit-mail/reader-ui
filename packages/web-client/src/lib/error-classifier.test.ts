@@ -5,11 +5,8 @@ import {
 	getErrorStatus,
 	hasHttpStatus,
 	isAbortError,
-	isClientBug,
 	isNetworkError,
 	isServerError,
-	shouldEscalate,
-	softErrorMeta,
 } from "./error-classifier";
 import { NetworkError, taggedFetch } from "./network-error";
 
@@ -163,7 +160,6 @@ describe("taggedFetch — where the decision is actually made", () => {
 					const error = await taggedFetch("/x").catch((e: unknown) => e);
 					assert.ok(error instanceof NetworkError);
 					assert.equal(isNetworkError(error), true);
-					assert.equal(shouldEscalate(error), false);
 				},
 			);
 		}
@@ -175,7 +171,6 @@ describe("taggedFetch — where the decision is actually made", () => {
 			async () => {
 				const error = await taggedFetch("/x").catch((e: unknown) => e);
 				assert.ok(error instanceof NetworkError);
-				assert.equal(shouldEscalate(error), false);
 			},
 		);
 	});
@@ -200,40 +195,4 @@ describe("taggedFetch — where the decision is actually made", () => {
 			},
 		);
 	});
-});
-
-describe("isClientBug", () => {
-	it("is true for an exception raised inside our own code", () => {
-		assert.equal(
-			isClientBug(
-				new TypeError('can\'t access property "map", x is undefined'),
-			),
-			true,
-		);
-	});
-
-	it("is false for a request that reached, or failed to reach, a server", () => {
-		assert.equal(isClientBug(new ApiError("boom", 500)), false);
-		assert.equal(isClientBug(new ApiError("not found", 404)), false);
-		assert.equal(
-			isClientBug(new NetworkError(new TypeError("Failed to fetch"))),
-			false,
-		);
-		assert.equal(isClientBug(abortError()), false);
-	});
-});
-
-describe("request failures stay with their owners", () => {
-	for (const error of [
-		new ApiError("bad request", 400),
-		new ApiError("server failed", 500),
-		new ApiError("gateway failed", 502),
-		new TypeError("request callback failed"),
-		new NetworkError(new Error("offline")),
-	]) {
-		it(error.message, () => {
-			assert.equal(shouldEscalate(error), false);
-			assert.equal(shouldEscalate(error, softErrorMeta), false);
-		});
-	}
 });

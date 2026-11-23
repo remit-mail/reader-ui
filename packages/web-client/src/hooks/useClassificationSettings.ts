@@ -12,11 +12,7 @@ import {
 	useQueryClient,
 } from "@tanstack/react-query";
 import { useEffect } from "react";
-import {
-	classificationActionMeta,
-	classificationQueryMeta,
-	isClassificationSignedOut,
-} from "../lib/classification";
+import { isClassificationSignedOut } from "../lib/classification";
 import { reportSignedOut } from "../lib/signed-out";
 
 const reportIfSignedOut = (error: unknown): void => {
@@ -34,7 +30,6 @@ const storeSettings =
 export const useClassificationSettings = () => {
 	const query = useQuery({
 		...userSettingsOperationsGetUserSettingsOptions(),
-		meta: classificationQueryMeta,
 	});
 	const signedOut = query.isError && isClassificationSignedOut(query.error);
 	useEffect(() => {
@@ -47,7 +42,6 @@ export const useSaveClassification = () => {
 	const queryClient = useQueryClient();
 	return useMutation({
 		...userSettingsOperationsUpdateUserSettingsMutation(),
-		meta: classificationActionMeta,
 		onSuccess: storeSettings(queryClient),
 		onError: reportIfSignedOut,
 	});
@@ -57,7 +51,6 @@ export const useClearClassification = () => {
 	const queryClient = useQueryClient();
 	return useMutation({
 		...userSettingsOperationsClearClassificationProviderMutation(),
-		meta: classificationActionMeta,
 		onSuccess: storeSettings(queryClient),
 		onError: reportIfSignedOut,
 	});
@@ -66,6 +59,5 @@ export const useClearClassification = () => {
 export const useTestClassification = () =>
 	useMutation({
 		...userSettingsOperationsTestClassificationProviderMutation(),
-		meta: classificationActionMeta,
 		onError: reportIfSignedOut,
 	});

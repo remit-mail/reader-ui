@@ -1,28 +1,11 @@
-/**
- * Writing an event, and what the calendar does with the answer.
- *
- * Three outcomes have to be distinguishable at the call site, which is why they
- * are returned rather than thrown: the write landed, somebody else had already
- * written it, or the server refused it. The one that must never be silent is
- * the middle one — a 412 says the version on screen is stale, and applying the
- * edit anyway would discard a change nobody would ever see go.
- *
- * A lapsed session is not one of the three. It escalates to the page that signs
- * the reader back in, so the caches here are the real ones from
- * `lib/query-error-handler.ts` rather than the harness's quiet default.
- */
-
 import assert from "node:assert/strict";
 import { afterEach, describe, it } from "node:test";
 import type { RemitImapCalendarResponse } from "@remit/api-http-client/types.gen.ts";
 import { MutationCache, QueryCache, QueryClient } from "@tanstack/react-query";
 import { act, createElement, Fragment } from "react";
 import { FatalErrorOverlay } from "../../components/ui/FatalErrorOverlay";
+import { escalate } from "../../lib/escalate";
 import { __resetFatalError } from "../../lib/fatal-error";
-import {
-	handleMutationCacheError,
-	handleQueryCacheError,
-} from "../../lib/query-error-handler";
 import { isSignedOut, resetSignedOut } from "../../lib/signed-out";
 import { createDomHarness, type DomHarness } from "../../test-support/dom";
 import {
@@ -69,8 +52,8 @@ const calendars: RemitImapCalendarResponse[] = [
 
 const escalatingClient = (): QueryClient =>
 	new QueryClient({
-		queryCache: new QueryCache({ onError: handleQueryCacheError }),
-		mutationCache: new MutationCache({ onError: handleMutationCacheError }),
+		queryCache: new QueryCache({ onError: escalate }),
+		mutationCache: new MutationCache({ onError: escalate }),
 		defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
 	});
 

@@ -1,9 +1,9 @@
 import {
 	configOperationsGetConfigQueryKey,
 	mailboxOperationsListMailboxesQueryKey,
-	messageBulkOperationsDeleteMessagesMutation,
 	threadDetailOperationsListThreadMessagesQueryKey,
 } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
+import { messageBulkOperationsDeleteMessages } from "@remit/api-http-client/sdk.gen.ts";
 import type {
 	RemitImapConfigDescriptionResponse,
 	RemitImapThreadMessageResponse,
@@ -19,8 +19,6 @@ import {
 	placementRefusalBanner,
 } from "../components/ui/placement-refusal";
 import { runChunkedMutation } from "../lib/bulk-actions";
-import { softErrorStatuses } from "../lib/error-classifier";
-import { isInfiniteThreadData } from "../lib/thread-cache";
 import {
 	cancelThreadListQueries,
 	invalidateThreadListQueries,
@@ -31,20 +29,17 @@ import {
 	type ThreadMutationContext,
 	threadListCacheKeys,
 } from "../lib/thread-list-cache";
-import { resolveMailboxesForMessages } from "./useMarkAsRead";
-import { useMoveMessages } from "./useMoveMessages";
+import { useEscalatedActions } from "./useEscalatedActions";
+
+export interface DeleteMessageTarget {
+	id: string;
+	mailboxId: string;
+	accountId: string;
+}
 
 interface UseDeleteMessagesOptions {
 	mailboxId: string;
 	threadId?: string;
-	accountId?: string;
-	/**
-	 * The threads the ids may come from, when the caller has them. A selection in
-	 * the brief or Flagged spans mailboxes and accounts, so the listings to patch
-	 * are the ones each message actually lives in — `mailboxId` alone would leave
-	 * every other mailbox's cached list holding a deleted row.
-	 */
-	messages?: RemitImapThreadMessageResponse[];
 	/**
 	 * Called once the optimistic removal has been applied. Use this to
 	 * navigate away from a now-empty thread (e.g. clear `selectedMessageId`)
@@ -69,30 +64,35 @@ export const removeMessagesFromItems = (
 export const useDeleteMessages = ({
 	mailboxId,
 	threadId,
-	accountId,
-	messages,
 	onAfterOptimisticRemove,
 }: UseDeleteMessagesOptions) => {
 	const queryClient = useQueryClient();
 	const { pushError, dismissError } = useErrorBanners();
-	const { moveMessages } = useMoveMessages({ mailboxId, accountId });
+	const { runAction } = useEscalatedActions({
+		mailboxId,
+		enabled: false,
+		predicateKey: "delete-undo",
+		searchQuery: {},
+	});
 	const { requestAppointment } = useRoleAppointmentPrompt();
 
 	// The refused chunk is not what the user asked for. The whole selection is
 	// held here so the appointment's confirm replays all of it (#887).
-	const selectionRef = useRef<string[]>([]);
-	const runRef = useRef<(messageIds: string[]) => Promise<void>>(
+	const selectionRef = useRef<DeleteMessageTarget[]>([]);
+	const runRef = useRef<(targets: DeleteMessageTarget[]) => Promise<void>>(
 		async () => {},
 	);
 
 	const { mutateAsync, isPending } = useMutation({
-		...messageBulkOperationsDeleteMessagesMutation(),
-		// A coded 409 is answered here — the prompt, or a banner — so it must not
-		// also take the whole screen. Only 409: a 401, 403 or 5xx on a delete is
-		// still the fatal page's (#1059).
-		meta: softErrorStatuses(409),
+		mutationFn: async (targets: DeleteMessageTarget[]) =>
+			(
+				await messageBulkOperationsDeleteMessages({
+					body: { messageIds: targets.map((target) => target.id) },
+					throwOnError: true,
+				})
+			).data,
 		onMutate: async (variables): Promise<ThreadMutationContext> => {
-			const messageIds = new Set(variables.body.messageIds ?? []);
+			const messageIds = new Set(variables.map((target) => target.id));
 
 			const threadMessagesPrefix = threadId
 				? threadDetailOperationsListThreadMessagesQueryKey({
@@ -104,7 +104,7 @@ export const useDeleteMessages = ({
 			// brief has to remove the row there too, not only from the per-mailbox
 			// lists (#140, part of #149).
 			const listPrefixes = threadListCacheKeys(
-				resolveMailboxesForMessages(messageIds, messages ?? [], mailboxId),
+				variables.map((target) => target.mailboxId),
 			);
 
 			await Promise.all([
@@ -163,7 +163,7 @@ export const useDeleteMessages = ({
 		onSuccess: (data, vars) => {
 			const refused = data?.failureCount ?? 0;
 			if (refused === 0) return;
-			const asked = vars.body.messageIds?.length ?? 0;
+			const asked = vars.length;
 			pushError({
 				severity: "warning",
 				title:
@@ -196,7 +196,7 @@ export const useDeleteMessages = ({
 				});
 				return;
 			}
-			const count = vars.body.messageIds?.length ?? 0;
+			const count = vars.length;
 			const placement = isPlacementRefusal(err);
 			if (placement) {
 				pushError(placementRefusalBanner(placement, count, "delete"));
@@ -211,7 +211,7 @@ export const useDeleteMessages = ({
 				error: err,
 			});
 		},
-		onSettled: (_data, _err, _vars, context) => {
+		onSettled: (_data, _err, vars, context) => {
 			if (!context) return;
 			if (threadId) {
 				queryClient.invalidateQueries({
@@ -219,7 +219,7 @@ export const useDeleteMessages = ({
 				});
 			}
 			invalidateThreadListQueries(queryClient, context.listPrefixes);
-			if (accountId) {
+			for (const accountId of new Set(vars.map((target) => target.accountId))) {
 				queryClient.invalidateQueries({
 					queryKey: mailboxOperationsListMailboxesQueryKey({
 						path: { accountId },
@@ -230,47 +230,32 @@ export const useDeleteMessages = ({
 	});
 
 	const runSelection = useCallback(
-		async (messageIds: string[]): Promise<void> => {
-			const snapshots = snapshotThreadListQueries(
-				queryClient,
-				threadListCacheKeys(
-					resolveMailboxesForMessages(
-						new Set(messageIds),
-						messages ?? [],
-						mailboxId,
-					),
-				),
-			);
-			const cached = snapshots.flatMap(({ data }) =>
-				isInfiniteThreadData(data)
-					? data.pages.flatMap((page) => page.items)
-					: data.items,
-			);
-			const originals = new Map(
-				[...cached, ...(messages ?? [])].map((message) => [
-					message.messageId,
-					message,
-				]),
-			);
+		async (targets: DeleteMessageTarget[]): Promise<void> => {
 			const config =
 				queryClient.getQueryData<RemitImapConfigDescriptionResponse>(
 					configOperationsGetConfigQueryKey(),
 				);
-			const groups = new Map<string, string[]>();
-			await runChunkedMutation(messageIds, async (chunk) => {
-				const data = await mutateAsync({ body: { messageIds: chunk } });
+			const byId = new Map(targets.map((target) => [target.id, target]));
+			const groups = new Map<string, DeleteMessageTarget[]>();
+			await runChunkedMutation(targets, async (ids) => {
+				const chunk = ids.map((id) => {
+					const target = byId.get(id);
+					if (!target) throw new Error("Missing original delete target");
+					return target;
+				});
+				const data = await mutateAsync(chunk);
 				if (data.failureCount > 0) return;
-				for (const messageId of chunk) {
-					const message = originals.get(messageId);
-					const source = message?.mailboxId ?? mailboxId;
-					const owner = message?.accountId ?? accountId;
+				for (const target of chunk) {
 					const trash = config?.accounts
-						.find((account) => account.accountId === owner)
+						.find((account) => account.accountId === target.accountId)
 						?.folderAppointments.find(
 							(appointment) => appointment.role === "Trash",
 						)?.mailboxId;
-					if (!source || !owner || source === trash) continue;
-					groups.set(source, [...(groups.get(source) ?? []), messageId]);
+					if (target.mailboxId === trash) continue;
+					groups.set(target.mailboxId, [
+						...(groups.get(target.mailboxId) ?? []),
+						{ ...target, mailboxId: trash ?? target.mailboxId },
+					]);
 				}
 			});
 			if (groups.size === 0) return;
@@ -279,23 +264,32 @@ export const useDeleteMessages = ({
 				title: "Moved to Trash",
 				action: {
 					label: "Undo",
-					onClick: () => {
-						dismissError(id);
-						for (const [source, ids] of groups) moveMessages(ids, source);
+					onClick: async () => {
+						for (const [destinationMailboxId, targets] of groups) {
+							const result = await runAction(
+								{ kind: "move", destinationMailboxId },
+								targets,
+							);
+							if (result.kind === "refused") {
+								pushError({
+									title: "Couldn't undo delete",
+									detail: result.reason,
+								});
+								return;
+							}
+							dismissError(id);
+							if (
+								result.outcome.cancelled ||
+								result.outcome.failedIds.length ||
+								result.outcome.refused
+							)
+								return;
+						}
 					},
 				},
 			});
 		},
-		[
-			mutateAsync,
-			queryClient,
-			messages,
-			mailboxId,
-			accountId,
-			pushError,
-			dismissError,
-			moveMessages,
-		],
+		[mutateAsync, queryClient, pushError, dismissError, runAction],
 	);
 
 	useEffect(() => {
@@ -303,10 +297,10 @@ export const useDeleteMessages = ({
 	}, [runSelection]);
 
 	const deleteMessages = useCallback(
-		(messageIds: string[]) => {
-			if (messageIds.length === 0) return;
-			selectionRef.current = messageIds;
-			void runSelection(messageIds);
+		(targets: DeleteMessageTarget[]) => {
+			if (targets.length === 0) return;
+			selectionRef.current = targets;
+			void runSelection(targets);
 		},
 		[runSelection],
 	);

@@ -42,8 +42,6 @@ export const useSignature = (accountId?: string) => {
 			});
 		},
 		onError: (error) => {
-			// Saving the signature failed silently before — surface it. A fatal
-			// 5xx also escalates through the global MutationCache.onError sink.
 			pushError(
 				buildMutationErrorBanner(
 					"Couldn't save signature",

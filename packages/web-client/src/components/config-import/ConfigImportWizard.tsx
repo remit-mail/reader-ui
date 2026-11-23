@@ -48,7 +48,6 @@ import {
 	WRITE_FAILURE_CODE,
 	writeFailure,
 } from "../../lib/config-import";
-import { softErrorStatuses } from "../../lib/error-classifier";
 import {
 	ConnectionTestStep,
 	CredentialsStep,
@@ -215,19 +214,11 @@ export function ConfigImportWizard({ onDone }: ConfigImportWizardProps) {
 		? needingCredentials.indexOf(activeAccountId) + 1
 		: 0;
 
-	// Each of these owns exactly the refusals it renders, and nothing else. A
-	// blanket `softError` would also swallow the 401 that has to escalate to the
-	// signed-out state, and a 5xx escalates regardless of what is asked for here.
 	const importMutation = useMutation({
 		...configOperationsImportConfigMutation(),
-		// 409 `config_not_empty` is not a fault: it is the abort-or-merge screen.
-		meta: softErrorStatuses(409),
 	});
 	const updateAccount = useMutation({
 		...accountDetailOperationsUpdateAccountMutation(),
-		// The account is gone (404) or is not this configuration's (403); the
-		// credentials row states either where it stands.
-		meta: softErrorStatuses(403, 404),
 	});
 	const triggerSync = useMutation(syncOperationsTriggerSyncMutation());
 	// No meta: `POST /oauth/microsoft/start` declares no refusal. It answers 5xx

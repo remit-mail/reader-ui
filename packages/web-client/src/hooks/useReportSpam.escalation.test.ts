@@ -1,27 +1,10 @@
-/**
- * Closes the seam the existing #648-review tests each cover half of.
- * `useReportSpam.integration.test.ts` builds a synthetic mutation via
- * `mutationCache.build()` and never mounts the hook; `useReportSpam.render.
- * test.ts` mounts the hook but under `createDomHarness`'s default
- * `QueryClient`, which carries no global cache handlers. Neither exercises the
- * JOIN: the real `useMutation` calls in `useReportSpam.ts`, under a
- * `QueryClient` wired with the real `QueryCache`/`MutationCache` handlers from
- * `lib/query-error-handler.ts` the way `shell/index.tsx` builds it, wrapped in
- * the real `ErrorBannerProvider`. Deleting `meta: { softError: true }` from
- * the real hook passes both existing tests — that is the bug that shipped
- * twice and passed CI both times.
- */
-
 import assert from "node:assert/strict";
 import { afterEach, describe, it } from "node:test";
 import { MutationCache, QueryCache, QueryClient } from "@tanstack/react-query";
 import { createElement, Fragment } from "react";
 import { FatalErrorOverlay } from "../components/ui/FatalErrorOverlay";
+import { escalate } from "../lib/escalate";
 import { __resetFatalError, subscribeFatalError } from "../lib/fatal-error";
-import {
-	handleMutationCacheError,
-	handleQueryCacheError,
-} from "../lib/query-error-handler";
 import { createDomHarness, type DomHarness } from "../test-support/dom";
 import { type HttpMock, httpError, mockFetch } from "../test-support/http";
 import { useReportSpam } from "./useReportSpam";
@@ -36,8 +19,8 @@ const mountHook = <T>(useHook: () => T): (() => T) => {
 		return null;
 	};
 	const queryClient = new QueryClient({
-		queryCache: new QueryCache({ onError: handleQueryCacheError }),
-		mutationCache: new MutationCache({ onError: handleMutationCacheError }),
+		queryCache: new QueryCache({ onError: escalate }),
+		mutationCache: new MutationCache({ onError: escalate }),
 		defaultOptions: { mutations: { retry: false } },
 	});
 	harness = createDomHarness({ queryClient });

@@ -1,60 +1,3 @@
-/**
- * DailyBrief — unified cross-account message digest.
- *
- * Renders one section per message category (Personal / Transactional /
- * Newsletter / Marketing / Social / Automated / Unclassified) from the GET
- * /threads endpoint. Starred mail is not a section — Flagged is a virtual
- * mailbox in the nav. The brief defaults to the cross-account aggregate, and
- * `MailListHeader` provides the title, unread count, and search.
- *
- * The brief paginates by section, not as a whole. Each section is its own
- * category-scoped request for its newest rows plus one count of the whole
- * category, so a header states how much mail that category holds rather than how
- * many of a shared 50-row window fell into it, and a category whose mail is all
- * older than that window still has a section with rows in it (#312). "Show all"
- * hands the reader to the brief's own filtered list for that category; nothing
- * here loads a mailbox.
- *
- * Sections are the unsearched brief only. A search is one request and one flat
- * list in the server's order — sender matches first, then mentions, each newest
- * first across every category: sectioning the matches would order
- * them by category first and recency second, putting last spring's newsletter
- * above a mail that arrived this morning.
- *
- * The list's filter surface is the kit `BriefSections`: categories, attribute
- * chips and the account source group, in a panel the list header's caret opens
- * over the rows. `FilterPanelProvider` shares that panel's open state between
- * the caret and the sheet, the same shape `MailViewChrome` gives the mailbox and
- * Starred views. The list draws those controls but applies none of them: the
- * category, the account pill and every chip a parameter can express travel with
- * the section requests, and the two that cannot ("From contacts", "Today") are
- * applied here alongside the residual tokens (#314). The account pill is a
- * parameter rather than a pass over the rows because a count taken over every
- * account is not the size of a list showing one, which is what used to take the
- * number off every header (#1136). The phone search takeover reads the same
- * selection and the same rows, so a filter set on one surface holds on the
- * other. Under a query the chips are terms of that query — see
- * `briefChipFilters` — so what narrows the list is readable and editable in the
- * search field.
- *
- * Multi-select is the mailbox list's, not a copy of it: the same
- * `ThreadListInteraction` cursor and `useSelection` state, and the same
- * `SelectionTopBar` in place of the pane header. A shift-range spans the rendered rows in
- * document order, so it crosses category sections exactly as the eye reads
- * them and never picks up a row behind a collapsed header or one the section's
- * page did not reach. Folder-scoped verbs (Move, Apply label, Organize) resolve their
- * account and source folder from the selection — see
- * `resolveBriefSelectionScope`.
- *
- * Loading: skeleton rows on first paint, per-section from then on, and the rows
- * already on screen stay put while the same predicate is re-fetched.
- * Error: a section whose own request never got an answer says so in its own
- * place and the rest of the brief stands. A 5xx is not that case — the API
- * breaking escalates globally (`shouldEscalate`, #1059), and nothing here softens
- * it.
- * Empty: "You're caught up", but only once the server confirms no sync is
- * running — while one is, the same empty list says it is still syncing.
- */
 import { mailboxOperationsListMailboxesOptions } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
 import type {
 	RemitImapAccountResponse,
@@ -573,11 +516,6 @@ export function DailyBrief({
 				path: { accountId: account.accountId },
 			}),
 			staleTime: Infinity,
-			// A 4xx here is the account's own problem (IMAP down, auth expired) and
-			// renders the inline "Reconnect" banner below — opt it out of the global
-			// fatal overlay. A 5xx is OUR API breaking, not the account, and still
-			// escalates globally (meta.softError is ignored for 5xx — #1059).
-			meta: { softError: true },
 		})),
 	});
 

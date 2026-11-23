@@ -209,7 +209,6 @@ function CollectionPaneProvider({
 	// only the fallback.
 	const { deleteMessages } = useDeleteMessages({
 		mailboxId: selectedThread?.mailboxId ?? "",
-		messages: threads,
 		onAfterOptimisticRemove: handleDeselectIfRemoved,
 	});
 	const { toggleReadFor } = useToggleReadFor({
@@ -308,7 +307,19 @@ function CollectionPaneProvider({
 		actions,
 		onReply: replyToOpenThread,
 		triage,
-		onDeleteMessages: deleteMessages,
+		onDeleteMessages: (ids) =>
+			deleteMessages(
+				ids.map((id) => {
+					const message = threads.find((message) => message.messageId === id);
+					if (!message?.accountId)
+						throw new Error("Missing original message placement");
+					return {
+						id,
+						accountId: message.accountId,
+						mailboxId: message.mailboxId,
+					};
+				}),
+			),
 		handleDeselectIfRemoved,
 	};
 

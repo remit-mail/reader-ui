@@ -2,12 +2,11 @@ import { peopleOperationsListPeopleOptions } from "@remit/api-http-client/@tanst
 import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { isNotFound } from "../lib/error-classifier";
-import { isPeopleSignedOut, peopleQueryMeta } from "../lib/people";
+import { isPeopleSignedOut } from "../lib/people";
 import { reportSignedOut } from "../lib/signed-out";
 
 const peopleQueryOptions = () => ({
 	...peopleOperationsListPeopleOptions(),
-	meta: peopleQueryMeta,
 	retry: false,
 });
 

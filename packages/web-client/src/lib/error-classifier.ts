@@ -1,6 +1,5 @@
 import { ApiError } from "./api";
 import { NetworkError } from "./network-error";
-import { OfflineUnavailableError } from "./offline-error";
 
 /**
  * Extract an HTTP status code from a thrown error, regardless of which client
@@ -85,18 +84,6 @@ export const isNetworkError = (error: unknown): boolean => {
 };
 
 /**
- * An exception raised by our own client code rather than by a request: it
- * carries no HTTP status, is not an abort, and was not tagged as transport.
- * That leaves a programming error — the one class the user can do nothing
- * about and must never be asked to shrug off.
- */
-export const isClientBug = (error: unknown): boolean =>
-	!hasHttpStatus(error) &&
-	!isAbortError(error) &&
-	!isNetworkError(error) &&
-	!(error instanceof OfflineUnavailableError);
-
-/**
  * The bearer token could not be minted because the server refused the session
  * itself: the self-host kill switch is on, or the account was disabled. Read by
  * name, as `isAbortError` does, so this module never loads the auth client.
@@ -114,30 +101,6 @@ const isRefusedTokenMint = (error: unknown): boolean =>
  */
 export const isUnauthenticated = (error: unknown): boolean =>
 	getErrorStatus(error) === 401 || isRefusedTokenMint(error);
-
-/** Requests never replace the app with a fatal screen. Their owners render failures inline. */
-export const shouldEscalate = (
-	_error: unknown,
-	_meta?: Record<string, unknown>,
-): boolean => false;
-
-/** Metadata retained for request owners that state their own errors. */
-export const softErrorMeta: { softError: true } = { softError: true };
-
-/** Metadata naming the statuses a request owner handles. */
-export const softErrorStatuses = (
-	...statuses: number[]
-): { softErrorStatuses: number[] } => ({ softErrorStatuses: statuses });
-
-/** Marks polling across a restart the caller requested. */
-export const restartExpectedMeta: { restartExpected: true } = {
-	restartExpected: true,
-};
-
-/** Marks an action that shows its server failure inline. */
-export const ownsServerErrorsMeta: { ownsServerErrors: true } = {
-	ownsServerErrors: true,
-};
 
 /** The record is not there. */
 export const isNotFound = (error: unknown): boolean =>

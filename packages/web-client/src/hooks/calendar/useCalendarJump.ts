@@ -4,7 +4,7 @@ import {
 } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { getErrorStatus, softErrorStatuses } from "../../lib/error-classifier";
+import { getErrorStatus } from "../../lib/error-classifier";
 import { type CalendarJump, calendarJumpOf, deviceTimeZone } from "./instance";
 
 export type CalendarJumpSearch =
@@ -17,9 +17,6 @@ export type CalendarJumpSearch =
 
 const WINDOW_MS = 365 * 24 * 60 * 60_000;
 const DAY_MS = 24 * 60 * 60_000;
-
-const LISTING_META = softErrorStatuses();
-const RESOURCE_META = softErrorStatuses(404);
 
 const instant = (ms: number): string =>
 	new Date(ms).toISOString().replace(/\.\d{3}Z$/, "+00:00");
@@ -54,7 +51,6 @@ export function useCalendarJump(
 				calendarObjectId,
 			},
 		}),
-		meta: LISTING_META,
 		retry: false,
 		enabled,
 	});
@@ -66,7 +62,6 @@ export function useCalendarJump(
 		...calendarEventDetailOperationsGetCalendarEventOptions({
 			path: { calendarObjectId },
 		}),
-		meta: RESOURCE_META,
 		retry: false,
 		enabled: enabled && ahead.data !== undefined && upcoming === undefined,
 	});
@@ -82,7 +77,6 @@ export function useCalendarJump(
 				calendarObjectId,
 			},
 		}),
-		meta: LISTING_META,
 		retry: false,
 		enabled: enabled && lookup.data !== undefined && !unreadableStart,
 	});

@@ -15,8 +15,8 @@ import { afterEach, describe, it } from "node:test";
 import { outboxOperationsListOutboxMessagesQueryKey } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
 import { QueryCache, QueryClient } from "@tanstack/react-query";
 import { createElement, useEffect } from "react";
+import { escalate } from "../../lib/escalate";
 import { __resetFatalError, subscribeFatalError } from "../../lib/fatal-error";
-import { handleQueryCacheError } from "../../lib/query-error-handler";
 import { createDomHarness, type DomHarness } from "../../test-support/dom";
 import { type HttpMock, httpError, mockFetch } from "../../test-support/http";
 import { ComposeProvider, useCompose } from "./ComposeProvider";
@@ -74,7 +74,7 @@ const mount = async (pollStatus: number): Promise<void> => {
 	});
 
 	const queryClient = new QueryClient({
-		queryCache: new QueryCache({ onError: handleQueryCacheError }),
+		queryCache: new QueryCache({ onError: escalate }),
 		// The watch sets its own retry policy; a zero delay only spares the test
 		// the backoff it would otherwise sit through.
 		defaultOptions: { queries: { retryDelay: 0 }, mutations: { retry: false } },

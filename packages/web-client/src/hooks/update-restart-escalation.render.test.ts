@@ -1,23 +1,9 @@
-/**
- * The update poll against the app's own fail-fast sink (#468).
- *
- * An update stops and starts the backend on purpose, so the proxy in front of
- * it answers 502 for the seconds it is gone. Every other test in this package
- * mounts on the harness's plain `QueryClient`, which has no global sink, so none
- * of them can see that the 502 took the whole screen before the update surface
- * ever read it. Mounted here on the client `shell/index.tsx` builds.
- */
+/** Update progress and restart deadlines stay visible across failed polls. */
 
 import assert from "node:assert/strict";
-import { afterEach, beforeEach, describe, test } from "node:test";
-import { MutationCache, QueryCache, QueryClient } from "@tanstack/react-query";
+import { afterEach, describe, test } from "node:test";
 import { act, createElement } from "react";
 import { SelfUpdateOverlay } from "../components/self-update/SelfUpdateOverlay";
-import { __resetFatalError, getCurrentFatalError } from "../lib/fatal-error";
-import {
-	handleMutationCacheError,
-	handleQueryCacheError,
-} from "../lib/query-error-handler";
 import {
 	APPLY_BUDGET_SECONDS,
 	NEVER_CAME_BACK_MARGIN_SECONDS,
@@ -38,12 +24,7 @@ let harness: DomHarness | undefined;
 let http: HttpMock | undefined;
 let api: SelfUpdateApi | undefined;
 
-beforeEach(() => {
-	__resetFatalError();
-});
-
 afterEach(() => {
-	__resetFatalError();
 	http?.restore();
 	http = undefined;
 	harness?.close();
@@ -89,17 +70,6 @@ const reportedRunning = () => ({
 	run: { ...accepted.run, startedAt: new Date().toISOString() },
 });
 
-/** The client `shell/index.tsx` builds: the real global escalation sink. */
-const appQueryClient = (): QueryClient =>
-	new QueryClient({
-		queryCache: new QueryCache({ onError: handleQueryCacheError }),
-		mutationCache: new MutationCache({ onError: handleMutationCacheError }),
-		defaultOptions: {
-			queries: { retry: false },
-			mutations: { retry: false },
-		},
-	});
-
 const hook = (): SelfUpdateApi => {
 	if (!api) throw new Error("hook not mounted");
 	return api;
@@ -122,7 +92,7 @@ async function mount(poll: () => unknown): Promise<void> {
 		api = useSelfUpdate();
 		return null;
 	};
-	harness = createDomHarness({ queryClient: appQueryClient() });
+	harness = createDomHarness();
 	harness.renderApp(
 		createElement(
 			SelfUpdateProvider,
@@ -170,7 +140,6 @@ describe("the update poll across the restart it asked for (#468)", () => {
 		restarting = true;
 		await repoll();
 
-		assert.equal(getCurrentFatalError(), null);
 		const surface = hook().surface;
 		assert.equal(
 			surface.status === "ready" &&
@@ -179,23 +148,6 @@ describe("the update poll across the restart it asked for (#468)", () => {
 			"reconnecting",
 		);
 		assert.match(dom().html(), /Installing Remit 0\.9\.4/);
-	});
-
-	test("a 502 with no run held stays in the update panel", async () => {
-		await mount(() => httpError(502));
-
-		assert.equal(getCurrentFatalError(), null);
-	});
-
-	test("a 502 with no known run stays in the update panel", async () => {
-		// The server has answered, and what it said was that nothing is running.
-		let restarting = false;
-		await mount(() => (restarting ? httpError(502) : available));
-
-		restarting = true;
-		await repoll();
-
-		assert.equal(getCurrentFatalError(), null);
 	});
 
 	test("a connection refused inside the window stays soft, as any transport failure does", async () => {
@@ -209,19 +161,7 @@ describe("the update poll across the restart it asked for (#468)", () => {
 		restarting = true;
 		await repoll();
 
-		assert.equal(getCurrentFatalError(), null);
 		assert.match(dom().html(), /Installing Remit 0\.9\.4/);
-	});
-
-	test("a 500 while a run is held stays in the update panel", async () => {
-		let broken = false;
-		await mount(() => (broken ? httpError(500) : available));
-		await install();
-
-		broken = true;
-		await repoll();
-
-		assert.equal(getCurrentFatalError(), null);
 	});
 
 	test("a 502 past the apply budget gives up loudly, still not fatally", async () => {
@@ -235,7 +175,6 @@ describe("the update poll across the restart it asked for (#468)", () => {
 		try {
 			await repoll();
 
-			assert.equal(getCurrentFatalError(), null);
 			assert.match(dom().html(), /has not answered since the restart/);
 			assert.match(dom().html(), /remit logs/);
 			assert.doesNotMatch(dom().html(), /Installing Remit 0\.9\.4/);
@@ -259,7 +198,6 @@ describe("a tab that never pressed install (#468)", () => {
 		restarting = true;
 		await repoll();
 
-		assert.equal(getCurrentFatalError(), null);
 		assert.match(dom().html(), /Installing Remit 0\.9\.4/);
 	});
 
@@ -273,7 +211,6 @@ describe("a tab that never pressed install (#468)", () => {
 		try {
 			await repoll();
 
-			assert.equal(getCurrentFatalError(), null);
 			assert.match(dom().html(), /has not answered since the restart/);
 			assert.match(dom().html(), /remit logs --since 10m/);
 			assert.doesNotMatch(dom().html(), /Installing Remit 0\.9\.4/);
@@ -298,7 +235,6 @@ describe("a tab that never pressed install (#468)", () => {
 		restarting = true;
 		await repoll();
 
-		assert.equal(getCurrentFatalError(), null);
 		assert.match(dom().html(), /Installing Remit 0\.9\.4/);
 		assert.doesNotMatch(dom().html(), /has not answered since the restart/);
 
@@ -308,7 +244,6 @@ describe("a tab that never pressed install (#468)", () => {
 		try {
 			await repoll();
 
-			assert.equal(getCurrentFatalError(), null);
 			assert.match(dom().html(), /has not answered since the restart/);
 		} finally {
 			Date.now = realNow;
@@ -335,6 +270,5 @@ describe("a tab that never pressed install (#468)", () => {
 			surface.status === "ready" && surface.section.status,
 			"checkFailed",
 		);
-		assert.equal(getCurrentFatalError(), null);
 	});
 });

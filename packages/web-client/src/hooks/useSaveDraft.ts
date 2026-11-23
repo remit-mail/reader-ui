@@ -6,7 +6,6 @@ import {
 import type { ComposeSaveState } from "@remit/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { softErrorMeta } from "../lib/error-classifier";
 import { registerUpdateBlocker } from "../lib/pwa-update";
 
 export type ImmediateSave =
@@ -120,16 +119,11 @@ export const useSaveDraft = ({
 		if (leavingADocument) cancelScheduledSave();
 	}
 
-	// A write that fails belongs in the composer's banner beside the message it
-	// could not save, never on the full-screen page that unmounts the composer
-	// and the message with it. A 5xx still escalates.
 	const createMutation = useMutation({
 		...outboxOperationsCreateOutboxMessageMutation(),
-		meta: softErrorMeta,
 	});
 	const updateMutation = useMutation({
 		...outboxDetailOperationsUpdateOutboxMessageMutation(),
-		meta: softErrorMeta,
 	});
 
 	const executeSave = useCallback(
@@ -222,9 +216,6 @@ export const useSaveDraft = ({
 					release?.();
 					return;
 				}
-				// Keep the real error, not just a vague "error" status — the caller
-				// surfaces its detail in a banner. A fatal 5xx additionally escalates
-				// through the global MutationCache.onError sink.
 				const write = enqueueSave(data);
 				release?.();
 				write.catch((error: unknown) => {

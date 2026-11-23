@@ -35,7 +35,7 @@ const messageFor = (error: unknown): string =>
 // The user pulled to refresh and is watching the spinner: a 401 raises the
 // signed-out notice rather than a spinner that stops for no stated reason.
 const escalateIfFatal = (error: unknown): void => {
-	escalate(error, { softError: true });
+	escalate(error);
 };
 
 /**
@@ -48,7 +48,7 @@ const escalateIfFatal = (error: unknown): void => {
  *
  * Routed through `queryClient.fetchQuery` rather than the raw SDK call, so a
  * failure here already reaches the global `QueryCache` error sink
- * (`main.tsx` wires `handleQueryCacheError`) on the same terms as every other
+ * (`main.tsx` wires `escalate`) on the same terms as every other
  * query — a manual `escalateIfFatal` on top would double-report the same
  * error. `syncOperationsTriggerSync` below is the one call in this file that
  * genuinely needs it: it's a raw SDK call outside React Query, so nothing
