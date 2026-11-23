@@ -1,4 +1,5 @@
 import { messageOperationsDescribeMessageQueryKey } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
+import type { RemitImapDescribeMessageResponse } from "@remit/api-http-client/types.gen.ts";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 import { useAuthProvider } from "../auth/provider";
@@ -22,9 +23,9 @@ export interface MessageBodyContent {
  * a diagnostic banner instead of a generic "Failed to load (403 Forbidden)"
  * string (issue #401 / postmortem #394).
  *
- * - `auth`  — Lambda@Edge denied the request (missing/invalid/expired token,
- *             cross-tenant). The edge sets `x-remit-403-reason` on the deny
- *             response; the user needs to sign in again.
+ * - `auth` — confirmed authentication refusal (401 with no reason, or an
+ *             explicit auth-missing/auth-invalid reason).
+ * - `link-expired` — the signed content URL expired; describeMessage renews it.
  * - `body-missing` — CloudFront returned a 403/404 with no edge reason header,
  *             which means the request passed the JWT check and S3 had no
  *             object at that key. The S3 bucket policy (OAC) only grants
@@ -44,6 +45,7 @@ export interface MessageBodyContent {
  */
 export type BodyFetchReason =
 	| "auth"
+	| "link-expired"
 	| "body-missing"
 	| "content-type-mismatch"
 	| "spa-shell-leak"
@@ -90,10 +92,8 @@ export const parseRetryAfterSeconds = (headerValue: string | null): number => {
 export const MAX_NOT_READY_RETRIES = 8;
 
 /**
- * The header set by the Lambda@Edge JWT verifier on its deny responses. When
- * present on a 401/403 the failure was an edge-level auth denial; when absent
- * on a 403/404 the failure originated from the S3 origin (object missing).
- * See `infra/constructs/cloudfront/remit-content-delivery/lambda-edge/jwt.ts`.
+ * The content route names signature failures and edge refusals in this header.
+ * Its presence alone says nothing about whether the login session expired.
  */
 const REASON_HEADER = "x-remit-403-reason";
 
@@ -101,8 +101,8 @@ const REASON_HEADER = "x-remit-403-reason";
  * Classify a fetch response into a `BodyFetchReason`. Pure so the
  * discrimination can be unit-tested without mocking the network.
  *
- * - 401 → always `auth` (Lambda@Edge denies missing/invalid tokens with 401).
- * - 403 with `x-remit-403-reason` → `auth` (Lambda@Edge tenant-mismatch etc).
+ * - 401 → `auth` unless a content-signature refusal is named.
+ * - 403 expired → `link-expired`; other named refusals → `generic`.
  * - 403/404 without the reason header → `body-missing` (S3 origin response).
  * - Anything else → `generic`.
  *
@@ -120,8 +120,16 @@ export const classifyBodyFetchFailure = (
 	reasonHeader: string | null,
 ): BodyFetchReason => {
 	const edgeReason = reasonHeader?.trim() ?? "";
-	if (status === 401) return "auth";
-	if (status === 403) return edgeReason.length > 0 ? "auth" : "body-missing";
+	if (status === 403 && edgeReason === "expired") return "link-expired";
+	if (
+		status === 401 &&
+		(!edgeReason ||
+			edgeReason === "auth-missing" ||
+			edgeReason === "auth-invalid")
+	)
+		return "auth";
+	if (status === 401 || status === 403)
+		return edgeReason ? "generic" : "body-missing";
 	if (status === 404) return "body-missing";
 	return "generic";
 };
@@ -211,7 +219,7 @@ export const fetchBodyContent = async (
 		const reason = classifyBodyFetchFailure(response.status, edgeReason);
 		throw new BodyFetchError(
 			reason,
-			`Failed to load message body (${response.status} ${response.statusText})`,
+			`Failed to load message body (${response.status} ${response.statusText}${edgeReason ? `: ${edgeReason}` : ""})`,
 			response.status,
 		);
 	}
@@ -230,38 +238,6 @@ export const fetchBodyContent = async (
 		);
 	}
 	return body;
-};
-
-export interface BodyContentAttemptDeps {
-	fetchContent: (url: string, kind: BodyContentKind) => Promise<string>;
-	refetchDescribeMessage: () => Promise<unknown>;
-}
-
-/**
- * Fetches one attempt at the renderable body part. `isRetryAfterNotReady`
- * marks an attempt that follows a 202 `not-ready` response (after honoring
- * `Retry-After`) — on that attempt, refetch the describe query *before*
- * re-hitting the content URL.
- *
- * Under `DEFER_BODY_PARTS` (default on) the body-sync worker only writes
- * `body.eml`; per-part storage objects are materialized as a side effect of
- * the describe read path (`materializeBodyParts`, backend `describeMessage`).
- * Re-hitting the same part URL alone can never progress past a 202 within one
- * open — the describe refetch is what actually creates the missing object
- * server-side (remit-mail/remit#1240).
- */
-export const fetchBodyContentAttempt = async (
-	deps: BodyContentAttemptDeps,
-	args: {
-		contentUrl: string;
-		kind: BodyContentKind;
-		isRetryAfterNotReady: boolean;
-	},
-): Promise<string> => {
-	if (args.isRetryAfterNotReady) {
-		await deps.refetchDescribeMessage();
-	}
-	return deps.fetchContent(args.contentUrl, args.kind);
 };
 
 interface UseMessageBodyContentOptions {
@@ -287,7 +263,7 @@ export const useMessageBodyContent = ({
 	const loadStartRef = useRef<number | null>(null);
 	const queryClient = useQueryClient();
 	// Set by `retryDelay` when a `not-ready` (202) failure is being retried, and
-	// consumed by the next `queryFn` call — see `fetchBodyContentAttempt`.
+	// consumed by the next `queryFn` call.
 	const pendingDescribeRefetchRef = useRef(false);
 
 	// A new message/part invalidates any pending describe-refetch left over from
@@ -307,27 +283,42 @@ export const useMessageBodyContent = ({
 		queryKey: messageId
 			? [...messageKeys.body(messageId), picked?.contentUrl ?? null]
 			: ["messages", "body", "noop"],
-		queryFn: () => {
+		queryFn: async () => {
 			if (!picked) throw new Error("No renderable body part");
 			if (!messageId) throw new Error("No messageId");
-			const isRetryAfterNotReady = pendingDescribeRefetchRef.current;
+			const describeKey = messageOperationsDescribeMessageQueryKey({
+				path: { messageId },
+			});
+			const refetchDescribe = () =>
+				queryClient.refetchQueries(
+					{ queryKey: describeKey },
+					{ throwOnError: true },
+				);
+			const retryAfterNotReady = pendingDescribeRefetchRef.current;
 			pendingDescribeRefetchRef.current = false;
-			return fetchBodyContentAttempt(
-				{
-					fetchContent: (url, kind) => fetchBodyContent(url, kind, getToken),
-					refetchDescribeMessage: () =>
-						queryClient.refetchQueries({
-							queryKey: messageOperationsDescribeMessageQueryKey({
-								path: { messageId },
-							}),
-						}),
-				},
-				{
-					contentUrl: picked.contentUrl,
-					kind: picked.kind,
-					isRetryAfterNotReady,
-				},
-			);
+			if (retryAfterNotReady) await refetchDescribe();
+			try {
+				return await fetchBodyContent(picked.contentUrl, picked.kind, getToken);
+			} catch (error) {
+				if (
+					!(error instanceof BodyFetchError) ||
+					error.reason !== "link-expired"
+				)
+					throw error;
+				await refetchDescribe();
+				const refreshed =
+					queryClient.getQueryData<RemitImapDescribeMessageResponse>(
+						describeKey,
+					);
+				const original = bodyParts?.find(
+					(part) => part.contentUrl === picked.contentUrl,
+				);
+				const renewed = refreshed?.bodyParts.find(
+					(part) => part.partPath === original?.partPath,
+				);
+				if (!renewed) throw error;
+				return fetchBodyContent(renewed.contentUrl, picked.kind, getToken);
+			}
 		},
 		enabled: enabled && !!messageId && !!picked,
 		networkMode: getOfflineRuntime() ? "always" : "online",

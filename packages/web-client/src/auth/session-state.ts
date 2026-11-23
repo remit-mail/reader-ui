@@ -13,6 +13,7 @@ export type SessionState =
 	| { kind: "pending" }
 	| { kind: "active" }
 	| { kind: "rateLimited" }
+	| { kind: "failed"; cause: unknown }
 	| { kind: "refused"; refusal: AuthRefusal }
 	| { kind: "signedOut" };
 
@@ -42,5 +43,7 @@ export const classifySessionQuery = ({
 	if (isPending) return { kind: "pending" };
 	if (getErrorStatus(error) === TOO_MANY_REQUESTS)
 		return { kind: "rateLimited" };
+	if (error && getErrorStatus(error) !== 401)
+		return { kind: "failed", cause: error };
 	return { kind: "signedOut" };
 };

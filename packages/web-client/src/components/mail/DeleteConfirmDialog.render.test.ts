@@ -9,6 +9,7 @@
  */
 import assert from "node:assert/strict";
 import { after, afterEach, before, beforeEach, describe, it } from "node:test";
+import { configOperationsGetConfigOptions } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import i18next from "i18next";
 import type { JSDOM } from "jsdom";
@@ -40,6 +41,7 @@ i18n.use(initReactI18next).init({
 let dom: JSDOM;
 let container: HTMLElement;
 let root: Root;
+let client: QueryClient;
 const originalFetch = globalThis.fetch;
 
 before(async () => {
@@ -128,6 +130,7 @@ const waitFor = async (done: () => boolean): Promise<void> => {
 
 afterEach(() => {
 	act(() => root.unmount());
+	client.clear();
 	globalThis.fetch = originalFetch;
 });
 
@@ -144,6 +147,7 @@ const sessionAuthProvider = (signOut: () => void): AuthProvider => ({
 
 const mount = (options: {
 	outcome: DeleteOutcome;
+	settingsError?: Error;
 	count?: number;
 	isDeleting?: boolean;
 	accountId?: string;
@@ -152,6 +156,14 @@ const mount = (options: {
 	authProvider?: AuthProvider;
 	onConfirm?: (messageIds: string[]) => void;
 }) => {
+	client = new QueryClient();
+	if (options.settingsError)
+		client
+			.getQueryCache()
+			.build(client, {
+				queryKey: [...configOperationsGetConfigOptions().queryKey],
+			})
+			.setState({ status: "error", error: options.settingsError });
 	const onConfirm = options.onConfirm ?? (() => undefined);
 	const messageIds = Array.from(
 		{ length: options.count ?? 1 },
@@ -164,7 +176,7 @@ const mount = (options: {
 				{ i18n },
 				createElement(
 					QueryClientProvider,
-					{ client: new QueryClient() },
+					{ client },
 					createElement(
 						RoleAppointmentPromptProvider,
 						null,
@@ -250,11 +262,19 @@ describe("DeleteConfirmDialog — a read that failed refuses the delete", () => 
 		);
 	});
 
-	it("re-authenticates from the affirmative control, and never deletes", () => {
+	it("retries the settings read without signing out or deleting", async () => {
+		let reads = 0;
+		globalThis.fetch = (async () => {
+			reads++;
+			return new Response(JSON.stringify(answerFor("/config")), {
+				headers: { "Content-Type": "application/json" },
+			});
+		}) as typeof fetch;
 		let signedOut = 0;
 		let confirmed = 0;
 		const view = mount({
 			outcome: "unavailable",
+			settingsError: new Error("Folder settings connection lost"),
 			authProvider: sessionAuthProvider(() => {
 				signedOut += 1;
 			}),
@@ -263,19 +283,21 @@ describe("DeleteConfirmDialog — a read that failed refuses the delete", () => 
 			},
 		});
 
-		const signIn = view.button("Sign in again");
+		assert.match(view.text(), /Folder settings connection lost/);
+		const signIn = view.button("Retry");
 		assert.ok(signIn, "the way back in is on screen");
 		assert.equal(signIn?.disabled, false, "and it can be pressed");
 
 		act(() => signIn?.click());
-		assert.equal(signedOut, 1);
+		await waitFor(() => reads === 1);
+		assert.equal(signedOut, 0);
 		assert.equal(confirmed, 0, "the refusal never reaches the delete");
 	});
 
-	it("offers a reload where there is no session to sign back into", () => {
+	it("offers Retry even without an identity provider", () => {
 		const view = mount({ outcome: "unavailable" });
 		assert.equal(view.button("Sign in again"), undefined);
-		assert.equal(view.button("Reload reader")?.disabled, false);
+		assert.equal(view.button("Retry")?.disabled, false);
 	});
 });
 

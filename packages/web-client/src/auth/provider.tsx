@@ -18,7 +18,14 @@ export interface AuthAccountProps {
 	fallback?: ReactNode;
 }
 
+/** Reload through the sign-in gate at this address without deleting the session. */
+export const navigateToSignIn = (): void => {
+	window.location.reload();
+};
+
 export interface AuthProvider {
+	/** Host renewal navigation; must never revoke the login session. */
+	reauthenticate: () => void | Promise<void>;
 	/** Called once at boot, before render, to initialize the identity SDK. */
 	configure(): void;
 	/**
@@ -57,6 +64,7 @@ const Passthrough: FC<{ children?: ReactNode }> = ({ children }) => (
  * render, a harness) degrades to "signed out" instead of crashing.
  */
 export const noneAuthProvider: AuthProvider = {
+	reauthenticate: navigateToSignIn,
 	configure: () => {},
 	getToken: async () => null,
 	resetToken: () => {},

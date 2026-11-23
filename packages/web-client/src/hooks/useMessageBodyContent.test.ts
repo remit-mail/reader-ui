@@ -4,7 +4,6 @@ import {
 	BodyFetchError,
 	classifyBodyFetchFailure,
 	fetchBodyContent,
-	fetchBodyContentAttempt,
 	isContentTypeMismatch,
 	isSpaShellResponse,
 	parseRetryAfterSeconds,
@@ -91,11 +90,11 @@ describe("classifyBodyFetchFailure — distinguishes auth failure vs. missing-S3
 		assert.equal(classifyBodyFetchFailure(401, "auth-invalid"), "auth");
 	});
 
-	it("classifies a 403 carrying the edge x-remit-403-reason header as auth (tenant-mismatch)", () => {
+	it("classifies a 403 carrying the edge x-remit-403-reason header as a resource refusal (tenant-mismatch)", () => {
 		assert.equal(
 			classifyBodyFetchFailure(403, "tenant-mismatch"),
-			"auth",
-			"a 403 with the edge reason header is an auth denial, not a storage miss",
+			"generic",
+			"a tenant mismatch refuses this resource and cannot establish an expired session",
 		);
 	});
 
@@ -159,7 +158,7 @@ describe("fetchBodyContent — throws BodyFetchError with discriminated reason (
 		);
 	});
 
-	it("throws BodyFetchError(reason=auth) on a 403 with x-remit-403-reason (tenant-mismatch)", async () => {
+	it("throws BodyFetchError(reason=generic) on a 403 with x-remit-403-reason (tenant-mismatch)", async () => {
 		stubFetch(
 			403,
 			{ "x-remit-403-reason": "tenant-mismatch" },
@@ -169,7 +168,8 @@ describe("fetchBodyContent — throws BodyFetchError with discriminated reason (
 			() => fetchBodyContent("/content/accounts/x/messages/m/body.eml", "text"),
 			(err: unknown) => {
 				assert.ok(err instanceof BodyFetchError);
-				assert.equal(err.reason, "auth");
+				assert.equal(err.reason, "generic");
+				assert.match(err.message, /tenant-mismatch/);
 				assert.equal(err.status, 403);
 				return true;
 			},
@@ -271,80 +271,6 @@ describe("fetchBodyContent — throws BodyFetchError with discriminated reason (
 				assert.ok(err instanceof BodyFetchError);
 				assert.equal(err.reason, "not-ready");
 				assert.equal(err.retryAfterSeconds, 1);
-				return true;
-			},
-		);
-	});
-});
-
-describe("fetchBodyContentAttempt — self-heals a deferred per-part object on a 202 retry (#1240)", () => {
-	it("refetches the describe query before re-fetching the content URL when isRetryAfterNotReady", async () => {
-		const calls: string[] = [];
-		const result = await fetchBodyContentAttempt(
-			{
-				fetchContent: async (url, kind) => {
-					calls.push(`fetch:${url}:${kind}`);
-					return "hello world";
-				},
-				refetchDescribeMessage: async () => {
-					calls.push("describe");
-				},
-			},
-			{
-				contentUrl: "/content/accounts/x/messages/m/parts/1",
-				kind: "text",
-				isRetryAfterNotReady: true,
-			},
-		);
-
-		assert.equal(result, "hello world");
-		assert.deepEqual(calls, [
-			"describe",
-			"fetch:/content/accounts/x/messages/m/parts/1:text",
-		]);
-	});
-
-	it("skips the describe refetch on a first attempt (isRetryAfterNotReady = false)", async () => {
-		const calls: string[] = [];
-		await fetchBodyContentAttempt(
-			{
-				fetchContent: async (url) => {
-					calls.push(`fetch:${url}`);
-					return "hello world";
-				},
-				refetchDescribeMessage: async () => {
-					calls.push("describe");
-				},
-			},
-			{
-				contentUrl: "/content/accounts/x/messages/m/parts/1",
-				kind: "text",
-				isRetryAfterNotReady: false,
-			},
-		);
-
-		assert.deepEqual(calls, ["fetch:/content/accounts/x/messages/m/parts/1"]);
-	});
-
-	it("propagates a not-ready error from the content fetch even after refetching describe (bounded retry keeps working)", async () => {
-		await assert.rejects(
-			() =>
-				fetchBodyContentAttempt(
-					{
-						fetchContent: async () => {
-							throw new BodyFetchError("not-ready", "still syncing", 202, 1);
-						},
-						refetchDescribeMessage: async () => {},
-					},
-					{
-						contentUrl: "/content/accounts/x/messages/m/parts/1",
-						kind: "text",
-						isRetryAfterNotReady: true,
-					},
-				),
-			(err: unknown) => {
-				assert.ok(err instanceof BodyFetchError);
-				assert.equal(err.reason, "not-ready");
 				return true;
 			},
 		);
