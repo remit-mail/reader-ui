@@ -2,7 +2,6 @@ import { threadOperationsSearchThreads } from "@remit/api-http-client/sdk.gen.ts
 import type { ThreadOperationsSearchThreadsData } from "@remit/api-http-client/types.gen.ts";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-	applyBulkAction,
 	type BulkRunRequest,
 	type BulkRunSource,
 	useBulkRun,
@@ -109,7 +108,7 @@ export interface UseEscalatedActionsResult {
 	 */
 	runAction: (
 		action: EscalatedAction,
-		targets?: readonly BulkActionTarget[],
+		targets?: readonly (string | BulkActionTarget)[],
 		claimEnding?: BulkRunRequest["claimEnding"],
 	) => Promise<BulkRunStart>;
 }
@@ -235,7 +234,7 @@ export const useEscalatedActions = ({
 	const runAction = useCallback(
 		async (
 			action: EscalatedAction,
-			targets?: readonly BulkActionTarget[],
+			targets?: readonly (string | BulkActionTarget)[],
 			claimEnding?: BulkRunRequest["claimEnding"],
 		): Promise<BulkRunStart> => {
 			// Read before the run clears the phase below, so a refusal can say how
@@ -260,7 +259,6 @@ export const useEscalatedActions = ({
 				accountId,
 				matched,
 				source,
-				applyBatch: applyBulkAction(action),
 				reportEnding,
 				claimEnding,
 			});

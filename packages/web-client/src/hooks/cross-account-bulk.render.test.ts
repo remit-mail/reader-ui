@@ -34,9 +34,9 @@ const ACCOUNT_B = "acc-personal";
 
 /** A brief selection: two rows from one account, one from another. */
 const MIXED: BulkActionTarget[] = [
-	{ id: "msg-work-1", accountId: ACCOUNT_A },
-	{ id: "msg-personal-1", accountId: ACCOUNT_B },
-	{ id: "msg-work-2", accountId: ACCOUNT_A },
+	{ id: "msg-work-1", accountId: ACCOUNT_A, mailboxId: "inbox" },
+	{ id: "msg-personal-1", accountId: ACCOUNT_B, mailboxId: "inbox" },
+	{ id: "msg-work-2", accountId: ACCOUNT_A, mailboxId: "inbox" },
 ];
 
 let harness: DomHarness | undefined;

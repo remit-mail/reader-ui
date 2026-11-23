@@ -1,24 +1,13 @@
 import type { ThreadRowData, WizardMessage } from "@remit/ui";
+import type { BulkActionTarget } from "./bulk-actions";
 
 /** A ticked row, as the wizard's samples and its clause prefill read it. */
-export interface WizardSelectionMessage extends WizardMessage {
+export interface WizardSelectionMessage
+	extends WizardMessage,
+		BulkActionTarget {
 	/** Sender address — the properties prefill matches on it. */
 	email: string;
 	isRead: boolean;
-	/**
-	 * Owning account, which a bulk run splits its batches by (#872) — the bulk
-	 * endpoints refuse a batch spanning accounts before applying any of it.
-	 * Stated by every surface rather than inferred: a per-mailbox list has one
-	 * account for all its rows and carries none on the row, while the brief and
-	 * Flagged span accounts and carry each row's own. Never `accountConfigId`,
-	 * which every account of one user shares (#456).
-	 */
-	accountId: string | undefined;
-	/**
-	 * The folder the row sits in, when the listing says. A saved rule's first
-	 * pass runs over the inbox, so a row elsewhere takes the action directly.
-	 */
-	mailboxId: string | undefined;
 }
 
 /**
@@ -33,13 +22,17 @@ export const wizardSelectionFrom = (
 ): WizardSelectionMessage[] =>
 	rows
 		.filter((row) => selectedIds.has(row.id))
-		.map((row) => ({
-			id: row.id,
-			sender: row.fromName,
-			email: row.fromEmail,
-			isRead: row.isRead ?? false,
-			subject: row.subject,
-			date: row.timeLabel,
-			accountId: row.accountId,
-			mailboxId: row.mailboxId,
-		}));
+		.map((row) => {
+			if (!row.accountId || !row.mailboxId)
+				throw new Error("Selected message has no original placement");
+			return {
+				id: row.id,
+				sender: row.fromName,
+				email: row.fromEmail,
+				isRead: row.isRead ?? false,
+				subject: row.subject,
+				date: row.timeLabel,
+				accountId: row.accountId,
+				mailboxId: row.mailboxId,
+			};
+		});
