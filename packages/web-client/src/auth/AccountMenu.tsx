@@ -1,13 +1,14 @@
 import { AccountMenu as AccountMenuView } from "@remit/ui";
 import { useOpenSettingsSection } from "../routing/sections";
 import { useSettingsSlots } from "../settings-slots";
-import { AccountSession } from "./AccountSession";
+import { useAuthProvider } from "./provider";
 
 export const AccountMenu = () => {
+	const { Account } = useAuthProvider();
 	const openSettingsSection = useOpenSettingsSection();
 	const slots = useSettingsSlots();
 	return (
-		<AccountSession>
+		<Account>
 			{({ email, signOut }) => (
 				<AccountMenuView
 					email={email}
@@ -16,6 +17,6 @@ export const AccountMenu = () => {
 					onSignOut={signOut}
 				/>
 			)}
-		</AccountSession>
+		</Account>
 	);
 };

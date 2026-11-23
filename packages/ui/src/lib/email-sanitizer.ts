@@ -8,6 +8,8 @@ export { generateLayoutClampCSS } from "./email-layout-clamp.js";
 
 export interface SanitizeOptions {
 	allowExternalImages?: boolean;
+	/** Called only for permitted HTTP(S) image sources; undefined keeps a local placeholder. */
+	resolveExternalImage?: (url: string) => string | undefined;
 	/**
 	 * Resolve a `cid:CONTENT_ID` reference to a fetchable URL. The renderer
 	 * looks up the body part with a matching `contentId` and returns its
@@ -39,6 +41,7 @@ export interface SanitizedEmail {
 	html: string;
 	hasAuthorBackground: boolean;
 	hasAuthorSpacing: boolean;
+	blockedExternalImageCount?: number;
 }
 
 /**
@@ -332,9 +335,22 @@ const PLACEHOLDER_IMAGE =
  * rendered as a light-mode island (see `IsolatedEmailFrame`'s
  * `color-scheme: light`), so author CSS can stand on its own.
  */
-export const sanitizeInlineStyle = (style: string): string => {
+export const sanitizeInlineStyle = (
+	style: string,
+	resolveImage?: (url: string) => string | undefined,
+): string => {
+	// Reject unsupported CSS rather than letting string URLs bypass the image gate.
+	if (style.includes("\\") || /(?:-webkit-)?image-set\s*\(/i.test(style))
+		return "";
+
 	return style
-		.replace(/url\s*\([^)]*\)/gi, "none")
+		.replace(/url\s*\(([^)]*)\)/gi, (_match, value: string) => {
+			const url = value.trim().replace(/^["']|["']$/g, "");
+			// Escaped CSS and malformed URLs remain unsupported.
+			if (!url || /[\\\s"'()]/.test(url)) return "none";
+			const resolved = resolveImage?.(url);
+			return resolved ? `url("${resolved}")` : "none";
+		})
 		.replace(/expression\s*\([^)]*\)/gi, "")
 		.replace(/-moz-binding\s*:[^;]*/gi, "");
 };
@@ -348,19 +364,39 @@ export const sanitizeInlineStyle = (style: string): string => {
  * subtree is pinned to light-mode at the wrapper level, so author CSS that
  * targets `body { background: white; color: black; }` keeps applying.
  */
-export const sanitizeStyleElementCss = (css: string): string => {
-	return css
-		.replace(/@import[^;]*;/gi, "/* @import blocked */")
-		.replace(/url\s*\([^)]*\)/gi, "none")
-		.replace(/expression\s*\([^)]*\)/gi, "")
-		.replace(/-moz-binding\s*:[^;]*/gi, "");
-};
+export const sanitizeStyleElementCss = (
+	css: string,
+	resolveImage?: (url: string) => string | undefined,
+): string =>
+	sanitizeInlineStyle(
+		css.replace(/@import[^;]*;/gi, "/* @import blocked */"),
+		resolveImage,
+	);
 
 // ============================================
 // Main Sanitizer
 // ============================================
 
 export const createEmailSanitizer = (options: SanitizeOptions = {}) => {
+	const blockedExternalImages = new Set<string>();
+	const resolveImage = options.resolveExternalImage
+		? (src: string): string | undefined => {
+				if (
+					!src.trim() ||
+					src.startsWith("#") ||
+					/^(?:cid|blob|data):/i.test(src)
+				)
+					return undefined;
+				if (!URL.canParse(src, document.baseURI)) return undefined;
+				const target = new URL(src, document.baseURI);
+				if (!/^https?:$/.test(target.protocol)) return undefined;
+				if (!options.allowExternalImages) {
+					blockedExternalImages.add(target.href);
+					return undefined;
+				}
+				return options.resolveExternalImage!(target.href) ?? PLACEHOLDER_IMAGE;
+			}
+		: undefined;
 	const purify = DOMPurify();
 
 	const config = {
@@ -372,6 +408,63 @@ export const createEmailSanitizer = (options: SanitizeOptions = {}) => {
 
 	// Hook: Process elements after attribute sanitization
 	purify.addHook("afterSanitizeAttributes", (node) => {
+		if (node.hasAttribute("style"))
+			node.setAttribute(
+				"style",
+				sanitizeInlineStyle(node.getAttribute("style") || "", resolveImage),
+			);
+
+		// Rewrite every sanitized image candidate before it can reach the frame.
+		// CSS uses the same permission and resolver as image attributes.
+		if (options.resolveExternalImage) {
+			const resolve = (src: string): string => {
+				if (src.startsWith("#") || /^(?:cid|blob|data):/i.test(src)) return src;
+				const resolved = resolveImage?.(src);
+				return options.allowExternalImages
+					? (resolved ?? PLACEHOLDER_IMAGE)
+					: src;
+			};
+			const svgImage = ["image", "feimage"].includes(
+				node.tagName.toLowerCase(),
+			);
+			if (svgImage && node.hasAttribute("href")) {
+				const href = resolve(node.getAttribute("href") || "");
+				if (options.allowExternalImages) node.setAttribute("href", href);
+				else node.removeAttribute("href");
+			}
+			for (const attr of ["src", "poster", "background"]) {
+				if (
+					node.hasAttribute(attr) &&
+					!(attr === "src" && node.getAttribute(attr)?.startsWith("cid:"))
+				)
+					node.setAttribute(attr, resolve(node.getAttribute(attr)!));
+			}
+			if (!options.allowExternalImages) node.removeAttribute("background");
+			if (node.hasAttribute("srcset")) {
+				// A URL runs to whitespace (commas inside data URLs are part of it).
+				// Descriptors run to the next candidate separator.
+				const candidates: string[] = [];
+				const input = node.getAttribute("srcset")!;
+				const pattern = /[^\s,]+(?:,[^\s]*)*/g;
+				let match = pattern.exec(input);
+				while (match) {
+					let url = match[0];
+					const separated = url.endsWith(",");
+					url = url.replace(/,+$/, "");
+					let descriptor = "";
+					if (!separated) {
+						const end = input.indexOf(",", pattern.lastIndex);
+						const stop = end < 0 ? input.length : end;
+						descriptor = input.slice(pattern.lastIndex, stop).trim();
+						pattern.lastIndex = stop + 1;
+					}
+					candidates.push(resolve(url) + (descriptor ? " " + descriptor : ""));
+					match = pattern.exec(input);
+				}
+				node.setAttribute("srcset", candidates.join(", "));
+			}
+		}
+
 		// `src` is not the only way to name a remote image. DOMPurify keeps
 		// `srcset` on `<img>`, `<source srcset>` inside `<picture>`, and
 		// `<video poster>`, and every one of them fetches without a click —
@@ -445,23 +538,18 @@ export const createEmailSanitizer = (options: SanitizeOptions = {}) => {
 			// Add visual indicator for external links
 			node.classList.add("external-link");
 		}
-
-		// Sanitize inline styles — security only, colors pass through.
-		if (node.hasAttribute("style")) {
-			const style = node.getAttribute("style") || "";
-			node.setAttribute("style", sanitizeInlineStyle(style));
-		}
 	});
 
 	// Hook: Process style elements
 	purify.addHook("uponSanitizeElement", (node, data) => {
 		if (data.tagName === "style") {
 			const css = node.textContent || "";
-			node.textContent = sanitizeStyleElementCss(css);
+			node.textContent = sanitizeStyleElementCss(css, resolveImage);
 		}
 	});
 
 	return (html: string): SanitizedEmail => {
+		blockedExternalImages.clear();
 		// Detect BEFORE sanitization: DOMPurify keeps `style=` / `bgcolor=` /
 		// author `<style>` content for us (we deliberately preserve them in
 		// #375), but running the detector on the raw input is simpler and
@@ -480,6 +568,9 @@ export const createEmailSanitizer = (options: SanitizeOptions = {}) => {
 			html: `<style>${layoutCss}</style>${sanitized}`,
 			hasAuthorBackground,
 			hasAuthorSpacing,
+			...(options.resolveExternalImage
+				? { blockedExternalImageCount: blockedExternalImages.size }
+				: {}),
 		};
 	};
 };

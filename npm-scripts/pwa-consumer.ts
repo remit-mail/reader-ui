@@ -22,6 +22,7 @@ declare global {
 			reauthentications: number;
 			latePersist?: () => Promise<string>;
 			slowSave?: Promise<string>;
+			slowImageSave?: Promise<string>;
 			version: string;
 			restored?: boolean;
 			loadProbe: () => Promise<unknown>;
@@ -85,6 +86,15 @@ const draft = {
 let tenant = "tenant-a";
 let sessionStatus = 200;
 const contentRequests: string[] = [];
+const imageProxyRequests: string[] = [];
+let imageSlowReady!: () => void;
+const slowImageRequested = new Promise<void>((resolve) => {
+	imageSlowReady = resolve;
+});
+let releaseSlowImage!: () => void;
+const slowImageGate = new Promise<void>((resolve) => {
+	releaseSlowImage = resolve;
+});
 let attachmentExpired = false;
 let inlineReady!: () => void;
 const inlineGate = new Promise<void>((resolve) => {
@@ -133,7 +143,7 @@ const server = createServer(async (request, response) => {
 		if (path.endsWith("/html")) {
 			response.setHeader("Content-Type", "text/html");
 			response.end(
-				'<p>Old downloaded body</p><img alt="first inline" src="cid:one"><img alt="second inline" src="cid:two"><!-- <img src="cid:unused"> --><script>"<img src=cid:unused>"</script><img src="https://tracking.invalid/pixel">',
+				'<p>Old downloaded body</p><img alt="first inline" src="cid:one"><img alt="second inline" src="cid:two"><!-- <img src="cid:unused"> --><script>"<img src=cid:unused>"</script><img alt="remote image" src="https://tracking.invalid/pixel?token=one">',
 			);
 		} else if (path.endsWith("/inline-a") || path.endsWith("/inline-b")) {
 			if (path.endsWith("/inline-a")) await inlineGate;
@@ -166,6 +176,26 @@ const server = createServer(async (request, response) => {
 			response.writeHead(500);
 			response.end("Unused CID must never be fetched");
 		}
+	} else if (path === "/api/image-proxy") {
+		assert.equal(request.method, "POST");
+		assert.equal(request.headers["content-type"], "text/plain;charset=UTF-8");
+		const chunks: Buffer[] = [];
+		for await (const chunk of request) chunks.push(Buffer.from(chunk));
+		const destination = Buffer.concat(chunks).toString("utf8");
+		imageProxyRequests.push(destination);
+		response.setHeader("X-Remit-Partition", tenant);
+		if (destination.endsWith("token=slow")) {
+			imageSlowReady();
+			await slowImageGate;
+		}
+		response.setHeader("Content-Type", "image/png");
+		response.setHeader("Cache-Control", "private, max-age=3600");
+		response.end(
+			Buffer.from(
+				"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+				"base64",
+			),
+		);
 	} else if (path.startsWith("/api/")) {
 		response.setHeader("Content-Type", "application/json");
 		if (!path.startsWith("/api/auth/") && path !== "/api/session")
@@ -617,6 +647,9 @@ try {
 			sessionStatus = status;
 		},
 		contentRequests,
+		imageProxyRequests,
+		slowImageRequested,
+		releaseSlowImage,
 		slowRequested,
 		releaseSlow,
 	});
@@ -625,6 +658,7 @@ try {
 	);
 } finally {
 	inlineReady();
+	releaseSlowImage();
 	releaseSlow();
 	finishSave();
 	await browser.close();

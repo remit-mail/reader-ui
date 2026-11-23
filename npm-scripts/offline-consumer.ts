@@ -7,6 +7,9 @@ import { chromium, type Page } from "playwright";
 interface Controls {
 	setSession(key: string, status?: number): void;
 	contentRequests: string[];
+	imageProxyRequests: string[];
+	slowImageRequested: Promise<void>;
+	releaseSlowImage(): void;
 	slowRequested: Promise<void>;
 	releaseSlow(): void;
 }
@@ -25,6 +28,19 @@ const imagesReady = async (page: Page) =>
 					image.complete &&
 					image.naturalWidth === 1,
 			)
+		);
+	});
+const remoteImageReady = async (page: Page) =>
+	page.waitForFunction(() => {
+		const image = document
+			.querySelector<HTMLIFrameElement>('iframe[title="Email content"]')
+			?.contentDocument?.querySelector<HTMLImageElement>(
+				'img[alt="remote image"]',
+			);
+		return (
+			image?.src.startsWith("blob:") &&
+			image.complete &&
+			image.naturalWidth === 1
 		);
 	});
 const attachment = async (page: Page) => {
@@ -90,6 +106,17 @@ export async function testOfflineReading(
 			"unreferenced CIDs are not fetched",
 		);
 		assert.equal(tracking, 0, "remote tracking images remain blocked");
+		assert.deepEqual(
+			controls.imageProxyRequests,
+			[],
+			"blocked images never reach the proxy",
+		);
+		await page.getByRole("button", { name: "Load once", exact: true }).click();
+		await remoteImageReady(page);
+		assert.deepEqual(controls.imageProxyRequests, [
+			"https://tracking.invalid/pixel?token=one",
+		]);
+		assert.equal(tracking, 0, "permitted images use only the POST proxy");
 		await page.goto(`${origin}/downloads/new-mail`);
 		await page.getByRole("heading", { name: "New list page" }).waitFor();
 		await page
@@ -180,6 +207,13 @@ export async function testOfflineReading(
 			.click();
 		await page.getByRole("heading", { name: "Old retained mail" }).waitFor();
 		await imagesReady(page);
+		await page.getByRole("button", { name: "Load once", exact: true }).click();
+		await remoteImageReady(page);
+		assert.deepEqual(
+			controls.imageProxyRequests,
+			["https://tracking.invalid/pixel?token=one"],
+			"a process restart recreates object URLs from saved bytes without a POST",
+		);
 		await attachment(page);
 		assert.equal(
 			await page.evaluate(() => window.pwaTest.offline()?.state.verified),
@@ -223,6 +257,54 @@ export async function testOfflineReading(
 			.click();
 		await page.waitForFunction(
 			() => !!window.pwaTest.offline()?.state.verified,
+		);
+		const imageQuotaFailure = await page.evaluate(async () => {
+			const runtime = window.pwaTest.offline()!;
+			const put = IDBObjectStore.prototype.put;
+			IDBObjectStore.prototype.put = function (value, key) {
+				if (String(key).startsWith("external-image:"))
+					throw new DOMException("Image quota exceeded", "QuotaExceededError");
+				return put.call(this, value, key);
+			};
+			try {
+				return await runtime
+					.externalImage(
+						"/api/image-proxy",
+						"https://tracking.invalid/pixel?token=quota",
+					)
+					.then(
+						() => "unexpected success",
+						(error: Error) => error.message,
+					);
+			} finally {
+				IDBObjectStore.prototype.put = put;
+			}
+		});
+		assert.match(imageQuotaFailure, /Image quota exceeded/);
+		await page
+			.getByRole("alert")
+			.filter({ hasText: "Image quota exceeded" })
+			.waitFor();
+		const retainedImage = await page.evaluate(async () => {
+			const runtime = window.pwaTest.offline()!;
+			const bytes = await runtime.externalImage(
+				"/api/image-proxy",
+				"https://tracking.invalid/pixel?token=one",
+			);
+			return { type: bytes.type, size: bytes.size };
+		});
+		assert.equal(retainedImage.type, "image/png");
+		assert.ok(
+			retainedImage.size > 0,
+			"failed admission/write leaves previously saved image bytes intact",
+		);
+		assert.deepEqual(
+			controls.imageProxyRequests,
+			[
+				"https://tracking.invalid/pixel?token=one",
+				"https://tracking.invalid/pixel?token=quota",
+			],
+			"destination queries identify distinct records",
 		);
 		// Inject a failure at the actual Cache API write, leaving all browser stores real.
 		const cacheFailure = await page.evaluate(async () => {
@@ -349,6 +431,19 @@ export async function testOfflineReading(
 					(error: Error) => error.message,
 				);
 		});
+		await page.evaluate(() => {
+			window.pwaTest.slowImageSave = window.pwaTest
+				.offline()!
+				.externalImage(
+					"/api/image-proxy",
+					"https://tracking.invalid/pixel?token=slow",
+				)
+				.then(
+					() => "saved",
+					(error: Error) => error.message,
+				);
+		});
+		await controls.slowImageRequested;
 		await controls.slowRequested;
 		const peer = await context.newPage();
 		await peer.goto(`${origin}/downloads`);
@@ -360,6 +455,40 @@ export async function testOfflineReading(
 			() => !window.pwaTest.offline()?.state.partition,
 		);
 		controls.releaseSlow();
+		controls.releaseSlowImage();
+		assert.match(
+			await page.evaluate(() => window.pwaTest.slowImageSave!),
+			/removed/,
+		);
+		const remainingImages = await page.evaluate(async () => {
+			const request = indexedDB.open("remit-offline");
+			const db = await new Promise<IDBDatabase>((resolve, reject) => {
+				request.onsuccess = () => resolve(request.result);
+				request.onerror = () => reject(request.error);
+			});
+			try {
+				return await new Promise<IDBValidKey[]>((resolve, reject) => {
+					const request = db
+						.transaction("data")
+						.objectStore("data")
+						.getAllKeys();
+					request.onsuccess = () =>
+						resolve(
+							request.result.filter((key) =>
+								String(key).startsWith("external-image:"),
+							),
+						);
+					request.onerror = () => reject(request.error);
+				});
+			} finally {
+				db.close();
+			}
+		});
+		assert.deepEqual(
+			remainingImages,
+			[],
+			"removeDownloads deletes images and a late POST cannot recreate them",
+		);
 		assert.match(
 			await page.evaluate(() => window.pwaTest.slowSave!),
 			/removed/,
@@ -422,6 +551,7 @@ export async function testOfflineReading(
 			"Offline consumer OK: process restarts, 90-day retention, both auth contexts, CID and attachment bytes, quota failures, tenant changes and cross-tab wipe races.",
 		);
 	} finally {
+		controls.releaseSlowImage();
 		controls.releaseSlow();
 		await context.close();
 		rmSync(profile, { recursive: true, force: true });

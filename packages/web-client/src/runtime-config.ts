@@ -42,6 +42,7 @@ const oneOf = <T extends string>(
 
 export interface RemitRuntimeConfig {
 	apiUrl: string;
+	externalImageProxyUrl?: string;
 	appOrigin: string;
 	betterAuthEnabled: boolean;
 	cognito: CognitoConfig;
@@ -53,8 +54,9 @@ export interface RemitRuntimeConfig {
 	updateMode: UpdateMode;
 }
 
-interface RawRuntimeConfig {
+export interface RawRuntimeConfig {
 	apiUrl?: string;
+	externalImageProxyUrl?: string;
 	appOrigin?: string;
 	betterAuthEnabled?: boolean;
 	cognito?: Partial<CognitoConfig>;
@@ -79,6 +81,9 @@ export const getRuntimeConfig = (): RemitRuntimeConfig => {
 	const raw: RawRuntimeConfig = globalThis.__REMIT_CONFIG__ ?? {};
 	return {
 		apiUrl: raw.apiUrl ?? "/api",
+		externalImageProxyUrl: validateExternalImageProxyUrl(
+			raw.externalImageProxyUrl,
+		),
 		appOrigin: raw.appOrigin ?? "",
 		betterAuthEnabled: raw.betterAuthEnabled ?? false,
 		cognito: {
@@ -101,4 +106,30 @@ export const getRuntimeConfig = (): RemitRuntimeConfig => {
 		issuesUrl: raw.issuesUrl ?? DEFAULT_ISSUES_URL,
 		updateMode: oneOf(UPDATE_MODES, raw.updateMode, "self"),
 	};
+};
+
+/** The destination belongs in the POST body, never the proxy URL. */
+export const validateExternalImageProxyUrl = (
+	value?: string,
+): string | undefined => {
+	if (value === undefined) return undefined;
+	const origin = globalThis.window?.location.origin;
+	if (!origin)
+		throw new Error("External image proxy requires a browser origin");
+	const url = new URL(value, origin);
+	if (
+		!value ||
+		url.origin !== origin ||
+		!/^https?:$/.test(url.protocol) ||
+		url.username ||
+		url.password ||
+		url.search ||
+		url.hash ||
+		value.includes("?") ||
+		value.includes("#")
+	)
+		throw new Error(
+			"External image proxy must be same-origin without query or fragment",
+		);
+	return value;
 };
