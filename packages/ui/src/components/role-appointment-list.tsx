@@ -44,6 +44,7 @@ export interface CandidateFolder {
 /** Where a role's answer came from (#887). */
 export type RoleAppointmentSource =
 	| "Appointed"
+	| "Detected"
 	| "Flagged"
 	| "Reserved"
 	| "Proposed"
@@ -83,6 +84,7 @@ const provenanceClause = (
 	roleLabel: string,
 ): string => {
 	if (source === "Appointed") return "Chosen by you";
+	if (source === "Detected") return "Detected automatically";
 	if (source === "Flagged") return `The mail server marks it as ${roleLabel}`;
 	if (source === "Reserved") return "The account's own INBOX";
 	return "Matched by name, not confirmed";
@@ -95,7 +97,7 @@ interface RoleAppointmentRowProps {
 	/** Committed display-name override for the appointed folder. */
 	displayName: string;
 	onAppoint: (role: FolderRole, mailboxId: string) => void;
-	onRename: (mailboxId: string, name: string) => void;
+	onRename?: (mailboxId: string, name: string) => void;
 }
 
 /**
@@ -172,7 +174,7 @@ function RoleAppointmentRow({
 
 	return (
 		<div className="flex flex-col gap-1 border-b border-line px-row-inset py-2.5 last:border-b-0">
-			<div className="flex items-center gap-2">
+			<div className="flex flex-wrap items-center gap-2">
 				<span className="flex w-28 shrink-0 items-center gap-2 text-sm font-medium text-fg">
 					{roleIcon(role)}
 					{label}
@@ -213,7 +215,7 @@ function RoleAppointmentRow({
 						{`Set as ${label}`}
 					</Button>
 				)}
-				{appointed && (
+				{appointed && onRename && (
 					<>
 						<Input
 							className="flex-1"
@@ -289,7 +291,9 @@ export interface RoleAppointmentListProps {
 	/** mailboxId → committed display-name override. */
 	displayNames?: Readonly<Record<string, string>>;
 	onAppoint: (role: FolderRole, mailboxId: string) => void;
-	onRename: (mailboxId: string, name: string) => void;
+	onRename?: (mailboxId: string, name: string) => void;
+	roles?: readonly FolderRole[];
+	showOtherFolders?: boolean;
 }
 
 /**
@@ -310,6 +314,8 @@ export function RoleAppointmentList({
 	displayNames = {},
 	onAppoint,
 	onRename,
+	roles = APPOINTABLE_ROLES,
+	showOtherFolders = true,
 }: RoleAppointmentListProps) {
 	const appointedIds = new Set(
 		Object.values(appointments)
@@ -330,7 +336,7 @@ export function RoleAppointmentList({
 				</p>
 			</header>
 			<div className="rounded-sm border border-line bg-surface">
-				{APPOINTABLE_ROLES.map((role) => {
+				{roles.map((role) => {
 					const appointment = appointments[role] ?? UNRESOLVED;
 					return (
 						<RoleAppointmentRow
@@ -350,7 +356,7 @@ export function RoleAppointmentList({
 				})}
 			</div>
 
-			{leftovers.length > 0 && (
+			{showOtherFolders && leftovers.length > 0 && (
 				<div className="space-y-1.5">
 					<h3 className="text-xs font-medium text-fg-muted">Other folders</h3>
 					<ul className="rounded-sm border border-line bg-surface">

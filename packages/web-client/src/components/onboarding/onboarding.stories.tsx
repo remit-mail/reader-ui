@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { HttpResponse, http } from "msw";
 import { expect, userEvent, waitFor, within } from "storybook/test";
 import {
 	REDIRECT_STALL_MESSAGE,
@@ -13,6 +14,7 @@ import {
 	onboardingHandlers,
 } from "../../mocks/story-frame/onboarding-handlers";
 import { makeAccount } from "../../test-support/fixtures";
+import { matthijs, matthijsFolders } from "../../test-support/special-folders";
 
 const EMAIL = "alice@northwind.example";
 
@@ -95,7 +97,7 @@ export const Walkthrough: Story = {
 			}),
 		).toBeVisible();
 		await expect(
-			await canvas.findByRole("button", { name: "Go to inbox" }),
+			await canvas.findByRole("button", { name: "Continue" }),
 		).toBeEnabled();
 	},
 };
@@ -386,7 +388,7 @@ export const SyncProgress: Story = {
 			}),
 		).toBeVisible();
 		await expect(
-			canvas.getByRole("button", { name: "Go to inbox" }),
+			canvas.getByRole("button", { name: "Continue" }),
 		).toBeEnabled();
 	},
 };
@@ -546,5 +548,43 @@ export const MicrosoftReconnectScopeNotGranted: Story = {
 		await expect(canvas.getByLabelText("Email address (optional)")).toHaveValue(
 			OUTLOOK.email,
 		);
+	},
+};
+
+export const SpecialFolders: Story = {
+	parameters: {
+		msw: {
+			handlers: [
+				http.post("/api/accounts", () =>
+					HttpResponse.json({ ...matthijs, accountId: NEW_ACCOUNT_ID }),
+				),
+				...onboardingHandlers(),
+				...mailHandlers(
+					mailWorld({
+						accounts: [{ ...matthijs, accountId: NEW_ACCOUNT_ID }],
+						mailboxes: matthijsFolders.map((mailbox) => ({
+							...mailbox,
+							accountId: NEW_ACCOUNT_ID,
+						})),
+					}),
+				),
+			],
+		},
+	},
+	play: async ({ canvasElement }) => {
+		const canvas = within(canvasElement);
+		await toTest(canvas);
+		await canvas.findByText(`Syncing ${EMAIL}`, undefined, { timeout: 4000 });
+		await press(canvas, "Continue");
+		await expect(await canvas.findByLabelText("Folder for Trash")).toHaveValue(
+			"trash",
+		);
+		await expect(canvas.getByLabelText("Folder for Sent")).toHaveValue("sent");
+		await expect(canvas.getByLabelText("Folder for Drafts")).toHaveValue(
+			"drafts",
+		);
+		await expect(
+			canvas.getByRole("button", { name: "Confirm folders" }),
+		).toBeEnabled();
 	},
 };

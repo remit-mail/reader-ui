@@ -92,9 +92,11 @@ const SETTLED: Record<string, RoleAppointment> = {
 function Harness({
 	folders,
 	initial,
+	setup = false,
 }: {
 	folders: readonly CandidateFolder[];
 	initial: Record<string, RoleAppointment>;
+	setup?: boolean;
 }) {
 	const [appointments, setAppointments] = useState(initial);
 	const [displayNames, setDisplayNames] = useState<Record<string, string>>({});
@@ -117,7 +119,9 @@ function Harness({
 				appointments={appointments}
 				displayNames={displayNames}
 				onAppoint={handleAppoint}
-				onRename={handleRename}
+				onRename={setup ? undefined : handleRename}
+				roles={setup ? ["trash", "sent", "drafts", "archive"] : undefined}
+				showOtherFolders={!setup}
 			/>
 		</div>
 	);
@@ -260,5 +264,13 @@ export const NoneSource: Story = {
 			trash: { mailboxId: null, source: "None" },
 			archive: { mailboxId: null, source: "None" },
 		},
+	},
+};
+
+/** Setup confirms the four operational roles without editing sidebar names. */
+export const Setup: Story = {
+	args: {
+		...Hostnet.args,
+		setup: true,
 	},
 };
