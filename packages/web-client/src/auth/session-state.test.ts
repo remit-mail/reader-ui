@@ -94,3 +94,23 @@ describe("classifySessionQuery", () => {
 		);
 	});
 });
+
+it("preserves a failed session lookup and its cause instead of signing out", () => {
+	for (const cause of [
+		new TypeError("Failed to fetch"),
+		{ status: 503, message: "Session service unavailable" },
+	]) {
+		assert.deepEqual(
+			classifySessionQuery({ data: null, isPending: false, error: cause }),
+			{ kind: "failed", cause },
+		);
+		assert.deepEqual(
+			classifySessionQuery({
+				data: { user: { id: "live" } },
+				isPending: false,
+				error: cause,
+			}),
+			{ kind: "active" },
+		);
+	}
+});

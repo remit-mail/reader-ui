@@ -75,3 +75,15 @@ describe("the session gate", () => {
 		assert.match(html, /role="alert"/);
 	});
 });
+
+it("shows the session check cause and Retry on a network failure", () => {
+	const html = render({
+		data: null,
+		isPending: false,
+		error: new Error("Network disconnected"),
+	});
+	assert.match(html, /Could not check your session/);
+	assert.match(html, /Network disconnected/);
+	assert.match(html, /Retry/);
+	assert.doesNotMatch(html, /Create account/);
+});

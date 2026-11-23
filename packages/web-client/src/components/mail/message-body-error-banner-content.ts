@@ -21,8 +21,8 @@ export interface BannerContent {
 /**
  * Map a `BodyFetchReason` to user-facing banner copy.
  *
- * - `auth` — Lambda@Edge denied the JWT (missing/invalid/expired) or the
- *            tenant didn't match. The user needs to sign in again.
+ * - `auth` — the request was refused for lack of authentication.
+ * - `link-expired` — renewing the signed content URL failed.
  * - `body-missing` — CloudFront/S3 returned 403/404 without the edge reason
  *            header. The OAC bucket policy only grants `s3:GetObject` so a
  *            missing object surfaces as 403. Either an in-flight sync failure
@@ -42,6 +42,11 @@ export const contentForReason = (
 				title: "Your session expired",
 				detail:
 					"Sign in again to reload the message body. Other parts of the app may also stop responding until you do.",
+			};
+		case "link-expired":
+			return {
+				title: "This message link expired and could not be renewed",
+				detail: fallback,
 			};
 		case "body-missing":
 			return {

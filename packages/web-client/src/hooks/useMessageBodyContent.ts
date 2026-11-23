@@ -1,4 +1,5 @@
 import { messageOperationsDescribeMessageQueryKey } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
+import type { RemitImapDescribeMessageResponse } from "@remit/api-http-client/types.gen.ts";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 import { useAuthProvider } from "../auth/provider";
@@ -22,9 +23,9 @@ export interface MessageBodyContent {
  * a diagnostic banner instead of a generic "Failed to load (403 Forbidden)"
  * string (issue #401 / postmortem #394).
  *
- * - `auth`  — Lambda@Edge denied the request (missing/invalid/expired token,
- *             cross-tenant). The edge sets `x-remit-403-reason` on the deny
- *             response; the user needs to sign in again.
+ * - `auth` — confirmed authentication refusal (401 with no reason, or an
+ *             explicit auth-missing/auth-invalid reason).
+ * - `link-expired` — the signed content URL expired; describeMessage renews it.
  * - `body-missing` — CloudFront returned a 403/404 with no edge reason header,
  *             which means the request passed the JWT check and S3 had no
  *             object at that key. The S3 bucket policy (OAC) only grants
@@ -44,6 +45,7 @@ export interface MessageBodyContent {
  */
 export type BodyFetchReason =
 	| "auth"
+	| "link-expired"
 	| "body-missing"
 	| "content-type-mismatch"
 	| "spa-shell-leak"
@@ -90,10 +92,8 @@ export const parseRetryAfterSeconds = (headerValue: string | null): number => {
 export const MAX_NOT_READY_RETRIES = 8;
 
 /**
- * The header set by the Lambda@Edge JWT verifier on its deny responses. When
- * present on a 401/403 the failure was an edge-level auth denial; when absent
- * on a 403/404 the failure originated from the S3 origin (object missing).
- * See `infra/constructs/cloudfront/remit-content-delivery/lambda-edge/jwt.ts`.
+ * The content route names signature failures and edge refusals in this header.
+ * Its presence alone says nothing about whether the login session expired.
  */
 const REASON_HEADER = "x-remit-403-reason";
 
@@ -101,8 +101,8 @@ const REASON_HEADER = "x-remit-403-reason";
  * Classify a fetch response into a `BodyFetchReason`. Pure so the
  * discrimination can be unit-tested without mocking the network.
  *
- * - 401 → always `auth` (Lambda@Edge denies missing/invalid tokens with 401).
- * - 403 with `x-remit-403-reason` → `auth` (Lambda@Edge tenant-mismatch etc).
+ * - 401 → `auth` unless a content-signature refusal is named.
+ * - 403 expired → `link-expired`; other named refusals → `generic`.
  * - 403/404 without the reason header → `body-missing` (S3 origin response).
  * - Anything else → `generic`.
  *
@@ -120,8 +120,16 @@ export const classifyBodyFetchFailure = (
 	reasonHeader: string | null,
 ): BodyFetchReason => {
 	const edgeReason = reasonHeader?.trim() ?? "";
-	if (status === 401) return "auth";
-	if (status === 403) return edgeReason.length > 0 ? "auth" : "body-missing";
+	if (status === 403 && edgeReason === "expired") return "link-expired";
+	if (
+		status === 401 &&
+		(!edgeReason ||
+			edgeReason === "auth-missing" ||
+			edgeReason === "auth-invalid")
+	)
+		return "auth";
+	if (status === 401 || status === 403)
+		return edgeReason ? "generic" : "body-missing";
 	if (status === 404) return "body-missing";
 	return "generic";
 };
@@ -211,7 +219,7 @@ export const fetchBodyContent = async (
 		const reason = classifyBodyFetchFailure(response.status, edgeReason);
 		throw new BodyFetchError(
 			reason,
-			`Failed to load message body (${response.status} ${response.statusText})`,
+			`Failed to load message body (${response.status} ${response.statusText}${edgeReason ? `: ${edgeReason}` : ""})`,
 			response.status,
 		);
 	}
@@ -235,6 +243,7 @@ export const fetchBodyContent = async (
 export interface BodyContentAttemptDeps {
 	fetchContent: (url: string, kind: BodyContentKind) => Promise<string>;
 	refetchDescribeMessage: () => Promise<unknown>;
+	getRefreshedPart?: () => { contentUrl: string; kind: BodyContentKind } | null;
 }
 
 /**
@@ -261,7 +270,16 @@ export const fetchBodyContentAttempt = async (
 	if (args.isRetryAfterNotReady) {
 		await deps.refetchDescribeMessage();
 	}
-	return deps.fetchContent(args.contentUrl, args.kind);
+	try {
+		return await deps.fetchContent(args.contentUrl, args.kind);
+	} catch (error) {
+		if (!(error instanceof BodyFetchError) || error.reason !== "link-expired")
+			throw error;
+		await deps.refetchDescribeMessage();
+		const renewed = deps.getRefreshedPart?.();
+		if (!renewed) throw error;
+		return deps.fetchContent(renewed.contentUrl, renewed.kind);
+	}
 };
 
 interface UseMessageBodyContentOptions {
@@ -315,12 +333,32 @@ export const useMessageBodyContent = ({
 			return fetchBodyContentAttempt(
 				{
 					fetchContent: (url, kind) => fetchBodyContent(url, kind, getToken),
+					getRefreshedPart: () => {
+						const refreshed =
+							queryClient.getQueryData<RemitImapDescribeMessageResponse>(
+								messageOperationsDescribeMessageQueryKey({
+									path: { messageId },
+								}),
+							);
+						const original = bodyParts?.find(
+							(part) => part.contentUrl === picked.contentUrl,
+						);
+						const renewed = refreshed?.bodyParts.find(
+							(part) => part.partPath === original?.partPath,
+						);
+						return renewed
+							? { contentUrl: renewed.contentUrl, kind: picked.kind }
+							: null;
+					},
 					refetchDescribeMessage: () =>
-						queryClient.refetchQueries({
-							queryKey: messageOperationsDescribeMessageQueryKey({
-								path: { messageId },
-							}),
-						}),
+						queryClient.refetchQueries(
+							{
+								queryKey: messageOperationsDescribeMessageQueryKey({
+									path: { messageId },
+								}),
+							},
+							{ throwOnError: true },
+						),
 				},
 				{
 					contentUrl: picked.contentUrl,

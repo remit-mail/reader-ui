@@ -91,11 +91,11 @@ describe("classifyBodyFetchFailure — distinguishes auth failure vs. missing-S3
 		assert.equal(classifyBodyFetchFailure(401, "auth-invalid"), "auth");
 	});
 
-	it("classifies a 403 carrying the edge x-remit-403-reason header as auth (tenant-mismatch)", () => {
+	it("classifies a 403 carrying the edge x-remit-403-reason header as a resource refusal (tenant-mismatch)", () => {
 		assert.equal(
 			classifyBodyFetchFailure(403, "tenant-mismatch"),
-			"auth",
-			"a 403 with the edge reason header is an auth denial, not a storage miss",
+			"generic",
+			"a tenant mismatch refuses this resource and cannot establish an expired session",
 		);
 	});
 
@@ -159,7 +159,7 @@ describe("fetchBodyContent — throws BodyFetchError with discriminated reason (
 		);
 	});
 
-	it("throws BodyFetchError(reason=auth) on a 403 with x-remit-403-reason (tenant-mismatch)", async () => {
+	it("throws BodyFetchError(reason=generic) on a 403 with x-remit-403-reason (tenant-mismatch)", async () => {
 		stubFetch(
 			403,
 			{ "x-remit-403-reason": "tenant-mismatch" },
@@ -169,7 +169,8 @@ describe("fetchBodyContent — throws BodyFetchError with discriminated reason (
 			() => fetchBodyContent("/content/accounts/x/messages/m/body.eml", "text"),
 			(err: unknown) => {
 				assert.ok(err instanceof BodyFetchError);
-				assert.equal(err.reason, "auth");
+				assert.equal(err.reason, "generic");
+				assert.match(err.message, /tenant-mismatch/);
 				assert.equal(err.status, 403);
 				return true;
 			},
@@ -367,4 +368,29 @@ describe("parseRetryAfterSeconds", () => {
 	it("caps an absurdly large value", () => {
 		assert.equal(parseRetryAfterSeconds("99999"), 30);
 	});
+});
+
+it("renews an expired signed body URL and fetches the freshly minted URL", async () => {
+	const calls: string[] = [];
+	globalThis.fetch = (async (url) => {
+		calls.push(String(url));
+		return String(url).includes("old")
+			? new Response("expired", {
+					status: 403,
+					headers: { "x-remit-403-reason": "expired" },
+				})
+			: new Response("mail body");
+	}) as typeof fetch;
+	const body = await fetchBodyContentAttempt(
+		{
+			fetchContent: (url, kind) => fetchBodyContent(url, kind),
+			refetchDescribeMessage: async () => {
+				calls.push("describe");
+			},
+			getRefreshedPart: () => ({ contentUrl: "/content/new", kind: "text" }),
+		},
+		{ contentUrl: "/content/old", kind: "text", isRetryAfterNotReady: false },
+	);
+	assert.equal(body, "mail body");
+	assert.deepEqual(calls, ["/content/old", "describe", "/content/new"]);
 });

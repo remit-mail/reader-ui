@@ -320,9 +320,7 @@ export const deleteExpunges = (outcome: DeleteOutcome): boolean =>
  * confirmations at all but refusals: nothing is deleted, and the label names
  * the way out rather than the delete. The first three are answered in place by
  * the appointment prompt — a link to Settings as the only remedy leaves the
- * user to reassemble what they were doing. `unavailable` still routes to
- * re-authentication, because an account read that fails is a session that ended
- * under the reader far more often than it is anything else.
+ * user to reassemble what they were doing. `unavailable` retries the failed folder-settings read.
  */
 export const deleteConfirmationCopy = (
 	count: number,
@@ -371,7 +369,7 @@ export const deleteConfirmationCopy = (
 			title: `Can't delete ${quantity} ${noun}`,
 			description:
 				"reader couldn't read this account's folder settings, so it can't say whether this would move the mail to Trash or erase it. Nothing has been deleted.",
-			confirmLabel: "Sign in again",
+			confirmLabel: "Retry",
 		};
 	}
 	if (outcome === "unknown") {

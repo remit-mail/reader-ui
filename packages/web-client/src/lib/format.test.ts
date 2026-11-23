@@ -399,7 +399,7 @@ describe("deleteConfirmationCopy — the refusal", () => {
 			title: "Can't delete 1 message",
 			description:
 				"reader couldn't read this account's folder settings, so it can't say whether this would move the mail to Trash or erase it. Nothing has been deleted.",
-			confirmLabel: "Sign in again",
+			confirmLabel: "Retry",
 		});
 	});
 

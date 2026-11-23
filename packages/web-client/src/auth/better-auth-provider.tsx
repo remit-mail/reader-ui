@@ -4,7 +4,7 @@ import {
 	fetchBetterAuthToken,
 	resetBetterAuthTokenCache,
 } from "./better-auth-config";
-import type { AuthProvider } from "./provider";
+import { type AuthProvider, navigateToSignIn } from "./provider";
 
 /**
  * better-auth identity (the self-host default). Amplify is never referenced
@@ -12,6 +12,7 @@ import type { AuthProvider } from "./provider";
  * provider ships no Cognito code.
  */
 export const betterAuthProvider: AuthProvider = {
+	reauthenticate: navigateToSignIn,
 	configure: () => {},
 	getToken: fetchBetterAuthToken,
 	resetToken: resetBetterAuthTokenCache,

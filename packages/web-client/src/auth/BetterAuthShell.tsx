@@ -31,6 +31,7 @@ import {
 	isSignUpDisabledError,
 } from "./better-auth-config";
 import { ResetPasswordPage, resetPasswordToken } from "./ResetPasswordPage";
+import { SessionCheckFailed } from "./SessionCheckFailed";
 import { SessionRateLimited } from "./SessionRateLimited";
 import { classifySessionQuery, type SessionQuery } from "./session-state";
 
@@ -275,6 +276,8 @@ export const SessionGate = ({
 	if (state.kind === "rateLimited") {
 		return <SessionRateLimited onRetry={onRetry} onReport={openBugReport} />;
 	}
+	if (state.kind === "failed")
+		return <SessionCheckFailed error={state.cause} onRetry={onRetry} />;
 	if (state.kind === "refused") {
 		return <SignInForm key={state.refusal} notice={state.refusal} />;
 	}

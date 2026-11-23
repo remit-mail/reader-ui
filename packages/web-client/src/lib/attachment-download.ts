@@ -8,7 +8,7 @@ import { fetchOfflineContent } from "./offline-runtime";
  * fetch performs (`classifyBodyFetchFailure`) — the bytes travel the same
  * `/content/*` route — narrowed to the outcomes a download can act on.
  *
- * - `auth` — the edge denied the request; the session has to be renewed.
+ * - `auth` — a confirmed authentication refusal; offer sign-in recovery.
  * - `link-expired` — the self-host signature on the URL aged out (1 hour, and
  *   `describeMessage` is cached for 30 minutes, so an open message outlives it).
  *   Fixed by re-reading the message, which mints a fresh signature.
@@ -45,16 +45,12 @@ export class AttachmentFetchError extends Error {
 
 const REASON_HEADER = "x-remit-403-reason";
 
-/** The `verifyContentSignature` failure the self-host `/content` route reports. */
-const EXPIRED_SIGNATURE_REASON = "expired";
-
 export const classifyAttachmentFailure = (
 	status: number,
 	reasonHeader: string | null,
 ): AttachmentFetchReason => {
-	if (reasonHeader?.trim() === EXPIRED_SIGNATURE_REASON) return "link-expired";
 	const bodyReason = classifyBodyFetchFailure(status, reasonHeader);
-	if (bodyReason === "auth") return "auth";
+	if (bodyReason === "auth" || bodyReason === "link-expired") return bodyReason;
 	if (bodyReason === "body-missing") return "missing";
 	return "generic";
 };
@@ -101,7 +97,7 @@ export const fetchAttachment = async (
 				response.status,
 				response.headers.get(REASON_HEADER),
 			),
-			`Failed to download attachment (${response.status} ${response.statusText})`,
+			`Failed to download attachment (${response.status} ${response.statusText}${response.headers.get(REASON_HEADER) ? `: ${response.headers.get(REASON_HEADER)}` : ""})`,
 			response.status,
 		);
 	}
