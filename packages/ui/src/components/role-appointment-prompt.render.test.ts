@@ -52,6 +52,19 @@ const render = (props: Partial<RoleAppointmentPromptProps>) =>
 	);
 
 describe("roleAppointmentPromptCopy", () => {
+	it("names the real provider path separately from the translated role", () => {
+		const copy = roleAppointmentPromptCopy(
+			"unconfirmed",
+			{ kind: "delete", count: 2 },
+			{
+				trashFolderLabel: "INBOX/Deleted Messages",
+				trashRoleLabel: "Prullenbak",
+			},
+		);
+		assert.match(copy.description, /in INBOX\/Deleted Messages as Prullenbak/);
+		assert.match(copy.pickerPrompt, /Confirm INBOX\/Deleted Messages/);
+	});
+
 	it("counts one message as one message", () => {
 		const copy = roleAppointmentPromptCopy("none", {
 			kind: "delete",
@@ -90,7 +103,7 @@ describe("roleAppointmentPromptCopy", () => {
 		assert.equal(copy.title, "Confirm this account's Trash folder");
 		assert.equal(
 			copy.description,
-			"Nothing has been emptied. reader files this account's deleted mail in Deleted Messages because of its name — you never chose it, and the mail server doesn't mark it as Trash. Emptying a folder erases everything in it from the mail server, and that cannot be restored.",
+			"Nothing has been emptied. reader files this account's deleted mail in Deleted Messages as Trash because of its name — you never chose it, and the mail server doesn't mark it as Trash. Emptying a folder erases everything in it from the mail server, and that cannot be restored.",
 		);
 		assert.equal(
 			copy.pickerPrompt,
@@ -107,7 +120,7 @@ describe("roleAppointmentPromptCopy", () => {
 		);
 		assert.equal(
 			copy.description,
-			"Nothing has been deleted. reader files this account's deleted mail in Deleted Messages because of its name — you never chose it, and the mail server doesn't mark it as Trash. Deleting 3 messages there erases them from the mail server, and that cannot be restored.",
+			"Nothing has been deleted. reader files this account's deleted mail in Deleted Messages as Trash because of its name — you never chose it, and the mail server doesn't mark it as Trash. Deleting 3 messages there erases them from the mail server, and that cannot be restored.",
 		);
 		assert.equal(copy.confirmLabel, "Set as Trash and delete 3 messages");
 	});

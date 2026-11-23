@@ -22,8 +22,8 @@ const FOLDERS: readonly FolderTreeNode[] = [
 	},
 	{
 		id: "mb-deleted",
-		label: "Deleted Messages",
-		path: "Deleted Messages",
+		label: "INBOX/Deleted Messages",
+		path: "INBOX/Deleted Messages",
 		messageCount: 512,
 	},
 	{
@@ -123,7 +123,8 @@ export const Unconfirmed: Story = {
 	args: {
 		reason: "unconfirmed",
 		action: { kind: "emptyTrash" },
-		trashFolderLabel: "Deleted Messages",
+		trashFolderLabel: "INBOX/Deleted Messages",
+		trashRoleLabel: "Prullenbak",
 		initialSelectedId: "mb-deleted",
 		phase: choosing,
 	},
@@ -139,7 +140,8 @@ export const UnconfirmedDelete: Story = {
 	args: {
 		reason: "unconfirmed",
 		action: { kind: "delete", count: 3 },
-		trashFolderLabel: "Deleted Messages",
+		trashFolderLabel: "INBOX/Deleted Messages",
+		trashRoleLabel: "Prullenbak",
 		guessedMailboxId: "mb-deleted",
 		initialSelectedId: "mb-deleted",
 		phase: choosing,
@@ -155,7 +157,8 @@ export const UnconfirmedDeleteElsewhere: Story = {
 	args: {
 		reason: "unconfirmed",
 		action: { kind: "delete", count: 3 },
-		trashFolderLabel: "Deleted Messages",
+		trashFolderLabel: "INBOX/Deleted Messages",
+		trashRoleLabel: "Prullenbak",
 		guessedMailboxId: "mb-deleted",
 		initialSelectedId: "mb-prullenbak",
 		phase: choosing,
@@ -171,7 +174,8 @@ export const UnconfirmedDeleteInFlight: Story = {
 	args: {
 		reason: "unconfirmed",
 		action: { kind: "delete", count: 3 },
-		trashFolderLabel: "Deleted Messages",
+		trashFolderLabel: "INBOX/Deleted Messages",
+		trashRoleLabel: "Prullenbak",
 		guessedMailboxId: "mb-deleted",
 		initialSelectedId: "mb-deleted",
 		phase: { kind: "acting" },

@@ -151,6 +151,80 @@ describe("the appointment ceremony", () => {
 		);
 	});
 
+	it("uses the provider path even when the guessed folder has a role and display override", async () => {
+		http.restore();
+		http = mockFetch((call) => {
+			if (call.path.endsWith("/config"))
+				return {
+					accounts: [
+						{
+							accountId: ACCOUNT,
+							folderAppointments: [
+								{ role: "Trash", source: "Proposed", mailboxId: "mbx-trash" },
+							],
+						},
+					],
+				};
+			if (call.path.endsWith("/mailboxes"))
+				return {
+					items: MAILBOXES.items.map((mailbox) =>
+						mailbox.mailboxId === "mbx-trash"
+							? {
+									...mailbox,
+									fullPath: "INBOX/Deleted Messages",
+									displayNameOverride: "Prullenbak",
+								}
+							: mailbox,
+					),
+				};
+			return {};
+		});
+		const request = mountProvider();
+		request(refusedDelete({ reason: "unconfirmed" }));
+		await settle();
+		assert.match(harness?.text() ?? "", /in INBOX\/Deleted Messages as Trash/);
+		assert.ok(
+			harness?.query(
+				'[aria-label="Set INBOX/Deleted Messages, 3 messages, as Trash"][aria-selected="true"]',
+			),
+		);
+	});
+
+	it("includes resolved Sent, Drafts and Outbox in appointment choices", async () => {
+		http.restore();
+		http = mockFetch((call) => {
+			if (call.path.endsWith("/config"))
+				return {
+					accounts: [
+						{
+							accountId: ACCOUNT,
+							folderAppointments: [
+								{ role: "Sent", source: "Appointed", mailboxId: "sent" },
+								{ role: "Drafts", source: "Flagged", mailboxId: "drafts" },
+							],
+						},
+					],
+				};
+			if (call.path.endsWith("/mailboxes"))
+				return {
+					items: ["Sent", "Drafts", "Outbox"].map((fullPath) => ({
+						...MAILBOXES.items[0],
+						mailboxId: fullPath.toLowerCase(),
+						fullPath,
+					})),
+				};
+			return {};
+		});
+		const request = mountProvider();
+		request(refusedDelete());
+		await settle();
+		for (const path of ["Sent", "Drafts", "Outbox"]) {
+			assert.ok(
+				harness?.query(`[aria-label="Set ${path}, 12 messages, as Trash"]`),
+			);
+		}
+	});
+
 	it("names the account only where the instance holds more than one", async () => {
 		const request = mountProvider();
 		request(refusedDelete());

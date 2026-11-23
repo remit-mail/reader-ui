@@ -166,6 +166,19 @@ export const FolderTreePicker = ({
 		const selected = folders.find((folder) => folder.id === selectedId);
 		return new Set(selected ? folderAncestors(selected.path, delimiter) : []);
 	});
+	const selectedPath = folders.find((folder) => folder.id === selectedId)?.path;
+	// Late folder discovery should reveal the selection just like warm data.
+	// Depend on its path, not the list, so refreshes preserve user expansion.
+	useEffect(() => {
+		if (selectedPath === undefined) return;
+		const ancestors = folderAncestors(selectedPath, delimiter);
+		setOpened((current) =>
+			ancestors.every((path) => current.has(path))
+				? current
+				: new Set([...current, ...ancestors]),
+		);
+	}, [selectedPath, delimiter]);
+
 	const [draft, setDraft] = useState<Draft | null>(null);
 	const [draftName, setDraftName] = useState("");
 	const [draftError, setDraftError] = useState<string>();
