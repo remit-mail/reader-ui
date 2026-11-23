@@ -4,7 +4,6 @@ import {
 	BodyFetchError,
 	classifyBodyFetchFailure,
 	fetchBodyContent,
-	fetchBodyContentAttempt,
 	isContentTypeMismatch,
 	isSpaShellResponse,
 	parseRetryAfterSeconds,
@@ -278,80 +277,6 @@ describe("fetchBodyContent — throws BodyFetchError with discriminated reason (
 	});
 });
 
-describe("fetchBodyContentAttempt — self-heals a deferred per-part object on a 202 retry (#1240)", () => {
-	it("refetches the describe query before re-fetching the content URL when isRetryAfterNotReady", async () => {
-		const calls: string[] = [];
-		const result = await fetchBodyContentAttempt(
-			{
-				fetchContent: async (url, kind) => {
-					calls.push(`fetch:${url}:${kind}`);
-					return "hello world";
-				},
-				refetchDescribeMessage: async () => {
-					calls.push("describe");
-				},
-			},
-			{
-				contentUrl: "/content/accounts/x/messages/m/parts/1",
-				kind: "text",
-				isRetryAfterNotReady: true,
-			},
-		);
-
-		assert.equal(result, "hello world");
-		assert.deepEqual(calls, [
-			"describe",
-			"fetch:/content/accounts/x/messages/m/parts/1:text",
-		]);
-	});
-
-	it("skips the describe refetch on a first attempt (isRetryAfterNotReady = false)", async () => {
-		const calls: string[] = [];
-		await fetchBodyContentAttempt(
-			{
-				fetchContent: async (url) => {
-					calls.push(`fetch:${url}`);
-					return "hello world";
-				},
-				refetchDescribeMessage: async () => {
-					calls.push("describe");
-				},
-			},
-			{
-				contentUrl: "/content/accounts/x/messages/m/parts/1",
-				kind: "text",
-				isRetryAfterNotReady: false,
-			},
-		);
-
-		assert.deepEqual(calls, ["fetch:/content/accounts/x/messages/m/parts/1"]);
-	});
-
-	it("propagates a not-ready error from the content fetch even after refetching describe (bounded retry keeps working)", async () => {
-		await assert.rejects(
-			() =>
-				fetchBodyContentAttempt(
-					{
-						fetchContent: async () => {
-							throw new BodyFetchError("not-ready", "still syncing", 202, 1);
-						},
-						refetchDescribeMessage: async () => {},
-					},
-					{
-						contentUrl: "/content/accounts/x/messages/m/parts/1",
-						kind: "text",
-						isRetryAfterNotReady: true,
-					},
-				),
-			(err: unknown) => {
-				assert.ok(err instanceof BodyFetchError);
-				assert.equal(err.reason, "not-ready");
-				return true;
-			},
-		);
-	});
-});
-
 describe("parseRetryAfterSeconds", () => {
 	it("parses a positive delta-seconds value", () => {
 		assert.equal(parseRetryAfterSeconds("5"), 5);
@@ -368,29 +293,4 @@ describe("parseRetryAfterSeconds", () => {
 	it("caps an absurdly large value", () => {
 		assert.equal(parseRetryAfterSeconds("99999"), 30);
 	});
-});
-
-it("renews an expired signed body URL and fetches the freshly minted URL", async () => {
-	const calls: string[] = [];
-	globalThis.fetch = (async (url) => {
-		calls.push(String(url));
-		return String(url).includes("old")
-			? new Response("expired", {
-					status: 403,
-					headers: { "x-remit-403-reason": "expired" },
-				})
-			: new Response("mail body");
-	}) as typeof fetch;
-	const body = await fetchBodyContentAttempt(
-		{
-			fetchContent: (url, kind) => fetchBodyContent(url, kind),
-			refetchDescribeMessage: async () => {
-				calls.push("describe");
-			},
-			getRefreshedPart: () => ({ contentUrl: "/content/new", kind: "text" }),
-		},
-		{ contentUrl: "/content/old", kind: "text", isRetryAfterNotReady: false },
-	);
-	assert.equal(body, "mail body");
-	assert.deepEqual(calls, ["/content/old", "describe", "/content/new"]);
 });

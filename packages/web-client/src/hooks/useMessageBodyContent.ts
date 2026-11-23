@@ -240,48 +240,6 @@ export const fetchBodyContent = async (
 	return body;
 };
 
-export interface BodyContentAttemptDeps {
-	fetchContent: (url: string, kind: BodyContentKind) => Promise<string>;
-	refetchDescribeMessage: () => Promise<unknown>;
-	getRefreshedPart?: () => { contentUrl: string; kind: BodyContentKind } | null;
-}
-
-/**
- * Fetches one attempt at the renderable body part. `isRetryAfterNotReady`
- * marks an attempt that follows a 202 `not-ready` response (after honoring
- * `Retry-After`) — on that attempt, refetch the describe query *before*
- * re-hitting the content URL.
- *
- * Under `DEFER_BODY_PARTS` (default on) the body-sync worker only writes
- * `body.eml`; per-part storage objects are materialized as a side effect of
- * the describe read path (`materializeBodyParts`, backend `describeMessage`).
- * Re-hitting the same part URL alone can never progress past a 202 within one
- * open — the describe refetch is what actually creates the missing object
- * server-side (remit-mail/remit#1240).
- */
-export const fetchBodyContentAttempt = async (
-	deps: BodyContentAttemptDeps,
-	args: {
-		contentUrl: string;
-		kind: BodyContentKind;
-		isRetryAfterNotReady: boolean;
-	},
-): Promise<string> => {
-	if (args.isRetryAfterNotReady) {
-		await deps.refetchDescribeMessage();
-	}
-	try {
-		return await deps.fetchContent(args.contentUrl, args.kind);
-	} catch (error) {
-		if (!(error instanceof BodyFetchError) || error.reason !== "link-expired")
-			throw error;
-		await deps.refetchDescribeMessage();
-		const renewed = deps.getRefreshedPart?.();
-		if (!renewed) throw error;
-		return deps.fetchContent(renewed.contentUrl, renewed.kind);
-	}
-};
-
 interface UseMessageBodyContentOptions {
 	messageId?: string;
 	bodyParts?: readonly RenderableBodyPart[];
@@ -305,7 +263,7 @@ export const useMessageBodyContent = ({
 	const loadStartRef = useRef<number | null>(null);
 	const queryClient = useQueryClient();
 	// Set by `retryDelay` when a `not-ready` (202) failure is being retried, and
-	// consumed by the next `queryFn` call — see `fetchBodyContentAttempt`.
+	// consumed by the next `queryFn` call.
 	const pendingDescribeRefetchRef = useRef(false);
 
 	// A new message/part invalidates any pending describe-refetch left over from
@@ -325,47 +283,42 @@ export const useMessageBodyContent = ({
 		queryKey: messageId
 			? [...messageKeys.body(messageId), picked?.contentUrl ?? null]
 			: ["messages", "body", "noop"],
-		queryFn: () => {
+		queryFn: async () => {
 			if (!picked) throw new Error("No renderable body part");
 			if (!messageId) throw new Error("No messageId");
-			const isRetryAfterNotReady = pendingDescribeRefetchRef.current;
+			const describeKey = messageOperationsDescribeMessageQueryKey({
+				path: { messageId },
+			});
+			const refetchDescribe = () =>
+				queryClient.refetchQueries(
+					{ queryKey: describeKey },
+					{ throwOnError: true },
+				);
+			const retryAfterNotReady = pendingDescribeRefetchRef.current;
 			pendingDescribeRefetchRef.current = false;
-			return fetchBodyContentAttempt(
-				{
-					fetchContent: (url, kind) => fetchBodyContent(url, kind, getToken),
-					getRefreshedPart: () => {
-						const refreshed =
-							queryClient.getQueryData<RemitImapDescribeMessageResponse>(
-								messageOperationsDescribeMessageQueryKey({
-									path: { messageId },
-								}),
-							);
-						const original = bodyParts?.find(
-							(part) => part.contentUrl === picked.contentUrl,
-						);
-						const renewed = refreshed?.bodyParts.find(
-							(part) => part.partPath === original?.partPath,
-						);
-						return renewed
-							? { contentUrl: renewed.contentUrl, kind: picked.kind }
-							: null;
-					},
-					refetchDescribeMessage: () =>
-						queryClient.refetchQueries(
-							{
-								queryKey: messageOperationsDescribeMessageQueryKey({
-									path: { messageId },
-								}),
-							},
-							{ throwOnError: true },
-						),
-				},
-				{
-					contentUrl: picked.contentUrl,
-					kind: picked.kind,
-					isRetryAfterNotReady,
-				},
-			);
+			if (retryAfterNotReady) await refetchDescribe();
+			try {
+				return await fetchBodyContent(picked.contentUrl, picked.kind, getToken);
+			} catch (error) {
+				if (
+					!(error instanceof BodyFetchError) ||
+					error.reason !== "link-expired"
+				)
+					throw error;
+				await refetchDescribe();
+				const refreshed =
+					queryClient.getQueryData<RemitImapDescribeMessageResponse>(
+						describeKey,
+					);
+				const original = bodyParts?.find(
+					(part) => part.contentUrl === picked.contentUrl,
+				);
+				const renewed = refreshed?.bodyParts.find(
+					(part) => part.partPath === original?.partPath,
+				);
+				if (!renewed) throw error;
+				return fetchBodyContent(renewed.contentUrl, picked.kind, getToken);
+			}
 		},
 		enabled: enabled && !!messageId && !!picked,
 		networkMode: getOfflineRuntime() ? "always" : "online",
