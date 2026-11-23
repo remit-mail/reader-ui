@@ -1,12 +1,8 @@
-import {
-	messageBulkOperationsDeleteMessages,
-	messageBulkOperationsMoveMessages,
-	messageBulkOperationsUpdateFlags,
-	threadOperationsSearchThreads,
-} from "@remit/api-http-client/sdk.gen.ts";
+import { threadOperationsSearchThreads } from "@remit/api-http-client/sdk.gen.ts";
 import type { ThreadOperationsSearchThreadsData } from "@remit/api-http-client/types.gen.ts";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+	applyBulkAction,
 	type BulkRunRequest,
 	type BulkRunSource,
 	useBulkRun,
@@ -14,7 +10,6 @@ import {
 import { useErrorBanners } from "../components/ui/error-banner-context";
 import { buildMutationErrorBanner } from "../components/ui/error-banners";
 import type {
-	ApplyBatch,
 	BulkActionProgress,
 	BulkActionTarget,
 	BulkRunStart,
@@ -195,38 +190,6 @@ export const useEscalatedActions = ({
 		[mailboxId],
 	);
 
-	const applyBatchFor = useCallback(
-		(action: EscalatedAction): ApplyBatch =>
-			async (ids: string[], signal: AbortSignal) => {
-				if (action.kind === "move") {
-					const { data } = await messageBulkOperationsMoveMessages({
-						body: {
-							messageIds: ids,
-							destinationMailboxId: action.destinationMailboxId,
-						},
-						signal,
-						throwOnError: true,
-					});
-					return data;
-				}
-				if (action.kind === "markRead") {
-					const { data } = await messageBulkOperationsUpdateFlags({
-						body: { messageIds: ids, isRead: action.isRead ?? true },
-						signal,
-						throwOnError: true,
-					});
-					return data;
-				}
-				const { data } = await messageBulkOperationsDeleteMessages({
-					body: { messageIds: ids },
-					signal,
-					throwOnError: true,
-				});
-				return data;
-			},
-		[],
-	);
-
 	const escalate = useCallback(() => {
 		const controller = new AbortController();
 		countAbortRef.current = controller;
@@ -297,7 +260,7 @@ export const useEscalatedActions = ({
 				accountId,
 				matched,
 				source,
-				applyBatch: applyBatchFor(action),
+				applyBatch: applyBulkAction(action),
 				reportEnding,
 				claimEnding,
 			});
@@ -310,7 +273,6 @@ export const useEscalatedActions = ({
 			return started;
 		},
 		[
-			applyBatchFor,
 			fetchPagesOf,
 			phase,
 			mailboxId,

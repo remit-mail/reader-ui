@@ -8,11 +8,9 @@ export type ErrorBannerSeverity = "error" | "warning" | "info";
  * A way out of the banner. A failure the user cannot act on is still theirs to
  * report, and a link they have to assemble themselves is one nobody follows.
  */
-export interface ErrorBannerAction {
-	label: string;
-	href?: string;
-	onClick?: () => void;
-}
+export type ErrorBannerAction =
+	| { kind: "link"; label: string; href: string }
+	| { kind: "button"; label: string; onClick: () => void };
 
 export interface ErrorBannerEntry {
 	id: string;
@@ -117,7 +115,7 @@ export const ErrorBanner = ({
 								Try again
 							</Button>
 						)}
-						{action?.onClick ? (
+						{action?.kind === "button" ? (
 							<Button variant="secondary" size="sm" onClick={action.onClick}>
 								{action.label}
 							</Button>

@@ -40,7 +40,6 @@ const RootErrorComponent = ({ error, reset, info }: ErrorComponentProps) => {
 			/>
 		);
 	const fatal = reportFatalError(error, {
-		recoverable: false,
 		componentStack: info?.componentStack,
 	});
 	return <FatalErrorScreen fatal={fatal} />;

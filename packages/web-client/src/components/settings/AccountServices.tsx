@@ -97,6 +97,7 @@ export function AccountServices({
 						severity: "info",
 						title: `Stopped syncing ${service.toLowerCase()}`,
 						action: {
+							kind: "button",
 							label: "Undo",
 							onClick: () => {
 								dismissError(id);

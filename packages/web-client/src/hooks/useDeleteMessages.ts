@@ -10,6 +10,7 @@ import type {
 } from "@remit/api-http-client/types.gen.ts";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef } from "react";
+import { useBulkRun } from "../components/mail/BulkRunProvider";
 import { useRoleAppointmentPrompt } from "../components/mail/RoleAppointmentPromptProvider";
 import { useErrorBanners } from "../components/ui/error-banner-context";
 import { formatErrorDetail } from "../components/ui/error-banners";
@@ -29,7 +30,6 @@ import {
 	type ThreadMutationContext,
 	threadListCacheKeys,
 } from "../lib/thread-list-cache";
-import { useEscalatedActions } from "./useEscalatedActions";
 
 export interface DeleteMessageTarget {
 	id: string;
@@ -67,13 +67,8 @@ export const useDeleteMessages = ({
 	onAfterOptimisticRemove,
 }: UseDeleteMessagesOptions) => {
 	const queryClient = useQueryClient();
-	const { pushError, dismissError } = useErrorBanners();
-	const { runAction } = useEscalatedActions({
-		mailboxId,
-		enabled: false,
-		predicateKey: "delete-undo",
-		searchQuery: {},
-	});
+	const { pushError } = useErrorBanners();
+	const { offerUndo } = useBulkRun();
 	const { requestAppointment } = useRoleAppointmentPrompt();
 
 	// The refused chunk is not what the user asked for. The whole selection is
@@ -236,7 +231,8 @@ export const useDeleteMessages = ({
 					configOperationsGetConfigQueryKey(),
 				);
 			const byId = new Map(targets.map((target) => [target.id, target]));
-			const groups = new Map<string, DeleteMessageTarget[]>();
+			const originals: (DeleteMessageTarget & { originalMailboxId: string })[] =
+				[];
 			await runChunkedMutation(targets, async (ids) => {
 				const chunk = ids.map((id) => {
 					const target = byId.get(id);
@@ -252,44 +248,20 @@ export const useDeleteMessages = ({
 							(appointment) => appointment.role === "Trash",
 						)?.mailboxId;
 					if (target.mailboxId === trash) continue;
-					groups.set(target.mailboxId, [
-						...(groups.get(target.mailboxId) ?? []),
-						{ ...target, mailboxId: trash ?? target.mailboxId },
-					]);
+					originals.push({
+						...target,
+						originalMailboxId: target.mailboxId,
+						mailboxId: trash ?? target.mailboxId,
+					});
 				}
 			});
-			if (groups.size === 0) return;
-			const id = pushError({
-				severity: "info",
-				title: "Moved to Trash",
-				action: {
-					label: "Undo",
-					onClick: async () => {
-						for (const [destinationMailboxId, targets] of groups) {
-							const result = await runAction(
-								{ kind: "move", destinationMailboxId },
-								targets,
-							);
-							if (result.kind === "refused") {
-								pushError({
-									title: "Couldn't undo delete",
-									detail: result.reason,
-								});
-								return;
-							}
-							dismissError(id);
-							if (
-								result.outcome.cancelled ||
-								result.outcome.failedIds.length ||
-								result.outcome.refused
-							)
-								return;
-						}
-					},
-				},
-			});
+			offerUndo(
+				"Moved to Trash",
+				{ kind: "move", targets: originals },
+				mailboxId,
+			);
 		},
-		[mutateAsync, queryClient, pushError, dismissError, runAction],
+		[mutateAsync, queryClient, offerUndo, mailboxId],
 	);
 
 	useEffect(() => {

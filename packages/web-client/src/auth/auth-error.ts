@@ -114,7 +114,5 @@ export const reportFatalAuthError = (
 	error: unknown,
 	request: AuthRequest,
 ): void => {
-	reportFatalError(new Error(buildFatalAuthMessage(error, request)), {
-		recoverable: false,
-	});
+	reportFatalError(new Error(buildFatalAuthMessage(error, request)));
 };

@@ -19,9 +19,7 @@ const messages = [
 	makeThreadMessage({ messageId: "m2", mailboxId: "archive" }),
 ];
 const Delete = () => {
-	const { deleteMessages } = useDeleteMessages({
-		mailboxId: "inbox",
-	});
+	const { deleteMessages } = useDeleteMessages({ mailboxId: "inbox" });
 	return createElement(
 		"button",
 		{
@@ -63,5 +61,50 @@ it("Undo returns each trashed message to its original folder", async () => {
 			{ messageIds: ["m1"], destinationMailboxId: "inbox" },
 			{ messageIds: ["m2"], destinationMailboxId: "archive" },
 		],
+	);
+});
+
+it("retains Undo after a later folder fails and retries only unfinished folders", async () => {
+	let archiveAttempts = 0;
+	http = mockFetch((call) => {
+		if (
+			call.path.endsWith("/messages/move") &&
+			call.body?.destinationMailboxId === "archive" &&
+			++archiveAttempts === 1
+		)
+			return new Response(
+				JSON.stringify({ message: "Archive temporarily unavailable" }),
+				{ status: 500, headers: { "Content-Type": "application/json" } },
+			);
+		return { successCount: 1, failureCount: 0 };
+	});
+	dom = createDomHarness();
+	dom.queryClient.setQueryData(configOperationsGetConfigQueryKey(), {
+		accounts: [
+			makeAccount({
+				accountId: "acc-1",
+				folderAppointments: [
+					{ role: "Trash", mailboxId: "trash", source: "Appointed" },
+				],
+			}),
+		],
+	});
+	dom.renderApp(createElement(Delete));
+	dom.click(dom.byText("button", "Delete"));
+	await dom.waitFor(() => dom?.text().includes("Undo") === true);
+	dom.click(dom.byText("button", "Undo"));
+	await dom.waitFor(
+		() => dom?.text().includes("Archive temporarily unavailable") === true,
+	);
+	assert.ok(dom.byText("button", "Undo"));
+	dom.click(dom.byText("button", "Undo"));
+	await dom.waitFor(() => http?.to("/messages/move").length === 3);
+	await dom.waitFor(
+		() =>
+			!dom?.queryAll("button").some((button) => button.textContent === "Undo"),
+	);
+	assert.deepEqual(
+		http.to("/messages/move").map((call) => call.body?.destinationMailboxId),
+		["inbox", "archive", "archive"],
 	);
 });

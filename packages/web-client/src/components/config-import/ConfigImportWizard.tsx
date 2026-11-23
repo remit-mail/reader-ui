@@ -159,7 +159,6 @@ export function ConfigImportWizard({ onDone }: ConfigImportWizardProps) {
 	const [report, setReport] = useState<RemitImapConfigImportReport | undefined>(
 		undefined,
 	);
-	const onExisting = "merge";
 	const [needingCredentials, setNeedingCredentials] = useState<string[]>([]);
 	/** Accounts this wizard signed in and stored a credential for. */
 	const [verifiedAccountIds, setVerifiedAccountIds] = useState<string[]>([]);
@@ -274,10 +273,10 @@ export function ConfigImportWizard({ onDone }: ConfigImportWizardProps) {
 	}, []);
 
 	const runImport = useCallback(
-		(mode: "validate" | "apply", existing: "abort" | "merge") => {
+		(mode: "validate" | "apply") => {
 			if (!document) return;
 			importMutation.mutate(
-				{ body: { mode, onExisting: existing, document } },
+				{ body: { mode, onExisting: "merge", document } },
 				{
 					onSuccess: (answer) => {
 						setReport(answer);
@@ -459,7 +458,7 @@ export function ConfigImportWizard({ onDone }: ConfigImportWizardProps) {
 					failure={readFailureCopy}
 					onChoose={handleChoose}
 					onDragStateChange={setDragging}
-					onNext={() => runImport("validate", onExisting)}
+					onNext={() => runImport("validate")}
 				/>
 			);
 
@@ -490,7 +489,7 @@ export function ConfigImportWizard({ onDone }: ConfigImportWizardProps) {
 					]}
 					applying={importMutation.isPending}
 					onBack={goToFile}
-					onNext={() => runImport("apply", onExisting)}
+					onNext={() => runImport("apply")}
 				/>
 			);
 
@@ -504,7 +503,7 @@ export function ConfigImportWizard({ onDone }: ConfigImportWizardProps) {
 					raw={`${failed?.code ?? WRITE_FAILURE_CODE}: ${failed?.message ?? "no message"}`}
 					nothingLanded={!report.applied}
 					onBack={goToFile}
-					onNext={() => runImport("apply", "merge")}
+					onNext={() => runImport("apply")}
 				/>
 			);
 		}

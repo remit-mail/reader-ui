@@ -152,12 +152,15 @@ describe("MessageAttachments", () => {
 		assert.match(alert.innerHTML, /issues\/new/);
 	});
 
-	it("retries the same part when the failure's retry is taken", async () => {
+	it("shows a failed request inline and retries the same part", async () => {
 		let attempts = 0;
 		globalThis.fetch = (async () => {
 			attempts += 1;
 			return attempts === 1
-				? new Response("gone", { status: 404, statusText: "Not Found" })
+				? new Response("failed", {
+						status: 500,
+						statusText: "Internal Server Error",
+					})
 				: new Response("payload", { status: 200 });
 		}) as unknown as typeof fetch;
 		const saved = captureSaves();
@@ -166,6 +169,10 @@ describe("MessageAttachments", () => {
 		dom.click(dom.byLabel("Download board-pack.pdf"));
 		await dom.flush();
 
+		assert.match(
+			dom.query('[data-testid="attachment-error"]')?.textContent ?? "",
+			/500/,
+		);
 		dom.click(dom.byText("button", "Try again"));
 		await dom.flush();
 

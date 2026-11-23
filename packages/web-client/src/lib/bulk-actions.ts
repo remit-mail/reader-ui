@@ -31,8 +31,8 @@
  * an error banner for a run they ended themselves is the wrong answer.
  *
  * Pure, framework-agnostic, and independently testable — no React, no fetch.
- * `useEscalatedActions.ts` supplies the real `ApplyBatch`/`FetchIdsPage`
- * implementations (the generated SDK client) and owns the React state.
+ * `BulkRunProvider` supplies SDK batch dispatch; `useEscalatedActions`
+ * supplies predicate paging and its React state.
  */
 
 export const BULK_ACTION_CHUNK_SIZE = 100;

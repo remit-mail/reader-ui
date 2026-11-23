@@ -4,14 +4,12 @@ import type {
 	RemitImapConfigImportItemReport,
 	RemitImapConfigImportReport,
 } from "@remit/api-http-client/types.gen.ts";
-import { ApiError } from "./api.js";
 import {
 	countVerdicts,
 	groupReportSections,
 	MAX_CONFIG_FILE_BYTES,
 	pendingFolders,
 	readConfigText,
-	readConflict,
 	readFailure,
 	sectionResults,
 	writeFailure,
@@ -309,31 +307,4 @@ test("a write failure naming a section this client does not know is also unknown
 		["unknown"],
 	);
 	assert.match(results[0].detail, /"messageDecisions"/);
-});
-
-test("the 409 is read off the wrapper the client throws, not off the error itself", () => {
-	const body = {
-		code: "config_not_empty",
-		message: "already holds configuration",
-		details: { accounts: "2" },
-	};
-
-	const wrapped = readConflict(new ApiError("already holds", 409, body));
-	assert.equal(wrapped?.message, "already holds configuration");
-	assert.deepEqual(wrapped?.details, { accounts: "2" });
-
-	// Belt and braces: the same body thrown unwrapped still reaches the screen.
-	assert.equal(readConflict(body)?.message, "already holds configuration");
-});
-
-test("only the config conflict reads as one", () => {
-	assert.equal(
-		readConflict(new ApiError("nope", 409, { code: "other" })),
-		undefined,
-	);
-	assert.equal(
-		readConflict(new ApiError("nope", 500, { code: "config_not_empty" })),
-		undefined,
-	);
-	assert.equal(readConflict(new Error("boom")), undefined);
 });

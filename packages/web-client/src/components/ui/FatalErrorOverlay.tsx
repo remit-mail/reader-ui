@@ -1,4 +1,4 @@
-import { ErrorState, useOverlayScope } from "@remit/ui";
+import { useOverlayScope } from "@remit/ui";
 import { OctagonAlert } from "@remit/ui/icons";
 import { useEffect, useState } from "react";
 import {
@@ -34,12 +34,6 @@ export const FatalErrorOverlay = () => {
 
 interface FatalErrorScreenProps {
 	fatal: FatalError;
-	/**
-	 * What Retry does for a recoverable error. The route error boundary passes
-	 * TanStack's `reset`; without it, Retry reloads the page. Ignored for a
-	 * non-recoverable fatal (no Retry is shown).
-	 */
-	onRetry?: () => void;
 }
 
 const seedFromFatal = (fatal: FatalError): BugReportSeed => ({
@@ -52,10 +46,10 @@ const seedFromFatal = (fatal: FatalError): BugReportSeed => ({
  * Presentational screen — exported so it can be rendered directly in tests and
  * by the route-level error boundary without going through the subscription.
  */
-export const FatalErrorScreen = ({ fatal, onRetry }: FatalErrorScreenProps) => {
+export const FatalErrorScreen = ({ fatal }: FatalErrorScreenProps) => {
 	// Nothing under it is in a state to act, and there is no dismissal to offer:
 	// the screen's own controls are the only way out.
-	useOverlayScope({ id: "fatal-error", open: !fatal.recoverable });
+	useOverlayScope({ id: "fatal-error", open: true });
 	const [copied, setCopied] = useState(false);
 
 	const handleReportBug = () => {
@@ -73,16 +67,6 @@ export const FatalErrorScreen = ({ fatal, onRetry }: FatalErrorScreenProps) => {
 		setCopied(true);
 		window.setTimeout(() => setCopied(false), 2000);
 	};
-
-	if (fatal.recoverable)
-		return (
-			<ErrorState
-				variant="inline"
-				title="Request failed"
-				error={fatal.error}
-				onRetry={onRetry}
-			/>
-		);
 
 	const description =
 		"Something went wrong and this page can't recover. Go to your inbox, or report a bug so we can fix it.";

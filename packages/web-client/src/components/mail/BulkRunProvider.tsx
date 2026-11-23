@@ -1,4 +1,9 @@
 import { mailboxOperationsListMailboxesQueryKey } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
+import {
+	messageBulkOperationsDeleteMessages,
+	messageBulkOperationsMoveMessages,
+	messageBulkOperationsUpdateFlags,
+} from "@remit/api-http-client/sdk.gen.ts";
 import { useQueryClient } from "@tanstack/react-query";
 import {
 	createContext,
@@ -42,6 +47,47 @@ import { useRoleAppointmentPrompt } from "./RoleAppointmentPromptProvider";
  * differently: a ticked selection is a list of ids the surface already holds,
  * an escalated one is a predicate the server re-resolves page by page.
  */
+export const applyBulkAction =
+	(action: EscalatedAction): ApplyBatch =>
+	async (ids, signal) => {
+		if (action.kind === "move")
+			return (
+				await messageBulkOperationsMoveMessages({
+					body: {
+						messageIds: ids,
+						destinationMailboxId: action.destinationMailboxId,
+					},
+					signal,
+					throwOnError: true,
+				})
+			).data;
+		if (action.kind === "markRead")
+			return (
+				await messageBulkOperationsUpdateFlags({
+					body: { messageIds: ids, isRead: action.isRead ?? true },
+					signal,
+					throwOnError: true,
+				})
+			).data;
+		return (
+			await messageBulkOperationsDeleteMessages({
+				body: { messageIds: ids },
+				signal,
+				throwOnError: true,
+			})
+		).data;
+	};
+
+export type MailUndo =
+	| {
+			kind: "move";
+			targets: readonly (BulkActionTarget & { originalMailboxId: string })[];
+	  }
+	| {
+			kind: "markRead";
+			targets: readonly (BulkActionTarget & { isRead: boolean })[];
+	  };
+
 export type BulkRunSource =
 	| { kind: "targets"; targets: readonly BulkActionTarget[] }
 	| { kind: "predicate"; fetchPage: FetchIdsPage };
@@ -103,6 +149,7 @@ interface BulkRunContextValue {
 	 * and reaches nothing.
 	 */
 	stop: (mailboxId: string) => void;
+	offerUndo: (title: string, inverse: MailUndo, mailboxId: string) => void;
 }
 
 const BulkRunContext = createContext<BulkRunContextValue | undefined>(
@@ -143,7 +190,7 @@ export const BulkRunProvider = ({ children }: { children: ReactNode }) => {
 	// claims over runs in general, which any commit could hold against any run.
 	const claimsRef = useRef(new Set<symbol>());
 	const queryClient = useQueryClient();
-	const { pushError } = useErrorBanners();
+	const { pushError, dismissError } = useErrorBanners();
 	const { requestAppointment } = useRoleAppointmentPrompt();
 	// The run replays itself once a folder is appointed, so it needs a handle on
 	// itself that does not make `start` its own dependency.
@@ -313,6 +360,83 @@ export const BulkRunProvider = ({ children }: { children: ReactNode }) => {
 	);
 	startRef.current = start;
 
+	const offerUndo = useCallback(
+		(title: string, inverse: MailUndo, mailboxId: string) => {
+			const groups = new Map<string, BulkActionTarget[]>();
+			if (inverse.kind === "markRead") {
+				for (const target of inverse.targets) {
+					if (target.isRead) continue;
+					const folder = target.mailboxId ?? "";
+					groups.set(folder, [...(groups.get(folder) ?? []), target]);
+				}
+			} else {
+				for (const target of inverse.targets)
+					groups.set(target.originalMailboxId, [
+						...(groups.get(target.originalMailboxId) ?? []),
+						target,
+					]);
+			}
+			const pending = [...groups].map(([folder, targets]) => ({
+				targets,
+				action:
+					inverse.kind === "markRead"
+						? ({ kind: "markRead", isRead: false } as const)
+						: ({ kind: "move", destinationMailboxId: folder } as const),
+			}));
+			if (pending.length === 0) return;
+			let running = false;
+			const id = pushError({
+				severity: "info",
+				title,
+				action: {
+					kind: "button",
+					label: "Undo",
+					onClick: async () => {
+						if (running) return;
+						running = true;
+						try {
+							while (pending.length) {
+								const next = pending[0];
+								const result = await startRef.current({
+									action: next.action,
+									mailboxId,
+									accountId: next.targets[0]?.accountId,
+									matched: next.targets.length,
+									source: { kind: "targets", targets: next.targets },
+									applyBatch: applyBulkAction(next.action),
+								});
+								if (result.kind === "refused") {
+									pushError({
+										title: "Couldn't undo mail action",
+										detail: result.reason,
+									});
+									return;
+								}
+								const { outcome } = result;
+								if (
+									outcome.refused ||
+									outcome.failedIds.length ||
+									outcome.cancelled
+								) {
+									if (!outcome.refused)
+										next.targets = next.targets.filter((target) =>
+											outcome.failedIds.includes(target.id),
+										);
+									return;
+								}
+								pending.shift();
+							}
+							dismissError(id);
+						} finally {
+							running = false;
+						}
+					},
+				},
+			});
+		},
+		[pushError, dismissError],
+	);
+
 	const stop = useCallback((mailboxId: string) => {
 		if (liveRequestRef.current?.mailboxId !== mailboxId) return;
 		controllerRef.current?.abort();
@@ -333,7 +457,10 @@ export const BulkRunProvider = ({ children }: { children: ReactNode }) => {
 		};
 	}, []);
 
-	const value = useMemo(() => ({ run, start, stop }), [run, start, stop]);
+	const value = useMemo(
+		() => ({ run, start, stop, offerUndo }),
+		[run, start, stop, offerUndo],
+	);
 
 	return (
 		<BulkRunContext.Provider value={value}>{children}</BulkRunContext.Provider>

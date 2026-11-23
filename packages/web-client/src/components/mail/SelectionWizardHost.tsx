@@ -77,7 +77,7 @@ import { searchRuleAccountId } from "../../lib/organize/search-to-rule";
 import { useSearchConversion } from "../../lib/search-conversion";
 import type { WizardSelectionMessage } from "../../lib/wizard-selection";
 import { useWizardEntryValue, useWizardStep } from "../../routing";
-import { useErrorBanners } from "../ui/error-banner-context";
+import { useBulkRun } from "./BulkRunProvider";
 import { bulkRunReport } from "./bulk-run-state";
 import { organizeRunState } from "./organize-run-state";
 import {
@@ -530,7 +530,7 @@ function SelectionWizardSession({
 	});
 	const { runAction } = bulk;
 
-	const { pushError, dismissError } = useErrorBanners();
+	const { offerUndo } = useBulkRun();
 	const { trashByAccount } = useTrashByAccount();
 	const selectionDelete = useDeleteOutcome(
 		selection.map((message) => ({
@@ -657,59 +657,31 @@ function SelectionWizardSession({
 				const originals = selection.filter((message) =>
 					targets.some((target) => target.id === message.id),
 				);
-				const id = pushError({
-					severity: "info",
-					title: "Selection updated",
-					action: {
-						label: "Undo",
-						onClick: async () => {
-							const groups = new Map<string, BulkActionTarget[]>();
-							for (const message of originals) {
-								if (verb === "markRead" && message.isRead) continue;
-								const originalFolder = message.mailboxId ?? mailboxId;
-								if (!originalFolder)
-									throw new Error("Missing original folder for Undo");
-								const owner = message.accountId ?? accountId;
-								const currentFolder =
-									action.kind === "move"
-										? action.destinationMailboxId
-										: action.kind === "delete"
-											? trashByAccount.get(owner ?? "")?.mailboxId
-											: originalFolder;
-								groups.set(originalFolder, [
-									...(groups.get(originalFolder) ?? []),
-									{
-										id: message.id,
-										accountId: owner,
-										mailboxId: currentFolder,
-									},
-								]);
+				offerUndo(
+					"Selection updated",
+					verb === "markRead"
+						? {
+								kind: "markRead",
+								targets: originals.map((message) => ({
+									...message,
+									mailboxId: message.mailboxId ?? mailboxId,
+								})),
 							}
-							for (const [destinationMailboxId, targets] of groups) {
-								const result = await runAction(
-									verb === "markRead"
-										? { kind: "markRead", isRead: false }
-										: { kind: "move", destinationMailboxId },
-									targets,
-								);
-								if (result.kind === "refused") {
-									pushError({
-										title: "Couldn't undo selection update",
-										detail: result.reason,
-									});
-									return;
-								}
-								dismissError(id);
-								if (
-									result.outcome.cancelled ||
-									result.outcome.failedIds.length ||
-									result.outcome.refused
-								)
-									return;
-							}
-						},
-					},
-				});
+						: {
+								kind: "move",
+								targets: originals.map((message) => ({
+									id: message.id,
+									accountId: message.accountId ?? accountId,
+									originalMailboxId: message.mailboxId ?? mailboxId ?? "",
+									mailboxId:
+										action.kind === "move"
+											? action.destinationMailboxId
+											: trashByAccount.get(message.accountId ?? accountId ?? "")
+													?.mailboxId,
+								})),
+							},
+					mailboxId ?? "",
+				);
 			}
 			setBulkRun({
 				matched: targets.length,
@@ -728,8 +700,7 @@ function SelectionWizardSession({
 			selectionDelete.outcome,
 			selection,
 			mailboxId,
-			pushError,
-			dismissError,
+			offerUndo,
 			accountId,
 			trashByAccount,
 		],

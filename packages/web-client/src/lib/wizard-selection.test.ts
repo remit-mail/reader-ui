@@ -48,3 +48,14 @@ describe("the ticked rows the wizard is handed", () => {
 		);
 	});
 });
+
+it("preserves original read state for a mixed selection", () => {
+	const selected = wizardSelectionFrom(
+		[row({ id: "unread", isRead: false }), row({ id: "read", isRead: true })],
+		new Set(["unread", "read"]),
+	);
+	assert.deepEqual(
+		selected.map((message) => message.isRead),
+		[false, true],
+	);
+});

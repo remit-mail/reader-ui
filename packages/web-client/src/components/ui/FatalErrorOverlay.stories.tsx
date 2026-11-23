@@ -17,35 +17,14 @@ const fatal = (overrides: Partial<FatalError>): FatalError => ({
 	message: "",
 	correlationId: "a1b2c3d4-5678-90ab-cdef-1234567890ab",
 	at: Date.UTC(2024, 5, 12, 10, 30),
-	recoverable: true,
 	...overrides,
 });
-
-export const RequestFailureInline: Story = {
-	args: {
-		fatal: fatal({
-			message: "Request failed with status 500",
-			recoverable: true,
-		}),
-	},
-	play: async ({ canvasElement }) => {
-		const canvas = within(canvasElement);
-		await expect(
-			canvas.getByText("Request failed with status 500"),
-		).toBeVisible();
-		await expect(canvas.queryByTestId("fatal-error-overlay")).toBeNull();
-		await expect(
-			canvas.queryByRole("link", { name: "Go to inbox" }),
-		).toBeNull();
-	},
-};
 
 export const DeterministicFatal: Story = {
 	args: {
 		fatal: fatal({
 			message: "date value is not finite in DateTimeFormat format()",
 			correlationId: "def45678-90ab-cdef-1234-567890abcdef",
-			recoverable: false,
 		}),
 	},
 	play: async ({ canvasElement }) => {
