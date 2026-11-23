@@ -4,6 +4,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { chromium, type Page } from "playwright";
 
+const shellStatus =
+	/Session verified|session unverified|Opening downloads|Restoring downloads|MiB used|may be removed|Keep downloads on this device|Remove downloads|Verify your session to download mail|First-time offline sign-in|Persistent storage granted|Verify session \/ sign in|Could not save downloads/;
+
 interface Controls {
 	setSession(key: string, status?: number): void;
 	contentRequests: string[];
@@ -73,7 +76,7 @@ export async function testOfflineReading(
 		let page = await context.newPage();
 		await page.addInitScript(() => {
 			Object.defineProperty(navigator.storage, "persist", {
-				value: async () => {
+				async value() {
 					document.documentElement.dataset.persistCalls = String(
 						Number(document.documentElement.dataset.persistCalls ?? 0) + 1,
 					);
@@ -82,7 +85,7 @@ export async function testOfflineReading(
 			});
 			const estimate = navigator.storage.estimate.bind(navigator.storage);
 			Object.defineProperty(navigator.storage, "estimate", {
-				value: async () => {
+				async value() {
 					const count =
 						Number(document.documentElement.dataset.estimateCalls ?? 0) + 1;
 					document.documentElement.dataset.estimateCalls = String(count);
@@ -96,6 +99,47 @@ export async function testOfflineReading(
 		context.on("request", (request) => {
 			if (request.url().includes("tracking.invalid")) tracking++;
 		});
+		// An incompatible real stored partition must leave explicit recovery reachable.
+		const recovery = await context.newPage();
+		await recovery.goto(`${origin}/settings/advanced`);
+		await recovery.evaluate(async () => {
+			const request = indexedDB.open("remit-offline", 1);
+			request.onupgradeneeded = () => request.result.createObjectStore("data");
+			const db = await new Promise<IDBDatabase>((resolve, reject) => {
+				request.onsuccess = () => resolve(request.result);
+				request.onerror = () => reject(request.error);
+			});
+			try {
+				await new Promise<void>((resolve, reject) => {
+					const tx = db.transaction("data", "readwrite");
+					tx.objectStore("data").put({ format: -1 }, "partition");
+					tx.oncomplete = () => resolve();
+					tx.onerror = () => reject(tx.error);
+				});
+			} finally {
+				db.close();
+			}
+			localStorage.setItem("pwa-offline-test", "yes");
+		});
+		await recovery.reload();
+		await recovery
+			.getByRole("alert")
+			.filter({ hasText: "Downloaded mail could not be opened" })
+			.waitFor();
+		assert.equal(
+			await recovery.evaluate(() => window.pwaTest.offline()?.state.partition),
+			undefined,
+		);
+		await recovery
+			.getByRole("button", { name: "Remove downloads and reload", exact: true })
+			.click();
+		await recovery.waitForFunction(
+			() => !!window.pwaTest?.offline()?.state.verified,
+		);
+		await recovery
+			.getByRole("button", { name: "Remove downloads", exact: true })
+			.waitFor();
+		await recovery.close();
 		const installed = await context.newPage();
 		await installed.addInitScript(() => {
 			localStorage.setItem("pwa-offline-test", "yes");
@@ -105,7 +149,7 @@ export async function testOfflineReading(
 					? Object.defineProperty(matchMedia(query), "matches", { value: true })
 					: matchMedia(query);
 			Object.defineProperty(navigator.storage, "persist", {
-				value: async () => {
+				async value() {
 					document.documentElement.dataset.persistCalls = "1";
 					return true;
 				},
@@ -126,10 +170,7 @@ export async function testOfflineReading(
 		await page.getByRole("heading", { name: "Old retained mail" }).waitFor();
 		await imagesReady(page);
 		await attachment(page);
-		assert.doesNotMatch(
-			await page.locator("body").innerText(),
-			/Session verified|session unverified|Opening downloads|Restoring downloads|MiB used|may be removed|Keep downloads on this device|Remove downloads/,
-		);
+		assert.doesNotMatch(await page.locator("body").innerText(), shellStatus);
 		assert.equal(
 			await page.evaluate(() => window.pwaTest.offline()?.state.verified),
 			true,
@@ -283,6 +324,7 @@ export async function testOfflineReading(
 			};
 		});
 		assert.deepEqual(cached, { csp: "sandbox", mime: "text/html" });
+		assert.doesNotMatch(await page.locator("body").innerText(), shellStatus);
 		// Better Auth's online-only gate must also stay out of an offline restart.
 		await page.evaluate(() => localStorage.setItem("pwa-auth", "better"));
 		await context.close();

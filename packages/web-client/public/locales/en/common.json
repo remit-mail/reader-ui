@@ -15,6 +15,8 @@
   },
   "offlineStorage": {
     "usage": "Downloaded mail: {{usage}} MiB used",
-    "remove": "Remove downloads"
+    "remove": "Remove downloads",
+    "startupFailed": "Downloaded mail could not be opened. Remove downloads on this device to reopen the app.",
+    "removeAndReload": "Remove downloads and reload"
   }
 }

@@ -236,6 +236,10 @@ export class OfflineRuntime {
 			this.pending--;
 		}
 	}
+	async removeDownloadsAndReload(): Promise<void> {
+		await this.removeDownloads();
+		window.location.reload();
+	}
 	/** Capture the generation at request start, never at completion. */
 	async authorizeNetwork(method: string): Promise<Partition> {
 		const partition = this.state.partition;

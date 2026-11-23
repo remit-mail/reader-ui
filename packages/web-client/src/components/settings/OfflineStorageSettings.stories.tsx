@@ -16,6 +16,7 @@ export const Downloads: Story = {
 		await expect(
 			canvas.getByText("Downloaded mail: 12.0 MiB used"),
 		).toBeVisible();
+		await expect(args.onRemove).not.toHaveBeenCalled();
 		await userEvent.click(
 			canvas.getByRole("button", { name: "Remove downloads" }),
 		);

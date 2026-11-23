@@ -12,6 +12,8 @@
   },
   "offlineStorage": {
     "usage": "Gedownloade e-mail: {{usage}} MiB gebruikt",
-    "remove": "Downloads verwijderen"
+    "remove": "Downloads verwijderen",
+    "startupFailed": "Gedownloade e-mail kon niet worden geopend. Verwijder de downloads op dit apparaat om de app opnieuw te openen.",
+    "removeAndReload": "Downloads verwijderen en opnieuw laden"
   }
 }

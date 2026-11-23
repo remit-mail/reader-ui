@@ -1,3 +1,4 @@
+import { Banner, Button } from "@remit/ui";
 import { type QueryClient, useIsRestoring } from "@tanstack/react-query";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import {
@@ -8,6 +9,7 @@ import {
 	useState,
 	useSyncExternalStore,
 } from "react";
+import { useTranslation } from "react-i18next";
 import { type OfflineRuntime, retainedReadingQuery } from "./offline-runtime";
 import { OFFLINE_FORMAT } from "./offline-store";
 import { isAppNavigation } from "./pwa-protocol";
@@ -26,18 +28,31 @@ export const OfflineProvider = ({
 	children: ReactNode;
 }) => {
 	const state = useSyncExternalStore(runtime.subscribe, runtime.snapshot);
-	const [ready, setReady] = useState(false);
+	const [startup, setStartup] = useState<"pending" | "ready" | "failed">(
+		"pending",
+	);
 	useEffect(() => {
 		void runtime
 			.start(client)
-			.then(() => setReady(true))
-			.catch(runtime.report);
+			.then(() => setStartup("ready"))
+			.catch((error: unknown) => {
+				runtime.report(error);
+				setStartup("failed");
+			});
 	}, [runtime, client]);
 	const persister = useMemo(
 		() => (state.partition ? runtime.persister(state.partition) : undefined),
 		[runtime, state.partition],
 	);
-	if (!ready) return null;
+	if (startup === "pending") return null;
+	if (startup === "failed")
+		return (
+			<OfflineStartupFailure
+				onRemove={() => {
+					void runtime.removeDownloadsAndReload().catch(runtime.report);
+				}}
+			/>
+		);
 	if (!isAppNavigation(new URL(window.location.href)))
 		return <Gate>{children}</Gate>;
 	if (!state.partition || !persister)
@@ -76,3 +91,20 @@ const VerifyAuthenticatedSession = ({
 	}, [runtime]);
 	return null;
 };
+
+export function OfflineStartupFailure({ onRemove }: { onRemove(): void }) {
+	const { t } = useTranslation("common", { useSuspense: false });
+	return (
+		<div className="mx-auto max-w-lg space-y-4 p-6">
+			<Banner tone="danger">
+				{t(
+					"offlineStorage.startupFailed",
+					"Downloaded mail could not be opened. Remove downloads on this device to reopen the app.",
+				)}
+			</Banner>
+			<Button variant="secondary" onClick={onRemove}>
+				{t("offlineStorage.removeAndReload", "Remove downloads and reload")}
+			</Button>
+		</div>
+	);
+}

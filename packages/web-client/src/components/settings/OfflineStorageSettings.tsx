@@ -43,10 +43,7 @@ function Storage({ runtime }: { runtime: OfflineRuntime }) {
 		<OfflineStorageRow
 			usage={usage}
 			onRemove={() => {
-				void runtime
-					.removeDownloads()
-					.then(() => window.location.reload())
-					.catch(runtime.report);
+				void runtime.removeDownloadsAndReload().catch(runtime.report);
 			}}
 		/>
 	);
