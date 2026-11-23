@@ -182,6 +182,18 @@ export const FlaggedSource: Story = {
 	},
 };
 
+/** `Detected` — an unambiguous automatic appointment, not a proposal. */
+export const DetectedSource: Story = {
+	name: "detected",
+	args: {
+		folders: HOSTNET_FOLDERS,
+		initial: {
+			...SETTLED,
+			trash: { mailboxId: "mb-deleted", source: "Detected" },
+		},
+	},
+};
+
 /** `Reserved` — INBOX is the one role the protocol names for us. */
 export const ReservedSource: Story = {
 	name: "reserved",

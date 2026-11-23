@@ -72,9 +72,24 @@ describe("applyRescanResult", () => {
 			batch,
 			{
 				successful: [
-					{ messageId: "m1", verdict: checked("Junk"), labels: [] },
-					{ messageId: "m2", verdict: checked("None"), labels: [] },
-					{ messageId: "m3", verdict: checked("Warn"), labels: [] },
+					{
+						messageId: "m1",
+						verdict: checked("Junk"),
+						labels: [],
+						moved: false,
+					},
+					{
+						messageId: "m2",
+						verdict: checked("None"),
+						labels: [],
+						moved: false,
+					},
+					{
+						messageId: "m3",
+						verdict: checked("Warn"),
+						labels: [],
+						moved: false,
+					},
 				],
 				failed: [{ messageId: "m4", code: "RateLimited", retryable: true }],
 			},

@@ -24,7 +24,7 @@ export const matthijs = makeAccount({
 	accountId: "acc-matthijs",
 	email: "matthijs@example.com",
 	folderAppointments: [
-		{ role: "Trash", mailboxId: "trash", source: "Flagged" },
+		{ role: "Trash", mailboxId: "trash", source: "Detected" },
 		{ role: "Sent", mailboxId: "sent", source: "Flagged" },
 		{ role: "Drafts", mailboxId: "drafts", source: "Flagged" },
 		{ role: "Archive", mailboxId: "archive", source: "Flagged" },

@@ -8,8 +8,8 @@ export const SPECIAL_FOLDER_ROLES = [
 	"archive",
 ] as const satisfies readonly FolderRole[];
 
-// Deliberately name the unresolved sources: future sources such as Detected
-// already represent a resolved appointment and must not raise this prompt.
+// Name only unresolved sources: Detected and any future resolved sources
+// must not raise this prompt.
 export function hasUnresolvedSpecialFolders(
 	appointments: readonly { role: string; source: string }[],
 ): boolean {
