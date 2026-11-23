@@ -181,13 +181,13 @@ describe("the update poll across the restart it asked for (#468)", () => {
 		assert.match(dom().html(), /Installing Remit 0\.9\.4/);
 	});
 
-	test("the same 502 with no run held escalates", async () => {
+	test("a 502 with no run held stays in the update panel", async () => {
 		await mount(() => httpError(502));
 
-		assert.equal(getCurrentFatalError()?.error !== undefined, true);
+		assert.equal(getCurrentFatalError(), null);
 	});
 
-	test("a 502 with no run known from either source escalates", async () => {
+	test("a 502 with no known run stays in the update panel", async () => {
 		// The server has answered, and what it said was that nothing is running.
 		let restarting = false;
 		await mount(() => (restarting ? httpError(502) : available));
@@ -195,7 +195,7 @@ describe("the update poll across the restart it asked for (#468)", () => {
 		restarting = true;
 		await repoll();
 
-		assert.equal(getCurrentFatalError()?.error !== undefined, true);
+		assert.equal(getCurrentFatalError(), null);
 	});
 
 	test("a connection refused inside the window stays soft, as any transport failure does", async () => {
@@ -213,7 +213,7 @@ describe("the update poll across the restart it asked for (#468)", () => {
 		assert.match(dom().html(), /Installing Remit 0\.9\.4/);
 	});
 
-	test("a 500 while a run is held escalates — the server answered", async () => {
+	test("a 500 while a run is held stays in the update panel", async () => {
 		let broken = false;
 		await mount(() => (broken ? httpError(500) : available));
 		await install();
@@ -221,7 +221,7 @@ describe("the update poll across the restart it asked for (#468)", () => {
 		broken = true;
 		await repoll();
 
-		assert.equal(getCurrentFatalError()?.error !== undefined, true);
+		assert.equal(getCurrentFatalError(), null);
 	});
 
 	test("a 502 past the apply budget gives up loudly, still not fatally", async () => {
@@ -335,6 +335,6 @@ describe("a tab that never pressed install (#468)", () => {
 			surface.status === "ready" && surface.section.status,
 			"checkFailed",
 		);
-		assert.equal(getCurrentFatalError()?.error !== undefined, true);
+		assert.equal(getCurrentFatalError(), null);
 	});
 });

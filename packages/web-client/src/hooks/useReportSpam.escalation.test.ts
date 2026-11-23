@@ -123,13 +123,14 @@ describe("useReportSpam under the real global cache handlers (#648 review, the j
 		assert.equal(bannerAlerts().length, 1, "exactly one banner");
 	});
 
-	it("a genuine 500 from the same endpoint still escalates — meta.softError must not swallow the 5xx class", async () => {
+	it("a 500 is shown beside the spam action", async () => {
 		http = mockFetch(() => httpError(500, "spam service is down"));
 		const hook = mountHook(() => useReportSpam({ mailboxId: "mbx-inbox" }));
 
 		hook().reportSpam(["msg-1"]);
-		await waitFor(() => fatalOverlay() !== null);
+		await waitFor(() => bannerAlerts().length > 0);
 
-		assert.ok(fatalOverlay(), "a 5xx must still reach the fatal overlay");
+		assert.equal(fatalOverlay(), null);
+		assert.match(bannerAlerts()[0]?.textContent ?? "", /spam service is down/);
 	});
 });

@@ -204,10 +204,6 @@ export const AccountsOauthSuccess: Story = {
 		await userEvent.click(
 			canvas.getByRole("button", { name: /Go to inbox|Continue/ }),
 		);
-		await canvas.findByRole("button", { name: "Confirm folders" });
-		await userEvent.click(
-			await canvas.findByRole("button", { name: "Set up later" }),
-		);
 		await expect(
 			await canvas.findByText("Account connected successfully."),
 		).toBeVisible();

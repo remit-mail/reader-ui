@@ -30,6 +30,7 @@ const world = mailWorld({
 		folder("Travel/Flights", 41),
 		folder("Travel/Hotels", 96),
 		folder("Finance", 0),
+		folder("Empty", 0),
 		folder("Finance/Invoices", 12),
 		folder("Family", 230),
 	],
@@ -100,8 +101,8 @@ export const EmptyFolderChecksWithoutConfirming: Story = {
 						syncPhase: "syncing_others",
 						mailboxes: [
 							{
-								mailboxId: "mbx-finance",
-								fullPath: "Finance",
+								mailboxId: "mbx-empty",
+								fullPath: "Empty",
 								phase: "syncing",
 								messagesTotal: 0,
 								messagesSynced: 0,
@@ -118,12 +119,14 @@ export const EmptyFolderChecksWithoutConfirming: Story = {
 			],
 		},
 	},
-	play: async () => {
+	play: async ({ canvasElement }) => {
+		const canvas = within(canvasElement);
+		const page = within(document.body);
 		await userEvent.click(
-			await page.findByRole("button", { name: "Delete Finance" }),
+			await canvas.findByRole("button", { name: "Delete Empty" }),
 		);
 		await expect(
-			await page.findByRole("dialog", { name: "Delete Finance" }),
+			await page.findByRole("dialog", { name: "Delete Empty" }),
 		).toBeVisible();
 		await expect(
 			page.queryByRole("button", { name: /^Delete folder$/ }),

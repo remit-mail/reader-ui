@@ -679,8 +679,7 @@ describe("useSystemUpdate — actions", () => {
 		assert.match(dom.html(), /could not be requested/);
 		assert.match(dom.html(), /answered 500/);
 		assert.doesNotMatch(dom.html(), /Install 0\.9\.4/);
-		// The press is a raw SDK call, outside the cache the global sink watches:
-		// a 5xx escalates from here or from nowhere at all.
-		assert.equal(getCurrentFatalError()?.error !== undefined, true);
+		// The panel owns this request failure and leaves the rest of the app mounted.
+		assert.equal(getCurrentFatalError(), null);
 	});
 });

@@ -180,7 +180,7 @@ describe("a delete refused for its folder role", () => {
 		);
 	});
 
-	it("still escalates a 500 on the same delete", async () => {
+	it("shows a 500 beside the delete", async () => {
 		await mount(responder("/messages/delete", broken));
 
 		await act(async () => {
@@ -188,10 +188,8 @@ describe("a delete refused for its folder role", () => {
 		});
 		await settle();
 
-		assert.ok(
-			getCurrentFatalError(),
-			"the 409 opt-out must not cover anything else",
-		);
+		assert.equal(getCurrentFatalError(), null);
+		assert.match(harness?.text() ?? "", /Couldn.t (delete|move)/);
 	});
 });
 
@@ -213,7 +211,7 @@ describe("a move refused for an unsettled placement", () => {
 		assert.match(harness?.text() ?? "", /Try again in a moment/);
 	});
 
-	it("still escalates a 500 on the same move", async () => {
+	it("shows a 500 beside the move", async () => {
 		await mount(responder("/messages/move", broken));
 
 		await act(async () => {
@@ -221,10 +219,8 @@ describe("a move refused for an unsettled placement", () => {
 		});
 		await settle();
 
-		assert.ok(
-			getCurrentFatalError(),
-			"the 409 opt-out must not cover anything else",
-		);
+		assert.equal(getCurrentFatalError(), null);
+		assert.match(harness?.text() ?? "", /Couldn.t (delete|move)/);
 	});
 });
 
