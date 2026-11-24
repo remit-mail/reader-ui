@@ -118,6 +118,7 @@ export const classifyBodyFetchFailure = (
 	status: number,
 	reasonHeader: string | null,
 ): BodyFetchReason => {
+	if (status === 202) return "not-ready";
 	const edgeReason = reasonHeader?.trim() ?? "";
 	if (status === 403 && edgeReason === "expired") return "link-expired";
 	if (

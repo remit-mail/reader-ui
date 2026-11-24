@@ -155,7 +155,12 @@ const server = createServer(async (request, response) => {
 		response.setHeader("X-Remit-Partition", tenant);
 		response.setHeader("Cache-Control", "private, max-age=3600");
 		response.setHeader("Content-Security-Policy", "sandbox");
-		if (path === "/content/background-mail/body") {
+		const unavailableBody = /^\/content\/unavailable-(202|403|404)\/body$/.exec(
+			path,
+		);
+		if (unavailableBody) {
+			response.writeHead(Number(unavailableBody[1])).end();
+		} else if (path === "/content/background-mail/body") {
 			response.setHeader("Content-Type", "text/html");
 			response.end("<p>Background downloaded body</p>");
 		} else if (path.endsWith("/html")) {
@@ -242,7 +247,12 @@ const server = createServer(async (request, response) => {
 		) {
 			response.end(
 				JSON.stringify({
-					items: [{ messageId: "background-mail" }],
+					items: [
+						"unavailable-202",
+						"unavailable-403",
+						"unavailable-404",
+						"background-mail",
+					].map((messageId) => ({ messageId })),
 					hasMore: false,
 				}),
 			);
@@ -301,10 +311,11 @@ const server = createServer(async (request, response) => {
 										dispositionFilename: "report.pdf",
 									}),
 								]
-							: messageId === "background-mail"
+							: messageId === "background-mail" ||
+									messageId.startsWith("unavailable-")
 								? [
 										part(messageId, "body", "TEXT", "HTML", {
-											contentUrl: "/content/background-mail/body",
+											contentUrl: `/content/${messageId}/body`,
 										}),
 									]
 								: [],

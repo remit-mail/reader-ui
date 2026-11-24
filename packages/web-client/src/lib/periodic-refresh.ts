@@ -67,6 +67,7 @@ class RunLimit extends Error {}
 class OversizedBody extends RunLimit {}
 class SessionRequired extends Error {}
 class SignedLinkExpired extends Error {}
+class BodyUnavailable extends Error {}
 class PartitionMismatch extends Error {}
 class TransportFailure extends Error {}
 
@@ -126,13 +127,15 @@ class PeriodicBudget {
 			!["basic", "cors", "default"].includes(response.type)
 		) {
 			await response.body?.cancel();
-			if (kind === "body") {
+			if (kind === "body" && !redirected) {
 				const reason = classifyBodyFetchFailure(
 					response.status,
 					response.headers.get(BODY_FAILURE_REASON_HEADER),
 				);
 				if (reason === "auth") throw new SessionRequired();
 				if (reason === "link-expired") throw new SignedLinkExpired();
+				if (reason === "not-ready" || reason === "body-missing")
+					throw new BodyUnavailable();
 			} else if (
 				redirected ||
 				response.status === 401 ||
@@ -272,8 +275,10 @@ async function runPeriodicRefresh(
 			.fetch(contentUrl, "body")
 			.catch((error: unknown) => {
 				if (error instanceof OversizedBody) oversizedPartKey = oversizeKey;
+				if (error instanceof BodyUnavailable) return;
 				throw error;
 			});
+		if (!response) return "skipped";
 		if (
 			!(await saveMailPart(partition, contentUrl, mime, response, (work) =>
 				commit(async () => {
@@ -378,7 +383,10 @@ async function runPeriodicRefresh(
 					description = await describe();
 					outcome = await downloadBody(
 						pickRenderablePart(description.bodyParts),
-					);
+					).catch((retryError: unknown) => {
+						if (retryError instanceof SignedLinkExpired) return "skipped";
+						throw retryError;
+					});
 				}
 				if (outcome === "skipped") continue;
 				if (outcome === "saved") count++;

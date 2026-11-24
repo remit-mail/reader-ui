@@ -137,7 +137,9 @@ export const fetchBodyContent = async (
 	// 202 = the body is not synced yet. The content route has re-armed the sync
 	// cue; retry after `Retry-After` seconds rather than rendering the placeholder
 	// body (a 202 is `ok`, so this must be caught before the success path).
-	if (response.status === 202) {
+	const edgeReason = response.headers.get(BODY_FAILURE_REASON_HEADER);
+	const reason = classifyBodyFetchFailure(response.status, edgeReason);
+	if (reason === "not-ready") {
 		throw new BodyFetchError(
 			"not-ready",
 			"Message body is still syncing",
@@ -146,8 +148,6 @@ export const fetchBodyContent = async (
 		);
 	}
 	if (!response.ok) {
-		const edgeReason = response.headers.get(BODY_FAILURE_REASON_HEADER);
-		const reason = classifyBodyFetchFailure(response.status, edgeReason);
 		throw new BodyFetchError(
 			reason,
 			`Failed to load message body (${response.status} ${response.statusText}${edgeReason ? `: ${edgeReason}` : ""})`,
