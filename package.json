@@ -30,7 +30,7 @@
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.5.4",
-		"@remit/api-http-client": "0.0.121",
+		"@remit/api-http-client": "0.0.123",
 		"@remit/data-ports": "2.17.2",
 		"@remit/domain-enums": "0.0.72",
 		"@remit/mail-oauth-service": "0.0.49",

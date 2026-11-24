@@ -167,9 +167,7 @@
 		},
 		"files": [
 			"dist",
-			"public",
-			"harness/pwa/sw.ts",
-			"src/lib/pwa-protocol.ts"
+			"public"
 		]
 	}
 }

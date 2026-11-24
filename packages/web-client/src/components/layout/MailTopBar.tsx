@@ -52,19 +52,20 @@ export function MailTopBar({ accounts }: MailTopBarProps) {
 		[accounts],
 	);
 	const { hasNewMail } = useMailFreshness();
-	// Every open account's folders, so whichever list is on screen reloads.
-	const refetch = () =>
-		invalidateThreadListQueries(
-			queryClient,
-			threadListCacheKeys(resultFolderIndex.keys()),
-		);
 	const {
 		state: refreshState,
 		errorMessage: refreshError,
 		refresh,
 	} = useRefreshControl(allAccountIds, {
-		onInboxSynced: refetch,
-		onSettled: refetch,
+		// Without this the bar's refresh confirmed against a thread list it
+		// never reloaded: the sync landed, the button ticked, and the mail it
+		// fetched stayed off screen until something else invalidated the list.
+		// Every open account's folders, so whichever list is on screen reloads.
+		reload: () =>
+			invalidateThreadListQueries(
+				queryClient,
+				threadListCacheKeys(resultFolderIndex.keys()),
+			),
 	});
 
 	return (

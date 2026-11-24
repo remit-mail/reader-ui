@@ -10,8 +10,8 @@ import {
 	useSyncExternalStore,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { type OfflineRuntime, retainedReadingQuery } from "./offline-runtime";
-import { OFFLINE_FORMAT } from "./offline-store";
+import type { OfflineRuntime } from "./offline-runtime";
+import { PERSIST_BUSTER, retainedReadingQuery } from "./offline-store";
 import { isAppNavigation } from "./pwa-protocol";
 
 const Restored = ({ children }: { children: ReactNode }) =>
@@ -67,7 +67,7 @@ export const OfflineProvider = ({
 			persistOptions={{
 				persister,
 				maxAge: Infinity,
-				buster: String(OFFLINE_FORMAT),
+				buster: PERSIST_BUSTER,
 				dehydrateOptions: {
 					shouldDehydrateMutation: () => false,
 					shouldDehydrateQuery: (query) =>

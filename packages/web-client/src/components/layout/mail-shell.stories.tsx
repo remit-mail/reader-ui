@@ -8,7 +8,6 @@ import {
 	mailWorld,
 	WORK,
 } from "../../mocks/story-frame/mail-world";
-import { makeConfig } from "../../test-support/fixtures";
 
 const world = mailWorld();
 const inbox = `/mail/${mailboxIdFor(WORK, "Inbox")}`;
@@ -38,39 +37,34 @@ const rows = (): HTMLElement[] =>
 const conversation = () =>
 	page().findByRole("heading", { level: 1, name: "Q3 planning" });
 
-const refreshQueued = new Set<string>();
+const refreshRequestedAt = new Map<string, number>();
 export const RefreshFailed: Story = {
 	beforeEach: () => {
-		refreshQueued.clear();
+		refreshRequestedAt.clear();
 	},
 	parameters: {
 		msw: {
 			handlers: [
-				// Fresh accounts keep the mount-time background poll out of this press.
-				http.get("/api/config", () =>
-					HttpResponse.json(
-						makeConfig(
-							world.accounts.map((account) => ({
-								...account,
-								lastSyncAt: Date.now(),
-							})),
-						),
-					),
-				),
 				http.post("/api/accounts/:accountId/sync", ({ params }) => {
-					refreshQueued.add(String(params.accountId));
-					return HttpResponse.json({ triggered: true });
+					const requestedAt = Date.now();
+					refreshRequestedAt.set(String(params.accountId), requestedAt);
+					return HttpResponse.json({
+						triggered: true,
+						message: "Sync requested",
+						requestedAt,
+					});
 				}),
-				http.get("/api/accounts/:accountId/sync/status", ({ params }) =>
-					HttpResponse.json({
+				http.get("/api/accounts/:accountId/sync/status", ({ params }) => {
+					const syncRequestedAt = refreshRequestedAt.get(
+						String(params.accountId),
+					);
+					return HttpResponse.json({
 						accountId: params.accountId,
-						lastSyncAt: 1,
-						syncPhase: refreshQueued.has(String(params.accountId))
-							? "error"
-							: "complete",
+						syncRequestedAt,
+						syncPhase: syncRequestedAt === undefined ? "complete" : "error",
 						mailboxes: [],
-					}),
-				),
+					});
+				}),
 				...mailHandlers(world),
 			],
 		},
@@ -81,9 +75,11 @@ export const RefreshFailed: Story = {
 			await page().findByRole("button", { name: "Refresh all accounts" }),
 		);
 		await expect(
-			await page().findByRole("button", {
-				name: "Refresh all accounts — failed: Sync failed for this account",
-			}),
+			await page().findByRole(
+				"button",
+				{ name: "Refresh all accounts — failed: Sync failed for this account" },
+				{ timeout: 5000 },
+			),
 		).toBeVisible();
 	},
 };

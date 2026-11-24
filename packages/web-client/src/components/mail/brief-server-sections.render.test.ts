@@ -235,7 +235,7 @@ function Brief() {
 
 const brief = (search: string, input: string): ReactNode =>
 	createElement(MailFreshnessProvider, {
-		accountIds: [ACCOUNT_ID],
+		accounts: [account],
 		// biome-ignore lint/correctness/noChildrenProp: no JSX in a `.ts` test, and createElement's variadic children do not satisfy a required prop
 		children: createElement(
 			MailContext.Provider,

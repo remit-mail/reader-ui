@@ -16,15 +16,27 @@
  */
 
 import assert from "node:assert/strict";
-import { afterEach, beforeEach, describe, mock, test } from "node:test";
+import {
+	afterEach,
+	beforeEach,
+	describe,
+	mock,
+	type TestContext,
+	test,
+} from "node:test";
+import {
+	mailboxOperationsListMailboxesQueryKey,
+	syncOperationsGetSyncStatusQueryKey,
+} from "@remit/api-http-client/@tanstack/react-query.gen.ts";
+import type { RemitImapSyncPhase } from "@remit/api-http-client/types.gen.ts";
 import { act, createElement } from "react";
+import { ErrorBannerContext } from "../components/ui/error-banner-context";
 import {
 	__resetHotSyncWindow,
 	HOT_POLL_INTERVAL_MS,
 	HOT_WINDOW_MS,
 	startHotSyncWindow,
 } from "../lib/hot-sync-window";
-import { OFFLINE_ERROR_EVENT } from "../lib/offline-error";
 import { installOfflineRuntime } from "../lib/offline-runtime";
 import { createDomHarness, type DomHarness } from "../test-support/dom";
 import { makeAccount } from "../test-support/fixtures";
@@ -40,16 +52,17 @@ const T0 = 1_700_000_000_000;
 globalThis.__REMIT_CONFIG__ = {
 	mailboxPollIntervalSeconds: String(AMBIENT_SECONDS),
 };
-const { __resetStaleAccountSyncGuard, POLL_INTERVAL_MS, useStaleAccountSync } =
-	await import("./useStaleAccountSync.js");
+const { __resetStaleAccountSyncGuard, POLL_INTERVAL_MS } = await import(
+	"./useStaleAccountSync.js"
+);
+const { FRESHNESS_POLL_MS, MailFreshnessProvider, useMailFreshness } =
+	await import("../lib/mail-freshness.js");
 
 let harness: DomHarness | undefined;
 let http: HttpMock | undefined;
 
-function PollLoop() {
-	useStaleAccountSync([makeAccount({ accountId: ACCOUNT_ID, lastSyncAt: T0 })]);
-	return null;
-}
+const accounts = [makeAccount({ accountId: ACCOUNT_ID, lastSyncAt: T0 })];
+const staleAccounts = [makeAccount({ accountId: ACCOUNT_ID, lastSyncAt: 0 })];
 
 /**
  * jsdom reports "prerender" unless it is pretending to be visual, and the
@@ -69,10 +82,15 @@ const settle = async (dom: DomHarness): Promise<void> => {
 };
 
 const mount = async (): Promise<DomHarness> => {
-	http = mockFetch(() => ({ status: "queued" }));
+	http = mockFetch(({ method }) =>
+		method === "POST" ? { triggered: true, requestedAt: Date.now() } : {},
+	);
 	const dom = createDomHarness();
 	harness = dom;
-	dom.renderApp(createElement(PollLoop));
+	dom.renderApp(
+		// biome-ignore lint/correctness/noChildrenProp: the provider requires children in its props
+		createElement(MailFreshnessProvider, { accounts, children: null }),
+	);
 	await settle(dom);
 	return dom;
 };
@@ -124,7 +142,7 @@ describe("the poll loop across hide and show, on a long ambient interval", () =>
 		const dom = await mount();
 
 		// The press: the hot window opens and the loop drops onto its cadence.
-		startHotSyncWindow();
+		act(() => startHotSyncWindow());
 		await advance(dom, HOT_POLL_INTERVAL_MS);
 		assert.equal(polls(), 1, "the hot cadence polled once");
 
@@ -160,38 +178,189 @@ describe("the poll loop across hide and show, on a long ambient interval", () =>
 	});
 });
 
-test("a failed poll calls the sync failure handler once without an offline error", async (t) => {
+const syncPath = { path: { accountId: ACCOUNT_ID } };
+const statusKey = syncOperationsGetSyncStatusQueryKey(syncPath);
+const mailboxKey = mailboxOperationsListMailboxesQueryKey(syncPath);
+
+const reading = (syncPhase: RemitImapSyncPhase, syncRequestedAt: number) => ({
+	accountId: ACCOUNT_ID,
+	syncPhase,
+	syncRequestedAt,
+	mailboxes: [],
+});
+
+const seedStatus = (
+	dom: DomHarness,
+	syncPhase: RemitImapSyncPhase,
+	syncRequestedAt: number,
+): void => {
+	act(() => {
+		dom.queryClient.setQueryData(
+			statusKey,
+			reading(syncPhase, syncRequestedAt),
+		);
+	});
+};
+
+const mountStale = async (t: TestContext) => {
+	const dom = createDomHarness();
+	const fetch = mockFetch(() => ({ triggered: true, requestedAt: T0 }));
+	const pushError = t.mock.fn(() => "banner");
+	t.after(() => {
+		dom.close();
+		fetch.restore();
+		__resetStaleAccountSyncGuard();
+	});
+	seedStatus(dom, "error", T0 - 1);
+	dom.queryClient.setQueryDefaults(mailboxKey, { gcTime: Infinity });
+	dom.queryClient.setQueryData(mailboxKey, []);
+	dom.renderApp(
+		createElement(
+			ErrorBannerContext.Provider,
+			{
+				value: {
+					errors: [],
+					pushError,
+					dismissError: () => {},
+					clearAll: () => {},
+				},
+			},
+			createElement(MailFreshnessProvider, {
+				accounts: staleAccounts,
+				// biome-ignore lint/correctness/noChildrenProp: the provider requires children in its props
+				children: null,
+			}),
+		),
+	);
+	await dom.waitFor(() => fetch.to("/sync").length === 1);
+	await dom.flush();
+	return { dom, fetch, pushError };
+};
+
+test("an old error and a round that never starts leave nothing to handle", async (t) => {
 	mock.timers.enable({ apis: ["setTimeout", "Date"], now: T0 });
+	t.after(() => {
+		mock.timers.reset();
+		Reflect.deleteProperty(document, "visibilityState");
+	});
 	setVisibility("visible");
+	const { dom, fetch, pushError } = await mountStale(t);
+
+	await advance(dom, AMBIENT_MS);
+	assert.equal(fetch.to("/sync").length, 2);
+	assert.equal(fetch.to("/sync/status").length, 0);
+	assert.equal(pushError.mock.callCount(), 0);
+	assert.equal(dom.queryClient.getQueryState(mailboxKey)?.isInvalidated, false);
+});
+
+test("an unpressed errored round raises one banner", async (t) => {
+	const { dom, pushError } = await mountStale(t);
+
+	seedStatus(dom, "error", T0);
+	await dom.waitFor(() => pushError.mock.callCount() === 1);
+	seedStatus(dom, "syncing_inbox", T0);
+	await dom.wait(1);
+	seedStatus(dom, "error", T0);
+	await dom.wait(1);
+
+	assert.equal(pushError.mock.callCount(), 1);
+	assert.deepEqual(pushError.mock.calls[0]?.arguments, [
+		{
+			title: `Couldn't sync ${staleAccounts[0]?.email}`,
+			detail: "Sync failed for this account",
+			error: undefined,
+		},
+	]);
+	assert.equal(dom.queryClient.getQueryState(mailboxKey)?.isInvalidated, false);
+});
+
+test("the provider sends one status request per ambient or hot interval", async (t) => {
+	mock.timers.enable({ apis: ["setTimeout", "setInterval", "Date"], now: T0 });
+	const dom = createDomHarness();
+	const fetch = mockFetch(() => reading("complete", T0 - 1));
+	const press = new AbortController();
+	t.after(() => {
+		press.abort();
+		dom.close();
+		fetch.restore();
+		__resetHotSyncWindow();
+		mock.timers.reset();
+	});
+	function Refresh() {
+		const { beginPress } = useMailFreshness();
+		return createElement("button", {
+			type: "button",
+			onClick: () => {
+				startHotSyncWindow();
+				beginPress(ACCOUNT_ID, () => {}, press.signal);
+			},
+		});
+	}
+	seedStatus(dom, "complete", T0 - 1);
+	dom.renderApp(
+		createElement(MailFreshnessProvider, {
+			accounts,
+			// biome-ignore lint/correctness/noChildrenProp: the provider requires children in its props
+			children: createElement(Refresh),
+		}),
+	);
+	const requests = () => fetch.to("/sync/status").length;
+	await advance(dom, FRESHNESS_POLL_MS - 1);
+	assert.equal(requests(), 0);
+	await advance(dom, 1);
+	assert.equal(requests(), 1);
+
+	dom.click(dom.byText("button", ""));
+	await settle(dom);
+	assert.equal(requests(), 2);
+	await advance(dom, 1999);
+	assert.equal(requests(), 2);
+	await advance(dom, 1);
+	assert.equal(requests(), 3);
+	await advance(dom, 2000);
+	assert.equal(requests(), 4);
+});
+
+test("completion invalidates the mailbox list without an offline runtime", async (t) => {
+	const { dom } = await mountStale(t);
+
+	assert.equal(dom.queryClient.getQueryState(mailboxKey)?.isInvalidated, false);
+	seedStatus(dom, "complete", T0);
+	await dom.waitFor(
+		() => dom.queryClient.getQueryState(mailboxKey)?.isInvalidated === true,
+	);
+});
+
+test("completion calls refreshReading once when downloads are enabled", async (t) => {
+	// Close the channel through the test environment's constructor.
+	const originalChannel = globalThis.BroadcastChannel;
+	let channel: BroadcastChannel | undefined;
+	class TestChannel extends originalChannel {
+		constructor(name: string) {
+			super(name);
+			channel = this;
+		}
+	}
+	globalThis.BroadcastChannel = TestChannel;
+	t.after(() => {
+		globalThis.BroadcastChannel = originalChannel;
+		channel?.close();
+	});
 	const runtime = installOfflineRuntime({
-		verifySession: async () => ({ partitionKey: "test" }),
+		sessionUrl: "/api/session",
 		reauthenticate: () => {},
 	});
 	runtime.state = { verified: true };
 	const refreshReading = t.mock.method(runtime, "refreshReading");
-	const warn = t.mock.method(console, "warn", () => {});
-	const offlineError = t.mock.fn();
-	window.addEventListener(OFFLINE_ERROR_EVENT, offlineError);
-	let triggered = false;
-	const fetch = mockFetch(({ path, method }) => {
-		if (method === "POST" && path.endsWith("/sync")) triggered = true;
-		return { lastSyncAt: T0, syncPhase: triggered ? "error" : "complete" };
-	});
-	const dom = createDomHarness();
-	try {
-		dom.renderApp(createElement(PollLoop));
-		await advance(dom, AMBIENT_MS);
-		assert.equal(fetch.to("/sync/status").length, 2);
-		assert.equal(warn.mock.callCount(), 1);
-		assert.match(dom.text(), /Couldn't sync/);
-		assert.equal(offlineError.mock.callCount(), 0);
-		assert.equal(refreshReading.mock.callCount(), 0);
-	} finally {
-		dom.close();
-		mock.timers.reset();
-		fetch.restore();
-		window.removeEventListener(OFFLINE_ERROR_EVENT, offlineError);
-		(Reflect.get(runtime, "channel") as BroadcastChannel).close();
-		Reflect.deleteProperty(document, "visibilityState");
-	}
+	const { dom } = await mountStale(t);
+
+	seedStatus(dom, "complete", T0);
+	await dom.waitFor(() => refreshReading.mock.callCount() === 1);
+	seedStatus(dom, "syncing_others", T0);
+	await dom.wait(1);
+	seedStatus(dom, "complete", T0);
+	await dom.wait(1);
+
+	assert.equal(refreshReading.mock.callCount(), 1);
+	assert.equal(dom.queryClient.getQueryState(mailboxKey)?.isInvalidated, true);
 });

@@ -1,156 +1,21 @@
-import {
-	mailboxOperationsListMailboxesQueryKey,
-	syncOperationsGetSyncStatusOptions,
-} from "@remit/api-http-client/@tanstack/react-query.gen.ts";
 import { syncOperationsTriggerSync } from "@remit/api-http-client/sdk.gen.ts";
-import type { RemitImapSyncPhase } from "@remit/api-http-client/types.gen.ts";
 import type { RefreshControlState } from "@remit/ui";
-import { type QueryClient, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { escalate } from "../lib/escalate";
 import { startHotSyncWindow } from "../lib/hot-sync-window";
 import { useMailFreshness } from "../lib/mail-freshness";
+import {
+	SYNC_ROUND_ERROR,
+	type SyncRoundTracker,
+} from "../lib/sync-round-tracker";
 import { useTelemetry } from "../lib/telemetry-context";
-import { isSyncingPhase } from "./useInitialSyncProgress";
 
 export type { RefreshControlState };
-
-/** How often the wait reads status after the sync is enqueued. */
-export const REFRESH_POLL_MS = 2000;
-
-const sleep = (ms: number): Promise<void> =>
-	new Promise((resolve) => setTimeout(resolve, ms));
 
 const messageFor = (error: unknown): string =>
 	error instanceof Error && error.message
 		? error.message
 		: "Something went wrong";
-
-// The user pulled to refresh and is watching the spinner: a 401 raises the
-// signed-out notice rather than a spinner that stops for no stated reason.
-const escalateIfFatal = (error: unknown): void => {
-	escalate(error);
-};
-
-/**
- * `getSyncStatus` for one account, always as a real network read: `staleTime:
- * 0` means even a reading `MailFreshnessProvider` fetched a moment ago is
- * treated as stale. Sharing the query key means every fetch here also lands
- * in the same cache `MailFreshnessProvider` reads, so acknowledging a refresh
- * (see `useMailFreshness().acknowledge`) re-baselines from data this wait
- * itself just fetched — never a round-old cached reading.
- *
- * Routed through `queryClient.fetchQuery` rather than the raw SDK call, so a
- * failure here already reaches the global `QueryCache` error sink
- * (`main.tsx` wires `escalate`) on the same terms as every other
- * query — a manual `escalateIfFatal` on top would double-report the same
- * error. `syncOperationsTriggerSync` below is the one call in this file that
- * genuinely needs it: it's a raw SDK call outside React Query, so nothing
- * else escalates it.
- */
-const fetchStatus = (queryClient: QueryClient, accountId: string) =>
-	queryClient.fetchQuery({
-		...syncOperationsGetSyncStatusOptions({ path: { accountId } }),
-		staleTime: 0,
-		retry: false,
-	});
-
-/** The fields of `getSyncStatus` this wait reads, named so it can be driven
- * from a scripted sequence of readings. */
-export interface SyncStatusReading {
-	syncPhase?: RemitImapSyncPhase;
-	lastSyncAt?: number;
-	mailboxes?: readonly { fullPath?: string; lastSyncedAt?: number }[];
-}
-
-/**
- * The account's INBOX stamp, or 0 when the account has no INBOX or has never
- * synced one. `getSyncStatus` reports `lastSyncedAt` per mailbox, which is what
- * lets the wait answer "the inbox is current" ahead of "the round is done".
- */
-export const inboxSyncedAt = (reading: SyncStatusReading): number =>
-	reading.mailboxes?.find(
-		(mailbox) => mailbox.fullPath?.toUpperCase() === "INBOX",
-	)?.lastSyncedAt ?? 0;
-
-export interface WaitForSettledOptions {
-	readStatus: () => Promise<SyncStatusReading>;
-	/** `lastSyncAt` as it read immediately before this refresh triggered. */
-	baselineLastSyncAt: number;
-	/** The INBOX `lastSyncedAt` from that same pre-trigger reading. */
-	baselineInboxSyncedAt?: number;
-	/** Called at most once, the moment INBOX's own stamp passes the baseline
-	 * while the round is still running — never after the round has settled,
-	 * which the caller already treats as the confirmed state. */
-	onInboxSynced?: () => void;
-	signal?: AbortSignal;
-	pollMs?: number;
-}
-
-/**
- * Poll one account's sync status until a round that started at or after this
- * refresh triggered has settled, failed, or been cancelled.
- *
- * `account.lastSyncAt` is the worker's own once-per-round stamp, and it is the
- * only thing here that tells one round from another. A phase seen mid-flight
- * does not: the tab's background poll, another tab, and every `GET /config`
- * trigger rounds nobody clicked for, so a click landing while one of those is
- * in flight used to confirm on it — a checkmark and an invalidated list with
- * the clicked round still unrun, and the new mail it would have fetched unseen
- * until the next poll (#953). Requiring the stamp to pass the reading taken
- * before the trigger admits only a round that started after it.
- *
- * Discovery can fail before the worker advances the stamp. An error phase
- * ends the wait even when the stamp is unchanged.
- *
- * A round is the whole account — every folder, in queue order — but the mail
- * a person pressed refresh for is in their inbox. `onInboxSynced` fires the
- * moment that one mailbox's own stamp passes the baseline, so the list on
- * screen reloads then rather than after Junk and Trash have also gone by. The
- * round-level stamp still decides the button's confirmed state.
- *
- * Waiting reads only sync status.
- */
-export const waitForSettled = async ({
-	readStatus,
-	baselineLastSyncAt,
-	baselineInboxSyncedAt = 0,
-	onInboxSynced,
-	signal,
-	pollMs = REFRESH_POLL_MS,
-}: WaitForSettledOptions): Promise<boolean> => {
-	const poll = async (): Promise<boolean> => {
-		let inboxAnnounced = false;
-		while (!signal?.aborted) {
-			const reading = await readStatus();
-			if (signal?.aborted) return false;
-			const { syncPhase, lastSyncAt } = reading;
-			if (syncPhase === "error")
-				throw new Error("Sync failed for this account");
-			if ((lastSyncAt ?? 0) > baselineLastSyncAt && !isSyncingPhase(syncPhase))
-				return true;
-			if (!inboxAnnounced && inboxSyncedAt(reading) > baselineInboxSyncedAt) {
-				inboxAnnounced = true;
-				onInboxSynced?.();
-			}
-			await sleep(pollMs);
-		}
-		return false;
-	};
-	if (!signal) return poll();
-	if (signal.aborted) return false;
-	let complete: (settled: boolean) => void;
-	const cancelled = new Promise<boolean>((resolve) => {
-		complete = resolve;
-	});
-	const cancel = () => complete(false);
-	signal.addEventListener("abort", cancel, { once: true });
-	try {
-		return await Promise.race([poll(), cancelled]);
-	} finally {
-		signal.removeEventListener("abort", cancel);
-	}
-};
 
 interface AccountResult {
 	accountId: string;
@@ -160,38 +25,24 @@ interface AccountResult {
 }
 
 const refreshOneAccount = async (
-	queryClient: QueryClient,
+	beginPress: SyncRoundTracker["beginPress"],
 	telemetry: { recordEvent: (name: string) => void },
 	accountId: string,
 	signal: AbortSignal,
-	onInboxSynced: (accountId: string) => void,
+	onInbox: () => void,
 ): Promise<AccountResult> => {
-	const baseline = await fetchStatus(queryClient, accountId)
-		.then((data) => ({
-			ok: true as const,
-			lastSyncAt: data.lastSyncAt ?? 0,
-			inboxSyncedAt: inboxSyncedAt(data),
-		}))
-		.catch((error: unknown) => ({ ok: false as const, error }));
-	if (!baseline.ok) {
-		return {
-			accountId,
-			enqueued: false,
-			ok: false,
-			message: messageFor(baseline.error),
-		};
-	}
-
 	if (signal.aborted) return { accountId, enqueued: false, ok: false };
+	const press = beginPress(accountId, onInbox, signal);
 	const triggered = await syncOperationsTriggerSync({
 		path: { accountId },
 		signal,
 		throwOnError: true,
 	})
-		.then(() => ({ ok: true as const }))
+		.then(({ data }) => ({ ok: true as const, requestedAt: data.requestedAt }))
 		.catch((error: unknown) => ({ ok: false as const, error }));
 	if (!triggered.ok) {
-		if (!signal.aborted) escalateIfFatal(triggered.error);
+		press.cancel();
+		if (!signal.aborted) escalate(triggered.error);
 		return {
 			accountId,
 			enqueued: false,
@@ -199,29 +50,21 @@ const refreshOneAccount = async (
 			message: messageFor(triggered.error),
 		};
 	}
+	if (signal.aborted) return { accountId, enqueued: false, ok: false };
 	telemetry.recordEvent("sync.triggered");
-
-	return waitForSettled({
-		readStatus: () => fetchStatus(queryClient, accountId),
-		baselineLastSyncAt: baseline.lastSyncAt,
-		baselineInboxSyncedAt: baseline.inboxSyncedAt,
-		onInboxSynced: () => onInboxSynced(accountId),
-		signal,
-	})
-		.then((ok) => ({ accountId, enqueued: true, ok }))
-		.catch((error: unknown) => ({
-			accountId,
-			enqueued: true,
-			ok: false,
-			message: messageFor(error),
-		}));
+	press.accept(triggered.requestedAt);
+	const outcome = await press.outcome;
+	return {
+		accountId,
+		enqueued: true,
+		ok: outcome === "complete",
+		message: outcome === "error" ? SYNC_ROUND_ERROR : undefined,
+	};
 };
 
 export interface UseRefreshControlOptions {
-	/** Reload the view as each account's INBOX becomes current. */
-	onInboxSynced?: (accountId: string) => void;
-	/** Reload the view once all account rounds have finished. */
-	onSettled?: () => void;
+	/** Reload the view when each INBOX becomes current and once after all account results arrive. */
+	reload?: () => void;
 }
 
 export interface UseRefreshControlResult {
@@ -239,9 +82,8 @@ export const useRefreshControl = (
 	accountIds: readonly string[],
 	options: UseRefreshControlOptions = {},
 ): UseRefreshControlResult => {
-	const queryClient = useQueryClient();
 	const telemetry = useTelemetry();
-	const { acknowledge } = useMailFreshness();
+	const { acknowledge, beginPress } = useMailFreshness();
 	const [state, setState] = useState<RefreshControlState>("idle");
 	const [errorMessage, setErrorMessage] = useState<string>();
 	const runRef = useRef<AbortController>(null);
@@ -277,24 +119,15 @@ export const useRefreshControl = (
 
 		startHotSyncWindow();
 
-		const invalidateMailboxList = (accountId: string): void => {
-			queryClient.invalidateQueries({
-				queryKey: mailboxOperationsListMailboxesQueryKey({
-					path: { accountId },
-				}),
-			});
-		};
-		const showInbox = (accountId: string): void => {
-			if (run.signal.aborted) return;
-			invalidateMailboxList(accountId);
-			optionsRef.current.onInboxSynced?.(accountId);
+		const showInbox = (): void => {
+			if (!run.signal.aborted) optionsRef.current.reload?.();
 		};
 
 		void (async () => {
 			const results = await Promise.all(
 				ids.map((accountId) =>
 					refreshOneAccount(
-						queryClient,
+						beginPress,
 						telemetry,
 						accountId,
 						run.signal,
@@ -307,12 +140,10 @@ export const useRefreshControl = (
 			const enqueued = results
 				.filter((result) => result.enqueued)
 				.map((result) => result.accountId);
-			for (const accountId of enqueued) invalidateMailboxList(accountId);
 			if (enqueued.length > 0) {
 				acknowledge(enqueued);
 			}
-
-			optionsRef.current.onSettled?.();
+			optionsRef.current.reload?.();
 
 			const failures = results.filter((result) => !result.ok);
 			if (failures.length === 0) {
@@ -322,7 +153,7 @@ export const useRefreshControl = (
 				setErrorMessage(failures[0]?.message);
 			}
 		})();
-	}, [acknowledge, queryClient, telemetry]);
+	}, [acknowledge, beginPress, telemetry]);
 
 	return { state, errorMessage, refresh };
 };

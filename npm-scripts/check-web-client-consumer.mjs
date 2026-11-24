@@ -179,7 +179,7 @@ try {
 			'const authProvider = offline ? { ...baseAuth, reauthenticate: () => { window.pwaTest.reauthentications++; }, getToken: async () => null, Provider: ({ children }) => <IdentityProvider><span data-identity-context="mounted" /><baseAuth.Account fallback={<span data-account-probe="signed-out" />}>{() => <span data-account-probe="signed-in" />}</baseAuth.Account>{children}</IdentityProvider>, SessionGate: ({ children }) => <div data-online-gate="mounted"><OnlineGate>{children}</OnlineGate></div> } : baseAuth;',
 			"window.pwaTest.offline = getOfflineRuntime;",
 			"window.pwaTest.reauthentications = 0;",
-			'mountApp({ authProvider, ...(offline ? { offline: { verifySession: async () => { const response = await fetch("/api/session", { cache: "no-store", credentials: "same-origin", redirect: "manual", signal: AbortSignal.timeout(5000) }); if (response.status === 401 || response.status === 403 || response.type === "opaqueredirect") return null; if (!response.ok || !response.headers.get("content-type")?.includes("application/json")) throw new Error("Session verification failed: " + response.status); const session = await response.json(); if (typeof session.partitionKey !== "string" || !session.partitionKey) throw new Error("Invalid session partition"); return session; }, reauthenticate: () => { window.pwaTest.reauthentications++; } } } : {}) });',
+			'mountApp({ authProvider, ...(offline ? { offline: { sessionUrl: "/api/session", reauthenticate: () => { window.pwaTest.reauthentications++; } } } : {}) });',
 			"",
 		].join("\n"),
 	);

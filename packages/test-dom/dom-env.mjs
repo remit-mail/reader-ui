@@ -181,6 +181,7 @@ for (const name of [
 
 globalThis.window = window;
 globalThis.document = window.document;
+globalThis.location = window.location;
 Object.defineProperty(globalThis, "navigator", {
 	value: window.navigator,
 	configurable: true,

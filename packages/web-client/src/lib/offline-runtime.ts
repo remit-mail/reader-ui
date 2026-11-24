@@ -1,25 +1,24 @@
-import { threadDetailOperationsListThreadMessagesQueryKey } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
-import type { ThreadDetailOperationsListThreadMessagesResponse } from "@remit/api-http-client/types.gen.ts";
-import {
-	onlineManager,
-	type Query,
-	type QueryClient,
-} from "@tanstack/react-query";
+import { onlineManager, type QueryClient } from "@tanstack/react-query";
 import type {
 	PersistedClient,
 	Persister,
 } from "@tanstack/react-query-persist-client";
+import {
+	syncBackgroundRefresh,
+	unregisterBackgroundRefresh,
+} from "./background-refresh";
 import { externalImageBytes, requestExternalImage } from "./external-image";
 import { OFFLINE_ERROR_EVENT, OfflineUnavailableError } from "./offline-error";
 import {
-	admitContent,
 	commitOffline,
-	contentCacheName,
+	downloadPart,
 	OFFLINE_FORMAT,
 	offlineRecord,
-	PARTITION_HEADER,
 	type Partition,
+	persistQueries,
+	readSession,
 	requirePartition,
+	retainedReadingQuery,
 	samePartition,
 	storageLock,
 	wipeOffline,
@@ -29,9 +28,7 @@ import { isUpdatePrepared, registerUpdateBlocker } from "./pwa-update";
 import { reportSignedOut, resetSignedOut } from "./signed-out";
 
 export interface OfflineOptions {
-	/** Fresh authenticated no-store request. null means authentication is required;
-	 * reject only for transport/server failures. Never use a cached config as identity. */
-	verifySession(): Promise<{ partitionKey: string } | null>;
+	sessionUrl: string;
 	reauthenticate(): void;
 }
 export interface OfflineState {
@@ -41,54 +38,6 @@ export interface OfflineState {
 	quota?: number;
 	persistent?: boolean;
 }
-const threadLists = new Set([
-	"threadOperationsListThreads",
-	"threadOperationsSearchThreads",
-	"unifiedThreadOperationsListAllThreads",
-]);
-
-const readingQueryKey = ({ queryKey: [key] }: Pick<Query, "queryKey">) =>
-	key &&
-	typeof key === "object" &&
-	"_id" in key &&
-	!("headers" in key) &&
-	!("body" in key)
-		? key
-		: undefined;
-
-/** Explicit reading allowlist; settings, auth, drafts and mutations never persist. */
-export const retainedReadingQuery = (
-	query: Pick<Query, "queryKey">,
-): boolean => {
-	const key = readingQueryKey(query);
-	return (
-		key !== undefined &&
-		(threadLists.has(String(key._id)) ||
-			key._id === "mailboxOperationsListMailboxes" ||
-			key._id === "messageOperationsDescribeMessage" ||
-			key._id === "threadDetailOperationsListThreadMessages")
-	);
-};
-
-/** Preserve the last successful descriptor even when a list page or error replaces it. */
-export const mergePersistedQueries = (
-	previous: PersistedClient | undefined,
-	client: PersistedClient,
-): PersistedClient => {
-	const queries = new Map(
-		previous?.clientState.queries.map((query) => [query.queryHash, query]),
-	);
-	for (const query of client.clientState.queries) {
-		const existing = queries.get(query.queryHash);
-		if (!existing || query.state.dataUpdatedAt >= existing.state.dataUpdatedAt)
-			queries.set(query.queryHash, query);
-	}
-	return {
-		...client,
-		clientState: { mutations: [], queries: [...queries.values()] },
-	};
-};
-
 export class OfflineRuntime {
 	state: OfflineState = { verified: false };
 	private listeners = new Set<() => void>();
@@ -191,15 +140,13 @@ export class OfflineRuntime {
 			await this.revokeMemory();
 			return false;
 		}
-		const session = await this.options.verifySession();
+		const session = await readSession(this.options.sessionUrl);
 		if (!session || this.revoked) {
 			if (!session && !this.revoked && navigator.onLine) reportSignedOut();
 			return false;
 		}
 		const unchanged = await offlineRecord<Partition>("partition");
 		if (observed && !samePartition(unchanged, observed)) return false;
-		if (!session.partitionKey)
-			throw new Error("Session partition key is empty");
 		const previous = await offlineRecord<Partition>("partition");
 		if (previous && previous.key !== session.partitionKey) {
 			// A fresh document also isolates late mutation rollback callbacks that
@@ -230,6 +177,9 @@ export class OfflineRuntime {
 		this.update({ partition, verified: true });
 		resetSignedOut();
 		if (!wasVerified) window.dispatchEvent(new Event("remit:session-verified"));
+		await syncBackgroundRefresh(partition, this.options.sessionUrl).catch(
+			this.report,
+		);
 		return true;
 	}
 	sessionUnverified(): void {
@@ -251,6 +201,7 @@ export class OfflineRuntime {
 			navigator.serviceWorker?.controller?.postMessage({
 				type: "remit:offline-wipe",
 			});
+			await unregisterBackgroundRefresh();
 		} finally {
 			this.pending--;
 		}
@@ -269,10 +220,7 @@ export class OfflineRuntime {
 		await requirePartition(partition);
 		return partition;
 	}
-	private async commit<T>(
-		partition: Partition,
-		work: () => Promise<T>,
-	): Promise<T> {
+	async commit<T>(partition: Partition, work: () => Promise<T>): Promise<T> {
 		try {
 			return await commitOffline(partition, work);
 		} catch (error) {
@@ -298,17 +246,8 @@ export class OfflineRuntime {
 	}
 	persister(partition: Partition): Persister {
 		return {
-			persistClient: async (client) => {
-				await this.write(partition, async () => {
-					const previous = await offlineRecord<PersistedClient>(
-						`queries:${partition.generation}`,
-					);
-					await writeOfflineRecord(
-						`queries:${partition.generation}`,
-						mergePersistedQueries(previous, client),
-					);
-				});
-			},
+			persistClient: (client) =>
+				this.write(partition, () => persistQueries(partition, client)),
 			restoreClient: () =>
 				commitOffline(partition, () =>
 					offlineRecord<PersistedClient>(`queries:${partition.generation}`),
@@ -330,43 +269,18 @@ export class OfflineRuntime {
 		const partition = this.state.partition;
 		if (!partition)
 			throw new OfflineUnavailableError("No remembered offline identity");
-		const target = new URL(url, location.origin);
-		if (
-			target.origin !== location.origin ||
-			!target.pathname.startsWith("/content/") ||
-			/\/exports?(?:\/|$)/i.test(target.pathname)
-		)
-			throw new Error("Only same-origin mail parts can be downloaded");
-		// No SW runtime caching: each tab owns a captured partition/generation.
-		const cacheKey = `${target.origin}${target.pathname}`;
-		const cached = await this.commit(partition, async () => {
-			const saved = await offlineRecord<{ mime: string }>(
-				`part:${partition.generation}:${cacheKey}`,
-			);
-			return saved?.mime === mime
-				? (await caches.open(contentCacheName(partition))).match(cacheKey)
-				: undefined;
-		});
-		if (cached && !this.refreshing) return cached;
-		await this.authorizeNetwork("GET");
-		const response = await network();
-		if (await admitContent(response, mime, partition)) {
-			await this.write(partition, async () => {
-				await (await caches.open(contentCacheName(partition))).put(
-					cacheKey,
-					response.clone(),
-				);
-				await writeOfflineRecord(`part:${partition.generation}:${cacheKey}`, {
-					mime,
-					savedAt: Date.now(),
-				});
-			});
-		} else if (response.status === 200) {
+		const { response, saved } = await downloadPart(
+			partition,
+			url,
+			mime,
+			() => this.authorizeNetwork("GET").then(network),
+			this,
+		);
+		if (response.status === 200 && !saved) {
 			throw new OfflineUnavailableError(
 				"Mail part was not saved: unexpected MIME, tenant, redirect, HTML shell or no-store response",
 			);
 		}
-		await requirePartition(partition);
 		return response;
 	}
 	/** Binary records use the complete destination URL, including authorization queries. */
@@ -397,68 +311,18 @@ export class OfflineRuntime {
 		const { usage, quota } = await navigator.storage.estimate();
 		this.update({ persistent, usage, quota });
 	}
-	async refreshReading({
-		openThreadId,
-		listsVisible,
-	}: {
-		openThreadId?: string;
-		listsVisible: boolean;
-	}): Promise<void> {
-		const queryClient = this.queryClient;
-		if (!queryClient || !this.state.verified) return;
-		const thread = openThreadId
-			? threadDetailOperationsListThreadMessagesQueryKey({
-					path: { threadId: openThreadId },
-				})
-			: undefined;
-		await Promise.all([
-			listsVisible &&
-				queryClient.refetchQueries({
-					type: "active",
-					predicate: (query) => {
-						const key = readingQueryKey(query);
-						return (
-							!!key &&
-							threadLists.has(String(key._id)) &&
-							(!("query" in key) ||
-								(key.query as { results?: boolean } | undefined)?.results !==
-									false)
-						);
-					},
-				}),
-			thread &&
-				queryClient.refetchQueries({
-					type: "active",
-					queryKey: thread,
-				}),
-		]);
-		if (!thread) return;
-		const messageIds = new Set(
-			queryClient
-				.getQueryData<ThreadDetailOperationsListThreadMessagesResponse>(thread)
-				?.items.map(({ messageId }) => messageId),
-		);
-		await queryClient.refetchQueries({
+	async refreshReading(): Promise<void> {
+		if (!this.queryClient || !this.state.verified) return;
+		await this.queryClient.refetchQueries({
 			type: "active",
-			predicate: (query) => {
-				const key = readingQueryKey(query);
-				return (
-					key?._id === "messageOperationsDescribeMessage" &&
-					"path" in key &&
-					messageIds.has((key.path as { messageId: string }).messageId)
-				);
-			},
+			predicate: (query) =>
+				retainedReadingQuery(query) && query.queryKey[0] !== "messages",
 		});
 		this.refreshing++;
 		try {
-			await queryClient.refetchQueries({
+			await this.queryClient.refetchQueries({
 				type: "active",
-				predicate: ({ queryKey: [scope, detail, messageId, body] }) =>
-					scope === "messages" &&
-					detail === "detail" &&
-					body === "body" &&
-					typeof messageId === "string" &&
-					messageIds.has(messageId),
+				predicate: (query) => query.queryKey[0] === "messages",
 			});
 		} finally {
 			this.refreshing--;
@@ -479,13 +343,3 @@ export const fetchOfflineContent = (
 	network: () => Promise<Response>,
 ): Promise<Response> =>
 	runtime ? runtime.content(url, mime, network) : network();
-export const validateNetworkPartition = async (
-	response: Response,
-	partition: Partition,
-): Promise<void> => {
-	await requirePartition(partition);
-	if (response.ok && response.headers.get(PARTITION_HEADER) !== partition.key)
-		throw new Error(
-			"Response tenant provenance is missing or changed; nothing was saved",
-		);
-};

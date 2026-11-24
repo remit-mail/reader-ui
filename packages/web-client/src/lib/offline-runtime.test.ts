@@ -2,8 +2,13 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { dehydrate, QueryClient } from "@tanstack/react-query";
 import type { PersistedClient } from "@tanstack/react-query-persist-client";
-import { mergePersistedQueries, retainedReadingQuery } from "./offline-runtime";
-import { admitContent, OFFLINE_FORMAT, type Partition } from "./offline-store";
+import {
+	admitContent,
+	mergePersistedQueries,
+	OFFLINE_FORMAT,
+	type Partition,
+	retainedReadingQuery,
+} from "./offline-store";
 
 const partition: Partition = {
 	key: "tenant-a",
