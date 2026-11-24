@@ -221,14 +221,9 @@ const refreshOneAccount = async (
 };
 
 export interface UseRefreshControlOptions {
-	/** The caller's chance to invalidate whatever view-specific query (a
-	 * mailbox's thread list, the brief's unified list) the sync may have
-	 * changed, alongside the invalidation of the account's own mailbox-list
-	 * query.
-	 *
-	 * Called more than once per press: once per account the moment its INBOX
-	 * is current, and again once its whole round has settled. It must
-	 * therefore be idempotent — an invalidation is. */
+	/** Reload the view as each account's INBOX becomes current. */
+	onInboxSynced?: (accountId: string) => void;
+	/** Reload the view once all account rounds have finished. */
 	onSettled?: () => void;
 }
 
@@ -285,18 +280,17 @@ export const useRefreshControl = (
 
 		startHotSyncWindow();
 
-		// The account's own lists, reloaded. Called once as soon as that
-		// account's INBOX is current and again when its round confirms: the
-		// first is what puts the new mail on screen without waiting for Junk
-		// and Trash, the second is the settled state.
-		const showAccount = (accountId: string): void => {
-			if (run.signal.aborted) return;
+		const invalidateMailboxList = (accountId: string): void => {
 			queryClient.invalidateQueries({
 				queryKey: mailboxOperationsListMailboxesQueryKey({
 					path: { accountId },
 				}),
 			});
-			optionsRef.current.onSettled?.();
+		};
+		const showInbox = (accountId: string): void => {
+			if (run.signal.aborted) return;
+			invalidateMailboxList(accountId);
+			optionsRef.current.onInboxSynced?.(accountId);
 		};
 
 		void (async () => {
@@ -307,7 +301,7 @@ export const useRefreshControl = (
 						telemetry,
 						accountId,
 						run.signal,
-						showAccount,
+						showInbox,
 					),
 				),
 			);
@@ -316,10 +310,12 @@ export const useRefreshControl = (
 			const enqueued = results
 				.filter((result) => result.enqueued)
 				.map((result) => result.accountId);
-			for (const accountId of enqueued) showAccount(accountId);
+			for (const accountId of enqueued) invalidateMailboxList(accountId);
 			if (enqueued.length > 0) {
 				acknowledge(enqueued);
 			}
+
+			optionsRef.current.onSettled?.();
 
 			const failures = results.filter((result) => !result.ok);
 			if (failures.length === 0) {
