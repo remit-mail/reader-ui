@@ -261,7 +261,8 @@ saves completed descriptions, including cache hits, in the reading snapshot
 even when a later download fails. An INBOX head can replace the saved first page
 when its continuation joins the retained pagination. A cursor gap leaves the
 saved list intact, and the new downloads appear in Downloads. Every commit
-rechecks the wipe epoch. A partition mismatch discards that run's results.
+rechecks the wipe epoch. A partition mismatch discards the staged reading snapshot.
+Bodies already admitted remain in the original partition.
 
 Transport failures retain previous downloads. Other failures record one warning
 through the existing recent-errors/telemetry reporter on the next foreground

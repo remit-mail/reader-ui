@@ -187,6 +187,11 @@ export class PeriodicBudget {
 	}
 }
 
+interface CandidatePosition {
+	accountId: string;
+	messageId: string;
+}
+
 /** No retries inside a run except renewing an expired signature once. */
 async function runPeriodicRefresh(
 	config: PeriodicConfig,
@@ -223,7 +228,7 @@ async function runPeriodicRefresh(
 	} as const;
 	const inboxHeads: InboxHead[] = [];
 	const resumeKey = `periodic:resume:${partition.generation}`;
-	let lastAttempted: string | undefined;
+	let lastAttempted: CandidatePosition | undefined;
 	const flush = async () => {
 		if (!client.getQueryCache().getAll().length && !inboxHeads.length) return;
 		await commit(async () => {
@@ -307,8 +312,87 @@ async function runPeriodicRefresh(
 				.map((query) => [query.queryHash, query.state]),
 		);
 		const { data: configData } = await configOperationsGetConfig(get);
-		const candidates = new Set<string>();
-		for (const account of configData.accounts) {
+		const resume = await offlineRecord<CandidatePosition>(resumeKey);
+		const accounts = configData.accounts;
+		const start = Math.max(
+			0,
+			accounts.findIndex((account) => account.accountId === resume?.accountId),
+		);
+		const seen = new Set<string>();
+		let count = 0;
+		const attempt = async (
+			accountId: string,
+			rows: readonly { messageId: string }[],
+		) => {
+			for (const { messageId } of rows) {
+				if (seen.has(messageId)) continue;
+				seen.add(messageId);
+				const path = { messageId };
+				const key = messageOperationsDescribeMessageQueryKey({
+					client: api,
+					path,
+				});
+				const describe = async () => {
+					const result = await messageOperationsDescribeMessage({
+						...get,
+						path,
+					}).catch((error: unknown) => {
+						if (error instanceof ResponseFailure && error.status === 404)
+							return;
+						throw error;
+					});
+					if (result) return { data: result.data, dataUpdatedAt: Date.now() };
+				};
+				const saved = known.get(hashKey(key));
+				const retained = saved?.data as
+					| RemitImapDescribeMessageResponse
+					| undefined;
+				const cachedPart = retained && pickRenderablePart(retained.bodyParts);
+				if (
+					cachedPart &&
+					(await commit(() =>
+						readMailPart(
+							partition,
+							cachedPart.contentUrl,
+							cachedPart.kind === "html" ? "text/html" : "text/plain",
+						),
+					))
+				)
+					continue;
+				if (count >= PERIODIC_MAX_MESSAGES) return;
+				count++;
+				lastAttempted = { accountId, messageId };
+				let description = await describe();
+				if (!description) continue;
+				let downloaded: boolean;
+				try {
+					downloaded = await downloadBody(
+						pickRenderablePart(description.data.bodyParts),
+					);
+				} catch (error) {
+					if (!(error instanceof SignedLinkExpired)) throw error;
+					description = await describe();
+					if (!description) continue;
+					downloaded = await downloadBody(
+						pickRenderablePart(description.data.bodyParts),
+					).catch((retryError: unknown) => {
+						if (retryError instanceof SignedLinkExpired) return false;
+						throw retryError;
+					});
+				}
+				if (!downloaded) continue;
+				client.setQueryData(key, description.data, {
+					updatedAt: description.dataUpdatedAt,
+				});
+			}
+		};
+		let wrapped: readonly { messageId: string }[] = [];
+		for (
+			let offset = 0;
+			offset < accounts.length && count < PERIODIC_MAX_MESSAGES;
+			offset++
+		) {
+			const account = accounts[(start + offset) % accounts.length];
 			const path = { accountId: account.accountId };
 			const { data: mailboxes } = await mailboxOperationsListMailboxes({
 				...get,
@@ -338,72 +422,17 @@ async function runPeriodicRefresh(
 				page: threads,
 				updatedAt: Date.now(),
 			});
-			for (const { messageId } of threads.items ?? [])
-				candidates.add(messageId);
+			const rows = threads.items ?? [];
+			const boundary =
+				account.accountId === resume?.accountId
+					? rows.findIndex(({ messageId }) => messageId === resume.messageId) +
+						1
+					: 0;
+			if (boundary) wrapped = rows.slice(0, boundary);
+			await attempt(account.accountId, rows.slice(boundary));
 		}
-		const ids = [...candidates];
-		const resume = await offlineRecord<string>(resumeKey);
-		const start = resume === undefined ? 0 : ids.indexOf(resume) + 1;
-		let count = 0;
-		for (let offset = 0; offset < ids.length; offset++) {
-			const messageId = ids[(start + offset) % ids.length];
-			const path = { messageId };
-			const key = messageOperationsDescribeMessageQueryKey({
-				client: api,
-				path,
-			});
-			const describe = async () => {
-				const result = await messageOperationsDescribeMessage({
-					...get,
-					path,
-				}).catch((error: unknown) => {
-					if (error instanceof ResponseFailure && error.status === 404) return;
-					throw error;
-				});
-				if (result) return { data: result.data, dataUpdatedAt: Date.now() };
-			};
-			const saved = known.get(hashKey(key));
-			const retained = saved?.data as
-				| RemitImapDescribeMessageResponse
-				| undefined;
-			const cachedPart = retained && pickRenderablePart(retained.bodyParts);
-			if (
-				cachedPart &&
-				(await commit(() =>
-					readMailPart(
-						partition,
-						cachedPart.contentUrl,
-						cachedPart.kind === "html" ? "text/html" : "text/plain",
-					),
-				))
-			)
-				continue;
-			if (count >= PERIODIC_MAX_MESSAGES) break;
-			count++;
-			lastAttempted = messageId;
-			let description = await describe();
-			if (!description) continue;
-			let downloaded: boolean;
-			try {
-				downloaded = await downloadBody(
-					pickRenderablePart(description.data.bodyParts),
-				);
-			} catch (error) {
-				if (!(error instanceof SignedLinkExpired)) throw error;
-				description = await describe();
-				if (!description) continue;
-				downloaded = await downloadBody(
-					pickRenderablePart(description.data.bodyParts),
-				).catch((retryError: unknown) => {
-					if (retryError instanceof SignedLinkExpired) return false;
-					throw retryError;
-				});
-			}
-			if (!downloaded) continue;
-			client.setQueryData(key, description.data, {
-				updatedAt: description.dataUpdatedAt,
-			});
-		}
+		if (resume && count < PERIODIC_MAX_MESSAGES)
+			await attempt(resume.accountId, wrapped);
 	};
 
 	try {

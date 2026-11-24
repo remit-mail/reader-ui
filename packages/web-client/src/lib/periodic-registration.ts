@@ -25,6 +25,8 @@ export interface PeriodicRegistration extends ServiceWorkerRegistration {
 	};
 }
 export interface PeriodicConfig {
+	kind: "bound";
+	optOut: string | undefined;
 	revision: string;
 	verification: string;
 	status: PeriodicStatus;
@@ -43,31 +45,23 @@ export const writePeriodicStatus = (
 	status: PeriodicStatus,
 ): Promise<void> => writeOfflineRecord(CONFIG_KEY, { ...binding, status });
 
-const readConfigRecord = () =>
-	offlineRecord<Partial<PeriodicConfig> & { optOut?: string }>(CONFIG_KEY);
+type PeriodicRecord =
+	| PeriodicConfig
+	| {
+			kind: "disabled";
+			revision: string;
+			optOut: string | undefined;
+	  };
+
+const readConfigRecord = () => offlineRecord<PeriodicRecord>(CONFIG_KEY);
 
 export const periodicOptOutRevision = async (): Promise<string | undefined> =>
 	(await readConfigRecord())?.optOut;
 
 const isPeriodicConfig = (
-	config: Partial<PeriodicConfig> | undefined,
-): config is PeriodicConfig =>
-	typeof config?.revision === "string" &&
-	config.revision.length > 0 &&
-	typeof config.verification === "string" &&
-	config.verification.length > 0 &&
-	config.status !== undefined &&
-	config.partition?.format === OFFLINE_FORMAT &&
-	typeof config.partition.key === "string" &&
-	config.partition.key.length > 0 &&
-	typeof config.partition.generation === "string" &&
-	config.partition.generation.length > 0 &&
-	typeof config.partition.epoch === "string" &&
-	config.partition.epoch.length > 0 &&
-	typeof config.sessionEndpoint === "string" &&
-	config.sessionEndpoint.length > 0 &&
-	typeof config.apiBaseUrl === "string" &&
-	config.apiBaseUrl.length > 0;
+	record: PeriodicRecord | undefined,
+): record is PeriodicConfig =>
+	record?.kind === "bound" && record.partition.format === OFFLINE_FORMAT;
 
 export async function readPeriodicConfig(): Promise<
 	PeriodicConfig | undefined
@@ -93,8 +87,9 @@ export async function registerPeriodicRefresh(
 	options: PeriodicRefreshOptions,
 	apiBaseUrl: string,
 	optOut: string | undefined,
+	reportWarning: (reason: string) => void,
 ): Promise<void> {
-	try {
+	await (async () => {
 		if (
 			typeof ServiceWorkerRegistration === "undefined" ||
 			!("periodicSync" in ServiceWorkerRegistration.prototype) ||
@@ -103,28 +98,39 @@ export async function registerPeriodicRefresh(
 		)
 			return;
 		const revision = (await readConfigRecord())?.revision;
-		const permission = await navigator.permissions.query({
-			name: "periodic-background-sync" as PermissionName,
-		});
-		if (permission.state !== "granted") return;
+		const permission = await navigator.permissions
+			.query({
+				name: "periodic-background-sync" as PermissionName,
+			})
+			.catch(() => undefined);
+		if (permission?.state !== "granted") return;
 		const session = new URL(options.sessionEndpoint, location.origin);
 		const api = new URL(apiBaseUrl, location.origin);
 		if (session.origin !== location.origin || api.origin !== location.origin)
 			return;
-		const registration = (await navigator.serviceWorker
-			.ready) as PeriodicRegistration;
+		const registration = (await navigator.serviceWorker?.ready.catch(
+			() => undefined,
+		)) as PeriodicRegistration | undefined;
+		if (!registration) return;
 		await commitOffline(partition, async () => {
 			const current = await readConfigRecord();
 			if (current?.revision !== revision || current?.optOut !== optOut) return;
-			await registration.periodicSync.register(PERIODIC_TAG, {
-				minInterval: DAILY_INTERVAL,
-			});
+			const registered = await registration.periodicSync
+				.register(PERIODIC_TAG, {
+					minInterval: DAILY_INTERVAL,
+				})
+				.then(
+					() => true,
+					() => false,
+				);
+			if (!registered) return;
 			const sameBinding =
 				isPeriodicConfig(current) &&
 				samePartition(current.partition, partition) &&
 				current.sessionEndpoint === session.href &&
 				current.apiBaseUrl === apiBaseUrl;
 			await writeOfflineRecord(CONFIG_KEY, {
+				kind: "bound",
 				partition,
 				revision: sameBinding ? current.revision : crypto.randomUUID(),
 				verification: crypto.randomUUID(),
@@ -132,11 +138,12 @@ export async function registerPeriodicRefresh(
 				optOut,
 				sessionEndpoint: session.href,
 				apiBaseUrl,
-			} satisfies PeriodicConfig & { optOut?: string });
+			} satisfies PeriodicConfig);
 		});
-	} catch {
-		// Unsupported, uninstalled, denied and failed registrations have no UI/reporting.
-	}
+	})().catch((error: unknown) => {
+		if (!(error instanceof OfflineUnavailableError))
+			reportWarning("Periodic refresh could not save its browser binding");
+	});
 }
 
 const unregisterTag = (registration?: PeriodicRegistration) =>
@@ -168,7 +175,11 @@ export async function stopPeriodicRefresh(
 }
 
 const revokeConfig = (optOut: string | undefined) =>
-	writeOfflineRecord(CONFIG_KEY, { revision: crypto.randomUUID(), optOut });
+	writeOfflineRecord(CONFIG_KEY, {
+		kind: "disabled",
+		revision: crypto.randomUUID(),
+		optOut,
+	} satisfies PeriodicRecord);
 
 /** A foreground host opt-out also removes an earlier installation's registration. */
 export async function disablePeriodicRefresh(

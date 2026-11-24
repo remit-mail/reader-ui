@@ -255,6 +255,7 @@ export class OfflineRuntime {
 				this.options.periodicRefresh,
 				getRuntimeConfig().apiUrl,
 				this.periodicOptOut.revision,
+				reportPeriodicWarning,
 			);
 		if (!wasVerified) window.dispatchEvent(new Event("remit:session-verified"));
 		return true;
