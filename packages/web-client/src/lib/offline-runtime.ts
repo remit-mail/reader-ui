@@ -255,6 +255,19 @@ export class OfflineRuntime {
 		await requirePartition(partition);
 		return partition;
 	}
+	private async commit<T>(
+		partition: Partition,
+		work: () => Promise<T>,
+	): Promise<T> {
+		try {
+			return await commitOffline(partition, work);
+		} catch (error) {
+			this.report(error);
+			if (error instanceof DOMException)
+				throw new OfflineUnavailableError(error.message, error);
+			throw error;
+		}
+	}
 	async write<T>(partition: Partition, work: () => Promise<T>): Promise<T> {
 		if (isUpdatePrepared())
 			throw new OfflineUnavailableError(
@@ -262,14 +275,9 @@ export class OfflineRuntime {
 			);
 		this.pending++;
 		try {
-			const result = await commitOffline(partition, work);
+			const result = await this.commit(partition, work);
 			void this.storage(!this.persistenceRequested).catch(this.report);
 			return result;
-		} catch (error) {
-			this.report(error);
-			if (error instanceof DOMException)
-				throw new OfflineUnavailableError(error.message, error);
-			throw error;
 		} finally {
 			this.pending--;
 		}
@@ -317,7 +325,7 @@ export class OfflineRuntime {
 			throw new Error("Only same-origin mail parts can be downloaded");
 		// No SW runtime caching: each tab owns a captured partition/generation.
 		const cacheKey = `${target.origin}${target.pathname}`;
-		const cached = await commitOffline(partition, async () => {
+		const cached = await this.commit(partition, async () => {
 			const saved = await offlineRecord<{ mime: string }>(
 				`part:${partition.generation}:${cacheKey}`,
 			);
@@ -356,9 +364,7 @@ export class OfflineRuntime {
 		if (!partition)
 			throw new OfflineUnavailableError("No remembered offline identity");
 		const key = `external-image:${partition.generation}:${JSON.stringify(["external-image", resolvedRemoteUrl])}`;
-		const saved = await commitOffline(partition, () =>
-			offlineRecord<Blob>(key),
-		);
+		const saved = await this.commit(partition, () => offlineRecord<Blob>(key));
 		if (saved && !this.refreshing) return saved;
 		await this.authorizeNetwork("POST");
 		const bytes = await externalImageBytes(
