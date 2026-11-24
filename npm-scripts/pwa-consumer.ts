@@ -5,11 +5,12 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { dirname, extname, join } from "node:path";
 import { promisify } from "node:util";
-import { chromium } from "playwright";
+import { chromium, firefox } from "playwright";
 import type { OfflineRuntime } from "../packages/web-client/src/lib/offline-runtime.ts";
 import {
 	makeAccount,
 	makeConfig,
+	makeThreadMessage,
 	makeUserSettings,
 } from "../packages/web-client/src/test-support/fixtures.ts";
 import { testOfflineReading } from "./offline-consumer.ts";
@@ -61,6 +62,17 @@ const types: Record<string, string> = {
 	".png": "image/png",
 };
 let serving = dist;
+let failInstall = false;
+let briefProbe = true;
+const oldCategoryRow = makeThreadMessage({
+	messageId: "old-category-mail",
+	threadId: "old-category-thread",
+	mailboxId: "inbox",
+	category: "marketing",
+	subject: "Old category mail",
+	sentDate: 0,
+	isRead: true,
+});
 let savedSubject: string | undefined;
 let pendingSubject: string | undefined;
 const missingStatic = new Set<string>();
@@ -210,6 +222,19 @@ const server = createServer(async (request, response) => {
 						: { error: "Session unavailable" },
 				),
 			);
+		} else if (path === "/api/threads/old-category-thread/messages") {
+			response.end(JSON.stringify({ items: [oldCategoryRow], hasMore: false }));
+		} else if (path === "/api/threads" && briefProbe) {
+			const query = new URL(request.url!, "http://localhost").searchParams;
+			const matches = query.getAll("category").includes("marketing");
+			response.end(
+				JSON.stringify({
+					items:
+						matches && query.get("results") !== "false" ? [oldCategoryRow] : [],
+					count: matches ? 1 : 0,
+					hasMore: false,
+				}),
+			);
 		} else if (path.startsWith("/api/auth/")) response.end("null");
 		else if (path.startsWith("/api/messages/")) {
 			const messageId = path.split("/").at(-1)!;
@@ -280,6 +305,11 @@ const server = createServer(async (request, response) => {
 	} else if (path === "/index.html") {
 		response.writeHead(308, { Location: "/" });
 		response.end();
+	} else if (path === "/sw.js" && failInstall) {
+		response.setHeader("Content-Type", "application/javascript");
+		response.end(
+			`${readFileSync(file, "utf8")}\nself.addEventListener("install", event => event.waitUntil(Promise.reject(new Error("Install failure probe"))));`,
+		);
 	} else if (existsSync(file) && extname(file)) {
 		response.setHeader(
 			"Content-Type",
@@ -308,6 +338,140 @@ await once(server, "listening");
 const address = server.address();
 assert.ok(address && typeof address !== "string");
 const origin = `http://127.0.0.1:${address.port}`;
+const firefoxBrowser = await firefox.launch();
+try {
+	const context = await firefoxBrowser.newContext();
+	const page = await context.newPage();
+	const threadRequests: string[] = [];
+	page.on("request", (request) => {
+		if (new URL(request.url()).pathname === "/api/threads")
+			threadRequests.push(request.url());
+	});
+	page.on("console", (message) => console.log("Firefox:", message.text()));
+	page.on("pageerror", (error) =>
+		console.log("Firefox page error:", error.message),
+	);
+	await page.goto(`${origin}/mail/brief`);
+	await page.waitForFunction(
+		() => navigator.serviceWorker.controller !== null,
+		null,
+		{ timeout: 30_000 },
+	);
+	await page.waitForLoadState("networkidle");
+	assert.equal(
+		threadRequests.length,
+		16,
+		"eight section pages and eight counts",
+	);
+	assert.equal(
+		new Set(threadRequests).size,
+		16,
+		"no duplicate thread requests",
+	);
+	await page.evaluate(() =>
+		navigator.serviceWorker.dispatchEvent(new Event("controllerchange")),
+	);
+	await page.waitForLoadState("networkidle");
+	assert.equal(
+		threadRequests.length,
+		16,
+		"controllerchange must not refetch the brief",
+	);
+	await page.getByText("Old category mail", { exact: true }).click();
+	await page.waitForURL("**/mail/brief/old-category-thread/old-category-mail");
+	await page
+		.getByRole("heading", { name: "Old category mail", exact: true })
+		.waitFor();
+	assert.equal(
+		threadRequests.length,
+		16,
+		"selecting old mail needs no second listing",
+	);
+	console.log("Firefox PWA installation and old category selection OK");
+	await context.close();
+	briefProbe = false;
+
+	failInstall = true;
+	const failedContext = await firefoxBrowser.newContext();
+	const failed = await failedContext.newPage();
+	await failed.addInitScript(() => {
+		localStorage.setItem("pwa-offline-test", "yes");
+	});
+	const warnings: string[] = [];
+	const errors: string[] = [];
+	failed.on("console", (message) => {
+		if (message.text().startsWith("Service worker unavailable"))
+			warnings.push(message.text());
+	});
+	failed.on("pageerror", (error) => errors.push(error.message));
+	const warned = failed.waitForEvent("console", {
+		predicate: (message) =>
+			message.text().startsWith("Service worker unavailable"),
+		timeout: 30_000,
+	});
+	await Promise.all([failed.goto(`${origin}/downloads/old-mail`), warned]);
+	await failed.waitForFunction(() => !!window.pwaTest);
+	await failed.waitForFunction(
+		() => !!window.pwaTest.offline()?.state.verified,
+	);
+	await failed.getByRole("heading", { name: "Old retained mail" }).waitFor();
+	await failed
+		.frameLocator('iframe[title="Email content"]')
+		.getByText("Old downloaded body", { exact: true })
+		.waitFor();
+	await failed.getByRole("button", { name: "Load once", exact: true }).click();
+	await failed.waitForFunction(() => {
+		const image = document
+			.querySelector<HTMLIFrameElement>('iframe[title="Email content"]')
+			?.contentDocument?.querySelector<HTMLImageElement>(
+				'img[alt="remote image"]',
+			);
+		return (
+			image?.src.startsWith("blob:") &&
+			image.complete &&
+			image.naturalWidth === 1
+		);
+	});
+	const downloaded = failed.waitForEvent("download");
+	await failed
+		.getByRole("button", { name: "Download report.pdf", exact: true })
+		.click();
+	const download = await downloaded;
+	assert.equal(download.suggestedFilename(), "report.pdf");
+	const attachmentPath = await download.path();
+	assert.ok(attachmentPath);
+	assert.equal(
+		readFileSync(attachmentPath, "utf8"),
+		"Offline attachment bytes\n",
+	);
+	assert.doesNotMatch(
+		await failed.locator("body").innerText(),
+		/Reload after offline support finishes installing/,
+	);
+	assert.equal(warnings.length, 1);
+	assert.deepEqual(errors, []);
+	assert.equal(await failed.getByTestId("fatal-error-overlay").count(), 0);
+	assert.equal(
+		await failed.evaluate(() => document.documentElement.inert),
+		false,
+	);
+	assert.equal(
+		await failed.evaluate(() => navigator.serviceWorker.controller),
+		null,
+	);
+	assert.deepEqual(errors, []);
+	assert.equal(await failed.getByTestId("fatal-error-overlay").count(), 0);
+	await failedContext.close();
+	contentRequests.length = 0;
+	imageProxyRequests.length = 0;
+	attachmentExpired = false;
+	failInstall = false;
+	console.log(
+		"Firefox failed install OK: usable app, one warning, no unhandled rejection or fatal",
+	);
+} finally {
+	await firefoxBrowser.close();
+}
 const browser = await chromium.launch({
 	headless: true,
 	channel: "chromium",

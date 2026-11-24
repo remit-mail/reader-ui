@@ -14,7 +14,7 @@ playwright_missing_libraries() {
 	# ldd exits non-zero on a file it cannot inspect; what it printed for the
 	# others still counts, and a browser it could not read fails at launch.
 	{
-		find "$browsers" -type f \( -name chrome -o -name chrome-headless-shell \) \
+		find "$browsers" -type f \( -name chrome -o -name chrome-headless-shell -o -name firefox -o -name firefox-bin -o -name libmozgtk.so \) \
 			-exec ldd {} + 2>/dev/null || true
 	} | awk '/not found/ { print $1 }' | sort -u | tr '\n' ' '
 }

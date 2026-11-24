@@ -316,10 +316,6 @@ export class OfflineRuntime {
 		)
 			throw new Error("Only same-origin mail parts can be downloaded");
 		// No SW runtime caching: each tab owns a captured partition/generation.
-		if (!navigator.serviceWorker?.controller)
-			throw new OfflineUnavailableError(
-				"Reload after offline support finishes installing",
-			);
 		const cacheKey = `${target.origin}${target.pathname}`;
 		const cached = await commitOffline(partition, async () => {
 			const saved = await offlineRecord<{ mime: string }>(
@@ -359,10 +355,6 @@ export class OfflineRuntime {
 		const partition = this.state.partition;
 		if (!partition)
 			throw new OfflineUnavailableError("No remembered offline identity");
-		if (!navigator.serviceWorker?.controller)
-			throw new OfflineUnavailableError(
-				"Reload after offline support finishes installing",
-			);
 		const key = `external-image:${partition.generation}:${JSON.stringify(["external-image", resolvedRemoteUrl])}`;
 		const saved = await commitOffline(partition, () =>
 			offlineRecord<Blob>(key),

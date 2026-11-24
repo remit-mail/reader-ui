@@ -303,6 +303,10 @@ try {
 		cwd: repoRoot,
 		stdio: "inherit",
 	});
+	run("bash", [join(repoRoot, "npm-scripts/pwa-install.sh")], {
+		cwd: repoRoot,
+		stdio: "inherit",
+	});
 	run(
 		process.execPath,
 		["--import", "tsx", join(repoRoot, "npm-scripts/pwa-consumer.ts"), dist],
