@@ -212,6 +212,52 @@ describe("ComposeAttachmentController", () => {
 		assert.equal(rowFor(controller, "report.pdf")?.state.status, "attached");
 	});
 
+	for (const rejectionFirst of [false, true]) {
+		it(`completes a successful PUT when maintenance rejects ${rejectionFirst ? "before" : "after"} it`, async (t) => {
+			t.mock.timers.enable({
+				apis: ["Date", "setTimeout"],
+				now: 1_800_000_000_000,
+			});
+			const { server, controller } = setup();
+			const bytes = deferred<void>();
+			const renewal = deferred<MintedAttachment>();
+			let renewalSignal: AbortSignal | undefined;
+			let renewals = 0;
+			server.transport.put = () => bytes.promise;
+			server.transport.renew = (_draft, _id, signal) => {
+				renewals += 1;
+				renewalSignal = signal;
+				return renewal.promise;
+			};
+			const attaching = controller.attach([file("report.pdf")]);
+			await settle();
+			server.answerMint("report.pdf", "att-1");
+			await settle();
+			t.mock.timers.tick(840_000);
+			await settle();
+			assert.equal(renewals, 1);
+			if (rejectionFirst) {
+				renewal.reject(new Error("Maintenance refused"));
+				await settle();
+				assert.equal(
+					rowFor(controller, "report.pdf")?.state.status,
+					"uploading",
+				);
+			}
+			bytes.resolve();
+			await settle();
+			assert.equal(rowFor(controller, "report.pdf")?.state.status, "attached");
+			assert.deepEqual(server.completed, ["att-1"]);
+			assert.equal(renewalSignal?.aborted, true);
+			if (!rejectionFirst) renewal.reject(new Error("Maintenance refused"));
+			await attaching;
+			t.mock.timers.tick(900_000);
+			await settle();
+			assert.equal(renewals, 1);
+			assert.equal(rowFor(controller, "report.pdf")?.state.status, "attached");
+		});
+	}
+
 	it("renews an expired PUT and uploads the retained File to the fresh URL", async () => {
 		const { server, controller } = setup();
 		const retained = file("report.pdf");

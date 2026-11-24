@@ -41,6 +41,7 @@ export interface AttachmentTransport {
 	renew: (
 		outboxMessageId: string,
 		outboxAttachmentId: string,
+		signal?: AbortSignal,
 	) => Promise<MintedAttachment>;
 	put: (uploadUrl: string, file: File, signal: AbortSignal) => Promise<void>;
 	complete: (
@@ -265,7 +266,46 @@ export class ComposeAttachmentController {
 		};
 	}
 
-	/** Renew an active reservation without interrupting a slow PUT. */
+	/** Keep maintenance independent of the PUT's authoritative outcome. */
+	private async putWithRenewal(
+		transport: AttachmentTransport,
+		outboxMessageId: string,
+		reservation: MintedAttachment,
+		file: File,
+		signal: AbortSignal,
+	): Promise<void> {
+		const maintenance = new AbortController();
+		const renewalSignal = AbortSignal.any([signal, maintenance.signal]);
+		let timer: ReturnType<typeof setTimeout> | undefined;
+		const cancel = () => clearTimeout(timer);
+		renewalSignal.addEventListener("abort", cancel, { once: true });
+		const schedule = (current: MintedAttachment): void => {
+			if (renewalSignal.aborted) return;
+			timer = setTimeout(
+				() => {
+					void transport
+						.renew(
+							outboxMessageId,
+							reservation.outboxAttachmentId,
+							renewalSignal,
+						)
+						.then(schedule, () => {
+							// Stop maintenance on refusal; the PUT can still succeed.
+							// A failed PUT renews explicitly before its one retry.
+						});
+				},
+				Math.max(0, current.uploadExpiresAt * 1000 - Date.now() - 60_000),
+			);
+		};
+		schedule(reservation);
+		try {
+			await transport.put(reservation.uploadUrl, file, signal);
+		} finally {
+			maintenance.abort();
+			renewalSignal.removeEventListener("abort", cancel);
+		}
+	}
+
 	private async transfer(
 		transport: AttachmentTransport,
 		outboxMessageId: string,
@@ -273,58 +313,38 @@ export class ComposeAttachmentController {
 		file: File,
 		signal: AbortSignal,
 	): Promise<void> {
-		const controller = new AbortController();
-		const uploadSignal = AbortSignal.any([signal, controller.signal]);
-		const put = (url: string) =>
-			transport.put(url, file, uploadSignal).then(
-				() => ({ kind: "uploaded" as const }),
-				(error: unknown) => ({ kind: "failed" as const, error }),
-			);
+		const renew = () =>
+			transport.renew(outboxMessageId, minted.outboxAttachmentId, signal);
 		let reservation = minted;
-		let recoveredExpiry = false;
+		if (reservation.uploadExpiresAt * 1000 - Date.now() <= 60_000) {
+			reservation = await renew();
+		}
+		if (signal.aborted) return;
 		try {
-			if (reservation.uploadExpiresAt * 1000 - Date.now() <= 60_000) {
-				reservation = await transport.renew(
-					outboxMessageId,
-					minted.outboxAttachmentId,
-				);
-			}
+			await this.putWithRenewal(
+				transport,
+				outboxMessageId,
+				reservation,
+				file,
+				signal,
+			);
+		} catch (error) {
+			const rejection = error instanceof ApiError ? error.body : error;
+			if (
+				signal.aborted ||
+				!isRejection(rejection) ||
+				rejection.reason !== "ReservationExpired"
+			)
+				throw error;
+			reservation = await renew();
 			if (signal.aborted) return;
-			let uploading = put(reservation.uploadUrl);
-			while (!signal.aborted) {
-				let timer: ReturnType<typeof setTimeout> | undefined;
-				const renewalDue = new Promise<{ kind: "renew" }>((resolve) => {
-					timer = setTimeout(
-						() => resolve({ kind: "renew" }),
-						Math.max(
-							0,
-							reservation.uploadExpiresAt * 1000 - Date.now() - 60_000,
-						),
-					);
-				});
-				const result = await Promise.race([uploading, renewalDue]);
-				clearTimeout(timer);
-				if (signal.aborted || result.kind === "uploaded") return;
-				if (result.kind === "failed") {
-					const rejection =
-						result.error instanceof ApiError ? result.error.body : result.error;
-					if (
-						!isRejection(rejection) ||
-						rejection.reason !== "ReservationExpired" ||
-						recoveredExpiry
-					)
-						throw result.error;
-					recoveredExpiry = true;
-				}
-				reservation = await transport.renew(
-					outboxMessageId,
-					minted.outboxAttachmentId,
-				);
-				if (signal.aborted) return;
-				if (result.kind === "failed") uploading = put(reservation.uploadUrl);
-			}
-		} finally {
-			controller.abort();
+			await this.putWithRenewal(
+				transport,
+				outboxMessageId,
+				reservation,
+				file,
+				signal,
+			);
 		}
 	}
 

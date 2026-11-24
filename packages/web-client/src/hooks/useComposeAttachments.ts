@@ -83,9 +83,10 @@ export const useComposeAttachments = ({
 					sizeBytes: file.size,
 				},
 			}),
-		renew: (outboxMessageId, outboxAttachmentId) =>
+		renew: (outboxMessageId, outboxAttachmentId, signal) =>
 			renewMutation.mutateAsync({
 				path: { outboxMessageId, outboxAttachmentId },
+				signal,
 			}),
 		put: putFile,
 		complete: (outboxMessageId, outboxAttachmentId) =>
