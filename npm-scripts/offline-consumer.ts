@@ -175,7 +175,13 @@ export async function testBackgroundRefresh(
 		const verify = () =>
 			peer.evaluate(() => window.pwaTest.offline()!.verify());
 		setMessage("late-mail");
-		const beforeOptOut = (await snapshot())?.clientState.queries;
+		// Other tabs can dehydrate restored queries again without changing their data.
+		const savedQueries = async () =>
+			(await snapshot())?.clientState.queries.map(({ queryHash, state }) => ({
+				queryHash,
+				state,
+			}));
+		const beforeOptOut = await savedQueries();
 		await run({
 			path: "/api/messages/late-mail",
 			async respond(route) {
@@ -186,7 +192,7 @@ export async function testBackgroundRefresh(
 				await route.continue();
 			},
 		});
-		assert.deepEqual((await snapshot())?.clientState.queries, beforeOptOut);
+		assert.deepEqual(await savedQueries(), beforeOptOut);
 		assert.equal(
 			await page.evaluate(
 				async () => !!(await caches.match("/content/late-mail/html")),
