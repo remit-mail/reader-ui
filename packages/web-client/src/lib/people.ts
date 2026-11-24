@@ -28,7 +28,7 @@ export type PeopleFailure =
 	| { kind: "signedOut" }
 	| { kind: "wrongPassword" }
 	| { kind: "locked" }
-	| { kind: "failed"; reason: string };
+	| { kind: "failed" };
 
 export const peopleFailureReason = (error: unknown): string =>
 	formatErrorDetail(error) ??
@@ -41,7 +41,7 @@ export const classifyPeopleFailure = (error: unknown): PeopleFailure => {
 	const code = codedApiErrorBody(error)?.code;
 	if (code === PeopleErrorCode.WrongPassword) return { kind: "wrongPassword" };
 	if (code === PeopleErrorCode.StepUpLocked) return { kind: "locked" };
-	return { kind: "failed", reason: peopleFailureReason(error) };
+	return { kind: "failed" };
 };
 
 export interface PersonActionCopy {
