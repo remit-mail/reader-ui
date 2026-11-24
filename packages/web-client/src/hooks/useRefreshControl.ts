@@ -154,9 +154,6 @@ export const waitForSettled = async ({
 
 interface AccountResult {
 	accountId: string;
-	/** The trigger itself was accepted — the mailbox-list invalidation and
-	 * `onSettled`/`acknowledge` calls run for every enqueued account,
-	 * independent of whether its own round then succeeded. */
 	enqueued: boolean;
 	ok: boolean;
 	message?: string;

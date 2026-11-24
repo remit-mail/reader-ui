@@ -10,10 +10,10 @@ test("hands off each account's INBOX early and reloads once after both rounds fi
 	const onInboxSynced = t.mock.fn<(accountId: string) => void>();
 	const onSettled = t.mock.fn();
 	const statusReads = new Map<string, number>();
-	const release = new window.EventTarget();
-	const held = new Promise<void>((resolve) =>
-		release.addEventListener("finish", () => resolve(), { once: true }),
-	);
+	let release!: () => void;
+	const held = new Promise<void>((resolve) => {
+		release = resolve;
+	});
 	const http = mockFetch(async ({ method, path }) => {
 		const accountId = path.match(/\/accounts\/([ab])\/sync(?:\/status)?$/)?.[1];
 		assert.ok(accountId, path);
@@ -61,13 +61,13 @@ test("hands off each account's INBOX early and reloads once after both rounds fi
 			["a", "b"],
 		);
 		assert.equal(onSettled.mock.callCount(), 0);
-		assert.equal(dom.byText("button", "refreshing").textContent, "refreshing");
-		release.dispatchEvent(new window.Event("finish"));
+		dom.byText("button", "refreshing");
+		release();
 		await dom.waitFor(() => onSettled.mock.callCount() > 0);
 		assert.equal(onSettled.mock.callCount(), 1);
-		assert.equal(dom.byText("button", "success").textContent, "success");
+		dom.byText("button", "success");
 	} finally {
-		release.dispatchEvent(new window.Event("finish"));
+		release();
 		dom.close();
 		http.restore();
 	}
