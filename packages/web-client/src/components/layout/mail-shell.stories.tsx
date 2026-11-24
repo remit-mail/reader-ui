@@ -38,10 +38,10 @@ const rows = (): HTMLElement[] =>
 const conversation = () =>
 	page().findByRole("heading", { level: 1, name: "Q3 planning" });
 
-const refreshQueued = new Set<string>();
+const refreshRequestedAt = new Map<string, number>();
 export const RefreshFailed: Story = {
 	beforeEach: () => {
-		refreshQueued.clear();
+		refreshRequestedAt.clear();
 	},
 	parameters: {
 		msw: {
@@ -53,24 +53,31 @@ export const RefreshFailed: Story = {
 							world.accounts.map((account) => ({
 								...account,
 								lastSyncAt: Date.now(),
+								connectionState: "reauth_required",
 							})),
 						),
 					),
 				),
 				http.post("/api/accounts/:accountId/sync", ({ params }) => {
-					refreshQueued.add(String(params.accountId));
-					return HttpResponse.json({ triggered: true });
+					const requestedAt = Date.now();
+					refreshRequestedAt.set(String(params.accountId), requestedAt);
+					return HttpResponse.json({
+						triggered: true,
+						message: "Sync requested",
+						requestedAt,
+					});
 				}),
-				http.get("/api/accounts/:accountId/sync/status", ({ params }) =>
-					HttpResponse.json({
+				http.get("/api/accounts/:accountId/sync/status", ({ params }) => {
+					const syncRequestedAt = refreshRequestedAt.get(
+						String(params.accountId),
+					);
+					return HttpResponse.json({
 						accountId: params.accountId,
-						lastSyncAt: 1,
-						syncPhase: refreshQueued.has(String(params.accountId))
-							? "error"
-							: "complete",
+						syncRequestedAt,
+						syncPhase: syncRequestedAt === undefined ? "complete" : "error",
 						mailboxes: [],
-					}),
-				),
+					});
+				}),
 				...mailHandlers(world),
 			],
 		},

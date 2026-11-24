@@ -1,5 +1,3 @@
-import { threadDetailOperationsListThreadMessagesQueryKey } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
-import type { ThreadDetailOperationsListThreadMessagesResponse } from "@remit/api-http-client/types.gen.ts";
 import {
 	onlineManager,
 	type Query,
@@ -41,34 +39,25 @@ export interface OfflineState {
 	quota?: number;
 	persistent?: boolean;
 }
-const threadLists = new Set([
+const readingQueries = new Set([
+	"mailboxOperationsListMailboxes",
+	"messageOperationsDescribeMessage",
+	"threadDetailOperationsListThreadMessages",
 	"threadOperationsListThreads",
 	"threadOperationsSearchThreads",
 	"unifiedThreadOperationsListAllThreads",
 ]);
 
-const readingQueryKey = ({ queryKey: [key] }: Pick<Query, "queryKey">) =>
-	key &&
+/** Explicit reading allowlist; settings, auth, drafts and mutations never persist. */
+export const retainedReadingQuery = ({
+	queryKey: [key],
+}: Pick<Query, "queryKey">): boolean =>
+	!!key &&
 	typeof key === "object" &&
 	"_id" in key &&
 	!("headers" in key) &&
-	!("body" in key)
-		? key
-		: undefined;
-
-/** Explicit reading allowlist; settings, auth, drafts and mutations never persist. */
-export const retainedReadingQuery = (
-	query: Pick<Query, "queryKey">,
-): boolean => {
-	const key = readingQueryKey(query);
-	return (
-		key !== undefined &&
-		(threadLists.has(String(key._id)) ||
-			key._id === "mailboxOperationsListMailboxes" ||
-			key._id === "messageOperationsDescribeMessage" ||
-			key._id === "threadDetailOperationsListThreadMessages")
-	);
-};
+	!("body" in key) &&
+	readingQueries.has(String(key._id));
 
 /** Preserve the last successful descriptor even when a list page or error replaces it. */
 export const mergePersistedQueries = (
@@ -98,7 +87,6 @@ export class OfflineRuntime {
 	private starting?: Promise<void>;
 	private revoked = false;
 	private queryClient?: QueryClient;
-	private refreshing = 0;
 	private persistenceRequested = false;
 	constructor(readonly options: OfflineOptions) {
 		registerUpdateBlocker(
@@ -347,7 +335,7 @@ export class OfflineRuntime {
 				? (await caches.open(contentCacheName(partition))).match(cacheKey)
 				: undefined;
 		});
-		if (cached && !this.refreshing) return cached;
+		if (cached) return cached;
 		await this.authorizeNetwork("GET");
 		const response = await network();
 		if (await admitContent(response, mime, partition)) {
@@ -379,7 +367,7 @@ export class OfflineRuntime {
 			throw new OfflineUnavailableError("No remembered offline identity");
 		const key = `external-image:${partition.generation}:${JSON.stringify(["external-image", resolvedRemoteUrl])}`;
 		const saved = await this.commit(partition, () => offlineRecord<Blob>(key));
-		if (saved && !this.refreshing) return saved;
+		if (saved) return saved;
 		await this.authorizeNetwork("POST");
 		const bytes = await externalImageBytes(
 			await requestExternalImage(proxyUrl, resolvedRemoteUrl),
@@ -397,66 +385,12 @@ export class OfflineRuntime {
 		const { usage, quota } = await navigator.storage.estimate();
 		this.update({ persistent, usage, quota });
 	}
-	async refreshReading({
-		openThreadId,
-		listsVisible,
-	}: {
-		openThreadId?: string;
-		listsVisible: boolean;
-	}): Promise<void> {
-		const queryClient = this.queryClient;
-		if (!queryClient || !this.state.verified) return;
-		const thread = openThreadId
-			? threadDetailOperationsListThreadMessagesQueryKey({
-					path: { threadId: openThreadId },
-				})
-			: undefined;
-		await Promise.all([
-			listsVisible &&
-				queryClient.refetchQueries({
-					type: "active",
-					predicate: (query) => {
-						const key = readingQueryKey(query);
-						return !!key && threadLists.has(String(key._id));
-					},
-				}),
-			thread &&
-				queryClient.refetchQueries({
-					type: "active",
-					queryKey: thread,
-				}),
-		]);
-		if (!thread) return;
-		const messageIds = new Set(
-			queryClient
-				.getQueryData<ThreadDetailOperationsListThreadMessagesResponse>(thread)
-				?.items.map(({ messageId }) => messageId),
-		);
-		await queryClient.refetchQueries({
+	async refreshReading(): Promise<void> {
+		if (!this.state.verified) return;
+		await this.queryClient?.refetchQueries({
 			type: "active",
-			predicate: (query) => {
-				const key = readingQueryKey(query);
-				return (
-					key?._id === "messageOperationsDescribeMessage" &&
-					"path" in key &&
-					messageIds.has((key.path as { messageId: string }).messageId)
-				);
-			},
+			predicate: retainedReadingQuery,
 		});
-		this.refreshing++;
-		try {
-			await queryClient.refetchQueries({
-				type: "active",
-				predicate: ({ queryKey: [scope, detail, messageId, body] }) =>
-					scope === "messages" &&
-					detail === "detail" &&
-					body === "body" &&
-					typeof messageId === "string" &&
-					messageIds.has(messageId),
-			});
-		} finally {
-			this.refreshing--;
-		}
 	}
 }
 let runtime: OfflineRuntime | undefined;

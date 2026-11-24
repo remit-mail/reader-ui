@@ -17,6 +17,7 @@
 
 import assert from "node:assert/strict";
 import { afterEach, beforeEach, describe, mock, test } from "node:test";
+import { syncOperationsGetSyncStatusOptions } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
 import { act, createElement } from "react";
 import {
 	__resetHotSyncWindow,
@@ -24,6 +25,7 @@ import {
 	HOT_WINDOW_MS,
 	startHotSyncWindow,
 } from "../lib/hot-sync-window";
+import { MailFreshnessProvider } from "../lib/mail-freshness";
 import { OFFLINE_ERROR_EVENT } from "../lib/offline-error";
 import { installOfflineRuntime } from "../lib/offline-runtime";
 import { createDomHarness, type DomHarness } from "../test-support/dom";
@@ -46,9 +48,18 @@ const { __resetStaleAccountSyncGuard, POLL_INTERVAL_MS, useStaleAccountSync } =
 let harness: DomHarness | undefined;
 let http: HttpMock | undefined;
 
-function PollLoop() {
-	useStaleAccountSync([makeAccount({ accountId: ACCOUNT_ID, lastSyncAt: T0 })]);
-	return null;
+function PollLoop({ watchStatus = false }: { watchStatus?: boolean }) {
+	const onSyncStatus = useStaleAccountSync([
+		makeAccount({ accountId: ACCOUNT_ID, lastSyncAt: T0 }),
+	]);
+	return watchStatus
+		? createElement(MailFreshnessProvider, {
+				accountIds: [ACCOUNT_ID],
+				onSyncStatus,
+				// biome-ignore lint/correctness/noChildrenProp: createElement's variadic children do not satisfy a required prop
+				children: null,
+			})
+		: null;
 }
 
 /**
@@ -69,7 +80,7 @@ const settle = async (dom: DomHarness): Promise<void> => {
 };
 
 const mount = async (): Promise<DomHarness> => {
-	http = mockFetch(() => ({ status: "queued" }));
+	http = mockFetch(() => ({ triggered: true, requestedAt: Date.now() }));
 	const dom = createDomHarness();
 	harness = dom;
 	dom.renderApp(createElement(PollLoop));
@@ -160,7 +171,7 @@ describe("the poll loop across hide and show, on a long ambient interval", () =>
 	});
 });
 
-test("a failed poll calls the sync failure handler once without an offline error", async (t) => {
+test("background polls release the POST guard and act once on each new terminal stamp", async (t) => {
 	mock.timers.enable({ apis: ["setTimeout", "Date"], now: T0 });
 	setVisibility("visible");
 	const runtime = installOfflineRuntime({
@@ -172,26 +183,67 @@ test("a failed poll calls the sync failure handler once without an offline error
 	const warn = t.mock.method(console, "warn", () => {});
 	const offlineError = t.mock.fn();
 	window.addEventListener(OFFLINE_ERROR_EVENT, offlineError);
-	let triggered = false;
+	const requests: number[] = [];
+	let status = { syncRequestedAt: T0 - 1, syncPhase: "error" };
 	const fetch = mockFetch(({ path, method }) => {
-		if (method === "POST" && path.endsWith("/sync")) triggered = true;
-		return { lastSyncAt: T0, syncPhase: triggered ? "error" : "complete" };
+		if (method === "POST" && path.endsWith("/sync")) {
+			const requestedAt = Date.now();
+			requests.push(requestedAt);
+			return { triggered: true, requestedAt };
+		}
+		return { accountId: ACCOUNT_ID, mailboxes: [], ...status };
 	});
 	const dom = createDomHarness();
+	const readStatus = async () => {
+		await advance(dom, 1);
+		await act(async () => {
+			await dom.queryClient.fetchQuery(
+				syncOperationsGetSyncStatusOptions({ path: { accountId: ACCOUNT_ID } }),
+			);
+		});
+		await advance(dom, 1);
+	};
 	try {
-		dom.renderApp(createElement(PollLoop));
+		dom.renderApp(createElement(PollLoop, { watchStatus: true }));
+		await settle(dom);
 		await advance(dom, AMBIENT_MS);
-		assert.equal(fetch.to("/sync/status").length, 2);
-		assert.equal(warn.mock.callCount(), 1);
-		assert.match(dom.text(), /Couldn't sync/);
-		assert.equal(offlineError.mock.callCount(), 0);
+		await readStatus();
+		await advance(dom, AMBIENT_MS);
+		assert.equal(
+			requests.length,
+			2,
+			"the first round never started, but the next tick posted",
+		);
+		assert.equal(
+			fetch.to("/sync/status").length,
+			2,
+			"only the shared query reads status",
+		);
+		assert.doesNotMatch(dom.text(), /Couldn't sync/);
+		assert.equal(warn.mock.callCount(), 0);
 		assert.equal(refreshReading.mock.callCount(), 0);
+
+		const [first, second] = requests;
+		assert.ok(first && second);
+		status = { syncRequestedAt: first, syncPhase: "error" };
+		await readStatus();
+		await readStatus();
+		assert.match(dom.text(), /Couldn't sync/);
+		assert.equal(warn.mock.callCount(), 1);
+		assert.equal(refreshReading.mock.callCount(), 0);
+
+		status = { syncRequestedAt: second, syncPhase: "complete" };
+		await readStatus();
+		await readStatus();
+		assert.equal(refreshReading.mock.callCount(), 1);
+		assert.equal(offlineError.mock.callCount(), 0);
 	} finally {
 		dom.close();
 		mock.timers.reset();
 		fetch.restore();
 		window.removeEventListener(OFFLINE_ERROR_EVENT, offlineError);
 		(Reflect.get(runtime, "channel") as BroadcastChannel).close();
+		__resetStaleAccountSyncGuard();
 		Reflect.deleteProperty(document, "visibilityState");
 	}
 });

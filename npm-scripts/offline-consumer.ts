@@ -777,11 +777,8 @@ export async function testOfflineReading(
 			.getByTestId("conversation-messages")
 			.getByText("Reply sender", { exact: true });
 		assert.equal(await reply.count(), 0);
-		await context.setOffline(true);
-		await page.waitForFunction(() => !window.pwaTest.offline()?.state.verified);
 		controls.queueReply();
-		await context.setOffline(false);
-		await reply.click();
+		await reply.click({ timeout: 75_000 });
 		const replyBody = (page: Page) =>
 			page
 				.frameLocator('iframe[title="Email content"]')

@@ -248,6 +248,7 @@ const server = createServer(async (request, response) => {
 					accountId: "acc-1",
 					syncPhase: "complete",
 					lastSyncAt: syncStamp,
+					syncRequestedAt: syncStamp,
 					mailboxes: [],
 				}),
 			);
@@ -255,9 +256,15 @@ const server = createServer(async (request, response) => {
 			path === "/api/accounts/acc-1/sync" &&
 			request.method === "POST"
 		) {
-			syncStamp++;
+			syncStamp = Math.max(syncStamp + 1, Date.now());
 			if (replyPending) replyDelivered = true;
-			response.end(JSON.stringify({ triggered: true }));
+			response.end(
+				JSON.stringify({
+					triggered: true,
+					message: "Sync requested",
+					requestedAt: syncStamp,
+				}),
+			);
 		} else if (path === "/api/threads/old-category-thread/messages") {
 			response.end(
 				JSON.stringify({

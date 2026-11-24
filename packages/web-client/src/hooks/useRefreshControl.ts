@@ -11,15 +11,23 @@ import { escalate } from "../lib/escalate";
 import { startHotSyncWindow } from "../lib/hot-sync-window";
 import { useMailFreshness } from "../lib/mail-freshness";
 import { useTelemetry } from "../lib/telemetry-context";
-import { isSyncingPhase } from "./useInitialSyncProgress";
 
 export type { RefreshControlState };
 
 /** How often the wait reads status after the sync is enqueued. */
 export const REFRESH_POLL_MS = 2000;
 
-const sleep = (ms: number): Promise<void> =>
-	new Promise((resolve) => setTimeout(resolve, ms));
+const sleep = (ms: number, signal: AbortSignal): Promise<void> =>
+	new Promise((resolve) => {
+		const finish = () => {
+			clearTimeout(timer);
+			signal.removeEventListener("abort", finish);
+			resolve();
+		};
+		const timer = setTimeout(finish, ms);
+		if (signal.aborted) finish();
+		else signal.addEventListener("abort", finish, { once: true });
+	});
 
 const messageFor = (error: unknown): string =>
 	error instanceof Error && error.message
@@ -59,7 +67,7 @@ const fetchStatus = (queryClient: QueryClient, accountId: string) =>
  * from a scripted sequence of readings. */
 export interface SyncStatusReading {
 	syncPhase?: RemitImapSyncPhase;
-	lastSyncAt?: number;
+	syncRequestedAt?: number;
 	mailboxes?: readonly { fullPath?: string; lastSyncedAt?: number }[];
 }
 
@@ -75,81 +83,44 @@ export const inboxSyncedAt = (reading: SyncStatusReading): number =>
 
 export interface WaitForSettledOptions {
 	readStatus: () => Promise<SyncStatusReading>;
-	/** `lastSyncAt` as it read immediately before this refresh triggered. */
-	baselineLastSyncAt: number;
+	/** The timestamp returned by POST /sync. */
+	requestedAt: number;
 	/** The INBOX `lastSyncedAt` from that same pre-trigger reading. */
 	baselineInboxSyncedAt?: number;
 	/** Called at most once, the moment INBOX's own stamp passes the baseline
 	 * while the round is still running — never after the round has settled,
 	 * which the caller already treats as the confirmed state. */
 	onInboxSynced?: () => void;
-	signal?: AbortSignal;
+	signal: AbortSignal;
 	pollMs?: number;
 }
 
-/**
- * Poll one account's sync status until a round that started at or after this
- * refresh triggered has settled, failed, or been cancelled.
- *
- * `account.lastSyncAt` is the worker's own once-per-round stamp, and it is the
- * only thing here that tells one round from another. A phase seen mid-flight
- * does not: the tab's background poll, another tab, and every `GET /config`
- * trigger rounds nobody clicked for, so a click landing while one of those is
- * in flight used to confirm on it — a checkmark and an invalidated list with
- * the clicked round still unrun, and the new mail it would have fetched unseen
- * until the next poll (#953). Requiring the stamp to pass the reading taken
- * before the trigger admits only a round that started after it.
- *
- * Discovery can fail before the worker advances the stamp. An error phase
- * ends the wait even when the stamp is unchanged.
- *
- * A round is the whole account — every folder, in queue order — but the mail
- * a person pressed refresh for is in their inbox. `onInboxSynced` fires the
- * moment that one mailbox's own stamp passes the baseline, so the list on
- * screen reloads then rather than after Junk and Trash have also gone by. The
- * round-level stamp still decides the button's confirmed state.
- *
- * Waiting reads only sync status.
- */
+/** Wait for this request or a later round, with an early handoff for INBOX. */
 export const waitForSettled = async ({
 	readStatus,
-	baselineLastSyncAt,
+	requestedAt,
 	baselineInboxSyncedAt = 0,
 	onInboxSynced,
 	signal,
 	pollMs = REFRESH_POLL_MS,
 }: WaitForSettledOptions): Promise<boolean> => {
-	const poll = async (): Promise<boolean> => {
-		let inboxAnnounced = false;
-		while (!signal?.aborted) {
-			const reading = await readStatus();
-			if (signal?.aborted) return false;
-			const { syncPhase, lastSyncAt } = reading;
+	let inboxAnnounced = false;
+	while (!signal.aborted) {
+		const reading = await readStatus();
+		if (signal.aborted) return false;
+		const { syncPhase, syncRequestedAt } = reading;
+		if (syncRequestedAt !== undefined && syncRequestedAt >= requestedAt) {
 			if (syncPhase === "error")
 				throw new Error("Sync failed for this account");
-			if ((lastSyncAt ?? 0) > baselineLastSyncAt && !isSyncingPhase(syncPhase))
-				return true;
-			if (!inboxAnnounced && inboxSyncedAt(reading) > baselineInboxSyncedAt) {
-				inboxAnnounced = true;
-				onInboxSynced?.();
-			}
-			await sleep(pollMs);
+			if (syncPhase === "complete") return true;
 		}
-		return false;
-	};
-	if (!signal) return poll();
-	if (signal.aborted) return false;
-	let complete: (settled: boolean) => void;
-	const cancelled = new Promise<boolean>((resolve) => {
-		complete = resolve;
-	});
-	const cancel = () => complete(false);
-	signal.addEventListener("abort", cancel, { once: true });
-	try {
-		return await Promise.race([poll(), cancelled]);
-	} finally {
-		signal.removeEventListener("abort", cancel);
+		if (!inboxAnnounced && inboxSyncedAt(reading) > baselineInboxSyncedAt) {
+			inboxAnnounced = true;
+			onInboxSynced?.();
+		}
+		await sleep(pollMs, signal);
 	}
+	return false;
 };
 
 interface AccountResult {
@@ -172,7 +143,6 @@ const refreshOneAccount = async (
 	const baseline = await fetchStatus(queryClient, accountId)
 		.then((data) => ({
 			ok: true as const,
-			lastSyncAt: data.lastSyncAt ?? 0,
 			inboxSyncedAt: inboxSyncedAt(data),
 		}))
 		.catch((error: unknown) => ({ ok: false as const, error }));
@@ -191,7 +161,7 @@ const refreshOneAccount = async (
 		signal,
 		throwOnError: true,
 	})
-		.then(() => ({ ok: true as const }))
+		.then(({ data }) => ({ ok: true as const, requestedAt: data.requestedAt }))
 		.catch((error: unknown) => ({ ok: false as const, error }));
 	if (!triggered.ok) {
 		if (!signal.aborted) escalateIfFatal(triggered.error);
@@ -206,7 +176,7 @@ const refreshOneAccount = async (
 
 	return waitForSettled({
 		readStatus: () => fetchStatus(queryClient, accountId),
-		baselineLastSyncAt: baseline.lastSyncAt,
+		requestedAt: triggered.requestedAt,
 		baselineInboxSyncedAt: baseline.inboxSyncedAt,
 		onInboxSynced: () => onInboxSynced(accountId),
 		signal,

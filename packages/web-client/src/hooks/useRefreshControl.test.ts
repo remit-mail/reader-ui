@@ -8,6 +8,7 @@ import {
 } from "./useRefreshControl.js";
 
 const BASELINE = 1_700_000_000_000;
+const REQUESTED = BASELINE + 1;
 const LATER = BASELINE + 5_000;
 
 /** Replays `readings` in order and holds on the last one, counting reads so a
@@ -29,63 +30,43 @@ const wait = (readings: readonly SyncStatusReading[]) => {
 		state,
 		outcome: waitForSettled({
 			readStatus,
-			baselineLastSyncAt: BASELINE,
+			requestedAt: REQUESTED,
+			signal: new AbortController().signal,
 			pollMs: 0,
 		}),
 	};
 };
 
 describe("waitForSettled", () => {
-	// #953: the tab's own background poll, another tab, and every GET /config
-	// start rounds the user never clicked for. Seeing one of those in flight and
-	// then complete used to be read as confirmation, so the button showed a
-	// checkmark and invalidated the list with the clicked round still unrun —
-	// new mail stayed unshown until the next poll. Only the account's own
-	// round-start stamp moving past the pre-trigger reading counts.
-	test("does not confirm on a round that was already in flight at the trigger", async () => {
+	test("ignores an older round's error and confirms on a later round", async () => {
 		const { state, outcome } = wait([
-			{ syncPhase: "syncing_inbox", lastSyncAt: BASELINE },
-			{ syncPhase: "complete", lastSyncAt: BASELINE },
-			{ syncPhase: "complete", lastSyncAt: LATER },
+			{ syncPhase: "error", syncRequestedAt: BASELINE },
+			{ syncPhase: "syncing_inbox", syncRequestedAt: REQUESTED },
+			{ syncPhase: "complete", syncRequestedAt: LATER },
 		]);
 
 		assert.equal(await outcome, true);
 		assert.equal(state.reads, 3);
 	});
 
-	test("confirms once the account's own round has started and settled", async () => {
+	test("confirms when the requested round completes", async () => {
 		const { state, outcome } = wait([
-			{ syncPhase: "complete", lastSyncAt: LATER },
+			{ syncPhase: "complete", syncRequestedAt: REQUESTED },
 		]);
 
 		assert.equal(await outcome, true);
 		assert.equal(state.reads, 1);
 	});
 
-	test("waits past 45 seconds and ends on an error with the same stamp", async ({
-		mock,
-	}) => {
-		mock.timers.enable({ apis: ["setTimeout", "Date"], now: BASELINE });
-		let syncPhase: SyncStatusReading["syncPhase"] = "syncing_inbox";
-		let reads = 0;
-		const outcome = waitForSettled({
-			baselineLastSyncAt: BASELINE,
-			readStatus: async () => {
-				reads++;
-				return { syncPhase, lastSyncAt: BASELINE };
-			},
-		});
-		const failed = assert.rejects(outcome, /Sync failed for this account/);
-		for (let elapsed = 0; elapsed < 46_000; elapsed += REFRESH_POLL_MS) {
-			await new Promise(setImmediate);
-			mock.timers.tick(REFRESH_POLL_MS);
-		}
-		await new Promise(setImmediate);
-		assert.equal(Date.now(), BASELINE + 46_000);
-		assert.equal(reads, 24);
-		syncPhase = "error";
-		mock.timers.tick(REFRESH_POLL_MS);
-		await failed;
+	test("fails once on the requested round's error", async () => {
+		const { state, outcome } = wait([
+			{ syncPhase: "error", syncRequestedAt: BASELINE },
+			{ syncPhase: "error", syncRequestedAt: REQUESTED },
+			{ syncPhase: "complete", syncRequestedAt: LATER },
+		]);
+
+		await assert.rejects(outcome, /Sync failed for this account/);
+		assert.equal(state.reads, 2);
 	});
 
 	test("ends without reading again when cancelled", async ({ mock }) => {
@@ -95,7 +76,7 @@ describe("waitForSettled", () => {
 			{ syncPhase: "syncing_inbox" },
 		]);
 		const outcome = waitForSettled({
-			baselineLastSyncAt: BASELINE,
+			requestedAt: REQUESTED,
 			readStatus,
 			signal: controller.signal,
 		});
@@ -108,13 +89,14 @@ describe("waitForSettled", () => {
 
 	test("an account that has never synced confirms on its first stamp", async () => {
 		const { state, readStatus } = scriptedReader([
-			{ syncPhase: "idle", lastSyncAt: undefined },
-			{ syncPhase: "complete", lastSyncAt: LATER },
+			{ syncPhase: "idle", syncRequestedAt: undefined },
+			{ syncPhase: "complete", syncRequestedAt: LATER },
 		]);
 
 		const outcome = await waitForSettled({
 			readStatus,
-			baselineLastSyncAt: 0,
+			requestedAt: REQUESTED,
+			signal: new AbortController().signal,
 			pollMs: 0,
 		});
 
@@ -127,7 +109,8 @@ describe("waitForSettled", () => {
 		await assert.rejects(
 			waitForSettled({
 				readStatus: () => Promise.reject(failure),
-				baselineLastSyncAt: BASELINE,
+				requestedAt: REQUESTED,
+				signal: new AbortController().signal,
 			}),
 			failure,
 		);
@@ -169,31 +152,32 @@ describe("waitForSettled inbox handoff", () => {
 		const { state, readStatus } = scriptedReader([
 			{
 				syncPhase: "syncing_inbox",
-				lastSyncAt: LATER,
+				syncRequestedAt: LATER,
 				mailboxes: [inbox(BASELINE)],
 			},
 			{
 				syncPhase: "syncing_others",
-				lastSyncAt: LATER,
+				syncRequestedAt: LATER,
 				mailboxes: [inbox(LATER)],
 			},
 			{
 				syncPhase: "syncing_others",
-				lastSyncAt: LATER,
+				syncRequestedAt: LATER,
 				mailboxes: [inbox(LATER)],
 			},
 			{
 				syncPhase: "complete",
-				lastSyncAt: LATER,
+				syncRequestedAt: LATER,
 				mailboxes: [inbox(LATER)],
 			},
 		]);
 
 		const outcome = await waitForSettled({
 			readStatus,
-			baselineLastSyncAt: BASELINE,
+			requestedAt: REQUESTED,
 			baselineInboxSyncedAt: BASELINE,
 			onInboxSynced: () => announced.push(state.reads),
+			signal: new AbortController().signal,
 			pollMs: 0,
 		});
 
@@ -208,28 +192,29 @@ describe("waitForSettled inbox handoff", () => {
 		const { readStatus } = scriptedReader([
 			{
 				syncPhase: "syncing_others",
-				lastSyncAt: LATER,
+				syncRequestedAt: LATER,
 				mailboxes: [inbox(LATER)],
 			},
 			{
 				syncPhase: "syncing_others",
-				lastSyncAt: LATER,
+				syncRequestedAt: LATER,
 				mailboxes: [inbox(LATER)],
 			},
 			{
 				syncPhase: "complete",
-				lastSyncAt: LATER,
+				syncRequestedAt: LATER,
 				mailboxes: [inbox(LATER)],
 			},
 		]);
 
 		await waitForSettled({
 			readStatus,
-			baselineLastSyncAt: BASELINE,
+			requestedAt: REQUESTED,
 			baselineInboxSyncedAt: BASELINE,
 			onInboxSynced: () => {
 				announced += 1;
 			},
+			signal: new AbortController().signal,
 			pollMs: 0,
 		});
 
@@ -244,14 +229,15 @@ describe("waitForSettled inbox handoff", () => {
 		await waitForSettled({
 			readStatus: async () => ({
 				syncPhase: "complete" as const,
-				lastSyncAt: LATER,
+				syncRequestedAt: LATER,
 				mailboxes: [inbox(LATER)],
 			}),
-			baselineLastSyncAt: BASELINE,
+			requestedAt: REQUESTED,
 			baselineInboxSyncedAt: BASELINE,
 			onInboxSynced: () => {
 				announced += 1;
 			},
+			signal: new AbortController().signal,
 			pollMs: 0,
 		});
 
@@ -266,20 +252,21 @@ describe("waitForSettled inbox handoff", () => {
 			readStatus: scriptedReader([
 				{
 					syncPhase: "syncing_others",
-					lastSyncAt: LATER,
+					syncRequestedAt: LATER,
 					mailboxes: [inbox(BASELINE), junk(LATER)],
 				},
 				{
 					syncPhase: "complete",
-					lastSyncAt: LATER,
+					syncRequestedAt: LATER,
 					mailboxes: [inbox(BASELINE), junk(LATER)],
 				},
 			]).readStatus,
-			baselineLastSyncAt: BASELINE,
+			requestedAt: REQUESTED,
 			baselineInboxSyncedAt: BASELINE,
 			onInboxSynced: () => {
 				announced += 1;
 			},
+			signal: new AbortController().signal,
 			pollMs: 0,
 		});
 
