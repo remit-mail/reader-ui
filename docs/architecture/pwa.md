@@ -6,7 +6,7 @@ keeps its plugins, public directory, installation icons and credentialed manifes
 link. Manifest id, start URL and scope stay `/`; the Vite base must be `/`.
 `updateMode: "managed"` still disables the self-host updater UI.
 
-The packed package includes the TypeScript worker. `injectManifest` builds one
+The packed package includes the compiled worker. `injectManifest` builds one
 root `/sw.js` without imports. Registration is manual in `mountApp`, with scope
 `/` and no plugin reload code. The runtime config is a Rollup asset, emitted
 before precache generation. Hosts that copy runtime assets after building must
@@ -87,7 +87,7 @@ or change a host.
 
 # Durable reading (U2)
 
-Enable `mountApp({ authProvider, offline: { verifySession, reauthenticate } })`
+Enable `mountApp({ authProvider, offline: { sessionUrl: "/api/session", reauthenticate } })`
 only with the PWA preset enabled. Auth providers may expose `Provider` for
 identity context and `SessionGate` for online sign-in; `Shell` remains their
 legacy composition. The identity provider always mounts. The offline boundary
@@ -107,12 +107,9 @@ have `gcTime: Infinity`, and persistence has `maxAge: Infinity`.
 The host contract for C2 is:
 
 - Implement authenticated `GET /api/session` with `Cache-Control: no-store` and
-  JSON `{ "partitionKey": "<opaque account-config ID>" }`. `verifySession` must
-  make a fresh same-origin fetch with `cache: "no-store"`, `credentials:
-  "same-origin"`, `redirect: "manual"` and a bounded timeout. Validate a 200 JSON
-  response before returning that object; return `null` for 401, 403 or an opaque
-  redirect, and reject transport/server failures. Never derive identity from
-  persisted config, a URL, a user-editable email, or a login HTML response.
+  a 200 JSON response with a nonempty `partitionKey`. Return 401, 403 or a
+  redirect when authentication is required. Hosts can import `readSession`
+  from `@remit/web-client/offline` for their Access probe.
 - On successful protected API and `/content/*` responses, set
   `X-Remit-Partition` to the **server-derived** partition that produced the data.
   Never echo a client-supplied tenant. The mail API client boundary checks API
@@ -150,8 +147,8 @@ partition/generation inside it. Wiping durably rotates an identity-verification
 epoch (initialized before the first partition), revokes the partition, deletes private caches and IDB records, clears the
 query client, and revokes every runtime across tabs and through the
 worker. A response that started before a wipe cannot recreate data. The worker
-owns generic shell caches only; it forwards revocations to all windows and has
-no global current tenant or private runtime writer. Generic shell caches survive.
+forwards revocations to all windows and captures the partition for each periodic
+refresh. Generic shell caches survive.
 Revocation also stops tabs still reading their initial identity, and removal does
 not manage push subscriptions or notifications; those belong to the later push owner.
 Pending commits block U1 updates, and prepared updates reject new storage writes.
@@ -163,9 +160,8 @@ and save failures. Browser/user eviction remains possible. Foreground resume,
 reconnect and successful reauthentication verify the session before refresh.
 The existing cadence and in-flight guards remain; background sync waits for a
 new server round to settle before refetching active reading metadata and visible
-bodies. Explicit refresh bypasses content cache reads while retaining good saved
-responses when a replacement fails. Push and periodic synchronization are later
-chunks.
+bodies. Mail parts use their saved bytes when available. Explicit refresh bypasses the
+external image cache while retaining saved bytes when a replacement fails.
 
 A wiped document never binds its old QueryClient to another generation. Confirmed
 identity changes wipe first, then invoke the host's foreground navigation. Other
@@ -179,6 +175,32 @@ inline image blobs and attachment bytes offline. They exercise both shipped auth
 compositions, expired signed-link recovery, real Cache Storage and IndexedDB
 failures, a delayed network response across a two-tab wipe, and tenant changes.
 Unit tests retain only the pure admission and query-retention selectors.
+
+# Periodic refresh (U4)
+
+Periodic refresh uses the same offline options. Use a same-origin runtime
+`apiUrl` and cookie authentication.
+
+After successful foreground verification, an eligible Chromium installation
+registers `remit-refresh` with a minimum interval of 24 hours. Chromium decides
+when to run it. Registration is silent when the browser lacks periodic sync or
+permission is unavailable. Settings → Advanced can turn it off for this
+device. Removing downloads unregisters the tag and preserves the opt-out.
+
+Each run verifies the session before reading the newest Inbox page per account.
+It adds message descriptors and renderable bodies to Downloads, leaving saved
+Inbox queries untouched. Writes share the foreground storage lock and stop on
+opt-out or wipe. A refused session unregisters the tag.
+
+The [C2 session contract](#durable-reading-u2) applies. The shared session
+request sends `X-Requested-With: XMLHttpRequest` so Cloudflare
+Access answers 401 for an expired session. Set
+`X-Remit-Partition` on config, thread, describe and content responses. Content
+can return 202 while fetching or 403 with `x-remit-403-reason: expired` for an
+expired link. Keep `periodic-background-sync` allowed in Permissions-Policy
+and `connect-src 'self'` in any CSP on `/sw.js`. Refresh uses the existing
+session without an Access bypass, service token or prompt. Hosts bump their
+exact pins after the `ui-v*` release.
 
 # In-app installation
 

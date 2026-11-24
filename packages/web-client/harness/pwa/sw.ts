@@ -1,5 +1,6 @@
 /// <reference lib="webworker" />
 import { PrecacheController } from "workbox-precaching";
+import { REFRESH_TAG } from "../../src/lib/background-refresh.ts";
 import {
 	activateWhenSafe,
 	askClient,
@@ -11,6 +12,8 @@ import {
 	shellCacheName,
 	WORKER_VERSION,
 } from "../../src/lib/pwa-protocol.ts";
+
+import { refreshInBackground } from "./background-refresh.ts";
 
 declare const self: ServiceWorkerGlobalScope & {
 	__WB_MANIFEST: { url: string; revision: string | null }[];
@@ -38,10 +41,15 @@ self.addEventListener("install", (event) =>
 self.addEventListener("activate", (event) => {
 	event.waitUntil(precache.activate(event).then(() => self.clients.claim()));
 });
+self.addEventListener("periodicsync", ((
+	event: ExtendableEvent & { tag: string },
+) => {
+	if (event.tag !== REFRESH_TAG) return;
+	event.waitUntil(refreshInBackground());
+}) as EventListener);
 let checking: Promise<boolean> | undefined;
 self.addEventListener("message", (event) => {
-	// The worker owns only generic shell bytes. Forward the durable revocation
-	// to controlled and uncontrolled windows; never maintain a global tenant.
+	// Forward durable revocation to controlled and uncontrolled windows.
 	if (event.data?.type === "remit:offline-wipe") {
 		event.waitUntil(
 			self.clients

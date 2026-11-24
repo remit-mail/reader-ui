@@ -1,5 +1,5 @@
-import { classifyBodyFetchFailure } from "../hooks/useMessageBodyContent";
 import { buildBugReportContext, buildGitHubIssueUrl } from "./bug-report";
+import { classifyBodyFetchFailure } from "./message-body-source";
 import { taggedFetch } from "./network-error";
 import { fetchOfflineContent } from "./offline-runtime";
 

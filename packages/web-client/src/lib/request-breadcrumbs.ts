@@ -62,7 +62,7 @@ export function requestPath(input: RequestInfo | URL): string {
 				? input.href
 				: input.url;
 	try {
-		return new URL(raw, window.location.origin).pathname;
+		return new URL(raw, location.origin).pathname;
 	} catch {
 		// A non-URL input (rare) still must not leak a query — cut at the first
 		// `?` or `#` and return what precedes it.
