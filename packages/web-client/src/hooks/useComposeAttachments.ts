@@ -1,5 +1,6 @@
 import {
 	outboxAttachmentOperationsCompleteOutboxAttachmentMutation,
+	outboxAttachmentOperationsRenewOutboxAttachmentMutation,
 	outboxDetailOperationsMintOutboxAttachmentMutation,
 	outboxDetailOperationsUpdateOutboxMessageMutation,
 } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
@@ -23,6 +24,23 @@ const putFile = (
 		async (response) => {
 			if (!response.ok) {
 				const text = await response.text();
+				if (
+					response.headers.get("x-remit-upload-reason") === "expired" ||
+					((response.status === 403 || response.status === 409) &&
+						(/^(expired|no-live-reservation)$/.test(text) ||
+							/<Code>(RequestExpired|ExpiredToken)<\/Code>|<Message>Request has expired<\/Message>/.test(
+								text,
+							)))
+				) {
+					throw wrapHttpFailure(
+						{
+							code: "attachment_rejected",
+							reason: "ReservationExpired",
+							message: "The upload URL expired.",
+						},
+						response.status,
+					);
+				}
 				const body = response.headers
 					.get("content-type")
 					?.includes("application/json")
@@ -44,6 +62,9 @@ export const useComposeAttachments = ({
 	const mintMutation = useMutation({
 		...outboxDetailOperationsMintOutboxAttachmentMutation(),
 	});
+	const renewMutation = useMutation({
+		...outboxAttachmentOperationsRenewOutboxAttachmentMutation(),
+	});
 	const completeMutation = useMutation({
 		...outboxAttachmentOperationsCompleteOutboxAttachmentMutation(),
 	});
@@ -61,6 +82,10 @@ export const useComposeAttachments = ({
 					contentType: file.type || "application/octet-stream",
 					sizeBytes: file.size,
 				},
+			}),
+		renew: (outboxMessageId, outboxAttachmentId) =>
+			renewMutation.mutateAsync({
+				path: { outboxMessageId, outboxAttachmentId },
 			}),
 		put: putFile,
 		complete: (outboxMessageId, outboxAttachmentId) =>
