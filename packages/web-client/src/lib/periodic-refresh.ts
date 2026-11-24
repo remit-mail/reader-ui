@@ -17,15 +17,16 @@ import { pickRenderablePart } from "./message-body-source";
 import { OfflineUnavailableError } from "./offline-error";
 import { mergePersistedQueries } from "./offline-queries";
 import {
-	admitContent,
 	commitOffline,
 	contentCacheName,
+	mailPartCacheKey,
 	OFFLINE_FORMAT,
 	offlineRecord,
 	PARTITION_HEADER,
 	type Partition,
 	requirePartition,
 	samePartition,
+	saveMailPart,
 	writeOfflineRecord,
 } from "./offline-store";
 import {
@@ -302,32 +303,25 @@ async function runPeriodicRefresh(
 					}
 					if (part) {
 						const url = new URL(part.contentUrl, location.origin);
-						if (
-							url.origin !== location.origin ||
-							!url.pathname.startsWith("/content/") ||
-							/\/exports?(?:\/|$)/i.test(url.pathname)
-						)
-							throw new Error(
-								"Background refresh only admits same-origin mail parts",
-							);
+						mailPartCacheKey(url.href);
 						const response = await budget.fetch(url.href);
 						if (response.headers.get(PARTITION_HEADER) !== partition.key)
 							throw new PartitionMismatch();
 						const mime = part.kind === "html" ? "text/html" : "text/plain";
-						if (!(await admitContent(response, mime, partition)))
-							throw new Error("Background mail part admission refused");
-						const cacheKey = `${url.origin}${url.pathname}`;
-						await commit(async () => {
-							budget.check();
-							await (await caches.open(contentCacheName(partition))).put(
-								cacheKey,
+						if (
+							!(await saveMailPart(
+								partition,
+								url.href,
+								mime,
 								response,
-							);
-							await writeOfflineRecord(
-								`part:${partition.generation}:${cacheKey}`,
-								{ mime, savedAt: Date.now() },
-							);
-						});
+								(work) =>
+									commit(async () => {
+										budget.check();
+										await work();
+									}),
+							))
+						)
+							throw new Error("Background mail part admission refused");
 					}
 					count++;
 					client.setQueryData(key, description);

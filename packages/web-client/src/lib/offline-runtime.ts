@@ -12,15 +12,16 @@ import { externalImageBytes, requestExternalImage } from "./external-image";
 import { OFFLINE_ERROR_EVENT, OfflineUnavailableError } from "./offline-error";
 import { mergePersistedQueries } from "./offline-queries";
 import {
-	admitContent,
 	commitOffline,
 	contentCacheName,
+	mailPartCacheKey,
 	OFFLINE_FORMAT,
 	offlineRecord,
 	PARTITION_HEADER,
 	type Partition,
 	requirePartition,
 	samePartition,
+	saveMailPart,
 	storageLock,
 	wipeOffline,
 	writeOfflineRecord,
@@ -332,15 +333,7 @@ export class OfflineRuntime {
 		const partition = this.state.partition;
 		if (!partition)
 			throw new OfflineUnavailableError("No remembered offline identity");
-		const target = new URL(url, location.origin);
-		if (
-			target.origin !== location.origin ||
-			!target.pathname.startsWith("/content/") ||
-			/\/exports?(?:\/|$)/i.test(target.pathname)
-		)
-			throw new Error("Only same-origin mail parts can be downloaded");
-		// No SW runtime caching: each tab owns a captured partition/generation.
-		const cacheKey = `${target.origin}${target.pathname}`;
+		const cacheKey = mailPartCacheKey(url);
 		const cached = await commitOffline(partition, async () => {
 			const saved = await offlineRecord<{ mime: string }>(
 				`part:${partition.generation}:${cacheKey}`,
@@ -352,18 +345,12 @@ export class OfflineRuntime {
 		if (cached && !this.refreshing) return cached;
 		await this.authorizeNetwork("GET");
 		const response = await network();
-		if (await admitContent(response, mime, partition)) {
-			await this.write(partition, async () => {
-				await (await caches.open(contentCacheName(partition))).put(
-					cacheKey,
-					response.clone(),
-				);
-				await writeOfflineRecord(`part:${partition.generation}:${cacheKey}`, {
-					mime,
-					savedAt: Date.now(),
-				});
-			});
-		} else if (response.status === 200) {
+		if (
+			!(await saveMailPart(partition, url, mime, response, (work) =>
+				this.write(partition, work),
+			)) &&
+			response.status === 200
+		) {
 			throw new OfflineUnavailableError(
 				"Mail part was not saved: unexpected MIME, tenant, redirect, HTML shell or no-store response",
 			);

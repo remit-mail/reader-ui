@@ -132,3 +132,36 @@ export const admitContent = async (
 	}
 	return true;
 };
+
+export const mailPartCacheKey = (url: string): string => {
+	const target = new URL(url, location.origin);
+	if (
+		target.origin !== location.origin ||
+		!target.pathname.startsWith("/content/") ||
+		/\/exports?(?:\/|$)/i.test(target.pathname)
+	)
+		throw new Error("Only same-origin mail parts can be downloaded");
+	return target.origin + target.pathname;
+};
+/** Both foreground and worker callers supply their own generation/run guard. */
+export async function saveMailPart(
+	partition: Partition,
+	url: string,
+	mime: string,
+	response: Response,
+	commit: (work: () => Promise<void>) => Promise<void>,
+): Promise<boolean> {
+	const key = mailPartCacheKey(url);
+	if (!(await admitContent(response, mime, partition))) return false;
+	await commit(async () => {
+		await (await caches.open(contentCacheName(partition))).put(
+			key,
+			response.clone(),
+		);
+		await writeOfflineRecord(`part:${partition.generation}:${key}`, {
+			mime,
+			savedAt: Date.now(),
+		});
+	});
+	return true;
+}
