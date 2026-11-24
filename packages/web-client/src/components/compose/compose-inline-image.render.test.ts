@@ -216,7 +216,7 @@ const answer = (call: HttpCall): unknown => {
 		return {
 			...toResponse(attachment),
 			uploadUrl: `https://upload.test/${attachment.outboxAttachmentId}`,
-			uploadExpiresAt: 4_000_000_000,
+			uploadExpiresAt: Math.floor(Date.now() / 1000) + 900,
 		};
 	}
 	if (call.path.endsWith("/complete")) {

@@ -1,5 +1,6 @@
 import {
 	outboxAttachmentOperationsCompleteOutboxAttachmentMutation,
+	outboxAttachmentOperationsRenewOutboxAttachmentMutation,
 	outboxDetailOperationsMintOutboxAttachmentMutation,
 	outboxDetailOperationsUpdateOutboxMessageMutation,
 } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
@@ -44,6 +45,9 @@ export const useComposeAttachments = ({
 	const mintMutation = useMutation({
 		...outboxDetailOperationsMintOutboxAttachmentMutation(),
 	});
+	const renewMutation = useMutation({
+		...outboxAttachmentOperationsRenewOutboxAttachmentMutation(),
+	});
 	const completeMutation = useMutation({
 		...outboxAttachmentOperationsCompleteOutboxAttachmentMutation(),
 	});
@@ -61,6 +65,11 @@ export const useComposeAttachments = ({
 					contentType: file.type || "application/octet-stream",
 					sizeBytes: file.size,
 				},
+			}),
+		renew: (outboxMessageId, outboxAttachmentId, signal) =>
+			renewMutation.mutateAsync({
+				path: { outboxMessageId, outboxAttachmentId },
+				signal,
 			}),
 		put: putFile,
 		complete: (outboxMessageId, outboxAttachmentId) =>
