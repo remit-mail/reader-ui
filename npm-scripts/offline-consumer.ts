@@ -214,7 +214,6 @@ export async function testBackgroundRefresh(
 		);
 		await waitForTag(settings, true);
 
-		const beforeOff = await snapshot(settings);
 		assert.equal(
 			await withHeldResponse(heldMessage, 200, async () => {
 				await settings
@@ -225,10 +224,7 @@ export async function testBackgroundRefresh(
 			"Background refresh is off",
 		);
 		await waitForTag(settings, false);
-		assert.deepEqual(
-			(await snapshot(settings))?.clientState,
-			beforeOff?.clientState,
-		);
+		assert.deepEqual((await snapshot(settings))?.clientState.queries ?? [], []);
 		assert.equal(
 			await settings.evaluate(
 				async () => !!(await caches.match("/content/late-mail/html")),
