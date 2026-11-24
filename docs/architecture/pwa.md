@@ -150,8 +150,8 @@ partition/generation inside it. Wiping durably rotates an identity-verification
 epoch (initialized before the first partition), revokes the partition, deletes private caches and IDB records, clears the
 query client, and revokes every runtime across tabs and through the
 worker. A response that started before a wipe cannot recreate data. The worker
-owns generic shell caches only; it forwards revocations to all windows and has
-no global current tenant or private runtime writer. Generic shell caches survive.
+forwards revocations to all windows and captures the partition for each periodic
+refresh. Generic shell caches survive.
 Revocation also stops tabs still reading their initial identity, and removal does
 not manage push subscriptions or notifications; those belong to the later push owner.
 Pending commits block U1 updates, and prepared updates reject new storage writes.
@@ -164,8 +164,7 @@ reconnect and successful reauthentication verify the session before refresh.
 The existing cadence and in-flight guards remain; background sync waits for a
 new server round to settle before refetching active reading metadata and visible
 bodies. Explicit refresh bypasses content cache reads while retaining good saved
-responses when a replacement fails. Push and periodic synchronization are later
-chunks.
+responses when a replacement fails.
 
 A wiped document never binds its old QueryClient to another generation. Confirmed
 identity changes wipe first, then invoke the host's foreground navigation. Other
@@ -179,6 +178,33 @@ inline image blobs and attachment bytes offline. They exercise both shipped auth
 compositions, expired signed-link recovery, real Cache Storage and IndexedDB
 failures, a delayed network response across a two-tab wipe, and tenant changes.
 Unit tests retain only the pure admission and query-retention selectors.
+
+# Periodic refresh (U4)
+
+Hosts opt in by passing `sessionUrl: "/api/session"` alongside `verifySession`
+and `reauthenticate` in `mountApp({ offline: … })`. Use a same-origin runtime
+`apiUrl` and cookie authentication. No Vite preset option is needed.
+
+After successful foreground verification, an eligible Chromium installation
+registers `remit-refresh` with a minimum interval of 24 hours. Chromium decides
+when to run it. Registration is silent when the browser lacks periodic sync or
+permission is unavailable. Settings → Advanced can turn it off for this
+device. Removing downloads unregisters the tag and preserves the opt-out.
+
+Each run verifies the session before reading the newest Inbox page per account.
+It adds message descriptors and renderable bodies to Downloads, leaving saved
+Inbox queries untouched. Writes share the foreground storage lock and stop on
+opt-out or wipe. An expired session unregisters the run's tag if its registration
+is still current.
+
+The host must return a no-store 200 JSON session response with a nonempty
+`partitionKey`, or 401, 403 or a redirect when the session expires. Set
+`X-Remit-Partition` on config, thread, describe and content responses. Content
+can return 202 while fetching or 403 with `x-remit-403-reason: expired` for an
+expired link. Keep `periodic-background-sync` allowed in Permissions-Policy
+and `connect-src 'self'` in any CSP on `/sw.js`. Refresh uses the existing
+session without an Access bypass, service token or prompt. Hosts bump their
+exact pins after the `ui-v*` release.
 
 # In-app installation
 

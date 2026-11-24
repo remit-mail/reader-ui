@@ -13,7 +13,10 @@ import {
 	makeThreadMessage,
 	makeUserSettings,
 } from "../packages/web-client/src/test-support/fixtures.ts";
-import { testOfflineReading } from "./offline-consumer.ts";
+import {
+	testBackgroundRefresh,
+	testOfflineReading,
+} from "./offline-consumer.ts";
 
 declare global {
 	interface Window {
@@ -73,6 +76,12 @@ const oldCategoryRow = makeThreadMessage({
 	sentDate: 0,
 	isRead: true,
 });
+const account = makeAccount({
+	accountId: "acc-1",
+	folderAppointments: [
+		{ role: "Inbox", mailboxId: "inbox", source: "Appointed" },
+	],
+});
 let savedSubject: string | undefined;
 let pendingSubject: string | undefined;
 const missingStatic = new Set<string>();
@@ -97,6 +106,16 @@ const draft = {
 };
 let tenant = "tenant-a";
 let sessionStatus = 200;
+let refreshMessage = "old-mail";
+let heldResponse:
+	| { path: string; requested(): void; status: Promise<number> }
+	| undefined;
+const holdResponse = (path: string) => {
+	const requested = Promise.withResolvers<void>();
+	const status = Promise.withResolvers<number>();
+	heldResponse = { path, requested: requested.resolve, status: status.promise };
+	return { requested: requested.promise, release: status.resolve };
+};
 const contentRequests: string[] = [];
 const imageProxyRequests: string[] = [];
 let imageSlowReady!: () => void;
@@ -140,6 +159,13 @@ const server = createServer(async (request, response) => {
 	const path = new URL(request.url ?? "/", "http://localhost").pathname;
 	const file = join(serving, path === "/" ? "index.html" : path);
 	response.setHeader("Cache-Control", "no-cache");
+	let status: number | undefined;
+	if (heldResponse?.path === path) {
+		const held = heldResponse;
+		heldResponse = undefined;
+		held.requested();
+		status = await held.status;
+	}
 	if (["/consent", "/device", "/apps", "/apps/connections"].includes(path)) {
 		response.setHeader("Content-Type", "text/html");
 		response.end(`<!doctype html><title>Host page</title><h1>${path}</h1>`);
@@ -152,7 +178,10 @@ const server = createServer(async (request, response) => {
 		response.setHeader("X-Remit-Partition", tenant);
 		response.setHeader("Cache-Control", "private, max-age=3600");
 		response.setHeader("Content-Security-Policy", "sandbox");
-		if (path.endsWith("/html")) {
+		if (path === "/content/refresh-mail/html") {
+			response.setHeader("Content-Type", "text/html");
+			response.end("<p>Background downloaded body</p>");
+		} else if (path.endsWith("/html")) {
 			response.setHeader("Content-Type", "text/html");
 			response.end(
 				'<p>Old downloaded body</p><img alt="first inline" src="cid:one"><img alt="second inline" src="cid:two"><!-- <img src="cid:unused"> --><script>"<img src=cid:unused>"</script><img alt="remote image" src="https://tracking.invalid/pixel?token=one">',
@@ -214,13 +243,25 @@ const server = createServer(async (request, response) => {
 			response.setHeader("X-Remit-Partition", tenant);
 		if (path === "/api/session") {
 			response.setHeader("Cache-Control", "no-store");
-			response.statusCode = sessionStatus;
+			response.statusCode = status ?? sessionStatus;
 			response.end(
 				JSON.stringify(
-					sessionStatus === 200
+					response.statusCode === 200
 						? { partitionKey: tenant }
 						: { error: "Session unavailable" },
 				),
+			);
+		} else if (path === "/api/mailboxes/inbox/threads") {
+			response.end(
+				JSON.stringify({
+					items: [
+						makeThreadMessage({
+							messageId: refreshMessage,
+							mailboxId: "inbox",
+						}),
+					],
+					hasMore: false,
+				}),
 			);
 		} else if (path === "/api/threads/old-category-thread/messages") {
 			response.end(JSON.stringify({ items: [oldCategoryRow], hasMore: false }));
@@ -244,7 +285,11 @@ const server = createServer(async (request, response) => {
 					envelope: {
 						messageId,
 						subject:
-							messageId === "old-mail" ? "Old retained mail" : "New list page",
+							messageId === "old-mail"
+								? "Old retained mail"
+								: messageId === "new-mail"
+									? "New list page"
+									: messageId,
 						date: 0,
 						from: [],
 						to: [],
@@ -273,13 +318,15 @@ const server = createServer(async (request, response) => {
 										dispositionFilename: "report.pdf",
 									}),
 								]
-							: [],
+							: messageId === "new-mail"
+								? []
+								: [part(messageId, "html", "TEXT", "HTML")],
 				}),
 			);
 		} else if (path === "/api/config")
 			response.end(
 				JSON.stringify(
-					makeConfig([makeAccount({ accountId: "acc-1" })], {
+					makeConfig([account], {
 						buildCommit:
 							serving === dist ? "consumer-pwa-v1" : "consumer-pwa-v2",
 					}),
@@ -461,6 +508,18 @@ try {
 	);
 	assert.deepEqual(errors, []);
 	assert.equal(await failed.getByTestId("fatal-error-overlay").count(), 0);
+	await failed.goto(`${origin}/settings/advanced`);
+	await failed
+		.getByRole("button", { name: "Remove downloads", exact: true })
+		.waitFor();
+	assert.equal(
+		await failed
+			.getByRole("button", { name: "Turn off background refresh" })
+			.count(),
+		0,
+	);
+	assert.equal(await failed.getByRole("alert").count(), 0);
+	assert.deepEqual(errors, []);
 	await failedContext.close();
 	contentRequests.length = 0;
 	imageProxyRequests.length = 0;
@@ -479,6 +538,12 @@ const browser = await chromium.launch({
 	ignoreDefaultArgs: ["--disable-back-forward-cache"],
 });
 try {
+	await testBackgroundRefresh(origin, {
+		setMessage: (messageId) => {
+			refreshMessage = messageId;
+		},
+		holdResponse,
+	});
 	const context = await browser.newContext({ serviceWorkers: "allow" });
 	const first = await context.newPage();
 	await first.goto(origin);

@@ -1,25 +1,27 @@
-import {
-	onlineManager,
-	type Query,
-	type QueryClient,
-} from "@tanstack/react-query";
+import { onlineManager, type QueryClient } from "@tanstack/react-query";
 import type {
 	PersistedClient,
 	Persister,
 } from "@tanstack/react-query-persist-client";
+import {
+	syncBackgroundRefresh,
+	unregisterBackgroundRefresh,
+} from "./background-refresh";
 import { externalImageBytes, requestExternalImage } from "./external-image";
 import { OFFLINE_ERROR_EVENT, OfflineUnavailableError } from "./offline-error";
 import {
 	admitContent,
 	commitOffline,
-	contentCacheName,
+	contentCacheKey,
 	OFFLINE_FORMAT,
 	offlineRecord,
-	PARTITION_HEADER,
 	type Partition,
+	persistQueries,
+	readContent,
 	requirePartition,
+	retainedReadingQuery,
 	samePartition,
-	storageLock,
+	storeContent,
 	wipeOffline,
 	writeOfflineRecord,
 } from "./offline-store";
@@ -31,6 +33,7 @@ export interface OfflineOptions {
 	 * reject only for transport/server failures. Never use a cached config as identity. */
 	verifySession(): Promise<{ partitionKey: string } | null>;
 	reauthenticate(): void;
+	sessionUrl?: string;
 }
 export interface OfflineState {
 	partition?: Partition;
@@ -39,42 +42,6 @@ export interface OfflineState {
 	quota?: number;
 	persistent?: boolean;
 }
-/** Explicit reading allowlist; settings, auth, drafts and mutations never persist. */
-export const retainedReadingQuery = (
-	query: Pick<Query, "queryKey">,
-): boolean => {
-	const first = query.queryKey[0];
-	if (!first || typeof first !== "object" || !("_id" in first)) return false;
-	if ("headers" in first || "body" in first) return false;
-	return new Set([
-		"mailboxOperationsListMailboxes",
-		"messageOperationsDescribeMessage",
-		"threadDetailOperationsListThreadMessages",
-		"threadOperationsListThreads",
-		"threadOperationsSearchThreads",
-		"unifiedThreadOperationsListAllThreads",
-	]).has(String(first._id));
-};
-
-/** Preserve the last successful descriptor even when a list page or error replaces it. */
-export const mergePersistedQueries = (
-	previous: PersistedClient | undefined,
-	client: PersistedClient,
-): PersistedClient => {
-	const queries = new Map(
-		previous?.clientState.queries.map((query) => [query.queryHash, query]),
-	);
-	for (const query of client.clientState.queries) {
-		const existing = queries.get(query.queryHash);
-		if (!existing || query.state.dataUpdatedAt >= existing.state.dataUpdatedAt)
-			queries.set(query.queryHash, query);
-	}
-	return {
-		...client,
-		clientState: { mutations: [], queries: [...queries.values()] },
-	};
-};
-
 export class OfflineRuntime {
 	state: OfflineState = { verified: false };
 	private listeners = new Set<() => void>();
@@ -161,7 +128,7 @@ export class OfflineRuntime {
 		if (!navigator.onLine || this.revoked || isUpdatePrepared()) return false;
 		const wasVerified = this.state.verified;
 		this.update({ verified: false });
-		const epoch = await storageLock(async () => {
+		const epoch = await commitOffline(undefined, async () => {
 			const existing = await offlineRecord<string>("epoch");
 			if (existing) return existing;
 			const epoch = crypto.randomUUID();
@@ -194,7 +161,7 @@ export class OfflineRuntime {
 			this.options.reauthenticate();
 			return false;
 		}
-		const partition = await storageLock(async () => {
+		const partition = await commitOffline(undefined, async () => {
 			if ((await offlineRecord<string>("epoch")) !== epoch)
 				throw new Error("Downloads were removed while verifying identity");
 			const current = await offlineRecord<Partition>("partition");
@@ -215,6 +182,9 @@ export class OfflineRuntime {
 		if (this.revoked) return false;
 		this.update({ partition, verified: true });
 		resetSignedOut();
+		void syncBackgroundRefresh(partition, this.options.sessionUrl).catch(
+			this.report,
+		);
 		if (!wasVerified) window.dispatchEvent(new Event("remit:session-verified"));
 		return true;
 	}
@@ -237,6 +207,7 @@ export class OfflineRuntime {
 			navigator.serviceWorker?.controller?.postMessage({
 				type: "remit:offline-wipe",
 			});
+			await unregisterBackgroundRefresh();
 		} finally {
 			this.pending--;
 		}
@@ -255,14 +226,14 @@ export class OfflineRuntime {
 		await requirePartition(partition);
 		return partition;
 	}
-	async write<T>(partition: Partition, work: () => Promise<T>): Promise<T> {
+	async write<T>(work: () => Promise<T>): Promise<T> {
 		if (isUpdatePrepared())
 			throw new OfflineUnavailableError(
 				"App update in progress; download was not saved",
 			);
 		this.pending++;
 		try {
-			const result = await commitOffline(partition, work);
+			const result = await work();
 			void this.storage(!this.persistenceRequested).catch(this.report);
 			return result;
 		} catch (error) {
@@ -276,17 +247,8 @@ export class OfflineRuntime {
 	}
 	persister(partition: Partition): Persister {
 		return {
-			persistClient: async (client) => {
-				await this.write(partition, async () => {
-					const previous = await offlineRecord<PersistedClient>(
-						`queries:${partition.generation}`,
-					);
-					await writeOfflineRecord(
-						`queries:${partition.generation}`,
-						mergePersistedQueries(previous, client),
-					);
-				});
-			},
+			persistClient: (client) =>
+				this.write(() => persistQueries(partition, client)),
 			restoreClient: () =>
 				commitOffline(partition, () =>
 					offlineRecord<PersistedClient>(`queries:${partition.generation}`),
@@ -308,37 +270,15 @@ export class OfflineRuntime {
 		const partition = this.state.partition;
 		if (!partition)
 			throw new OfflineUnavailableError("No remembered offline identity");
-		const target = new URL(url, location.origin);
-		if (
-			target.origin !== location.origin ||
-			!target.pathname.startsWith("/content/") ||
-			/\/exports?(?:\/|$)/i.test(target.pathname)
-		)
-			throw new Error("Only same-origin mail parts can be downloaded");
-		// No SW runtime caching: each tab owns a captured partition/generation.
-		const cacheKey = `${target.origin}${target.pathname}`;
-		const cached = await commitOffline(partition, async () => {
-			const saved = await offlineRecord<{ mime: string }>(
-				`part:${partition.generation}:${cacheKey}`,
-			);
-			return saved?.mime === mime
-				? (await caches.open(contentCacheName(partition))).match(cacheKey)
-				: undefined;
-		});
+		const cacheKey = contentCacheKey(url);
+		const cached = await commitOffline(partition, () =>
+			readContent(partition, cacheKey, mime),
+		);
 		if (cached && !this.refreshing) return cached;
 		await this.authorizeNetwork("GET");
 		const response = await network();
 		if (await admitContent(response, mime, partition)) {
-			await this.write(partition, async () => {
-				await (await caches.open(contentCacheName(partition))).put(
-					cacheKey,
-					response.clone(),
-				);
-				await writeOfflineRecord(`part:${partition.generation}:${cacheKey}`, {
-					mime,
-					savedAt: Date.now(),
-				});
-			});
+			await this.write(() => storeContent(partition, url, mime, response));
 		} else if (response.status === 200) {
 			throw new OfflineUnavailableError(
 				"Mail part was not saved: unexpected MIME, tenant, redirect, HTML shell or no-store response",
@@ -365,7 +305,9 @@ export class OfflineRuntime {
 			await requestExternalImage(proxyUrl, resolvedRemoteUrl),
 			partition,
 		);
-		await this.write(partition, () => writeOfflineRecord(key, bytes));
+		await this.write(() =>
+			commitOffline(partition, () => writeOfflineRecord(key, bytes)),
+		);
 		await requirePartition(partition);
 		return bytes;
 	}
@@ -409,13 +351,3 @@ export const fetchOfflineContent = (
 	network: () => Promise<Response>,
 ): Promise<Response> =>
 	runtime ? runtime.content(url, mime, network) : network();
-export const validateNetworkPartition = async (
-	response: Response,
-	partition: Partition,
-): Promise<void> => {
-	await requirePartition(partition);
-	if (response.ok && response.headers.get(PARTITION_HEADER) !== partition.key)
-		throw new Error(
-			"Response tenant provenance is missing or changed; nothing was saved",
-		);
-};

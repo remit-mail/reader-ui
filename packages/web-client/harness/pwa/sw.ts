@@ -1,6 +1,12 @@
 /// <reference lib="webworker" />
 import { PrecacheController } from "workbox-precaching";
 import {
+	LoginRequired,
+	REFRESH_TAG,
+	refreshInBackground,
+	unregisterIfCurrent,
+} from "../../src/lib/background-refresh.ts";
+import {
 	activateWhenSafe,
 	askClient,
 	CHECK_UPDATE,
@@ -38,10 +44,24 @@ self.addEventListener("install", (event) =>
 self.addEventListener("activate", (event) => {
 	event.waitUntil(precache.activate(event).then(() => self.clients.claim()));
 });
+self.addEventListener("periodicsync", ((
+	event: ExtendableEvent & { tag: string },
+) => {
+	if (event.tag !== REFRESH_TAG) return;
+	let observed: Parameters<typeof unregisterIfCurrent>[1];
+	event.waitUntil(
+		refreshInBackground((state) => {
+			observed = state;
+		}).catch((error: unknown) =>
+			error instanceof LoginRequired
+				? unregisterIfCurrent(self.registration, observed)
+				: Promise.reject(error),
+		),
+	);
+}) as EventListener);
 let checking: Promise<boolean> | undefined;
 self.addEventListener("message", (event) => {
-	// The worker owns only generic shell bytes. Forward the durable revocation
-	// to controlled and uncontrolled windows; never maintain a global tenant.
+	// Forward durable revocation to controlled and uncontrolled windows.
 	if (event.data?.type === "remit:offline-wipe") {
 		event.waitUntil(
 			self.clients
