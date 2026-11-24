@@ -9,10 +9,7 @@ import { createDomHarness } from "../test-support/dom";
 import { makeAccount } from "../test-support/fixtures";
 import { mockFetch } from "../test-support/http";
 import { useRefreshControl } from "./useRefreshControl";
-import {
-	__resetStaleAccountSyncGuard,
-	useStaleAccountSync,
-} from "./useStaleAccountSync";
+import { __resetStaleAccountSyncGuard } from "./useStaleAccountSync";
 
 const account = makeAccount({ accountId: "acc-1", lastSyncAt: 0 });
 const ids = [account.accountId];
@@ -34,16 +31,23 @@ function Button({ onSettled }: { onSettled: () => void }) {
 	);
 }
 
-function App({ onSettled }: { onSettled: () => void }) {
-	useStaleAccountSync([account]);
+function App({
+	onSettled,
+	presses,
+}: {
+	onSettled: () => void;
+	presses: number;
+}) {
 	return createElement(MailFreshnessProvider, {
-		accountIds: ids,
+		accounts: [account],
 		// biome-ignore lint/correctness/noChildrenProp: the provider requires children in its props
-		children: createElement(Button, { onSettled }),
+		children: Array.from({ length: presses }, (_, key) =>
+			createElement(Button, { key, onSettled }),
+		),
 	});
 }
 
-const mount = async (t: TestContext) => {
+const mount = async (t: TestContext, presses = 1) => {
 	const dom = createDomHarness();
 	let posts = 0;
 	let releasePost: (ack: { requestedAt: number }) => void = () => {};
@@ -79,11 +83,11 @@ const mount = async (t: TestContext) => {
 	};
 	const onSettled = t.mock.fn();
 	seed("error", PREVIOUS);
-	dom.renderApp(createElement(App, { onSettled }));
+	dom.renderApp(createElement(App, { onSettled, presses }));
 	await dom.waitFor(() => posts === 1);
 	await dom.flush();
-	dom.click(dom.byText("button", "idle"));
-	await dom.waitFor(() => posts === 2);
+	for (const button of dom.queryAll("button")) dom.click(button);
+	await dom.waitFor(() => posts === presses + 1);
 
 	const ack = async () => {
 		await act(async () => releasePost({ requestedAt: PRESSED }));
@@ -105,6 +109,19 @@ test("a press ignores the older error and owns its error even before the POST ac
 
 	assert.doesNotMatch(dom.text(), /Couldn't sync/);
 	assert.equal(onSettled.mock.callCount(), 1);
+});
+
+test("one errored round settles both presses for the same account without a banner", async (t) => {
+	const { ack, dom, onSettled, seed } = await mount(t, 2);
+	await ack();
+	seed("error", PRESSED);
+	await dom.waitFor(() => onSettled.mock.callCount() === 2);
+
+	assert.deepEqual(
+		dom.queryAll("button").map((button) => button.textContent),
+		["Sync failed for this account", "Sync failed for this account"],
+	);
+	assert.doesNotMatch(dom.text(), /Couldn't sync/);
 });
 
 test("the tracker hands off the INBOX once while the round is running", async (t) => {

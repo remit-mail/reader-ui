@@ -8,7 +8,6 @@ import {
 	mailWorld,
 	WORK,
 } from "../../mocks/story-frame/mail-world";
-import { makeConfig } from "../../test-support/fixtures";
 
 const world = mailWorld();
 const inbox = `/mail/${mailboxIdFor(WORK, "Inbox")}`;
@@ -46,16 +45,6 @@ export const RefreshFailed: Story = {
 	parameters: {
 		msw: {
 			handlers: [
-				http.get("/api/config", () =>
-					HttpResponse.json(
-						makeConfig(
-							world.accounts.map((account) => ({
-								...account,
-								connectionState: "reauth_required",
-							})),
-						),
-					),
-				),
 				http.post("/api/accounts/:accountId/sync", ({ params }) => {
 					const requestedAt = Date.now();
 					refreshRequestedAt.set(String(params.accountId), requestedAt);

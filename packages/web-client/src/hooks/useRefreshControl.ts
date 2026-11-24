@@ -1,11 +1,13 @@
 import { syncOperationsTriggerSync } from "@remit/api-http-client/sdk.gen.ts";
 import type { RefreshControlState } from "@remit/ui";
-import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { escalate } from "../lib/escalate";
 import { startHotSyncWindow } from "../lib/hot-sync-window";
 import { useMailFreshness } from "../lib/mail-freshness";
-import { SYNC_ROUND_ERROR, syncRoundTracker } from "../lib/sync-round-tracker";
+import {
+	SYNC_ROUND_ERROR,
+	type SyncRoundTracker,
+} from "../lib/sync-round-tracker";
 import { useTelemetry } from "../lib/telemetry-context";
 
 export type { RefreshControlState };
@@ -17,23 +19,20 @@ const messageFor = (error: unknown): string =>
 
 interface AccountResult {
 	accountId: string;
-	/** The trigger itself was accepted. The
-	 * `onSettled`/`acknowledge` calls run for every enqueued account,
-	 * independent of whether its own round then succeeded. */
 	enqueued: boolean;
 	ok: boolean;
 	message?: string;
 }
 
 const refreshOneAccount = async (
-	tracker: ReturnType<typeof syncRoundTracker>,
+	beginPress: SyncRoundTracker["beginPress"],
 	telemetry: { recordEvent: (name: string) => void },
 	accountId: string,
 	signal: AbortSignal,
 	onInbox: () => void,
 ): Promise<AccountResult> => {
 	if (signal.aborted) return { accountId, enqueued: false, ok: false };
-	const press = tracker.beginPress(accountId, onInbox, signal);
+	const press = beginPress(accountId, onInbox, signal);
 	const triggered = await syncOperationsTriggerSync({
 		path: { accountId },
 		signal,
@@ -64,13 +63,6 @@ const refreshOneAccount = async (
 };
 
 export interface UseRefreshControlOptions {
-	/** The caller's chance to invalidate whatever view-specific query (a
-	 * mailbox's thread list, the brief's unified list) the sync may have
-	 * changed.
-	 *
-	 * Called more than once per press: once per account the moment its INBOX
-	 * is current, and again once its whole round has settled. It must
-	 * therefore be idempotent — an invalidation is. */
 	onSettled?: () => void;
 }
 
@@ -89,9 +81,8 @@ export const useRefreshControl = (
 	accountIds: readonly string[],
 	options: UseRefreshControlOptions = {},
 ): UseRefreshControlResult => {
-	const tracker = syncRoundTracker(useQueryClient());
 	const telemetry = useTelemetry();
-	const { acknowledge } = useMailFreshness();
+	const { acknowledge, beginPress } = useMailFreshness();
 	const [state, setState] = useState<RefreshControlState>("idle");
 	const [errorMessage, setErrorMessage] = useState<string>();
 	const runRef = useRef<AbortController>(null);
@@ -135,7 +126,7 @@ export const useRefreshControl = (
 			const results = await Promise.all(
 				ids.map((accountId) =>
 					refreshOneAccount(
-						tracker,
+						beginPress,
 						telemetry,
 						accountId,
 						run.signal,
@@ -161,7 +152,7 @@ export const useRefreshControl = (
 				setErrorMessage(failures[0]?.message);
 			}
 		})();
-	}, [acknowledge, tracker, telemetry]);
+	}, [acknowledge, beginPress, telemetry]);
 
 	return { state, errorMessage, refresh };
 };

@@ -1,27 +1,18 @@
-import {
-	mailboxOperationsListMailboxesQueryKey,
-	syncOperationsGetSyncStatusOptions,
-} from "@remit/api-http-client/@tanstack/react-query.gen.ts";
 import { syncOperationsTriggerSync } from "@remit/api-http-client/sdk.gen.ts";
-import type {
-	RemitImapAccountResponse,
-	RemitImapAccountSyncStatusResponse,
-} from "@remit/api-http-client/types.gen.ts";
-import { useQueries, useQueryClient } from "@tanstack/react-query";
+import type { RemitImapAccountResponse } from "@remit/api-http-client/types.gen.ts";
 import pMap from "p-map";
-import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useErrorBanners } from "../components/ui/error-banner-context";
 import { buildMutationErrorBanner } from "../components/ui/error-banners";
 import { isAbortError, isUnauthenticated } from "../lib/error-classifier";
 import { escalate } from "../lib/escalate";
 import {
-	getHotSyncWindowEnd,
 	HOT_POLL_INTERVAL_MS,
 	isHotSyncWindowActive,
 	subscribeHotSyncWindow,
 } from "../lib/hot-sync-window";
 import { getOfflineRuntime } from "../lib/offline-runtime";
-import { SYNC_ROUND_ERROR, syncRoundTracker } from "../lib/sync-round-tracker";
+import type { SyncRoundTracker } from "../lib/sync-round-tracker";
 import { getRuntimeConfig } from "../runtime-config";
 
 /**
@@ -178,12 +169,6 @@ export const handleBackgroundSyncFailure = (
 	});
 };
 
-const REFRESH_POLL_MS = 2000;
-
-const statusReadings = (
-	results: readonly { data?: RemitImapAccountSyncStatusResponse }[],
-) => results.map(({ data }) => data);
-
 /**
  * Auto-trigger a background mailbox-list sync for every stale account the
  * first time MailLayout mounts in a session, then keep it fresh with a
@@ -193,33 +178,16 @@ const statusReadings = (
  * after somebody presses refresh, and only while the tab is visible.
  * The poll keeps at most one POST in flight per account.
  */
-export const useStaleAccountSync = (accounts: RemitImapAccountResponse[]) => {
-	const queryClient = useQueryClient();
+export const useStaleAccountSync = (
+	accounts: RemitImapAccountResponse[],
+	tracker: SyncRoundTracker,
+): void => {
 	const { pushError } = useErrorBanners();
 	// Hold the latest accounts in a ref so the polling effect can read them without
 	// re-running on every render; it re-runs only when the joined accountId
 	// list actually changes (account added / removed).
 	const accountsRef = useRef(accounts);
 	accountsRef.current = accounts;
-	const tracker = syncRoundTracker(queryClient);
-	const hotUntil = useSyncExternalStore(
-		subscribeHotSyncWindow,
-		getHotSyncWindowEnd,
-		() => 0,
-	);
-	const readings = useQueries({
-		queries: accounts.map(({ accountId }) => ({
-			...syncOperationsGetSyncStatusOptions({ path: { accountId } }),
-			enabled: () => Date.now() < hotUntil,
-			refetchInterval: () =>
-				isHotSyncWindowActive() ? REFRESH_POLL_MS : false,
-			refetchOnMount: false,
-			refetchOnWindowFocus: false,
-			refetchOnReconnect: false,
-			retry: false,
-		})),
-		combine: statusReadings,
-	});
 	const stableKey = accounts.map((a) => a.accountId).join(",");
 	const onFailure = useCallback(
 		(accountId: string, error: unknown) => {
@@ -239,32 +207,6 @@ export const useStaleAccountSync = (accounts: RemitImapAccountResponse[]) => {
 		},
 		[pushError],
 	);
-
-	useEffect(() => {
-		tracker.check = () => {
-			for (const status of readings) {
-				if (!status) continue;
-				const { accountId } = status;
-				tracker.observe(
-					accountId,
-					status,
-					() => {
-						void queryClient.invalidateQueries({
-							queryKey: mailboxOperationsListMailboxesQueryKey({
-								path: { accountId },
-							}),
-						});
-						void getOfflineRuntime()?.refreshReading();
-					},
-					() => onFailure(accountId, new Error(SYNC_ROUND_ERROR)),
-				);
-			}
-		};
-		tracker.check();
-		return () => {
-			tracker.check = undefined;
-		};
-	}, [readings, tracker, queryClient, onFailure]);
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: stableKey re-runs the poll loop when the account list changes; accountsRef supplies the live list each tick
 	useEffect(() => {

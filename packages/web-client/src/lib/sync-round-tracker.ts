@@ -1,3 +1,4 @@
+import { syncOperationsGetSyncStatusQueryKey } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
 import type { RemitImapAccountSyncStatusResponse } from "@remit/api-http-client/types.gen.ts";
 import type { QueryClient } from "@tanstack/react-query";
 import { isSyncingPhase } from "../hooks/useInitialSyncProgress";
@@ -12,17 +13,30 @@ interface Press {
 
 export const SYNC_ROUND_ERROR = "Sync failed for this account";
 
-class SyncRoundTracker {
+export class SyncRoundTracker {
 	private handledAt = new Map<string, number>();
 	private presses = new Map<string, Set<Press>>();
-	check?: () => void;
+
+	constructor(
+		private readonly queryClient: QueryClient,
+		private readonly onComplete: (accountId: string) => void,
+		private readonly onError: (accountId: string) => void,
+	) {}
+
+	private observeCached(accountId: string): void {
+		const status =
+			this.queryClient.getQueryData<RemitImapAccountSyncStatusResponse>(
+				syncOperationsGetSyncStatusQueryKey({ path: { accountId } }),
+			);
+		if (status) this.observe(accountId, status);
+	}
 
 	noteRequested(accountId: string, requestedAt: number): void {
 		const baseline = requestedAt - 1;
 		if (baseline > (this.handledAt.get(accountId) ?? -Infinity)) {
 			this.handledAt.set(accountId, baseline);
 		}
-		this.check?.();
+		this.observeCached(accountId);
 	}
 
 	beginPress(accountId: string, onInbox: () => void, signal: AbortSignal) {
@@ -30,7 +44,7 @@ class SyncRoundTracker {
 		this.presses.set(accountId, presses);
 		const abort = () => {
 			press.finish();
-			this.check?.();
+			this.observeCached(accountId);
 		};
 		let resolveOutcome: (result: Outcome | undefined) => void;
 		const outcome = new Promise<Outcome | undefined>((resolve) => {
@@ -49,6 +63,15 @@ class SyncRoundTracker {
 		presses.add(press);
 		signal.addEventListener("abort", abort, { once: true });
 
+		this.observeCached(accountId);
+		void this.queryClient.refetchQueries(
+			{
+				queryKey: syncOperationsGetSyncStatusQueryKey({ path: { accountId } }),
+				exact: true,
+			},
+			{ cancelRefetch: false },
+		);
+
 		return {
 			outcome,
 			cancel: abort,
@@ -59,12 +82,7 @@ class SyncRoundTracker {
 		};
 	}
 
-	observe(
-		accountId: string,
-		status: RemitImapAccountSyncStatusResponse,
-		onComplete: () => void,
-		onFailure: () => void,
-	): void {
+	observe(accountId: string, status: RemitImapAccountSyncStatusResponse): void {
 		const { syncRequestedAt: stamp, syncPhase } = status;
 		const presses = this.presses.get(accountId);
 		if (presses && isSyncingPhase(syncPhase)) {
@@ -98,7 +116,6 @@ class SyncRoundTracker {
 			if (press.requestedAt !== undefined && press.requestedAt <= stamp) {
 				press.finish(syncPhase);
 				claimed = true;
-				break;
 			}
 		}
 		if (
@@ -109,18 +126,7 @@ class SyncRoundTracker {
 			return;
 
 		this.handledAt.set(accountId, stamp);
-		if (syncPhase === "complete") onComplete();
-		else if (!claimed) onFailure();
+		if (syncPhase === "complete") this.onComplete(accountId);
+		else if (!claimed) this.onError(accountId);
 	}
 }
-
-const trackers = new WeakMap<QueryClient, SyncRoundTracker>();
-
-export const syncRoundTracker = (client: QueryClient): SyncRoundTracker => {
-	let tracker = trackers.get(client);
-	if (!tracker) {
-		tracker = new SyncRoundTracker();
-		trackers.set(client, tracker);
-	}
-	return tracker;
-};

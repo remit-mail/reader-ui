@@ -1,5 +1,11 @@
-import { syncOperationsGetSyncStatusOptions } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
-import type { RemitImapMailboxSyncProgress } from "@remit/api-http-client/types.gen.ts";
+import {
+	mailboxOperationsListMailboxesQueryKey,
+	syncOperationsGetSyncStatusOptions,
+} from "@remit/api-http-client/@tanstack/react-query.gen.ts";
+import type {
+	RemitImapAccountResponse,
+	RemitImapMailboxSyncProgress,
+} from "@remit/api-http-client/types.gen.ts";
 import type { NavMailboxRole } from "@remit/ui";
 import { useQueries, useQueryClient } from "@tanstack/react-query";
 import {
@@ -12,8 +18,14 @@ import {
 	useRef,
 	useState,
 } from "react";
+import { useErrorBanners } from "../components/ui/error-banner-context";
+import { buildMutationErrorBanner } from "../components/ui/error-banners";
+import { useStaleAccountSync } from "../hooks/useStaleAccountSync";
+import { isHotSyncWindowActive } from "./hot-sync-window";
 import { useMailContext } from "./mail-context";
+import { getOfflineRuntime } from "./offline-runtime";
 import type { ResultFolderIndex } from "./result-folder";
+import { SYNC_ROUND_ERROR, SyncRoundTracker } from "./sync-round-tracker";
 import {
 	invalidateThreadListQueries,
 	threadListCacheKeys,
@@ -27,6 +39,7 @@ import {
  * surfacing, never a refetch of the mailbox or brief content itself.
  */
 export const FRESHNESS_POLL_MS = 60_000;
+const REFRESH_POLL_MS = 2000;
 
 /**
  * Roles whose own new messages are the user's doing, not an arrival: sending
@@ -97,6 +110,8 @@ interface MailFreshnessContextValue {
 	 * is currently cached — called once a refresh has shown the user current
 	 * data for them. */
 	acknowledge: (accountIds: readonly string[]) => void;
+	beginPress: SyncRoundTracker["beginPress"];
+	noteRequested: SyncRoundTracker["noteRequested"];
 }
 
 const MailFreshnessContext = createContext<MailFreshnessContextValue | null>(
@@ -114,12 +129,12 @@ export const useMailFreshness = (): MailFreshnessContextValue => {
 };
 
 interface MailFreshnessProviderProps {
-	accountIds: readonly string[];
+	accounts: RemitImapAccountResponse[];
 	children: ReactNode;
 }
 
 /**
- * Watches every open account's sync status once a minute and flags which
+ * Watches every open account's sync status and flags which
  * accounts have grown since they were last shown to the user (#582 clause
  * 4). The flag is sticky until acknowledged: it lights the dot on whichever
  * `RefreshButton` reads this context and stays lit until a refresh clears it.
@@ -130,11 +145,43 @@ interface MailFreshnessProviderProps {
  * cache read, not IMAP work. The dot is still the account-level signal.
  */
 export function MailFreshnessProvider({
-	accountIds,
+	accounts,
 	children,
 }: MailFreshnessProviderProps) {
 	const queryClient = useQueryClient();
+	const { pushError } = useErrorBanners();
 	const { resultFolderIndex } = useMailContext();
+	const accountsRef = useRef(accounts);
+	accountsRef.current = accounts;
+	const tracker = useMemo(
+		() =>
+			new SyncRoundTracker(
+				queryClient,
+				(accountId) => {
+					void queryClient.invalidateQueries({
+						queryKey: mailboxOperationsListMailboxesQueryKey({
+							path: { accountId },
+						}),
+					});
+					void getOfflineRuntime()?.refreshReading();
+				},
+				(accountId) => {
+					const email = accountsRef.current.find(
+						(account) => account.accountId === accountId,
+					)?.email;
+					pushError(
+						buildMutationErrorBanner(
+							email ? `Couldn't sync ${email}` : "Couldn't sync mail",
+							SYNC_ROUND_ERROR,
+							undefined,
+						),
+					);
+				},
+			),
+		[queryClient, pushError],
+	);
+	useStaleAccountSync(accounts, tracker);
+
 	const baselineRef = useRef(new Map<string, MailboxHighWaterMarks>());
 	const seededRef = useRef(new Set<string>());
 	// The previous tick's reading, distinct from the dot's baseline: the dot's
@@ -143,23 +190,25 @@ export function MailFreshnessProvider({
 	const previousMarksRef = useRef(new Map<string, MailboxHighWaterMarks>());
 	const [newMail, setNewMail] = useState<ReadonlySet<string>>(new Set());
 
-	const queries = useQueries({
-		queries: accountIds.map((accountId) => ({
+	const readings = useQueries({
+		queries: accounts.map(({ accountId }) => ({
 			...syncOperationsGetSyncStatusOptions({ path: { accountId } }),
-			refetchInterval: FRESHNESS_POLL_MS,
+			refetchInterval: () =>
+				isHotSyncWindowActive() ? REFRESH_POLL_MS : FRESHNESS_POLL_MS,
 			staleTime: FRESHNESS_POLL_MS,
 		})),
+		combine: (results) => results.map(({ data }) => data),
 	});
-	const updatedKey = queries.map((query) => query.dataUpdatedAt).join(",");
-	const accountIdsKey = accountIds.join(",");
+	const accountIdsKey = accounts.map(({ accountId }) => accountId).join(",");
 
-	// biome-ignore lint/correctness/useExhaustiveDependencies: updatedKey is the real trigger (each query's own dataUpdatedAt); queries and resultFolderIndex are read fresh each run, not values this effect reacts to on their own.
+	// biome-ignore lint/correctness/useExhaustiveDependencies: readings and account IDs trigger observation; use the latest folder index and dot state when processing them.
 	useEffect(() => {
 		let changed = false;
 		const next = new Set(newMail);
-		accountIds.forEach((accountId, index) => {
-			const data = queries[index]?.data;
+		accounts.forEach(({ accountId }, index) => {
+			const data = readings[index];
 			if (!data) return;
+			tracker.observe(accountId, data);
 			const current = highWaterMarksFrom(
 				data.mailboxes ?? [],
 				resultFolderIndex,
@@ -191,7 +240,7 @@ export function MailFreshnessProvider({
 			}
 		});
 		if (changed) setNewMail(next);
-	}, [accountIdsKey, updatedKey]);
+	}, [accountIdsKey, readings, tracker]);
 
 	const hasNewMail = useCallback(
 		(ids: readonly string[]) => ids.some((id) => newMail.has(id)),
@@ -223,13 +272,16 @@ export function MailFreshnessProvider({
 		[queryClient, resultFolderIndex],
 	);
 
-	// The sync-status queries update on their own cadence (this poll's 60s, or
-	// every 3s while `useInitialSyncProgress` shares the same key during an
-	// initial sync) — memoized so a tick that changes nothing about the
-	// flag set does not re-render every consumer down the tree.
+	const roundControls = useMemo(
+		() => ({
+			beginPress: tracker.beginPress.bind(tracker),
+			noteRequested: tracker.noteRequested.bind(tracker),
+		}),
+		[tracker],
+	);
 	const value = useMemo(
-		() => ({ hasNewMail, acknowledge }),
-		[hasNewMail, acknowledge],
+		() => ({ hasNewMail, acknowledge, ...roundControls }),
+		[hasNewMail, acknowledge, roundControls],
 	);
 
 	return (
