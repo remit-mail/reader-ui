@@ -258,44 +258,38 @@ describe("ComposeAttachmentController", () => {
 		});
 	}
 
-	it("renews an expired PUT and uploads the retained File to the fresh URL", async () => {
-		const { server, controller } = setup();
-		const retained = file("report.pdf");
-		const urls: string[] = [];
-		server.transport.put = async (url, uploaded) => {
-			assert.equal(uploaded, retained);
-			urls.push(url);
-			if (urls.length === 1)
-				throw wrapHttpFailure(
-					{
-						code: "attachment_rejected",
-						reason: "ReservationExpired",
-						message: "The upload URL expired.",
-					},
-					403,
-				);
-		};
-		const attaching = controller.attach([retained]);
-		await settle();
-		server.answerMint("report.pdf", "att-1");
-		await attaching;
-		assert.deepEqual(urls, [
-			"https://upload.test/att-1",
-			"https://upload.test/att-1/renewed",
-		]);
-		assert.deepEqual(server.completed, ["att-1"]);
-		assert.equal(rowFor(controller, "report.pdf")?.state.status, "attached");
-	});
+	for (const status of [403, 409]) {
+		it(`renews a ${status} PUT and uploads the retained File to the fresh URL`, async () => {
+			const { server, controller } = setup();
+			const retained = file("report.pdf");
+			const urls: string[] = [];
+			server.transport.put = async (url, uploaded) => {
+				assert.equal(uploaded, retained);
+				urls.push(url);
+				if (urls.length === 1)
+					throw wrapHttpFailure(
+						{ message: "Provider refused the upload" },
+						status,
+					);
+			};
+			const attaching = controller.attach([retained]);
+			await settle();
+			server.answerMint("report.pdf", "att-1");
+			await attaching;
+			assert.deepEqual(urls, [
+				"https://upload.test/att-1",
+				"https://upload.test/att-1/renewed",
+			]);
+			assert.deepEqual(server.completed, ["att-1"]);
+			assert.equal(rowFor(controller, "report.pdf")?.state.status, "attached");
+		});
+	}
 
 	it("shows a renewal refusal and retains the File for Retry", async () => {
 		const { server, controller } = setup();
 		const retained = file("report.pdf");
 		server.transport.put = async () => {
-			throw {
-				code: "attachment_rejected",
-				reason: "ReservationExpired",
-				message: "Expired",
-			};
+			throw wrapHttpFailure({ message: "Upload refused" }, 403);
 		};
 		server.transport.renew = async () => {
 			throw new Error("Reservation could not be renewed");
@@ -328,11 +322,7 @@ describe("ComposeAttachmentController", () => {
 		let puts = 0;
 		server.transport.put = async () => {
 			puts += 1;
-			throw {
-				code: "attachment_rejected",
-				reason: "ReservationExpired",
-				message: "Expired",
-			};
+			throw wrapHttpFailure({ message: "Upload refused" }, 403);
 		};
 		server.transport.renew = () => renewal.promise;
 		const attaching = controller.attach([file("report.pdf")]);
@@ -360,11 +350,7 @@ describe("ComposeAttachmentController", () => {
 		let puts = 0;
 		server.transport.put = async () => {
 			puts += 1;
-			throw {
-				code: "attachment_rejected",
-				reason: "ReservationExpired",
-				message: "Expired",
-			};
+			throw wrapHttpFailure({ message: "Upload refused" }, 403);
 		};
 		const attaching = controller.attach([file("report.pdf")]);
 		await settle();

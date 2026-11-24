@@ -499,7 +499,8 @@ export const ExpiredUploadRenews: Story = {
 				}),
 				http.put(
 					"/story-upload-expired",
-					() => new HttpResponse("expired", { status: 403 }),
+					() =>
+						new HttpResponse("Upload URL is no longer usable", { status: 403 }),
 				),
 				http.post(
 					"/api/outbox/out-plain/attachments/attachment-1/renew",

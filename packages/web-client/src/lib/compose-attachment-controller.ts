@@ -5,6 +5,7 @@ import type {
 import type { ComposeAttachmentItem, ComposeAttachmentState } from "@remit/ui";
 import { formatErrorDetail } from "../components/ui/error-banners";
 import { ApiError } from "./api";
+import { getErrorStatus } from "./error-classifier";
 
 export type DraftForAttachment =
 	| { outcome: "ready"; outboxMessageId: string }
@@ -329,13 +330,8 @@ export class ComposeAttachmentController {
 				signal,
 			);
 		} catch (error) {
-			const rejection = error instanceof ApiError ? error.body : error;
-			if (
-				signal.aborted ||
-				!isRejection(rejection) ||
-				rejection.reason !== "ReservationExpired"
-			)
-				throw error;
+			const status = getErrorStatus(error);
+			if (signal.aborted || (status !== 403 && status !== 409)) throw error;
 			reservation = await renew();
 			if (signal.aborted) return;
 			await this.putWithRenewal(
