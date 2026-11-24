@@ -1,4 +1,3 @@
-import type { RemitImapThreadSearchResponse } from "@remit/api-http-client/types.gen.ts";
 import { hashKey } from "@tanstack/react-query";
 import type { PersistedClient } from "@tanstack/react-query-persist-client";
 import { mergePersistedQueries } from "./offline-queries";
@@ -8,71 +7,87 @@ import {
 	samePartition,
 	writeOfflineRecord,
 } from "./offline-store";
+import { type InboxHead, reconcileInboxHeads } from "./thread-list-cache";
 
 export interface PeriodicBatch {
 	partition: Partition;
 	client: PersistedClient;
+	inboxHeads: InboxHead[];
 }
 export const stagingKey = (partition: Partition): string =>
 	`periodic:batch:${partition.generation}`;
+
+/** Caller holds the partition lock. */
+export async function stagePeriodicBatch(batch: PeriodicBatch): Promise<void> {
+	const key = stagingKey(batch.partition);
+	const stored = await offlineRecord<PeriodicBatch>(key);
+	const prior =
+		stored && samePartition(stored.partition, batch.partition)
+			? stored
+			: undefined;
+	const heads = new Map(
+		prior?.inboxHeads?.map((head) => [hashKey(head.key), head]),
+	);
+	for (const head of batch.inboxHeads) {
+		const key = hashKey(head.key);
+		const saved = heads.get(key);
+		if (!saved || saved.updatedAt <= head.updatedAt) heads.set(key, head);
+	}
+	await writeOfflineRecord(key, {
+		...batch,
+		client: mergePersistedQueries(prior?.client, batch.client),
+		inboxHeads: [...heads.values()],
+	} satisfies PeriodicBatch);
+}
+
 /** Caller holds the partition lock. Save before deleting so interrupted hydration is safe. */
 export async function mergePeriodicBatch(
 	partition: Partition,
 ): Promise<PersistedClient | undefined> {
 	const key = `queries:${partition.generation}`;
 	const previous = await offlineRecord<PersistedClient>(key);
-	const batch = await offlineRecord<PeriodicBatch>(stagingKey(partition));
+	const batchKey = stagingKey(partition);
+	const batch = await offlineRecord<PeriodicBatch>(batchKey);
 	if (!batch) return previous;
-	const merged = samePartition(batch.partition, partition)
-		? reconcilePeriodicBatch(previous, batch.client)
-		: previous;
-	if (merged) await writeOfflineRecord(key, merged);
-	await writeOfflineRecord(stagingKey(partition), undefined);
-	return merged;
-}
+	if (!samePartition(batch.partition, partition)) {
+		await writeOfflineRecord(batchKey, undefined);
+		return previous;
+	}
 
-/** A background head extends retained pages without replacing their cursors. */
-export function reconcilePeriodicBatch(
-	previous: PersistedClient | undefined,
-	batch: PersistedClient,
-): PersistedClient {
-	const queries = batch.clientState.queries.map((query) => {
-		const first = query.queryKey[0] as { _periodicHead?: boolean };
-		if (!first._periodicHead) return query;
-		const { _periodicHead, ...params } = first;
-		const queryKey = [params];
-		const queryHash = hashKey(queryKey);
-		const saved = previous?.clientState.queries.find(
-			(q) => q.queryHash === queryHash,
-		);
-		const head = query.state.data as {
-			pages: RemitImapThreadSearchResponse[];
-			pageParams: unknown[];
-		};
-		const old = saved?.state.data as typeof head | undefined;
-		if (saved && saved.state.dataUpdatedAt > query.state.dataUpdatedAt)
-			return saved;
-		const seen = new Set<string>();
-		const rows = (items: NonNullable<RemitImapThreadSearchResponse["items"]>) =>
-			items.filter((row) => {
-				if (seen.has(row.messageId)) return false;
-				seen.add(row.messageId);
-				return true;
-			});
-		const newest = rows(head.pages[0].items ?? []);
-		const pages = old?.pages.map((page, index) => ({
-			...page,
-			items: [...(index === 0 ? newest : []), ...rows(page.items ?? [])],
-		}));
-		return {
-			...query,
-			queryKey,
-			queryHash,
-			state: { ...query.state, data: pages ? { ...old, pages } : head },
-		};
-	});
-	return mergePersistedQueries(previous, {
-		...batch,
-		clientState: { mutations: [], queries },
-	});
+	const { queries: heads, pending } = reconcileInboxHeads(
+		previous?.clientState.queries,
+		batch.inboxHeads ?? [],
+	);
+
+	// Earlier workers also dehydrate their private head key. Only the typed
+	// inboxHeads field can supply a list to hydrate.
+	const staged = batch.client.clientState.queries.filter(
+		({ queryKey: [key] }) =>
+			!(
+				key &&
+				typeof key === "object" &&
+				"_id" in key &&
+				key._id === "threadOperationsListThreads"
+			),
+	);
+	let merged = previous;
+	if (staged.length || heads.length) {
+		merged = mergePersistedQueries(previous, {
+			...batch.client,
+			clientState: { mutations: [], queries: [...staged, ...heads] },
+		});
+		await writeOfflineRecord(key, merged);
+	}
+	if (!pending.length) await writeOfflineRecord(batchKey, undefined);
+	else if (
+		batch.client.clientState.queries.length ||
+		pending.length !== batch.inboxHeads.length
+	) {
+		await writeOfflineRecord(batchKey, {
+			...batch,
+			client: { ...batch.client, clientState: { mutations: [], queries: [] } },
+			inboxHeads: pending,
+		} satisfies PeriodicBatch);
+	}
+	return merged;
 }

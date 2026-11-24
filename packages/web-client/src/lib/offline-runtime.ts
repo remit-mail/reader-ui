@@ -13,12 +13,11 @@ import { OFFLINE_ERROR_EVENT, OfflineUnavailableError } from "./offline-error";
 import { mergePersistedQueries } from "./offline-queries";
 import {
 	commitOffline,
-	contentCacheName,
-	mailPartCacheKey,
 	OFFLINE_FORMAT,
 	offlineRecord,
 	PARTITION_HEADER,
 	type Partition,
+	readMailPart,
 	requirePartition,
 	samePartition,
 	saveMailPart,
@@ -333,15 +332,9 @@ export class OfflineRuntime {
 		const partition = this.state.partition;
 		if (!partition)
 			throw new OfflineUnavailableError("No remembered offline identity");
-		const cacheKey = mailPartCacheKey(url);
-		const cached = await commitOffline(partition, async () => {
-			const saved = await offlineRecord<{ mime: string }>(
-				`part:${partition.generation}:${cacheKey}`,
-			);
-			return saved?.mime === mime
-				? (await caches.open(contentCacheName(partition))).match(cacheKey)
-				: undefined;
-		});
+		const cached = await commitOffline(partition, () =>
+			readMailPart(partition, url, mime),
+		);
 		if (cached && !this.refreshing) return cached;
 		await this.authorizeNetwork("GET");
 		const response = await network();

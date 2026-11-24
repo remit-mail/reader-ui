@@ -3,9 +3,69 @@ import {
 	threadOperationsSearchThreadsQueryKey,
 	unifiedThreadOperationsListAllThreadsQueryKey,
 } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
-import type { RemitImapThreadMessageResponse } from "@remit/api-http-client/types.gen.ts";
-import type { QueryClient } from "@tanstack/react-query";
+import type {
+	RemitImapThreadMessageResponse,
+	RemitImapThreadSearchResponse,
+} from "@remit/api-http-client/types.gen.ts";
+import {
+	type DehydratedState,
+	dehydrate,
+	hashKey,
+	type InfiniteData,
+	QueryClient,
+} from "@tanstack/react-query";
 import { patchThreadListCache, type ThreadListCache } from "./thread-cache.js";
+
+export interface InboxHead {
+	key: ReturnType<typeof threadOperationsListThreadsQueryKey>;
+	page: RemitImapThreadSearchResponse;
+	updatedAt: number;
+}
+
+type MailboxPages = InfiniteData<
+	RemitImapThreadSearchResponse,
+	string | undefined
+>;
+
+/** A newer head can replace the first page only at a shared cursor boundary. */
+export function mergeInboxHead(
+	saved: MailboxPages | undefined,
+	head: RemitImapThreadSearchResponse,
+): MailboxPages | undefined {
+	if (!saved?.pages.length) return { pages: [head], pageParams: [undefined] };
+	const boundary =
+		saved.pages.length > 1
+			? saved.pageParams[1]
+			: saved.pages[0].continuationToken;
+	if (head.continuationToken !== boundary) return undefined;
+	return { ...saved, pages: [head, ...saved.pages.slice(1)] };
+}
+
+/** Convert joined heads into query state and leave any gap in the staged data. */
+export function reconcileInboxHeads(
+	savedQueries: DehydratedState["queries"] | undefined,
+	heads: readonly InboxHead[],
+): { queries: DehydratedState["queries"]; pending: InboxHead[] } {
+	const lists = new QueryClient({
+		defaultOptions: { queries: { gcTime: Infinity } },
+	});
+	const pending: InboxHead[] = [];
+	for (const head of heads) {
+		const queryHash = hashKey(head.key);
+		const saved = savedQueries?.find((query) => query.queryHash === queryHash);
+		if (saved && saved.state.dataUpdatedAt >= head.updatedAt) continue;
+		const pages = mergeInboxHead(
+			saved?.state.data as MailboxPages | undefined,
+			head.page,
+		);
+		if (pages)
+			lists.setQueryData(head.key, pages, { updatedAt: head.updatedAt });
+		else pending.push(head);
+	}
+	const { queries } = dehydrate(lists);
+	lists.clear();
+	return { queries, pending };
+}
 
 export interface SnapshotEntry<T> {
 	queryKey: readonly unknown[];

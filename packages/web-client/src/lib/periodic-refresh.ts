@@ -13,17 +13,22 @@ import {
 import type { RemitImapDescribeMessageResponse } from "@remit/api-http-client/types.gen.ts";
 import { dehydrate, hashKey, QueryClient } from "@tanstack/react-query";
 import type { PersistedClient } from "@tanstack/react-query-persist-client";
-import { pickRenderablePart } from "./message-body-source";
+import {
+	BODY_FAILURE_REASON_HEADER,
+	classifyBodyFetchFailure,
+	type PickedBodyPart,
+	pickRenderablePart,
+} from "./message-body-source";
 import { OfflineUnavailableError } from "./offline-error";
 import { mergePersistedQueries } from "./offline-queries";
 import {
 	commitOffline,
-	contentCacheName,
 	mailPartCacheKey,
 	OFFLINE_FORMAT,
 	offlineRecord,
 	PARTITION_HEADER,
 	type Partition,
+	readMailPart,
 	requirePartition,
 	samePartition,
 	saveMailPart,
@@ -34,7 +39,12 @@ import {
 	PERIODIC_TAG,
 	type PeriodicRegistration,
 } from "./periodic-registration";
-import { type PeriodicBatch, stagingKey } from "./periodic-staging";
+import {
+	type PeriodicBatch,
+	stagePeriodicBatch,
+	stagingKey,
+} from "./periodic-staging";
+import type { InboxHead } from "./thread-list-cache";
 
 export const PERIODIC_MAX_BYTES = 10 * 1024 * 1024;
 export const PERIODIC_MAX_MS = 30_000;
@@ -52,19 +62,27 @@ export interface PeriodicStatus {
 }
 export const periodicStatusKey = (partition: Partition): string =>
 	`periodic:status:${partition.generation}`;
+
 class RunLimit extends Error {}
+class OversizedBody extends RunLimit {}
 class SessionRequired extends Error {}
+class SignedLinkExpired extends Error {}
 class PartitionMismatch extends Error {}
 class TransportFailure extends Error {}
+
 /** Counts streamed bytes, including session and metadata, and aborts slow bodies. */
-export class PeriodicBudget {
+class PeriodicBudget {
 	readonly controller = new AbortController();
 	private bytes = 0;
+	private bodyBytes = 0;
 	private readonly started = Date.now();
 	private readonly timer = setTimeout(
 		() => this.controller.abort(),
 		PERIODIC_MAX_MS,
 	);
+
+	constructor(private readonly partitionKey: string) {}
+
 	check(): void {
 		if (
 			this.controller.signal.aborted ||
@@ -72,41 +90,77 @@ export class PeriodicBudget {
 		)
 			throw new RunLimit();
 	}
+
 	close(): void {
 		clearTimeout(this.timer);
 	}
-	async fetch(url: string, session = false): Promise<Response> {
+
+	async fetch(
+		input: RequestInfo | URL,
+		kind: "session" | "api" | "body",
+	): Promise<Response> {
 		this.check();
-		const target = new URL(url, location.origin);
+		const request = input instanceof Request ? input : undefined;
+		const target = new URL(request?.url ?? String(input), location.origin);
 		if (target.origin !== location.origin)
 			throw new Error("Background refresh requires same-origin URLs");
 		const response = await fetch(target, {
+			headers: request?.headers,
 			credentials: "same-origin",
 			redirect: "manual",
 			cache: "no-store",
-			signal: session
-				? AbortSignal.any([this.controller.signal, AbortSignal.timeout(5000)])
-				: this.controller.signal,
+			signal:
+				kind === "session"
+					? AbortSignal.any([this.controller.signal, AbortSignal.timeout(5000)])
+					: this.controller.signal,
 		}).catch((cause: unknown) => {
 			throw new TransportFailure("Background transport failed", { cause });
 		});
-		if (
+		const redirected =
 			response.type === "opaqueredirect" ||
 			response.redirected ||
-			(response.status >= 300 && response.status < 400) ||
-			response.status === 401 ||
-			response.status === 403
-		) {
-			await response.body?.cancel();
-			throw new SessionRequired();
-		}
+			(response.status >= 300 && response.status < 400);
 		if (
 			response.status !== 200 ||
+			redirected ||
 			!["basic", "cors", "default"].includes(response.type)
-		)
+		) {
+			await response.body?.cancel();
+			if (kind === "body") {
+				const reason = classifyBodyFetchFailure(
+					response.status,
+					response.headers.get(BODY_FAILURE_REASON_HEADER),
+				);
+				if (reason === "auth") throw new SessionRequired();
+				if (reason === "link-expired") throw new SignedLinkExpired();
+			} else if (
+				redirected ||
+				response.status === 401 ||
+				response.status === 403
+			) {
+				throw new SessionRequired();
+			}
 			throw new Error(`Background refresh HTTP ${response.status}`);
+		}
+		if (
+			kind !== "session" &&
+			response.headers.get(PARTITION_HEADER) !== this.partitionKey
+		) {
+			await response.body?.cancel();
+			throw new PartitionMismatch();
+		}
+		if (
+			kind !== "body" &&
+			!response.headers.get("content-type")?.startsWith("application/json")
+		) {
+			await response.body?.cancel();
+			throw new Error("Background refresh expected JSON");
+		}
+
+		const freshBodyBudget = kind === "body" && this.bodyBytes === 0;
 		const reader = response.body?.getReader();
 		const chunks: Uint8Array<ArrayBuffer>[] = [];
+		let streamed = 0;
 		try {
 			while (reader) {
 				const { value, done } = await reader.read().catch((cause: unknown) => {
@@ -116,8 +170,19 @@ export class PeriodicBudget {
 				});
 				this.check();
 				if (done) break;
+				streamed += value.byteLength;
 				this.bytes += value.byteLength;
-				if (this.bytes > PERIODIC_MAX_BYTES) throw new RunLimit();
+				if (kind === "body") this.bodyBytes += value.byteLength;
+				if (this.bytes > PERIODIC_MAX_BYTES) {
+					// A fresh body budget includes the session and list metadata
+					// the worker must read to reach the first uncached body.
+					if (
+						freshBodyBudget ||
+						(kind === "body" && streamed > PERIODIC_MAX_BYTES)
+					)
+						throw new OversizedBody();
+					throw new RunLimit();
+				}
 				chunks.push(value);
 			}
 		} finally {
@@ -130,7 +195,7 @@ export class PeriodicBudget {
 	}
 }
 
-/** No retries inside a run. Future browser events obey a durable exponential backoff. */
+/** No retries inside a run except renewing an expired signature once. */
 async function runPeriodicRefresh(
 	registration: PeriodicRegistration,
 ): Promise<void> {
@@ -156,219 +221,217 @@ async function runPeriodicRefresh(
 				throw new OfflineUnavailableError("Periodic refresh was disabled");
 			return work();
 		});
-	const budget = new PeriodicBudget();
+	const budget = new PeriodicBudget(partition.key);
 	const client = new QueryClient({
 		defaultOptions: { queries: { gcTime: Infinity } },
 	});
 	const api = createClient({
-		baseUrl: new URL(apiBaseUrl, location.origin).href,
-		fetch: async (input: RequestInfo | URL) => {
-			const response = await budget.fetch(
-				input instanceof Request ? input.url : String(input),
-			);
-			if (response.headers.get(PARTITION_HEADER) !== partition.key)
-				throw new PartitionMismatch();
-			return response;
-		},
+		baseUrl: apiBaseUrl,
+		fetch: (request) => budget.fetch(request, "api"),
 	});
-	const saveBatch = async () => {
-		if (!client.getQueryCache().getAll().length) return;
+	// Query keys use the same client configuration as the foreground.
+	const get = {
+		client: api,
+		baseUrl: new URL(apiBaseUrl, location.origin).href.replace(/\/$/, ""),
+		throwOnError: true,
+	} as const;
+	const inboxHeads: InboxHead[] = [];
+	let oversizedPartKey: string | undefined;
+	const flush = async () => {
+		const clientState = dehydrate(client);
+		if (!clientState.queries.length && !inboxHeads.length) return;
 		await commit(async () => {
-			const previous = await offlineRecord<PeriodicBatch>(
-				stagingKey(partition),
-			);
-			const snapshot: PersistedClient = {
-				timestamp: Date.now(),
-				buster: String(OFFLINE_FORMAT),
-				clientState: dehydrate(client),
-			};
-			await writeOfflineRecord(stagingKey(partition), {
+			await stagePeriodicBatch({
 				partition,
-				client: mergePersistedQueries(
-					previous && samePartition(previous.partition, partition)
-						? previous.client
-						: undefined,
-					snapshot,
-				),
+				client: {
+					timestamp: Date.now(),
+					buster: String(OFFLINE_FORMAT),
+					clientState,
+				},
+				inboxHeads,
 			});
+			if (oversizedPartKey) await writeOfflineRecord(oversizedPartKey, true);
 		});
 	};
-	try {
-		await (async () => {
-			await requirePartition(partition);
-			const sessionResponse = await budget.fetch(config.sessionEndpoint, true);
-			if (
-				!sessionResponse.headers
-					.get("content-type")
-					?.startsWith("application/json")
-			)
-				throw new Error("Background session expected JSON");
-			const session = await sessionResponse.json();
-			if (typeof session.partitionKey !== "string" || !session.partitionKey)
-				throw new Error("Invalid background session");
-			if (session.partitionKey !== partition.key) throw new PartitionMismatch();
-			const previous = await offlineRecord<PersistedClient>(
-				`queries:${partition.generation}`,
-			);
-			const staged = await offlineRecord<PeriodicBatch>(stagingKey(partition));
-			const known = new Map(
-				[
-					...(previous?.clientState.queries ?? []),
-					...(staged && samePartition(staged.partition, partition)
-						? staged.client.clientState.queries
-						: []),
-				]
-					.filter((q) => q.state.status === "success")
-					.map(
-						(q) =>
-							[
-								q.queryHash,
-								q.state.data as RemitImapDescribeMessageResponse,
-							] as const,
-					),
-			);
-			const { data: configData } = await configOperationsGetConfig({
-				client: api,
-				throwOnError: true,
+
+	const downloadBody = async (part: PickedBodyPart | null) => {
+		if (!part) return "skipped";
+		const { contentUrl, kind, sizeOctets } = part;
+		const mime = kind === "html" ? "text/html" : "text/plain";
+		const canonical = mailPartCacheKey(contentUrl);
+		const oversizeKey = `periodic:oversize:${partition.generation}:${canonical}`;
+		if (await commit(() => readMailPart(partition, contentUrl, mime)))
+			return "cached";
+		if (
+			(sizeOctets ?? 0) > PERIODIC_MAX_BYTES ||
+			(await offlineRecord<boolean>(oversizeKey))
+		)
+			return "skipped";
+
+		const response = await budget
+			.fetch(contentUrl, "body")
+			.catch((error: unknown) => {
+				if (error instanceof OversizedBody) oversizedPartKey = oversizeKey;
+				throw error;
 			});
-			let count = 0;
-			const seen = new Set<string>();
-			for (const account of configData.accounts) {
-				const path = { accountId: account.accountId };
-				const { data: mailboxes } = await mailboxOperationsListMailboxes({
+		if (
+			!(await saveMailPart(partition, contentUrl, mime, response, (work) =>
+				commit(async () => {
+					budget.check();
+					await work();
+				}),
+			))
+		)
+			throw new Error("Background mail part admission refused");
+		return "saved";
+	};
+
+	const collect = async () => {
+		await requirePartition(partition);
+		const sessionResponse = await budget.fetch(
+			config.sessionEndpoint,
+			"session",
+		);
+		const session: unknown = await sessionResponse.json();
+		if (
+			!session ||
+			typeof session !== "object" ||
+			!("partitionKey" in session) ||
+			typeof session.partitionKey !== "string" ||
+			!session.partitionKey
+		)
+			throw new Error("Invalid background session");
+		if (session.partitionKey !== partition.key) throw new PartitionMismatch();
+
+		const previous = await offlineRecord<PersistedClient>(
+			`queries:${partition.generation}`,
+		);
+		const staged = await offlineRecord<PeriodicBatch>(stagingKey(partition));
+		const retained =
+			staged && samePartition(staged.partition, partition)
+				? mergePersistedQueries(previous, staged.client)
+				: previous;
+		const known = new Map(
+			retained?.clientState.queries
+				.filter((query) => query.state.status === "success")
+				.map((query) => [query.queryHash, query.state.data]),
+		);
+		const { data: configData } = await configOperationsGetConfig(get);
+		let count = 0;
+		const seen = new Set<string>();
+		for (const account of configData.accounts) {
+			const path = { accountId: account.accountId };
+			const { data: mailboxes } = await mailboxOperationsListMailboxes({
+				...get,
+				path,
+			});
+			client.setQueryData(
+				mailboxOperationsListMailboxesQueryKey({ client: api, path }),
+				mailboxes,
+			);
+			const inbox = mailboxes.items.find(
+				(mailbox) => mailbox.fullPath.toUpperCase() === "INBOX",
+			);
+			if (!inbox) continue;
+			const options = {
+				path: { mailboxId: inbox.mailboxId },
+				query: { order: "desc" },
+			} as const;
+			const { data: threads } = await threadOperationsListThreads({
+				...get,
+				...options,
+			});
+			inboxHeads.push({
+				key: threadOperationsListThreadsQueryKey({
+					...options,
+					client: api,
+				}),
+				page: threads,
+				updatedAt: Date.now(),
+			});
+			for (const { messageId } of threads.items ?? []) {
+				if (count >= PERIODIC_MAX_MESSAGES || seen.has(messageId)) continue;
+				seen.add(messageId);
+				const path = { messageId };
+				const key = messageOperationsDescribeMessageQueryKey({
 					client: api,
 					path,
-					throwOnError: true,
 				});
-				client.setQueryData(
-					mailboxOperationsListMailboxesQueryKey({ baseUrl: apiBaseUrl, path }),
-					mailboxes,
-				);
-				const inbox = mailboxes.items.find(
-					(mailbox) => mailbox.fullPath.toUpperCase() === "INBOX",
-				);
-				if (!inbox) continue;
-				const threadPath = { mailboxId: inbox.mailboxId };
-				const { data: threads } = await threadOperationsListThreads({
-					client: api,
-					path: threadPath,
-					query: { order: "desc" },
-					throwOnError: true,
-				});
-				client.setQueryData(
-					[
-						...threadOperationsListThreadsQueryKey({
-							baseUrl: apiBaseUrl,
-							path: threadPath,
-							query: { order: "desc" },
-						}),
-					].map((key) => ({ ...key, _periodicHead: true })),
-					{ pages: [threads], pageParams: [undefined] },
-				);
-				for (const row of threads.items ?? []) {
-					const key = messageOperationsDescribeMessageQueryKey({
-						baseUrl: apiBaseUrl,
-						path: { messageId: row.messageId },
-					});
-					if (count >= PERIODIC_MAX_MESSAGES || seen.has(row.messageId))
-						continue;
-					seen.add(row.messageId);
-					const description =
-						known.get(hashKey(key)) ??
-						(
-							await messageOperationsDescribeMessage({
-								client: api,
-								path: { messageId: row.messageId },
-								throwOnError: true,
-							})
-						).data;
-					const part = pickRenderablePart(description.bodyParts);
-					if (!part && known.has(hashKey(key))) continue;
-					if (part) {
-						const target = new URL(part.contentUrl, location.origin);
-						const canonical = target.origin + target.pathname;
-						const mime = part.kind === "html" ? "text/html" : "text/plain";
-						const downloaded = await commit(async () => {
-							const index = await offlineRecord<{ mime: string }>(
-								`part:${partition.generation}:${canonical}`,
-							);
-							return (
-								index?.mime === mime &&
-								!!(await (
-									await caches.open(contentCacheName(partition))
-								).match(canonical))
-							);
-						});
-						if (downloaded) continue;
-					}
-					if (part) {
-						const url = new URL(part.contentUrl, location.origin);
-						mailPartCacheKey(url.href);
-						const response = await budget.fetch(url.href);
-						if (response.headers.get(PARTITION_HEADER) !== partition.key)
-							throw new PartitionMismatch();
-						const mime = part.kind === "html" ? "text/html" : "text/plain";
-						if (
-							!(await saveMailPart(
-								partition,
-								url.href,
-								mime,
-								response,
-								(work) =>
-									commit(async () => {
-										budget.check();
-										await work();
-									}),
-							))
-						)
-							throw new Error("Background mail part admission refused");
-					}
-					count++;
-					client.setQueryData(key, description);
-				}
-			}
-			await saveBatch();
-			await commit(() => writeOfflineRecord(statusKey, undefined));
-		})().catch(async (error: unknown) => {
-			if (error instanceof OfflineUnavailableError) return;
-			if (error instanceof PartitionMismatch) {
-				await commit(async () => {
-					await writeOfflineRecord(stagingKey(partition), undefined);
-					await writeOfflineRecord("periodic:config", undefined);
-					await writeOfflineRecord(
-						`periodic:warning:${partition.generation}`,
-						"Periodic partition provenance changed",
+				const describe = async () =>
+					(
+						await messageOperationsDescribeMessage({
+							...get,
+							path,
+						})
+					).data;
+				let description =
+					(known.get(hashKey(key)) as
+						| RemitImapDescribeMessageResponse
+						| undefined) ?? (await describe());
+				let outcome: Awaited<ReturnType<typeof downloadBody>>;
+				try {
+					outcome = await downloadBody(
+						pickRenderablePart(description.bodyParts),
 					);
-				});
-				await registration.periodicSync
-					?.unregister(PERIODIC_TAG)
-					.catch(() => {});
-				return;
+				} catch (error) {
+					if (!(error instanceof SignedLinkExpired)) throw error;
+					description = await describe();
+					outcome = await downloadBody(
+						pickRenderablePart(description.bodyParts),
+					);
+				}
+				if (outcome === "skipped") continue;
+				if (outcome === "saved") count++;
+				client.setQueryData(key, description);
 			}
-			if (error instanceof RunLimit || budget.controller.signal.aborted) {
-				await saveBatch();
-				return;
-			}
-			const needsLogin = error instanceof SessionRequired;
-			const attempts = (status?.attempts ?? 0) + 1;
-			await commit(() =>
-				writeOfflineRecord(statusKey, {
-					needsLogin,
+		}
+	};
 
-					attempts,
-					nextAttempt: Date.now() + DAILY_INTERVAL * 2 ** (attempts - 1),
-				} satisfies PeriodicStatus),
-			);
-			if (!(error instanceof TransportFailure) && !needsLogin)
-				await commit(() =>
-					writeOfflineRecord(
-						`periodic:warning:${partition.generation}`,
-						"Periodic download refresh failed",
-					),
+	try {
+		const outcome = await collect().then(
+			() => ({ ok: true }) as const,
+			(error: unknown) => ({ ok: false, error }) as const,
+		);
+		if (!outcome.ok && outcome.error instanceof OfflineUnavailableError) return;
+		if (!outcome.ok && outcome.error instanceof PartitionMismatch) {
+			await commit(async () => {
+				await writeOfflineRecord(stagingKey(partition), undefined);
+				await writeOfflineRecord("periodic:config", undefined);
+				await writeOfflineRecord(
+					`periodic:warning:${partition.generation}`,
+					"Periodic partition provenance changed",
 				);
-			if (needsLogin || attempts >= 10)
-				await registration.periodicSync?.unregister(PERIODIC_TAG);
-		});
+			});
+			await registration.periodicSync?.unregister(PERIODIC_TAG).catch(() => {});
+			return;
+		}
+
+		await flush();
+		if (outcome.ok) {
+			await commit(() => writeOfflineRecord(statusKey, undefined));
+			return;
+		}
+
+		const { error } = outcome;
+		if (error instanceof RunLimit || budget.controller.signal.aborted) return;
+		const needsLogin = error instanceof SessionRequired;
+		const attempts = (status?.attempts ?? 0) + 1;
+		await commit(() =>
+			writeOfflineRecord(statusKey, {
+				needsLogin,
+				attempts,
+				nextAttempt: Date.now() + DAILY_INTERVAL * 2 ** (attempts - 1),
+			} satisfies PeriodicStatus),
+		);
+		if (!(error instanceof TransportFailure) && !needsLogin)
+			await commit(() =>
+				writeOfflineRecord(
+					`periodic:warning:${partition.generation}`,
+					"Periodic download refresh failed",
+				),
+			);
+		if (needsLogin || attempts >= 10)
+			await registration.periodicSync?.unregister(PERIODIC_TAG);
 	} finally {
 		budget.close();
 		client.clear();

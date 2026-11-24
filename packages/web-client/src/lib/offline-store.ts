@@ -143,6 +143,24 @@ export const mailPartCacheKey = (url: string): string => {
 		throw new Error("Only same-origin mail parts can be downloaded");
 	return target.origin + target.pathname;
 };
+
+const mailPartIndexKey = (partition: Partition, key: string): string =>
+	`part:${partition.generation}:${key}`;
+
+/** Caller holds its partition guard. */
+export async function readMailPart(
+	partition: Partition,
+	url: string,
+	mime: string,
+): Promise<Response | undefined> {
+	const key = mailPartCacheKey(url);
+	const part = await offlineRecord<{ mime: string }>(
+		mailPartIndexKey(partition, key),
+	);
+	if (part?.mime === mime)
+		return (await caches.open(contentCacheName(partition))).match(key);
+}
+
 /** Both foreground and worker callers supply their own generation/run guard. */
 export async function saveMailPart(
 	partition: Partition,
@@ -158,7 +176,7 @@ export async function saveMailPart(
 			key,
 			response.clone(),
 		);
-		await writeOfflineRecord(`part:${partition.generation}:${key}`, {
+		await writeOfflineRecord(mailPartIndexKey(partition, key), {
 			mime,
 			savedAt: Date.now(),
 		});

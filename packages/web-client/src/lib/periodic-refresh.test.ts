@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { afterEach, beforeEach, mock, test } from "node:test";
-import { dehydrate, hashKey, QueryClient } from "@tanstack/react-query";
+import { dehydrate, QueryClient } from "@tanstack/react-query";
 import { OFFLINE_FORMAT, type Partition, wipeOffline } from "./offline-store";
 import {
 	PERIODIC_MAX_BYTES,
@@ -14,11 +14,7 @@ import {
 	type PeriodicRegistration,
 	registerPeriodicRefresh,
 } from "./periodic-registration";
-import {
-	mergePeriodicBatch,
-	reconcilePeriodicBatch,
-	stagingKey,
-} from "./periodic-staging";
+import { mergePeriodicBatch, stagingKey } from "./periodic-staging";
 
 const partition: Partition = {
 	key: "tenant",
@@ -87,7 +83,7 @@ beforeEach(() => {
 	records.set("periodic:config", {
 		partition,
 		sessionEndpoint: "/api/session",
-		apiBaseUrl: "/api",
+		apiBaseUrl: "/api/",
 	});
 	mock.method(
 		globalThis,
@@ -311,24 +307,120 @@ test("twenty-message cap, staging hydration and subsequent new-message selection
 		10,
 	);
 });
-test("10 MiB cap never stores oversized bodies or retries", async () => {
+test("the body budget skips advertised and previously streamed oversized parts", async () => {
+	const original = fetch;
+	const streamed = mock.fn(
+		() =>
+			new Response(
+				new ReadableStream({
+					start(controller) {
+						controller.enqueue(new Uint8Array(PERIODIC_MAX_BYTES / 2));
+						controller.enqueue(new Uint8Array(PERIODIC_MAX_BYTES / 2 + 1));
+					},
+				}),
+				{
+					headers: {
+						"content-type": "text/plain",
+						"x-remit-partition": partition.key,
+					},
+				},
+			),
+	);
+	const fetcher = mock.method(
+		globalThis,
+		"fetch",
+		async (input: RequestInfo | URL, init?: RequestInit) => {
+			switch (new URL(String(input)).pathname) {
+				case "/api/messages/message-0":
+					return response({
+						bodyParts: [
+							{
+								partPath: "1",
+								mediaType: "TEXT",
+								mediaSubtype: "PLAIN",
+								isMultipart: false,
+								sizeOctets: PERIODIC_MAX_BYTES + 1,
+								contentUrl: "/content/message-0",
+							},
+						],
+					});
+				case "/content/message-1":
+					return streamed();
+				default:
+					return original(input, init);
+			}
+		},
+	);
+	await run();
+	assert.equal(bytes.size, 0);
+	assert.equal(streamed.mock.callCount(), 1);
+	assert.ok(
+		!fetcher.mock.calls.some(({ arguments: [input] }) =>
+			String(input).endsWith("/content/message-0"),
+		),
+	);
+	assert.ok(!requests.includes("/api/messages/message-2"));
+
+	await run();
+	assert.equal(streamed.mock.callCount(), 1);
+	assert.equal(bytes.has("http://localhost/content/message-2"), true);
+	assert.deepEqual(warnings, []);
+});
+
+test("a completed body and its descriptor survive a later download failure", async () => {
 	const original = fetch;
 	mock.method(
 		globalThis,
 		"fetch",
 		async (input: RequestInfo | URL, init?: RequestInit) =>
-			String(input).includes("/content/")
-				? response("x".repeat(PERIODIC_MAX_BYTES + 1), "text/plain")
+			String(input).endsWith("/content/message-1")
+				? new Response(null, { status: 500 })
 				: original(input, init),
 	);
+	const assertFirstDownload = async () => {
+		assert.equal(
+			await bytes.get("http://localhost/content/message-0")?.clone().text(),
+			"downloaded mail",
+		);
+		assert.equal(bytes.has("http://localhost/content/message-1"), false);
+		const merged = await mergePeriodicBatch(partition);
+		const descriptions = merged?.clientState.queries
+			.filter(
+				({ queryKey: [key] }) =>
+					key &&
+					typeof key === "object" &&
+					"_id" in key &&
+					key._id === "messageOperationsDescribeMessage",
+			)
+			.map(({ state }) => state.data);
+		assert.deepEqual(descriptions, [
+			{
+				message: { messageId: "message-0" },
+				bodyParts: [
+					{
+						partPath: "1",
+						mediaType: "TEXT",
+						mediaSubtype: "PLAIN",
+						isMultipart: false,
+						contentUrl: "/content/message-0",
+					},
+				],
+			},
+		]);
+	};
+
 	await run();
-	assert.equal(bytes.size, 0);
-	assert.equal(
-		requests.filter((p) => p.startsWith("/api/messages/")).length,
-		1,
-	);
-	assert.deepEqual(warnings, []);
+	await assertFirstDownload();
+
+	// The index and bytes can outlive their saved descriptor.
+	records.delete(`queries:${partition.generation}`);
+	records.delete(periodicStatusKey(partition));
+	requests = [];
+	await run();
+	assert.equal(requests.includes("/content/message-0"), false);
+	await assertFirstDownload();
 });
+
 test("30 second deadline stops before another request", async () => {
 	const original = fetch;
 	const now = 1000;
@@ -444,59 +536,6 @@ test("opt-out revokes a body response already in flight", async () => {
 	await run();
 	assert.equal(bytes.size, 0);
 	assert.equal(records.has(stagingKey(partition)), false);
-});
-
-test("background heads preserve saved INBOX pages and pagination", () => {
-	const key = [
-		{ _id: "threadOperationsListThreads", path: { mailboxId: "inbox" } },
-	];
-	const previous = new QueryClient({
-		defaultOptions: { queries: { gcTime: Infinity } },
-	});
-	const stage = new QueryClient({
-		defaultOptions: { queries: { gcTime: Infinity } },
-	});
-	previous.setQueryData(
-		key,
-		{
-			pages: [
-				{
-					items: [{ messageId: "a" }, { messageId: "b" }],
-					continuationToken: "older",
-				},
-				{ items: [{ messageId: "c" }], continuationToken: "oldest" },
-			],
-			pageParams: [undefined, "older"],
-		},
-		{ updatedAt: 1 },
-	);
-	stage.setQueryData(
-		[{ ...key[0], _periodicHead: true }],
-		{
-			pages: [{ items: [{ messageId: "d" }, { messageId: "a" }] }],
-			pageParams: [undefined],
-		},
-		{ updatedAt: 2 },
-	);
-	const snapshot = (client: QueryClient) => ({
-		timestamp: Date.now(),
-		buster: String(OFFLINE_FORMAT),
-		clientState: dehydrate(client),
-	});
-	const merged = reconcilePeriodicBatch(snapshot(previous), snapshot(stage));
-	assert.equal(merged.clientState.queries[0].queryHash, hashKey(key));
-	assert.deepEqual(merged.clientState.queries[0].state.data, {
-		pages: [
-			{
-				items: [{ messageId: "d" }, { messageId: "a" }, { messageId: "b" }],
-				continuationToken: "older",
-			},
-			{ items: [{ messageId: "c" }], continuationToken: "oldest" },
-		],
-		pageParams: [undefined, "older"],
-	});
-	previous.clear();
-	stage.clear();
 });
 
 test("prefetched metadata without cached bytes still downloads its body", async () => {

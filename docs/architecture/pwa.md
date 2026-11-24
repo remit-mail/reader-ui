@@ -245,23 +245,28 @@ reporter events or user notices. Logout, tenant change and remove-downloads revo
 writers, erase staging and unregister. A successful foreground session is required
 to bind the worker configuration to the verified partition/generation.
 
-The worker reads `/config` for accounts (without persisting config), each account's
-mailboxes, one newest INBOX thread page per account, and descriptions plus the
-selected HTML/plain body for at most twenty previously unknown messages in total.
-Every request is a sequential GET; there are no server sync writes, attachment,
-inline-image or remote-image downloads. All response bytes, including metadata,
-share a 10 MiB budget and all work shares a thirty-second deadline. API responses
-need `X-Remit-Partition`; body responses use U2's exact MIME/provenance admission.
-Complete bodies enter the existing content cache and part index. Completed query
-results enter `periodic:batch:<generation>` in the existing IndexedDB data store,
-separately from `queries:<generation>`. Foreground hydration merges by query hash
-and timestamp before mounting queries, then removes the staging batch. Partition
-mismatches discard staging; every commit rechecks the durable wipe epoch.
+The worker uses the generated GET operations for accounts, mailboxes, the latest
+INBOX page per account and message descriptions. It downloads selected HTML/plain
+bodies for up to twenty messages per run. Every request is sequential. The
+10 MiB response budget includes metadata, and all work shares a thirty-second
+deadline. The worker skips bodies whose advertised size exceeds the run budget
+and remembers parts that exhaust a fresh body budget while streaming. API
+responses need `X-Remit-Partition`, and body responses use U2's MIME and provenance
+checks. An expired content signature renews the description once.
+
+The worker checks the part index and content cache for each selected body. It
+stages completed descriptions, including cache hits, together in
+`periodic:batch:<generation>` even when a later download fails. The batch holds
+INBOX heads separately from query results. On restore, a head can replace the
+saved first page when its continuation joins the retained pagination. When
+there is a gap, both cursors remain available and the new downloads appear in
+Downloads until the foreground list refreshes. Every commit rechecks the wipe
+epoch, and a partition mismatch discards staging.
 
 Transport failures retain previous downloads. Other failures record one warning
 through the existing recent-errors/telemetry reporter on the next foreground
 startup, without a user banner. Failed runs back off across browser events, starting
-at one day and doubling; after ten failed attempts the tag is removed. There are
-no retries inside an event and no custom wake timers. Foreground verification
+at one day and doubling. After ten failed attempts the tag is removed.
+Foreground verification
 resets failure state. C4 must keep the session endpoint and existing protected API
 and content provenance contract available; no new server writes are required.
