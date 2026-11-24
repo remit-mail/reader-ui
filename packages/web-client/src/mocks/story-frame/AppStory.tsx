@@ -14,7 +14,7 @@ import {
 import { escalate } from "../../lib/escalate";
 import { noopTelemetry } from "../../lib/telemetry";
 import { createAppRouter } from "../../router";
-import { type SettingsSlot, SettingsSlotsProvider } from "../../settings-slots";
+import { SettingsProvider, type SettingsSlot } from "../../settings-slots";
 import "../../lib/i18n";
 import "../../lib/client";
 
@@ -25,6 +25,8 @@ export interface AppStoryProps {
 	pwaEnabled?: boolean;
 	authProvider?: AuthProvider;
 	settingsSlots?: SettingsSlot[];
+	/** Host People administration URL, replacing the self-host People panel. */
+	peopleDestinationUrl?: string;
 }
 
 const createStoryQueryClient = (): QueryClient =>
@@ -41,6 +43,7 @@ export function AppStory({
 	url,
 	authProvider = noneAuthProvider,
 	settingsSlots = [],
+	peopleDestinationUrl,
 	pwaEnabled = false,
 }: AppStoryProps) {
 	const [queryClient] = useState(createStoryQueryClient);
@@ -57,13 +60,13 @@ export function AppStory({
 	return (
 		<QueryClientProvider client={queryClient}>
 			<AuthProviderProvider value={authProvider}>
-				<SettingsSlotsProvider value={settingsSlots}>
+				<SettingsProvider value={{ settingsSlots, peopleDestinationUrl }}>
 					<InstallProvider enabled={pwaEnabled}>
 						<Shell>
 							<RouterProvider router={router} />
 						</Shell>
 					</InstallProvider>
-				</SettingsSlotsProvider>
+				</SettingsProvider>
 			</AuthProviderProvider>
 		</QueryClientProvider>
 	);

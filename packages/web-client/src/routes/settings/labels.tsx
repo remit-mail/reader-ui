@@ -18,6 +18,7 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { LabelsList } from "../../components/settings/LabelsList";
+import { formatErrorDetail } from "../../components/ui/error-banners";
 import {
 	useCreateLabel,
 	useDeleteLabel,
@@ -52,17 +53,22 @@ const labelsHelp = (
 
 /** Create a label for one account. A name, a color, and a create button. */
 function NewLabel({ accountId }: { accountId: string }) {
-	const { createLabel, isPending, isError } = useCreateLabel(accountId);
+	const { createLabel, isPending, isError, error } = useCreateLabel(accountId);
 	const [name, setName] = useState("");
 	const [color, setColor] = useState<RemitImapLabelColor>("Default");
 
 	const handleCreate = () => {
 		const trimmed = name.trim();
 		if (trimmed === "") return;
-		createLabel(trimmed, color).then(() => {
-			setName("");
-			setColor("Default");
-		});
+		void createLabel(trimmed, color).then(
+			() => {
+				setName("");
+				setColor("Default");
+			},
+			() => {
+				/* The mutation error is rendered below. */
+			},
+		);
 	};
 
 	return (
@@ -111,7 +117,8 @@ function NewLabel({ accountId }: { accountId: string }) {
 			</div>
 			{isError && (
 				<Banner tone="danger" variant="soft">
-					Couldn't create that label. Please try again.
+					{formatErrorDetail(error) ??
+						"The label could not be created: no error message was returned."}
 				</Banner>
 			)}
 		</div>

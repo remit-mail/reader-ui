@@ -15,8 +15,8 @@ const peopleQueryOptions = () => ({
  * a 403 for a disabled caller or the kill switch raises the signed-out notice,
  * so neither ever reads as an empty list.
  */
-export const usePeople = () => {
-	const query = useQuery(peopleQueryOptions());
+export const usePeople = (enabled = true) => {
+	const query = useQuery({ ...peopleQueryOptions(), enabled });
 	const signedOut = query.isError && isPeopleSignedOut(query.error);
 
 	useEffect(() => {

@@ -26,6 +26,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { DeleteFolderDialog } from "../../components/settings/DeleteFolderDialog";
+import { formatErrorDetail } from "../../components/ui/error-banners";
 import { isMailboxNotSettledRefusal } from "../../components/ui/folder-role-refusal";
 import { useCreateMailbox } from "../../hooks/useCreateMailbox";
 import { useFolderLabelTranslator } from "../../hooks/useFolderLabelTranslator";
@@ -175,7 +176,9 @@ function AccountFolders({ account }: { account: RemitImapAccountResponse }) {
 				<Banner tone="danger" variant="soft">
 					{isMailboxNotSettledRefusal(appointMutation.error)
 						? "That folder is still being created on the mail server — wait for it to finish, then try again."
-						: "Couldn't save that change. Please try again."}
+						: (formatErrorDetail(
+								appointMutation.error ?? renameMutation.error,
+							) ?? "The folder change failed without an error message.")}
 				</Banner>
 			)}
 			<RoleAppointmentList
@@ -227,7 +230,8 @@ function AccountFolders({ account }: { account: RemitImapAccountResponse }) {
 					pending={renameMutation.isPending}
 					error={
 						renameMutation.isError
-							? "Couldn't save that name. Please try again."
+							? (formatErrorDetail(renameMutation.error) ??
+								"The folder rename failed without an error message.")
 							: undefined
 					}
 					onSubmit={() => {

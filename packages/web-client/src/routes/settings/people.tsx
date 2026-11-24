@@ -1,8 +1,9 @@
 import { SettingsShell } from "@remit/ui";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { PeoplePanel } from "../../components/settings/people/PeoplePanel";
 import { useOpenSettingsSection } from "../../routing/sections";
+import { usePeopleDestinationUrl } from "../../settings-slots";
 import { useSettingsNavItems } from "../settings";
 
 export const Route = createFileRoute("/settings/people")({
@@ -33,6 +34,14 @@ const peopleHelp = (
 );
 
 function PeopleSettings() {
+	const destination = usePeopleDestinationUrl();
+	useEffect(() => {
+		if (destination) window.location.replace(destination);
+	}, [destination]);
+	return destination ? null : <SelfHostPeopleSettings />;
+}
+
+function SelfHostPeopleSettings() {
 	const navigate = useNavigate();
 	const navItems = useSettingsNavItems();
 	const openSettingsSection = useOpenSettingsSection();

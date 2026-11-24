@@ -422,3 +422,35 @@ export const StopSyncingWithUndo: Story = {
 		);
 	},
 };
+
+export const ExportRefused: Story = {
+	args: { authProvider: signedInAs("alice.tan@gmail.example") },
+	parameters: {
+		msw: {
+			handlers: [
+				http.post("/api/me/export", () =>
+					HttpResponse.json(
+						{ message: "An export is already in progress." },
+						{ status: 409 },
+					),
+				),
+				...mailHandlers(mailWorld()),
+			],
+		},
+	},
+	play: async ({ canvasElement }) => {
+		const canvas = within(canvasElement);
+		await userEvent.click(
+			await canvas.findByRole("button", { name: "Delete your Remit account" }),
+		);
+		const dialog = within(
+			await page.findByRole("dialog", { name: "Delete your Remit account" }),
+		);
+		await userEvent.click(
+			dialog.getByRole("button", { name: "Export my data first" }),
+		);
+		await expect(
+			await dialog.findByText("An export is already in progress."),
+		).toBeVisible();
+	},
+};
