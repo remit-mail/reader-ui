@@ -196,7 +196,7 @@ export const ActionFailed: Story = {
 		);
 		await confirmWithPassword(canvasElement);
 		await expect(
-			await canvas.findByText("person1@example.com was not disabled"),
+			await canvas.findByText("Couldn't disable person1@example.com"),
 		).toBeVisible();
 		await expect(
 			canvas.getByRole("link", { name: "Report an issue" }),
@@ -205,12 +205,52 @@ export const ActionFailed: Story = {
 };
 
 export const Hidden: Story = {
-	parameters: { msw: { handlers: mailHandlers(mailWorld()) } },
+	parameters: {
+		msw: {
+			handlers: [
+				http.get("/api/people", () =>
+					HttpResponse.json(
+						{
+							message:
+								"People administration is not available while self sign-up is enabled.",
+						},
+						{ status: 404 },
+					),
+				),
+				...mailHandlers(mailWorld()),
+			],
+		},
+	},
 	play: async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
 		await expect(
-			await canvas.findByText(/This server has no People page/),
+			await canvas.findByText(
+				/People administration is not available while self sign-up is enabled/,
+			),
 		).toBeVisible();
 		await expect(canvas.queryByRole("button", { name: "People" })).toBeNull();
+	},
+};
+
+export const ListFailed: Story = {
+	parameters: {
+		msw: {
+			handlers: [
+				http.get("/api/people", () =>
+					HttpResponse.json(
+						{ message: "People administration is unavailable on this host." },
+						{ status: 503 },
+					),
+				),
+				...mailHandlers(mailWorld()),
+			],
+		},
+	},
+	play: async ({ canvasElement }) => {
+		await expect(
+			await within(canvasElement).findByText(
+				"People administration is unavailable on this host.",
+			),
+		).toBeVisible();
 	},
 };

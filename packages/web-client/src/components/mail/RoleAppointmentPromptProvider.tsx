@@ -24,6 +24,7 @@ import {
 import { useCreateMailbox } from "../../hooks/useCreateMailbox";
 import { useFolderLabelTranslator } from "../../hooks/useFolderLabelTranslator";
 import { folderDelimiter } from "../../lib/move-options";
+import { formatErrorDetail } from "../ui/error-banners";
 import { isMailboxNotSettledRefusal } from "../ui/folder-role-refusal";
 
 export interface AppointmentRequest {
@@ -172,6 +173,9 @@ export const RoleAppointmentPromptProvider = ({
 				.catch((error: unknown) => {
 					setPhase({
 						kind: "appoint-failed",
+						message:
+							formatErrorDetail(error) ??
+							"The folder appointment failed without an error message.",
 						cause: isMailboxNotSettledRefusal(error)
 							? "mailbox-pending"
 							: "generic",

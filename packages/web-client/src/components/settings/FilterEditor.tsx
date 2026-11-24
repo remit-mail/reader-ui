@@ -30,6 +30,7 @@ import {
 	ruleToDraft,
 	SUPPORTED_CLAUSE_FIELDS,
 } from "../../lib/organize/rule-model";
+import { formatErrorDetail } from "../ui/error-banners";
 
 interface FilterEditorProps {
 	accountId: string;
@@ -190,7 +191,13 @@ export function FilterEditor({
 	if (update.isPending) return <SavingState />;
 
 	if (update.isError) {
-		return <SaveError onRetry={update.reset} onClose={onClose} />;
+		return (
+			<SaveError
+				error={update.error}
+				onRetry={update.reset}
+				onClose={onClose}
+			/>
+		);
 	}
 
 	if (update.isSuccess) {
@@ -341,16 +348,21 @@ function ReapplyProgress({
 }
 
 function SaveError({
+	error,
 	onRetry,
 	onClose,
 }: {
+	error: unknown;
 	onRetry: () => void;
 	onClose: () => void;
 }) {
 	return (
 		<div className="flex flex-col items-center gap-3 px-5 py-8 text-center">
 			<p className="text-sm font-medium text-danger">Couldn't save changes</p>
-			<p className="max-w-xs text-xs text-fg-muted">Please try again.</p>
+			<p className="max-w-xs text-xs text-fg-muted">
+				{formatErrorDetail(error) ??
+					"The filter save failed without an error message."}
+			</p>
 			<div className="mt-2 flex gap-2">
 				<Button variant="primary" onClick={onRetry}>
 					Try again

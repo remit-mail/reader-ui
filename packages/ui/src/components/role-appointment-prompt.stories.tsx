@@ -205,7 +205,11 @@ export const AppointFailed: Story = {
 		reason: "none",
 		action: { kind: "delete", count: 12 },
 		initialSelectedId: "mb-prullenbak",
-		phase: { kind: "appoint-failed", cause: "generic" },
+		phase: {
+			kind: "appoint-failed",
+			cause: "generic",
+			message: "The mail server refused the folder appointment.",
+		},
 	},
 };
 
@@ -220,6 +224,10 @@ export const AppointRefusedPendingMailbox: Story = {
 		reason: "none",
 		action: { kind: "delete", count: 12 },
 		initialSelectedId: "mb-prullenbak",
-		phase: { kind: "appoint-failed", cause: "mailbox-pending" },
+		phase: {
+			kind: "appoint-failed",
+			cause: "mailbox-pending",
+			message: "The folder is still being created.",
+		},
 	},
 };

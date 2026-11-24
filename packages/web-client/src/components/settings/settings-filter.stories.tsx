@@ -2,7 +2,9 @@ import type { RemitImapFilterResponse } from "@remit/api-http-client/types.gen.t
 import { BottomSheet, type FolderTreeNode, type LabelOption } from "@remit/ui";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { HttpResponse, http } from "msw";
 import type { ReactNode } from "react";
+import { expect, userEvent, within } from "storybook/test";
 import { ErrorBannerProvider } from "../ui/ErrorBannerProvider";
 import { FilterEditor } from "./FilterEditor";
 
@@ -145,4 +147,29 @@ export const EditUntilADate: Story = {
 			/>
 		</SheetStage>
 	),
+};
+
+export const SaveRefused: Story = {
+	...EditStandingRule,
+	parameters: {
+		msw: {
+			handlers: [
+				http.patch("/api/accounts/:accountId/filters/:filterId", () =>
+					HttpResponse.json(
+						{ message: "A filter with that name already exists." },
+						{ status: 409 },
+					),
+				),
+			],
+		},
+	},
+	play: async ({ canvasElement }) => {
+		const canvas = within(canvasElement);
+		await userEvent.clear(canvas.getByLabelText("Rule name"));
+		await userEvent.type(canvas.getByLabelText("Rule name"), "Travel");
+		await userEvent.click(canvas.getByRole("button", { name: "Save rule" }));
+		await expect(
+			await canvas.findByText("A filter with that name already exists."),
+		).toBeVisible();
+	},
 };

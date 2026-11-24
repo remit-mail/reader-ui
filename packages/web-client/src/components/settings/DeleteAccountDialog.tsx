@@ -7,6 +7,7 @@ import { Download, TriangleAlert, X } from "@remit/ui/icons";
 import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { useAuthProvider } from "../../auth/provider";
+import { formatErrorDetail } from "../ui/error-banners";
 
 interface DeleteAccountDialogProps {
 	open: boolean;
@@ -132,7 +133,8 @@ function DeleteAccountDialogView({
 							)}
 							{exportMutation.isError && (
 								<p className="mt-1.5 text-danger" role="alert">
-									Couldn't start the export. Please try again.
+									{formatErrorDetail(exportMutation.error) ??
+										"The export could not start: no error message was returned."}
 								</p>
 							)}
 						</div>

@@ -20,6 +20,7 @@ import {
 	peopleReportHref,
 	personActionCopy,
 } from "../../../lib/people";
+import { formatErrorDetail } from "../../ui/error-banners";
 import { ReportLink } from "../ReportLink";
 import { PersonActionDialog } from "./PersonActionDialog";
 import { ResetLinkDialog } from "./ResetLinkDialog";
@@ -205,12 +206,7 @@ export function PeoplePanel() {
 	}
 
 	if (people.unavailable) {
-		return (
-			<Banner tone="info">
-				This server has no People page. It shows on a self-hosted server once
-				self sign-up is turned off.
-			</Banner>
-		);
+		return <Banner tone="info">{peopleListFailureReason(people.error)}</Banner>;
 	}
 
 	if (people.isError) {
@@ -255,7 +251,8 @@ export function PeoplePanel() {
 			reason:
 				classified.kind === "failed"
 					? classified.reason
-					: "Something went wrong. Nothing changed. Try again.",
+					: (formatErrorDetail(error) ??
+						"The People request failed without an error message."),
 			error,
 		});
 		setPending(null);
