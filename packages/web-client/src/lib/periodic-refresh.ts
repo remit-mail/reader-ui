@@ -62,7 +62,6 @@ class ResponseFailure extends Error {}
 export class PeriodicBudget {
 	readonly controller = new AbortController();
 	private bytes = 0;
-	private bodyBytes = 0;
 	private readonly timer = setTimeout(
 		() => this.controller.abort(),
 		PERIODIC_MAX_MS,
@@ -155,7 +154,6 @@ export class PeriodicBudget {
 		response: Response,
 		kind: "session" | "api" | "body",
 	): Promise<Response> {
-		const freshBodyBudget = kind === "body" && this.bodyBytes === 0;
 		const reader = response.body?.getReader();
 		const chunks: Uint8Array<ArrayBuffer>[] = [];
 		let streamed = 0;
@@ -170,14 +168,8 @@ export class PeriodicBudget {
 				if (done) break;
 				streamed += value.byteLength;
 				this.bytes += value.byteLength;
-				if (kind === "body") this.bodyBytes += value.byteLength;
 				if (this.bytes > PERIODIC_MAX_BYTES) {
-					// A fresh body budget includes the session and list metadata
-					// the worker must read to reach the first uncached body.
-					if (
-						freshBodyBudget ||
-						(kind === "body" && streamed > PERIODIC_MAX_BYTES)
-					)
+					if (kind === "body" && streamed > PERIODIC_MAX_BYTES)
 						throw new OversizedBody();
 					throw new RunLimit();
 				}
@@ -368,12 +360,22 @@ async function runPeriodicRefresh(
 					return { data, dataUpdatedAt: Date.now() };
 				};
 				const saved = known.get(hashKey(key));
-				let description = saved?.data
-					? {
-							data: saved.data as RemitImapDescribeMessageResponse,
-							dataUpdatedAt: saved.dataUpdatedAt,
-						}
-					: await describe();
+				const retained = saved?.data as
+					| RemitImapDescribeMessageResponse
+					| undefined;
+				const cachedPart = retained && pickRenderablePart(retained.bodyParts);
+				if (
+					cachedPart &&
+					(await commit(() =>
+						readMailPart(
+							partition,
+							cachedPart.contentUrl,
+							cachedPart.kind === "html" ? "text/html" : "text/plain",
+						),
+					))
+				)
+					continue;
+				let description = await describe();
 				let outcome: Awaited<ReturnType<typeof downloadBody>>;
 				try {
 					outcome = await downloadBody(

@@ -163,9 +163,6 @@ const server = createServer(async (request, response) => {
 		);
 		if (unavailableBody) {
 			response.writeHead(Number(unavailableBody[1])).end();
-		} else if (path === "/content/oversized-mail/body") {
-			response.setHeader("Content-Type", "text/html");
-			response.end(Buffer.alloc(10 * 1024 * 1024 + 1, "x"));
 		} else if (path === "/content/failed-mail/body") {
 			response.writeHead(500).end();
 		} else if (path === "/content/held-mail/body") {
@@ -325,6 +322,9 @@ const server = createServer(async (request, response) => {
 								? [
 										part(messageId, "body", "TEXT", "HTML", {
 											contentUrl: `/content/${messageId}/body`,
+											...(messageId === "oversized-mail"
+												? { sizeOctets: 10 * 1024 * 1024 + 1 }
+												: {}),
 										}),
 									]
 								: [],

@@ -152,12 +152,12 @@ export async function testPeriodicReading(
 			await page.goto(`${origin}${path}`);
 			return page;
 		};
-		const eligible = async () => {
+		const eligible = async (path = "/downloads") => {
 			const page = await context.newPage();
 			await page.addInitScript(() =>
 				localStorage.removeItem("periodic-registration"),
 			);
-			await page.goto(`${origin}/downloads`);
+			await page.goto(`${origin}${path}`);
 			await page.waitForFunction(
 				() =>
 					!!localStorage.getItem("periodic-registration") &&
@@ -169,7 +169,10 @@ export async function testPeriodicReading(
 			);
 			return page;
 		};
-		const page = await eligible();
+		const page = await eligible("/downloads/background-mail");
+		await page
+			.getByText("This message has no body content.", { exact: true })
+			.waitFor();
 		assert.deepEqual(
 			await page.evaluate(() =>
 				JSON.parse(localStorage.getItem("periodic-registration") ?? "null"),
@@ -180,6 +183,13 @@ export async function testPeriodicReading(
 		const worker = context.serviceWorkers()[0];
 		assert.ok(worker);
 		await page.close();
+		await context.setOffline(true);
+		const retainedDescription = await open("/downloads/background-mail");
+		await retainedDescription
+			.getByText("This message has no body content.", { exact: true })
+			.waitFor();
+		await retainedDescription.close();
+		await context.setOffline(false);
 
 		controls.messages([
 			"unavailable-202",
@@ -192,13 +202,6 @@ export async function testPeriodicReading(
 		const before = controls.contentRequests.length;
 		await refresh(worker);
 		assert.deepEqual(controls.contentRequests.slice(before), [
-			"/content/unavailable-202/body",
-			"/content/unavailable-403/body",
-			"/content/unavailable-404/body",
-			"/content/oversized-mail/body",
-		]);
-		await refresh(worker);
-		assert.deepEqual(controls.contentRequests.slice(before + 4), [
 			"/content/unavailable-202/body",
 			"/content/unavailable-403/body",
 			"/content/unavailable-404/body",
