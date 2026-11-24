@@ -91,15 +91,21 @@ export const OldCategoryRow: Story = {
 		if (!row) throw new Error("Missing old category row");
 		row.focus();
 		await userEvent.keyboard("s");
+		await waitFor(
+			() => expect(row.querySelector(".lucide-star")).toBeVisible(),
+			routeLoad,
+		);
 		await userEvent.click(subject);
 		await expect(
 			await canvas.findByRole("heading", { name: "Autumn sale starts now" }),
 		).toBeVisible();
-		await waitFor(() =>
-			expect(canvas.getByRole("button", { name: "Star" })).toHaveAttribute(
-				"aria-pressed",
-				"true",
-			),
+		await waitFor(
+			() =>
+				expect(canvas.getByRole("button", { name: "Star" })).toHaveAttribute(
+					"aria-pressed",
+					"true",
+				),
+			routeLoad,
 		);
 	},
 };
