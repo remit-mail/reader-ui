@@ -298,7 +298,7 @@ async function runPeriodicRefresh(
 		const known = new Map(
 			retained?.clientState.queries
 				.filter((query) => query.state.status === "success")
-				.map((query) => [query.queryHash, query.state.data]),
+				.map((query) => [query.queryHash, query.state]),
 		);
 		const { data: configData } = await configOperationsGetConfig(get);
 		let count = 0;
@@ -341,27 +341,30 @@ async function runPeriodicRefresh(
 					client: api,
 					path,
 				});
-				const describe = async () =>
-					(
-						await messageOperationsDescribeMessage({
-							...get,
-							path,
-						})
-					).data;
-				let description =
-					(known.get(hashKey(key)) as
-						| RemitImapDescribeMessageResponse
-						| undefined) ?? (await describe());
+				const describe = async () => {
+					const { data } = await messageOperationsDescribeMessage({
+						...get,
+						path,
+					});
+					return { data, dataUpdatedAt: Date.now() };
+				};
+				const saved = known.get(hashKey(key));
+				let description = saved?.data
+					? {
+							data: saved.data as RemitImapDescribeMessageResponse,
+							dataUpdatedAt: saved.dataUpdatedAt,
+						}
+					: await describe();
 				let outcome: Awaited<ReturnType<typeof downloadBody>>;
 				try {
 					outcome = await downloadBody(
-						pickRenderablePart(description.bodyParts),
+						pickRenderablePart(description.data.bodyParts),
 					);
 				} catch (error) {
 					if (!(error instanceof SignedLinkExpired)) throw error;
 					description = await describe();
 					outcome = await downloadBody(
-						pickRenderablePart(description.bodyParts),
+						pickRenderablePart(description.data.bodyParts),
 					).catch((retryError: unknown) => {
 						if (retryError instanceof SignedLinkExpired) return "skipped";
 						throw retryError;
@@ -369,7 +372,9 @@ async function runPeriodicRefresh(
 				}
 				if (outcome === "skipped") continue;
 				if (outcome === "saved") count++;
-				client.setQueryData(key, description);
+				client.setQueryData(key, description.data, {
+					updatedAt: description.dataUpdatedAt,
+				});
 			}
 		}
 	};
