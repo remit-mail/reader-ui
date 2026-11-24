@@ -12,16 +12,15 @@
  *
  * On phone, use `<BriefPane.Phone />` instead.
  */
-import { unifiedThreadOperationsListAllThreadsOptions } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
 import type { RemitImapThreadMessageResponse } from "@remit/api-http-client/types.gen.ts";
 import { ReadingPaneEmpty } from "@remit/ui";
-import { useQuery } from "@tanstack/react-query";
 import {
 	createContext,
 	type ReactNode,
 	useCallback,
 	useContext,
 	useMemo,
+	useState,
 } from "react";
 import { useDeleteMessages } from "../../hooks/useDeleteMessages";
 import { useIntelligenceDrawer } from "../../hooks/useIntelligenceDrawer";
@@ -64,6 +63,7 @@ import type { OpenMessageOptions } from "./ThreadListInteraction";
 /* ------------------------------------------------------------------ */
 
 interface BriefPaneContextValue {
+	onRowsChange: (rows: RemitImapThreadMessageResponse[]) => void;
 	/** The row the reader pointed at, which is the one the list highlights. */
 	selectedMessageId: string | undefined;
 	selectedThread: RemitImapThreadMessageResponse | undefined;
@@ -125,11 +125,17 @@ function BriefPaneProvider({ thread, children }: BriefPaneProps) {
 	const threadId = thread?.threadId;
 	const pointedAtMessageId = thread?.messageId;
 
-	const { data: threadsData } = useQuery({
-		...unifiedThreadOperationsListAllThreadsOptions(),
-		staleTime: 60_000,
-	});
-	const briefThreads = useMemo(() => threadsData?.items ?? [], [threadsData]);
+	const [briefThreads, setBriefThreads] = useState<
+		RemitImapThreadMessageResponse[]
+	>([]);
+	const onRowsChange = useCallback((rows: RemitImapThreadMessageResponse[]) => {
+		setBriefThreads((previous) =>
+			previous.length === rows.length &&
+			previous.every((row, index) => row === rows[index])
+				? previous
+				: rows,
+		);
+	}, []);
 
 	// The row the brief itself lists, preferred because a mutation patches it in
 	// place. A thread reached from a cross-folder search hit or a cold address is
@@ -274,6 +280,7 @@ function BriefPaneProvider({ thread, children }: BriefPaneProps) {
 	);
 
 	const ctx: BriefPaneContextValue = {
+		onRowsChange,
 		selectedMessageId,
 		selectedThread,
 		conversation,
@@ -313,12 +320,18 @@ function BriefPaneProvider({ thread, children }: BriefPaneProps) {
  * Daily brief list. Mount in the `list` slot of `AppShellSlotted`.
  */
 function BriefList() {
-	const { selectedMessageId, onOpenThread, triage, onDeleteMessages } =
-		useBriefPane();
+	const {
+		selectedMessageId,
+		onOpenThread,
+		triage,
+		onDeleteMessages,
+		onRowsChange,
+	} = useBriefPane();
 	const { accounts } = useMailContext();
 
 	return (
 		<DailyBrief
+			onRowsChange={onRowsChange}
 			accounts={accounts}
 			selectedMessageId={selectedMessageId}
 			onOpenThread={onOpenThread}

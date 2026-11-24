@@ -62,6 +62,48 @@ export const Default: Story = {
 	},
 };
 
+export const OldCategoryRow: Story = {
+	parameters: {
+		msw: {
+			handlers: mailHandlers(
+				mailWorld({
+					threads: [
+						...newsletterBacklog(60).map((row) => ({
+							...row,
+							category: "personal" as const,
+						})),
+						...world.threads
+							.filter((row) => row.category === "marketing")
+							.map((row) => ({ ...row, sentDate: 0 })),
+					],
+				}),
+			),
+		},
+	},
+	play: async ({ canvasElement }) => {
+		const canvas = within(canvasElement);
+		const subject = await canvas.findByText(
+			"Autumn sale starts now",
+			{},
+			routeLoad,
+		);
+		const row = subject.closest<HTMLElement>("[data-list-row]");
+		if (!row) throw new Error("Missing old category row");
+		row.focus();
+		await userEvent.keyboard("s");
+		await userEvent.click(subject);
+		await expect(
+			await canvas.findByRole("heading", { name: "Autumn sale starts now" }),
+		).toBeVisible();
+		await waitFor(() =>
+			expect(canvas.getByRole("button", { name: "Star" })).toHaveAttribute(
+				"aria-pressed",
+				"true",
+			),
+		);
+	},
+};
+
 export const Phone: Story = {
 	globals: phone,
 	play: async ({ canvasElement }) => {

@@ -19,6 +19,8 @@ import type {
 	MessageBulkOperationsMoveMessagesResponse,
 	MessageBulkOperationsUpdateFlagsResponse,
 	MessageCalendarSuggestionOperationsListMessageCalendarSuggestionsResponse,
+	MessageOperationsUpdateMessageFlagsData,
+	MessageOperationsUpdateMessageFlagsResponse,
 	OrganizeOperationsPreviewOrganizeResponse,
 	OutboxOperationsListOutboxMessagesResponse,
 	PeopleOperationsListPeopleErrors,
@@ -206,9 +208,10 @@ const listing = (
 const pending = (): Promise<never> => new Promise<never>(() => undefined);
 
 export const mailHandlers = (
-	world: MailWorld,
+	seed: MailWorld,
 	options: MailHandlerOptions = {},
 ): HttpHandler[] => {
+	const world = { ...seed, threads: seed.threads.map((row) => ({ ...row })) };
 	const byMessageId = new Map(world.threads.map((row) => [row.messageId, row]));
 	const inboxIds = new Set(
 		world.accounts.flatMap((account) =>
@@ -354,6 +357,26 @@ export const mailHandlers = (
 				);
 			return HttpResponse.json<RemitImapDescribeMessageResponse>(describe(row));
 		}),
+		http.patch(
+			`${API}/messages/:messageId/flags`,
+			async ({ params, request }) => {
+				const row = byMessageId.get(String(params.messageId));
+				if (!row)
+					return HttpResponse.json(
+						{ message: "Message not found" },
+						{ status: 404 },
+					);
+				const input =
+					(await request.json()) as MessageOperationsUpdateMessageFlagsData["body"];
+				row.isRead = input.isRead ?? row.isRead;
+				row.hasStars = input.isStarred ?? row.hasStars;
+				return HttpResponse.json<MessageOperationsUpdateMessageFlagsResponse>({
+					messageId: row.messageId,
+					isRead: row.isRead,
+					isStarred: row.hasStars,
+				});
+			},
+		),
 		http.post(`${API}/messages/flags`, () =>
 			HttpResponse.json<MessageBulkOperationsUpdateFlagsResponse>({
 				successCount: 1,

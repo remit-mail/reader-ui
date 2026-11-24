@@ -38,6 +38,7 @@ import {
 	type ReactNode,
 	type RefObject,
 	useCallback,
+	useEffect,
 	useMemo,
 	useState,
 } from "react";
@@ -359,6 +360,7 @@ function BriefSelectionChrome({
 // ---------------------------------------------------------------------------
 
 interface DailyBriefProps {
+	onRowsChange?: (rows: RemitImapThreadMessageResponse[]) => void;
 	accounts: RemitImapAccountResponse[];
 	selectedMessageId?: string;
 	/**
@@ -378,6 +380,7 @@ interface DailyBriefProps {
 }
 
 export function DailyBrief({
+	onRowsChange,
 	accounts,
 	selectedMessageId,
 	onOpenThread,
@@ -757,6 +760,23 @@ export function DailyBrief({
 			})),
 		);
 	}, [underQuery, matchRows, briefRows, spamIds]);
+
+	// Publish the original rows behind the displayed sections so the pane's
+	// actions and swipe targets use the same mail as the list.
+	useEffect(() => {
+		const source = underQuery
+			? searchRows
+			: sectionRows.flatMap((section) => section.rows);
+		const byId = new Map(source.map((row) => [row.messageId, row]));
+		onRowsChange?.(
+			sections.flatMap((section) =>
+				section.threads.flatMap((row) => {
+					const original = byId.get(row.id);
+					return original ? [original] : [];
+				}),
+			),
+		);
+	}, [onRowsChange, sections, underQuery, searchRows, sectionRows]);
 
 	// A committed query puts rows the widened cross-folder search found into the
 	// body, and those messages are in folders the brief itself never loads. They
