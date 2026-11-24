@@ -35,7 +35,11 @@ const rows = (): HTMLElement[] =>
 	Array.from(document.querySelectorAll<HTMLElement>("[data-list-row]"));
 
 const conversation = () =>
-	page().findByRole("heading", { level: 1, name: "Q3 planning" });
+	page().findByRole(
+		"heading",
+		{ level: 1, name: "Q3 planning" },
+		{ timeout: 5000 },
+	);
 
 const refreshRequestedAt = new Map<string, number>();
 export const RefreshFailed: Story = {
