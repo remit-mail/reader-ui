@@ -24,8 +24,8 @@ test("a metadata spike stops the run without marking the body oversized", async 
 	try {
 		await busy.read(new Response(new Uint8Array(2048)));
 		await assert.rejects(busy.read(new Response(body)), RunLimit);
-		await quiet.read(new Response("{}"), "api");
-		const response = await quiet.read(new Response(body), "body");
+		await quiet.read(new Response("{}"));
+		const response = await quiet.read(new Response(body));
 		assert.equal((await response.arrayBuffer()).byteLength, body.byteLength);
 	} finally {
 		busy.close();
