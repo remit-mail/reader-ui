@@ -24,11 +24,7 @@ export const isPeopleSignedOut = (error: unknown): boolean => {
 	return code !== undefined && SIGNED_OUT_CODES.has(code);
 };
 
-export type PeopleFailure =
-	| { kind: "signedOut" }
-	| { kind: "wrongPassword" }
-	| { kind: "locked" }
-	| { kind: "failed" };
+export type PeopleFailure = { kind: "signedOut" } | { kind: "failed" };
 
 export const peopleFailureReason = (error: unknown): string =>
 	formatErrorDetail(error) ??
@@ -38,58 +34,17 @@ export const classifyPeopleFailure = (error: unknown): PeopleFailure => {
 	if (getErrorStatus(error) === 401 || isPeopleSignedOut(error)) {
 		return { kind: "signedOut" };
 	}
-	const code = codedApiErrorBody(error)?.code;
-	if (code === PeopleErrorCode.WrongPassword) return { kind: "wrongPassword" };
-	if (code === PeopleErrorCode.StepUpLocked) return { kind: "locked" };
 	return { kind: "failed" };
 };
 
-export interface PersonActionCopy {
-	title: string;
-	body: string;
-	confirmLabel: string;
-	failedTitle: string;
-	destructive: boolean;
-}
-
-export const personActionCopy = (
+export const personActionFailedTitle = (
 	action: RemitImapStepUpAction,
 	email: string,
-): PersonActionCopy => {
-	if (action === "Disable") {
-		return {
-			title: `Disable ${email}?`,
-			body: "They are signed out everywhere within 15 minutes and cannot sign in until you enable them again. Their calendar feed links stop working. Their mail stays.",
-			confirmLabel: "Disable",
-			failedTitle: `Couldn't disable ${email}`,
-			destructive: true,
-		};
-	}
-	if (action === "Enable") {
-		return {
-			title: `Enable ${email}?`,
-			body: "They can sign in again with their password. Calendar feed links they shared before stay off; they make new ones in Settings.",
-			confirmLabel: "Enable",
-			failedTitle: `Couldn't enable ${email}`,
-			destructive: false,
-		};
-	}
-	if (action === "SignOut") {
-		return {
-			title: `Sign ${email} out everywhere?`,
-			body: "Every session and connected app of theirs ends within 15 minutes. They can sign in again with their password.",
-			confirmLabel: "Sign out everywhere",
-			failedTitle: `Couldn't sign ${email} out`,
-			destructive: true,
-		};
-	}
-	return {
-		title: `Reset the password of ${email}?`,
-		body: "Their password stops working at once and they are signed out everywhere. You get a link to give them, which works once, for 24 hours.",
-		confirmLabel: "Make a reset link",
-		failedTitle: `Couldn't make a reset link for ${email}`,
-		destructive: true,
-	};
+): string => {
+	if (action === "Disable") return `Couldn't disable ${email}`;
+	if (action === "Enable") return `Couldn't enable ${email}`;
+	if (action === "SignOut") return `Couldn't sign ${email} out`;
+	return `Couldn't make a reset link for ${email}`;
 };
 
 /**

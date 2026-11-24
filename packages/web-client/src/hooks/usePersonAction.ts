@@ -1,7 +1,6 @@
 import { peopleOperationsListPeopleQueryKey } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
 import {
 	peopleOperationsCreatePasswordReset,
-	peopleOperationsCreateStepUp,
 	peopleOperationsSignOutPerson,
 	peopleOperationsUpdatePerson,
 } from "@remit/api-http-client/sdk.gen.ts";
@@ -23,16 +22,14 @@ export interface PersonActionResult {
 	resetUrl: string | undefined;
 }
 
-const runAction = async (
-	{ action, person }: PersonActionInput,
-	stepUpToken: string,
-): Promise<PersonActionResult> => {
+const runAction = async ({
+	action,
+	person,
+}: PersonActionInput): Promise<PersonActionResult> => {
 	const path = { userId: person.userId };
-	const headers = { "X-Remit-Step-Up": stepUpToken };
 	if (action === "SignOut") {
 		const { data } = await peopleOperationsSignOutPerson({
 			path,
-			headers,
 			throwOnError: true,
 		});
 		return { person: data, resetUrl: undefined };
@@ -40,14 +37,12 @@ const runAction = async (
 	if (action === "ResetPassword") {
 		const { data } = await peopleOperationsCreatePasswordReset({
 			path,
-			headers,
 			throwOnError: true,
 		});
 		return { person: data.person, resetUrl: data.resetUrl };
 	}
 	const { data } = await peopleOperationsUpdatePerson({
 		path,
-		headers,
 		body: {
 			status: action === "Disable" ? "Disabled" : "Active",
 		},
@@ -56,31 +51,13 @@ const runAction = async (
 	return { person: data, resetUrl: undefined };
 };
 
-/**
- * One People action behind its own password step-up: the token is earned for
- * this action on this person and spent at once, never stored. The password
- * reaches the request through this closure, so it never becomes mutation
- * variables, and `gcTime: 0` drops the result, reset link included, once the
- * dialog lets go of it.
- */
-export const usePersonAction = (password: string) => {
+/** Run with the signed-in session; discard reset links when the result closes. */
+export const usePersonAction = () => {
 	const queryClient = useQueryClient();
 
 	return useMutation({
 		gcTime: 0,
-		mutationFn: async (
-			input: PersonActionInput,
-		): Promise<PersonActionResult> => {
-			const { data } = await peopleOperationsCreateStepUp({
-				body: {
-					password,
-					action: input.action,
-					userId: input.person.userId,
-				},
-				throwOnError: true,
-			});
-			return runAction(input, data.stepUpToken);
-		},
+		mutationFn: runAction,
 		onSuccess: ({ person }) => {
 			queryClient.setQueryData<RemitImapPeopleListResponse>(
 				peopleOperationsListPeopleQueryKey(),

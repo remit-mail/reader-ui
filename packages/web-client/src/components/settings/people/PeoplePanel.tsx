@@ -12,22 +12,17 @@ import {
 import { Ellipsis } from "@remit/ui/icons";
 import { useEffect, useRef, useState } from "react";
 import { usePeople } from "../../../hooks/usePeople";
-import type { PersonActionResult } from "../../../hooks/usePersonAction";
+import { usePersonAction } from "../../../hooks/usePersonAction";
 import {
 	classifyPeopleFailure,
 	formatPersonDate,
 	peopleFailureReason,
 	peopleReportHref,
-	personActionCopy,
+	personActionFailedTitle,
 } from "../../../lib/people";
+import { reportSignedOut } from "../../../lib/signed-out";
 import { ReportLink } from "../ReportLink";
-import { PersonActionDialog } from "./PersonActionDialog";
 import { ResetLinkDialog } from "./ResetLinkDialog";
-
-interface PendingAction {
-	action: RemitImapStepUpAction;
-	person: RemitImapPerson;
-}
 
 interface ActionFailure {
 	title: string;
@@ -65,7 +60,9 @@ function ActionFailedBanner({ failure }: { failure: ActionFailure }) {
 function PersonMenu({
 	person,
 	onPick,
+	busy,
 }: {
+	busy: boolean;
 	person: RemitImapPerson;
 	onPick: (action: RemitImapStepUpAction) => void;
 }) {
@@ -79,21 +76,21 @@ function PersonMenu({
 				</>
 			}
 		>
-			<DropdownMenuItem onClick={() => onPick("SignOut")}>
+			<DropdownMenuItem disabled={busy} onClick={() => onPick("SignOut")}>
 				Sign out everywhere
 			</DropdownMenuItem>
-			<DropdownMenuItem onClick={() => onPick("ResetPassword")}>
+			<DropdownMenuItem disabled={busy} onClick={() => onPick("ResetPassword")}>
 				Reset password
 			</DropdownMenuItem>
 			<DropdownMenuSeparator />
 			{disabled ? (
-				<DropdownMenuItem onClick={() => onPick("Enable")}>
+				<DropdownMenuItem disabled={busy} onClick={() => onPick("Enable")}>
 					Enable
 				</DropdownMenuItem>
 			) : (
 				<DropdownMenuItem
 					onClick={() => onPick("Disable")}
-					disabled={person.isCaller}
+					disabled={busy || person.isCaller}
 					destructive={!person.isCaller}
 				>
 					<span className="flex flex-col">
@@ -113,7 +110,9 @@ function PersonMenu({
 function PeopleTable({
 	people,
 	onPick,
+	busy,
 }: {
+	busy: boolean;
 	people: readonly RemitImapPerson[];
 	onPick: (action: RemitImapStepUpAction, person: RemitImapPerson) => void;
 }) {
@@ -176,6 +175,7 @@ function PeopleTable({
 							<td className="px-1 py-1">
 								<PersonMenu
 									person={person}
+									busy={busy}
 									onPick={(action) => onPick(action, person)}
 								/>
 							</td>
@@ -189,7 +189,7 @@ function PeopleTable({
 
 export function PeoplePanel() {
 	const people = usePeople();
-	const [pending, setPending] = useState<PendingAction | null>(null);
+	const mutation = usePersonAction();
 	const [failure, setFailure] = useState<ActionFailure | null>(null);
 	const [resetLink, setResetLink] = useState<ResetLink | null>(null);
 
@@ -231,45 +231,46 @@ export function PeoplePanel() {
 	}
 
 	const pick = (action: RemitImapStepUpAction, person: RemitImapPerson) => {
+		if (mutation.isPending) return;
 		setFailure(null);
-		setPending({ action, person });
-	};
-
-	const done = (result: PersonActionResult) => {
-		if (result.resetUrl && pending) {
-			setResetLink({ email: pending.person.email, resetUrl: result.resetUrl });
-		}
-		setPending(null);
-	};
-
-	const failed = (error: unknown) => {
-		if (!pending) return;
-		setFailure({
-			title: personActionCopy(pending.action, pending.person.email).failedTitle,
-			reason: peopleFailureReason(error),
-			error,
-		});
-		setPending(null);
+		mutation.mutate(
+			{ action, person },
+			{
+				onSuccess: (result) => {
+					if (result.resetUrl)
+						setResetLink({ email: person.email, resetUrl: result.resetUrl });
+				},
+				onError: (error) => {
+					if (classifyPeopleFailure(error).kind === "signedOut") {
+						reportSignedOut();
+						return;
+					}
+					setFailure({
+						title: personActionFailedTitle(action, person.email),
+						reason: peopleFailureReason(error),
+						error,
+					});
+				},
+			},
+		);
 	};
 
 	return (
 		<div className="space-y-4">
 			{failure && <ActionFailedBanner failure={failure} />}
-			<PeopleTable people={people.data.people} onPick={pick} />
-			{pending && (
-				<PersonActionDialog
-					action={pending.action}
-					person={pending.person}
-					onCancel={() => setPending(null)}
-					onDone={done}
-					onFailed={failed}
-				/>
-			)}
+			<PeopleTable
+				people={people.data.people}
+				onPick={pick}
+				busy={mutation.isPending}
+			/>
 			{resetLink && (
 				<ResetLinkDialog
 					email={resetLink.email}
 					resetUrl={resetLink.resetUrl}
-					onDone={() => setResetLink(null)}
+					onDone={() => {
+						setResetLink(null);
+						mutation.reset();
+					}}
 				/>
 			)}
 		</div>
