@@ -7,13 +7,7 @@ import type {
 	RemitImapThreadMessageResponse,
 	RemitImapThreadSearchResponse,
 } from "@remit/api-http-client/types.gen.ts";
-import {
-	type DehydratedState,
-	dehydrate,
-	hashKey,
-	type InfiniteData,
-	QueryClient,
-} from "@tanstack/react-query";
+import type { InfiniteData, QueryClient } from "@tanstack/react-query";
 import { patchThreadListCache, type ThreadListCache } from "./thread-cache.js";
 
 export interface InboxHead {
@@ -22,7 +16,7 @@ export interface InboxHead {
 	updatedAt: number;
 }
 
-type MailboxPages = InfiniteData<
+export type MailboxPages = InfiniteData<
 	RemitImapThreadSearchResponse,
 	string | undefined
 >;
@@ -39,30 +33,6 @@ export function mergeInboxHead(
 			: saved.pages[0].continuationToken;
 	if (head.continuationToken !== boundary) return undefined;
 	return { ...saved, pages: [head, ...saved.pages.slice(1)] };
-}
-
-/** Convert heads that join the saved pages into query state. */
-export function reconcileInboxHeads(
-	savedQueries: DehydratedState["queries"] | undefined,
-	heads: readonly InboxHead[],
-): DehydratedState["queries"] {
-	const lists = new QueryClient({
-		defaultOptions: { queries: { gcTime: Infinity } },
-	});
-	for (const head of heads) {
-		const queryHash = hashKey(head.key);
-		const saved = savedQueries?.find((query) => query.queryHash === queryHash);
-		if (saved && saved.state.dataUpdatedAt >= head.updatedAt) continue;
-		const pages = mergeInboxHead(
-			saved?.state.data as MailboxPages | undefined,
-			head.page,
-		);
-		if (pages)
-			lists.setQueryData(head.key, pages, { updatedAt: head.updatedAt });
-	}
-	const { queries } = dehydrate(lists);
-	lists.clear();
-	return queries;
 }
 
 export interface SnapshotEntry<T> {

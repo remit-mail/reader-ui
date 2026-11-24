@@ -1,5 +1,8 @@
-import { classifyBodyFetchFailure } from "../hooks/useMessageBodyContent";
 import { buildBugReportContext, buildGitHubIssueUrl } from "./bug-report";
+import {
+	BODY_FAILURE_REASON_HEADER,
+	classifyBodyFetchFailure,
+} from "./message-body-source";
 import { taggedFetch } from "./network-error";
 import { fetchOfflineContent } from "./offline-runtime";
 
@@ -42,8 +45,6 @@ export class AttachmentFetchError extends Error {
 		this.status = status;
 	}
 }
-
-const REASON_HEADER = "x-remit-403-reason";
 
 export const classifyAttachmentFailure = (
 	status: number,
@@ -92,12 +93,10 @@ export const fetchAttachment = async (
 		);
 	}
 	if (!response.ok) {
+		const reason = response.headers.get(BODY_FAILURE_REASON_HEADER);
 		throw new AttachmentFetchError(
-			classifyAttachmentFailure(
-				response.status,
-				response.headers.get(REASON_HEADER),
-			),
-			`Failed to download attachment (${response.status} ${response.statusText}${response.headers.get(REASON_HEADER) ? `: ${response.headers.get(REASON_HEADER)}` : ""})`,
+			classifyAttachmentFailure(response.status, reason),
+			`Failed to download attachment (${response.status} ${response.statusText}${reason ? `: ${reason}` : ""})`,
 			response.status,
 		);
 	}

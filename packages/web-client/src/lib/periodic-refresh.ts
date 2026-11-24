@@ -20,6 +20,7 @@ import {
 	pickRenderablePart,
 } from "./message-body-source";
 import { OfflineUnavailableError } from "./offline-error";
+import { mergePersistedQueries } from "./offline-queries";
 import {
 	commitOffline,
 	mailPartCacheKey,
@@ -42,8 +43,11 @@ import {
 	stopPeriodicRefresh,
 	writePeriodicStatus,
 } from "./periodic-registration";
-import { savePeriodicDownloads } from "./periodic-staging";
-import type { InboxHead } from "./thread-list-cache";
+import {
+	type InboxHead,
+	type MailboxPages,
+	mergeInboxHead,
+} from "./thread-list-cache";
 
 export const PERIODIC_MAX_BYTES = 10 * 1024 * 1024;
 export const PERIODIC_MAX_MS = 30_000;
@@ -194,17 +198,6 @@ export class PeriodicBudget {
 	}
 }
 
-export function* candidateMessages(
-	rows: readonly { messageId: string }[],
-	seen: Set<string>,
-): Iterable<string> {
-	for (const { messageId } of rows) {
-		if (seen.has(messageId)) continue;
-		seen.add(messageId);
-		yield messageId;
-	}
-}
-
 /** No retries inside a run except renewing an expired signature once. */
 async function runPeriodicRefresh(
 	config: PeriodicConfig,
@@ -242,17 +235,30 @@ async function runPeriodicRefresh(
 	const inboxHeads: InboxHead[] = [];
 	let oversizedPartKey: string | undefined;
 	const flush = async () => {
-		const clientState = dehydrate(client);
-		if (!clientState.queries.length && !inboxHeads.length) return;
+		if (!client.getQueryCache().getAll().length && !inboxHeads.length) return;
 		await commit(async () => {
-			await savePeriodicDownloads(
-				partition,
-				{
+			const key = `queries:${partition.generation}`;
+			const previous = await offlineRecord<PersistedClient>(key);
+			for (const head of inboxHeads) {
+				const queryHash = hashKey(head.key);
+				const saved = previous?.clientState.queries.find(
+					(query) => query.queryHash === queryHash,
+				);
+				if (saved && saved.state.dataUpdatedAt >= head.updatedAt) continue;
+				const pages = mergeInboxHead(
+					saved?.state.data as MailboxPages | undefined,
+					head.page,
+				);
+				if (pages)
+					client.setQueryData(head.key, pages, { updatedAt: head.updatedAt });
+			}
+			await writeOfflineRecord(
+				key,
+				mergePersistedQueries(previous, {
 					timestamp: Date.now(),
 					buster: String(OFFLINE_FORMAT),
-					clientState,
-				},
-				inboxHeads,
+					clientState: dehydrate(client),
+				}),
 			);
 			if (oversizedPartKey) await writeOfflineRecord(oversizedPartKey, true);
 		});
@@ -350,7 +356,9 @@ async function runPeriodicRefresh(
 				page: threads,
 				updatedAt: Date.now(),
 			});
-			for (const messageId of candidateMessages(threads.items ?? [], seen)) {
+			for (const { messageId } of threads.items ?? []) {
+				if (seen.has(messageId)) continue;
+				seen.add(messageId);
 				const path = { messageId };
 				const key = messageOperationsDescribeMessageQueryKey({
 					client: api,

@@ -1,7 +1,5 @@
-import {
-	BodyFetchError,
-	type BodyFetchReason,
-} from "../../hooks/useMessageBodyContent";
+import { BodyFetchError } from "../../hooks/useMessageBodyContent";
+import type { BodyFetchReason } from "../../lib/message-body-source";
 
 export interface BannerContent {
 	title: string;

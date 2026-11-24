@@ -16,11 +16,6 @@ import { fetchOfflineContent, getOfflineRuntime } from "../lib/offline-runtime";
 import { useTelemetry } from "../lib/telemetry-context";
 import { messageKeys } from "./queries/keys";
 
-export {
-	type BodyFetchReason,
-	classifyBodyFetchFailure,
-} from "../lib/message-body-source";
-
 export interface MessageBodyContent {
 	kind: BodyContentKind;
 	body: string;

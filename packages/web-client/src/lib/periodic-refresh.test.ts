@@ -1,29 +1,12 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
-	candidateMessages,
 	OversizedBody,
 	PERIODIC_MAX_BYTES,
 	PERIODIC_MAX_MS,
 	PeriodicBudget,
 	RunLimit,
 } from "./periodic-refresh";
-
-test("each candidate is considered once across INBOX pages", () => {
-	const seen = new Set(["earlier-inbox"]);
-	assert.deepEqual(
-		[
-			...candidateMessages(
-				["first", "earlier-inbox", "first", "second"].map((messageId) => ({
-					messageId,
-				})),
-				seen,
-			),
-		],
-		["first", "second"],
-	);
-	assert.deepEqual([...candidateMessages([{ messageId: "first" }], seen)], []);
-});
 
 test("the elapsed time limit includes the deadline", () => {
 	const budget = new PeriodicBudget("tenant", 1_000);

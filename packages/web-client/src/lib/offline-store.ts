@@ -181,7 +181,6 @@ export async function saveMailPart(
 		);
 		await writeOfflineRecord(mailPartIndexKey(partition, key), {
 			mime,
-			savedAt: Date.now(),
 		});
 	});
 	return true;
