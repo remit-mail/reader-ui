@@ -74,6 +74,17 @@ const oldCategoryRow = makeThreadMessage({
 	sentDate: 0,
 	isRead: true,
 });
+const replyRow = makeThreadMessage({
+	...oldCategoryRow,
+	messageId: "reply-mail",
+	threadMessageId: "reply-turn",
+	subject: "Reply delivered while reading",
+	fromName: "Reply sender",
+	sentDate: 1,
+});
+let syncStamp = Date.now();
+let replyPending = false;
+let replyDelivered = false;
 let savedSubject: string | undefined;
 let pendingSubject: string | undefined;
 const missingStatic = new Set<string>();
@@ -153,7 +164,10 @@ const server = createServer(async (request, response) => {
 		response.setHeader("X-Remit-Partition", tenant);
 		response.setHeader("Cache-Control", "private, max-age=3600");
 		response.setHeader("Content-Security-Policy", "sandbox");
-		if (path.endsWith("/html")) {
+		if (path === "/content/reply-mail/html") {
+			response.setHeader("Content-Type", "text/html");
+			response.end("<p>Body of the reply delivered while reading</p>");
+		} else if (path.endsWith("/html")) {
 			response.setHeader("Content-Type", "text/html");
 			response.end(
 				'<p>Old downloaded body</p><img alt="first inline" src="cid:one"><img alt="second inline" src="cid:two"><!-- <img src="cid:unused"> --><script>"<img src=cid:unused>"</script><img alt="remote image" src="https://tracking.invalid/pixel?token=one"><img alt="refused image" src="https://tracking.invalid/pixel?token=refused">',
@@ -228,8 +242,29 @@ const server = createServer(async (request, response) => {
 						: { error: "Session unavailable" },
 				),
 			);
+		} else if (path === "/api/accounts/acc-1/sync/status") {
+			response.end(
+				JSON.stringify({
+					accountId: "acc-1",
+					syncPhase: "complete",
+					lastSyncAt: syncStamp,
+					mailboxes: [],
+				}),
+			);
+		} else if (
+			path === "/api/accounts/acc-1/sync" &&
+			request.method === "POST"
+		) {
+			syncStamp++;
+			if (replyPending) replyDelivered = true;
+			response.end(JSON.stringify({ triggered: true }));
 		} else if (path === "/api/threads/old-category-thread/messages") {
-			response.end(JSON.stringify({ items: [oldCategoryRow], hasMore: false }));
+			response.end(
+				JSON.stringify({
+					items: replyDelivered ? [oldCategoryRow, replyRow] : [oldCategoryRow],
+					hasMore: false,
+				}),
+			);
 		} else if (path === "/api/threads" && briefProbe) {
 			const query = new URL(request.url!, "http://localhost").searchParams;
 			const matches = query.getAll("category").includes("marketing");
@@ -250,7 +285,11 @@ const server = createServer(async (request, response) => {
 					envelope: {
 						messageId,
 						subject:
-							messageId === "old-mail" ? "Old retained mail" : "New list page",
+							messageId === replyRow.messageId
+								? replyRow.subject
+								: messageId === "old-mail"
+									? "Old retained mail"
+									: "New list page",
 						date: 0,
 						from: [],
 						to: [],
@@ -279,16 +318,21 @@ const server = createServer(async (request, response) => {
 										dispositionFilename: "report.pdf",
 									}),
 								]
-							: [],
+							: messageId === replyRow.messageId
+								? [part(messageId, "html", "TEXT", "HTML")]
+								: [],
 				}),
 			);
 		} else if (path === "/api/config")
 			response.end(
 				JSON.stringify(
-					makeConfig([makeAccount({ accountId: "acc-1" })], {
-						buildCommit:
-							serving === dist ? "consumer-pwa-v1" : "consumer-pwa-v2",
-					}),
+					makeConfig(
+						[makeAccount({ accountId: "acc-1", lastSyncAt: syncStamp })],
+						{
+							buildCommit:
+								serving === dist ? "consumer-pwa-v1" : "consumer-pwa-v2",
+						},
+					),
 				),
 			);
 		else if (path === "/api/settings")
@@ -812,6 +856,9 @@ try {
 	);
 	await restoredContext.close();
 	await testOfflineReading(origin, {
+		queueReply: () => {
+			replyPending = true;
+		},
 		setSession: (key, status = 200) => {
 			tenant = key;
 			sessionStatus = status;

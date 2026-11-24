@@ -15,14 +15,8 @@ import { isSyncingPhase } from "./useInitialSyncProgress";
 
 export type { RefreshControlState };
 
-/** How often the wait polls an account's own sync status once a round is
- * enqueued — fast enough to feel responsive, far below the once-a-minute
- * background cadence, and bounded by {@link REFRESH_TIMEOUT_MS} either way. */
+/** How often the wait reads status after the sync is enqueued. */
 export const REFRESH_POLL_MS = 2000;
-
-/** A refresh that gets no answer must terminate in a stated failure rather
- * than spin forever — this is that bound. */
-export const REFRESH_TIMEOUT_MS = 45_000;
 
 const sleep = (ms: number): Promise<void> =>
 	new Promise((resolve) => setTimeout(resolve, ms));
@@ -60,11 +54,6 @@ const fetchStatus = (queryClient: QueryClient, accountId: string) =>
 		staleTime: 0,
 	});
 
-export interface AccountOutcome {
-	accountId: string;
-	message?: string;
-}
-
 /** The fields of `getSyncStatus` this wait reads, named so it can be driven
  * from a scripted sequence of readings. */
 export interface SyncStatusReading {
@@ -84,7 +73,6 @@ export const inboxSyncedAt = (reading: SyncStatusReading): number =>
 	)?.lastSyncedAt ?? 0;
 
 export interface WaitForSettledOptions {
-	accountId: string;
 	readStatus: () => Promise<SyncStatusReading>;
 	/** `lastSyncAt` as it read immediately before this refresh triggered. */
 	baselineLastSyncAt: number;
@@ -94,13 +82,13 @@ export interface WaitForSettledOptions {
 	 * while the round is still running — never after the round has settled,
 	 * which the caller already treats as the confirmed state. */
 	onInboxSynced?: () => void;
-	deadline: number;
+	signal?: AbortSignal;
 	pollMs?: number;
 }
 
 /**
  * Poll one account's sync status until a round that started at or after this
- * refresh triggered has settled, or `deadline` passes.
+ * refresh triggered has settled, failed, or been cancelled.
  *
  * `account.lastSyncAt` is the worker's own once-per-round stamp, and it is the
  * only thing here that tells one round from another. A phase seen mid-flight
@@ -111,9 +99,8 @@ export interface WaitForSettledOptions {
  * until the next poll (#953). Requiring the stamp to pass the reading taken
  * before the trigger admits only a round that started after it.
  *
- * `POST /sync` enqueues and returns, so the first reading after triggering
- * still shows the previous round — including a previous round's `error` phase,
- * which is why that phase only speaks once the stamp has moved.
+ * Discovery can fail before the worker advances the stamp. An error phase
+ * ends the wait even when the stamp is unchanged.
  *
  * A round is the whole account — every folder, in queue order — but the mail
  * a person pressed refresh for is in their inbox. `onInboxSynced` fires the
@@ -121,46 +108,46 @@ export interface WaitForSettledOptions {
  * screen reloads then rather than after Junk and Trash have also gone by. The
  * round-level stamp still decides the button's confirmed state.
  *
- * Read-only (`getSyncStatus`, no IMAP call, no queue write), so waiting costs
- * a handful of cheap GETs — never a refetch of the account's own message
- * list.
+ * Waiting reads only sync status.
  */
 export const waitForSettled = async ({
-	accountId,
 	readStatus,
 	baselineLastSyncAt,
 	baselineInboxSyncedAt = 0,
 	onInboxSynced,
-	deadline,
+	signal,
 	pollMs = REFRESH_POLL_MS,
-}: WaitForSettledOptions): Promise<AccountOutcome | undefined> => {
-	let inboxAnnounced = false;
-	for (;;) {
-		const outcome = await readStatus()
-			.then((data) => ({ ok: true as const, data }))
-			.catch((error: unknown) => ({ ok: false as const, error }));
-		if (!outcome.ok) {
-			return { accountId, message: messageFor(outcome.error) };
-		}
-		const { syncPhase, lastSyncAt } = outcome.data;
-		const startedAfterTrigger = (lastSyncAt ?? 0) > baselineLastSyncAt;
-		if (startedAfterTrigger && !isSyncingPhase(syncPhase)) {
-			if (syncPhase === "error") {
-				return { accountId, message: "Sync failed for this account" };
+}: WaitForSettledOptions): Promise<boolean> => {
+	const poll = async (): Promise<boolean> => {
+		let inboxAnnounced = false;
+		while (!signal?.aborted) {
+			const reading = await readStatus();
+			if (signal?.aborted) return false;
+			const { syncPhase, lastSyncAt } = reading;
+			if (syncPhase === "error")
+				throw new Error("Sync failed for this account");
+			if ((lastSyncAt ?? 0) > baselineLastSyncAt && !isSyncingPhase(syncPhase))
+				return true;
+			if (!inboxAnnounced && inboxSyncedAt(reading) > baselineInboxSyncedAt) {
+				inboxAnnounced = true;
+				onInboxSynced?.();
 			}
-			return undefined;
+			await sleep(pollMs);
 		}
-		if (
-			!inboxAnnounced &&
-			inboxSyncedAt(outcome.data) > baselineInboxSyncedAt
-		) {
-			inboxAnnounced = true;
-			onInboxSynced?.();
-		}
-		if (Date.now() >= deadline) {
-			return { accountId, message: "Refresh is taking longer than usual" };
-		}
-		await sleep(pollMs);
+		return false;
+	};
+	if (!signal) return poll();
+	if (signal.aborted) return false;
+	let complete: (settled: boolean) => void;
+	const cancelled = new Promise<boolean>((resolve) => {
+		complete = resolve;
+	});
+	const cancel = () => complete(false);
+	signal.addEventListener("abort", cancel, { once: true });
+	try {
+		return await Promise.race([poll(), cancelled]);
+	} finally {
+		signal.removeEventListener("abort", cancel);
 	}
 };
 
@@ -178,7 +165,7 @@ const refreshOneAccount = async (
 	queryClient: QueryClient,
 	telemetry: { recordEvent: (name: string) => void },
 	accountId: string,
-	deadline: number,
+	signal: AbortSignal,
 	onInboxSynced: (accountId: string) => void,
 ): Promise<AccountResult> => {
 	const baseline = await fetchStatus(queryClient, accountId)
@@ -197,14 +184,16 @@ const refreshOneAccount = async (
 		};
 	}
 
+	if (signal.aborted) return { accountId, enqueued: false, ok: false };
 	const triggered = await syncOperationsTriggerSync({
 		path: { accountId },
+		signal,
 		throwOnError: true,
 	})
 		.then(() => ({ ok: true as const }))
 		.catch((error: unknown) => ({ ok: false as const, error }));
 	if (!triggered.ok) {
-		escalateIfFatal(triggered.error);
+		if (!signal.aborted) escalateIfFatal(triggered.error);
 		return {
 			accountId,
 			enqueued: false,
@@ -214,17 +203,20 @@ const refreshOneAccount = async (
 	}
 	telemetry.recordEvent("sync.triggered");
 
-	const settled = await waitForSettled({
-		accountId,
+	return waitForSettled({
 		readStatus: () => fetchStatus(queryClient, accountId),
 		baselineLastSyncAt: baseline.lastSyncAt,
 		baselineInboxSyncedAt: baseline.inboxSyncedAt,
 		onInboxSynced: () => onInboxSynced(accountId),
-		deadline,
-	});
-	if (settled)
-		return { accountId, enqueued: true, ok: false, message: settled.message };
-	return { accountId, enqueued: true, ok: true };
+		signal,
+	})
+		.then((ok) => ({ accountId, enqueued: true, ok }))
+		.catch((error: unknown) => ({
+			accountId,
+			enqueued: true,
+			ok: false,
+			message: messageFor(error),
+		}));
 };
 
 export interface UseRefreshControlOptions {
@@ -248,10 +240,7 @@ export interface UseRefreshControlResult {
 /**
  * Drives the shared `RefreshButton` for one or more accounts: triggers a sync
  * for each, waits for the server's own sync-status to settle — not just the
- * enqueue ack — then invalidates the queries the caller names. A manual
- * refresh is an explicit user action, so unlike the background poll it always
- * shows the result; what it must never do is leave the button spinning with
- * no answer.
+ * enqueue ack — then invalidates the queries the caller names.
  */
 export const useRefreshControl = (
 	accountIds: readonly string[],
@@ -262,7 +251,8 @@ export const useRefreshControl = (
 	const { acknowledge } = useMailFreshness();
 	const [state, setState] = useState<RefreshControlState>("idle");
 	const [errorMessage, setErrorMessage] = useState<string>();
-	const runIdRef = useRef(0);
+	const runRef = useRef<AbortController>(null);
+	useEffect(() => () => runRef.current?.abort(), []);
 	const accountIdsRef = useRef(accountIds);
 	accountIdsRef.current = accountIds;
 	const optionsRef = useRef(options);
@@ -277,6 +267,7 @@ export const useRefreshControl = (
 	}, [state]);
 
 	const refresh = useCallback(() => {
+		runRef.current?.abort();
 		const ids = accountIdsRef.current;
 		if (ids.length === 0) {
 			// Reachable before the owning account resolves (a fresh mailbox
@@ -286,7 +277,8 @@ export const useRefreshControl = (
 			setErrorMessage("Nothing to refresh yet");
 			return;
 		}
-		const runId = ++runIdRef.current;
+		const run = new AbortController();
+		runRef.current = run;
 		setState("refreshing");
 		setErrorMessage(undefined);
 
@@ -297,7 +289,7 @@ export const useRefreshControl = (
 		// first is what puts the new mail on screen without waiting for Junk
 		// and Trash, the second is the settled state.
 		const showAccount = (accountId: string): void => {
-			if (runIdRef.current !== runId) return;
+			if (run.signal.aborted) return;
 			queryClient.invalidateQueries({
 				queryKey: mailboxOperationsListMailboxesQueryKey({
 					path: { accountId },
@@ -307,19 +299,18 @@ export const useRefreshControl = (
 		};
 
 		void (async () => {
-			const deadline = Date.now() + REFRESH_TIMEOUT_MS;
 			const results = await Promise.all(
 				ids.map((accountId) =>
 					refreshOneAccount(
 						queryClient,
 						telemetry,
 						accountId,
-						deadline,
+						run.signal,
 						showAccount,
 					),
 				),
 			);
-			if (runIdRef.current !== runId) return;
+			if (run.signal.aborted) return;
 
 			const enqueued = results
 				.filter((result) => result.enqueued)

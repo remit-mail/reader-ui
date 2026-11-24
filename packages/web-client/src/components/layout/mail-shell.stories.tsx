@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { HttpResponse, http } from "msw";
 import { expect, userEvent, waitFor, within } from "storybook/test";
 import { AppStory } from "../../mocks/story-frame/AppStory";
 import { mailHandlers } from "../../mocks/story-frame/mail-handlers";
@@ -35,6 +36,34 @@ const rows = (): HTMLElement[] =>
 
 const conversation = () =>
 	page().findByRole("heading", { level: 1, name: "Q3 planning" });
+
+export const RefreshFailed: Story = {
+	parameters: {
+		msw: {
+			handlers: [
+				http.get("/api/accounts/:accountId/sync/status", ({ params }) =>
+					HttpResponse.json({
+						accountId: params.accountId,
+						lastSyncAt: 1,
+						syncPhase: "error",
+						mailboxes: [],
+					}),
+				),
+				...mailHandlers(world),
+			],
+		},
+	},
+	play: async () => {
+		await userEvent.click(
+			await page().findByRole("button", { name: "Refresh all accounts" }),
+		);
+		await expect(
+			await page().findByRole("button", {
+				name: "Refresh all accounts — failed: Sync failed for this account",
+			}),
+		).toBeVisible();
+	},
+};
 
 export const Default: Story = {
 	play: async () => {

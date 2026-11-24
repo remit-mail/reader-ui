@@ -1,3 +1,5 @@
+import { threadDetailOperationsListThreadMessagesQueryKey } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
+import type { ThreadDetailOperationsListThreadMessagesResponse } from "@remit/api-http-client/types.gen.ts";
 import {
 	onlineManager,
 	type Query,
@@ -39,21 +41,33 @@ export interface OfflineState {
 	quota?: number;
 	persistent?: boolean;
 }
+const threadLists = new Set([
+	"threadOperationsListThreads",
+	"threadOperationsSearchThreads",
+	"unifiedThreadOperationsListAllThreads",
+]);
+
+const readingQueryKey = ({ queryKey: [key] }: Pick<Query, "queryKey">) =>
+	key &&
+	typeof key === "object" &&
+	"_id" in key &&
+	!("headers" in key) &&
+	!("body" in key)
+		? key
+		: undefined;
+
 /** Explicit reading allowlist; settings, auth, drafts and mutations never persist. */
 export const retainedReadingQuery = (
 	query: Pick<Query, "queryKey">,
 ): boolean => {
-	const first = query.queryKey[0];
-	if (!first || typeof first !== "object" || !("_id" in first)) return false;
-	if ("headers" in first || "body" in first) return false;
-	return new Set([
-		"mailboxOperationsListMailboxes",
-		"messageOperationsDescribeMessage",
-		"threadDetailOperationsListThreadMessages",
-		"threadOperationsListThreads",
-		"threadOperationsSearchThreads",
-		"unifiedThreadOperationsListAllThreads",
-	]).has(String(first._id));
+	const key = readingQueryKey(query);
+	return (
+		key !== undefined &&
+		(threadLists.has(String(key._id)) ||
+			key._id === "mailboxOperationsListMailboxes" ||
+			key._id === "messageOperationsDescribeMessage" ||
+			key._id === "threadDetailOperationsListThreadMessages")
+	);
 };
 
 /** Preserve the last successful descriptor even when a list page or error replaces it. */
@@ -383,18 +397,68 @@ export class OfflineRuntime {
 		const { usage, quota } = await navigator.storage.estimate();
 		this.update({ persistent, usage, quota });
 	}
-	async refreshReading(): Promise<void> {
-		if (!this.queryClient || !this.state.verified) return;
-		await this.queryClient.refetchQueries({
+	async refreshReading({
+		openThreadId,
+		listsVisible,
+	}: {
+		openThreadId?: string;
+		listsVisible: boolean;
+	}): Promise<void> {
+		const queryClient = this.queryClient;
+		if (!queryClient || !this.state.verified) return;
+		const thread = openThreadId
+			? threadDetailOperationsListThreadMessagesQueryKey({
+					path: { threadId: openThreadId },
+				})
+			: undefined;
+		await Promise.all([
+			listsVisible &&
+				queryClient.refetchQueries({
+					type: "active",
+					predicate: (query) => {
+						const key = readingQueryKey(query);
+						return (
+							!!key &&
+							threadLists.has(String(key._id)) &&
+							(!("query" in key) ||
+								(key.query as { results?: boolean } | undefined)?.results !==
+									false)
+						);
+					},
+				}),
+			thread &&
+				queryClient.refetchQueries({
+					type: "active",
+					queryKey: thread,
+				}),
+		]);
+		if (!thread) return;
+		const messageIds = new Set(
+			queryClient
+				.getQueryData<ThreadDetailOperationsListThreadMessagesResponse>(thread)
+				?.items.map(({ messageId }) => messageId),
+		);
+		await queryClient.refetchQueries({
 			type: "active",
-			predicate: (query) =>
-				retainedReadingQuery(query) && query.queryKey[0] !== "messages",
+			predicate: (query) => {
+				const key = readingQueryKey(query);
+				return (
+					key?._id === "messageOperationsDescribeMessage" &&
+					"path" in key &&
+					messageIds.has((key.path as { messageId: string }).messageId)
+				);
+			},
 		});
 		this.refreshing++;
 		try {
-			await this.queryClient.refetchQueries({
+			await queryClient.refetchQueries({
 				type: "active",
-				predicate: (query) => query.queryKey[0] === "messages",
+				predicate: ({ queryKey: [scope, detail, messageId, body] }) =>
+					scope === "messages" &&
+					detail === "detail" &&
+					body === "body" &&
+					typeof messageId === "string" &&
+					messageIds.has(messageId),
 			});
 		} finally {
 			this.refreshing--;

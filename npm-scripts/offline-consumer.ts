@@ -13,6 +13,7 @@ const initialImageRequests = [
 
 interface Controls {
 	setSession(key: string, status?: number): void;
+	queueReply(): void;
 	contentRequests: string[];
 	imageProxyRequests: string[];
 	slowImageRequested: Promise<void>;
@@ -764,8 +765,52 @@ export async function testOfflineReading(
 				.count(),
 			0,
 		);
+
+		// Delivery advances the round stamp without reporting mailbox UID growth.
+		await page.goto(
+			`${origin}/mail/brief/old-category-thread/old-category-mail`,
+		);
+		await page
+			.getByRole("heading", { name: "Old category mail", exact: true })
+			.waitFor();
+		const reply = page
+			.getByTestId("conversation-messages")
+			.getByText("Reply sender", { exact: true });
+		assert.equal(await reply.count(), 0);
+		await context.setOffline(true);
+		await page.waitForFunction(() => !window.pwaTest.offline()?.state.verified);
+		controls.queueReply();
+		await context.setOffline(false);
+		await reply.click();
+		const replyBody = (page: Page) =>
+			page
+				.frameLocator('iframe[title="Email content"]')
+				.getByText("Body of the reply delivered while reading", {
+					exact: true,
+				});
+		await replyBody(page).waitFor();
+		await page.waitForFunction(async () => {
+			const runtime = window.pwaTest.offline();
+			const partition = runtime?.state.partition;
+			if (!runtime || !partition) return false;
+			const saved = await runtime.persister(partition).restoreClient();
+			return saved?.clientState.queries.some(
+				(query) =>
+					query.queryHash.includes("messageOperationsDescribeMessage") &&
+					query.queryHash.includes("reply-mail"),
+			);
+		});
+
+		await context.close();
+		context = await launch(true);
+		page = await context.newPage();
+		await page.goto(`${origin}/downloads`);
+		await page
+			.getByRole("link", { name: "Reply delivered while reading", exact: true })
+			.click();
+		await replyBody(page).waitFor();
 		console.log(
-			"Offline consumer OK: process restarts, 90-day retention, both auth contexts, CID and attachment bytes, quota failures, tenant changes and cross-tab wipe races.",
+			"Offline consumer OK: process restarts, a reply delivered to an open thread, 90-day retention, both auth contexts, CID and attachment bytes, quota failures, tenant changes and cross-tab wipe races.",
 		);
 	} finally {
 		controls.releaseSlowImage();

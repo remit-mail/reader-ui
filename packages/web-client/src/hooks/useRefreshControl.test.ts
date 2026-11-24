@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import {
 	inboxSyncedAt,
+	REFRESH_POLL_MS,
 	type SyncStatusReading,
 	waitForSettled,
 } from "./useRefreshControl.js";
@@ -22,18 +23,13 @@ const scriptedReader = (readings: readonly SyncStatusReading[]) => {
 	return { state, readStatus };
 };
 
-const wait = (
-	readings: readonly SyncStatusReading[],
-	deadline = Date.now() + 10_000,
-) => {
+const wait = (readings: readonly SyncStatusReading[]) => {
 	const { state, readStatus } = scriptedReader(readings);
 	return {
 		state,
 		outcome: waitForSettled({
-			accountId: "a-1",
 			readStatus,
 			baselineLastSyncAt: BASELINE,
-			deadline,
 			pollMs: 0,
 		}),
 	};
@@ -53,20 +49,8 @@ describe("waitForSettled", () => {
 			{ syncPhase: "complete", lastSyncAt: LATER },
 		]);
 
-		assert.equal(await outcome, undefined);
+		assert.equal(await outcome, true);
 		assert.equal(state.reads, 3);
-	});
-
-	test("a settled foreign round times out rather than confirming", async () => {
-		const { outcome } = wait(
-			[{ syncPhase: "complete", lastSyncAt: BASELINE }],
-			Date.now() - 1,
-		);
-
-		assert.deepEqual(await outcome, {
-			accountId: "a-1",
-			message: "Refresh is taking longer than usual",
-		});
 	});
 
 	test("confirms once the account's own round has started and settled", async () => {
@@ -74,31 +58,52 @@ describe("waitForSettled", () => {
 			{ syncPhase: "complete", lastSyncAt: LATER },
 		]);
 
-		assert.equal(await outcome, undefined);
+		assert.equal(await outcome, true);
 		assert.equal(state.reads, 1);
 	});
 
-	test("reports the failure of a round that started after the trigger", async () => {
-		const { outcome } = wait([{ syncPhase: "error", lastSyncAt: LATER }]);
-
-		assert.deepEqual(await outcome, {
-			accountId: "a-1",
-			message: "Sync failed for this account",
+	test("waits past 45 seconds and ends on an error with the same stamp", async ({
+		mock,
+	}) => {
+		mock.timers.enable({ apis: ["setTimeout", "Date"], now: BASELINE });
+		let syncPhase: SyncStatusReading["syncPhase"] = "syncing_inbox";
+		let reads = 0;
+		const outcome = waitForSettled({
+			baselineLastSyncAt: BASELINE,
+			readStatus: async () => {
+				reads++;
+				return { syncPhase, lastSyncAt: BASELINE };
+			},
 		});
+		const failed = assert.rejects(outcome, /Sync failed for this account/);
+		for (let elapsed = 0; elapsed < 46_000; elapsed += REFRESH_POLL_MS) {
+			await new Promise(setImmediate);
+			mock.timers.tick(REFRESH_POLL_MS);
+		}
+		await new Promise(setImmediate);
+		assert.equal(Date.now(), BASELINE + 46_000);
+		assert.equal(reads, 24);
+		syncPhase = "error";
+		mock.timers.tick(REFRESH_POLL_MS);
+		await failed;
 	});
 
-	// The stale-phase half of the same rule: POST /sync only enqueues, so the
-	// first reading back can still carry the previous round's error phase.
-	test("does not borrow the error phase of a round that predates the trigger", async () => {
-		const { outcome } = wait(
-			[{ syncPhase: "error", lastSyncAt: BASELINE }],
-			Date.now() - 1,
-		);
-
-		assert.deepEqual(await outcome, {
-			accountId: "a-1",
-			message: "Refresh is taking longer than usual",
+	test("ends without reading again when cancelled", async ({ mock }) => {
+		mock.timers.enable({ apis: ["setTimeout"] });
+		const controller = new AbortController();
+		const { state, readStatus } = scriptedReader([
+			{ syncPhase: "syncing_inbox" },
+		]);
+		const outcome = waitForSettled({
+			baselineLastSyncAt: BASELINE,
+			readStatus,
+			signal: controller.signal,
 		});
+		await Promise.resolve();
+		controller.abort();
+		assert.equal(await outcome, false);
+		mock.timers.tick(REFRESH_POLL_MS);
+		assert.equal(state.reads, 1);
 	});
 
 	test("an account that has never synced confirms on its first stamp", async () => {
@@ -108,27 +113,24 @@ describe("waitForSettled", () => {
 		]);
 
 		const outcome = await waitForSettled({
-			accountId: "a-1",
 			readStatus,
 			baselineLastSyncAt: 0,
-			deadline: Date.now() + 10_000,
 			pollMs: 0,
 		});
 
-		assert.equal(outcome, undefined);
+		assert.equal(outcome, true);
 		assert.equal(state.reads, 2);
 	});
 
 	test("surfaces a failed status read", async () => {
-		const outcome = await waitForSettled({
-			accountId: "a-1",
-			readStatus: () => Promise.reject(new Error("signed out")),
-			baselineLastSyncAt: BASELINE,
-			deadline: Date.now() + 10_000,
-			pollMs: 0,
-		});
-
-		assert.deepEqual(outcome, { accountId: "a-1", message: "signed out" });
+		const failure = new Error("signed out");
+		await assert.rejects(
+			waitForSettled({
+				readStatus: () => Promise.reject(failure),
+				baselineLastSyncAt: BASELINE,
+			}),
+			failure,
+		);
 	});
 });
 
@@ -188,16 +190,14 @@ describe("waitForSettled inbox handoff", () => {
 		]);
 
 		const outcome = await waitForSettled({
-			accountId: "a-1",
 			readStatus,
 			baselineLastSyncAt: BASELINE,
 			baselineInboxSyncedAt: BASELINE,
 			onInboxSynced: () => announced.push(state.reads),
-			deadline: Date.now() + 10_000,
 			pollMs: 0,
 		});
 
-		assert.equal(outcome, undefined);
+		assert.equal(outcome, true);
 		// Second reading, two readings before the round confirmed.
 		assert.deepEqual(announced, [2]);
 		assert.equal(state.reads, 4);
@@ -224,14 +224,12 @@ describe("waitForSettled inbox handoff", () => {
 		]);
 
 		await waitForSettled({
-			accountId: "a-1",
 			readStatus,
 			baselineLastSyncAt: BASELINE,
 			baselineInboxSyncedAt: BASELINE,
 			onInboxSynced: () => {
 				announced += 1;
 			},
-			deadline: Date.now() + 10_000,
 			pollMs: 0,
 		});
 
@@ -244,7 +242,6 @@ describe("waitForSettled inbox handoff", () => {
 		let announced = 0;
 
 		await waitForSettled({
-			accountId: "a-1",
 			readStatus: async () => ({
 				syncPhase: "complete" as const,
 				lastSyncAt: LATER,
@@ -255,7 +252,6 @@ describe("waitForSettled inbox handoff", () => {
 			onInboxSynced: () => {
 				announced += 1;
 			},
-			deadline: Date.now() + 10_000,
 			pollMs: 0,
 		});
 
@@ -267,18 +263,23 @@ describe("waitForSettled inbox handoff", () => {
 		let announced = 0;
 
 		await waitForSettled({
-			accountId: "a-1",
-			readStatus: async () => ({
-				syncPhase: "syncing_others" as const,
-				lastSyncAt: LATER,
-				mailboxes: [inbox(BASELINE), junk(LATER)],
-			}),
+			readStatus: scriptedReader([
+				{
+					syncPhase: "syncing_others",
+					lastSyncAt: LATER,
+					mailboxes: [inbox(BASELINE), junk(LATER)],
+				},
+				{
+					syncPhase: "complete",
+					lastSyncAt: LATER,
+					mailboxes: [inbox(BASELINE), junk(LATER)],
+				},
+			]).readStatus,
 			baselineLastSyncAt: BASELINE,
 			baselineInboxSyncedAt: BASELINE,
 			onInboxSynced: () => {
 				announced += 1;
 			},
-			deadline: Date.now() - 1,
 			pollMs: 0,
 		});
 

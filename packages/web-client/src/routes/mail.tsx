@@ -30,7 +30,12 @@ import { MailFreshnessProvider } from "../lib/mail-freshness";
 import { mailListRoute } from "../lib/mail-route";
 import { mailSearchSchema } from "../lib/mail-search";
 import { buildAccountNameIndex } from "../lib/search-token-index";
-import { useIsComposing, useOpenCompose, useSearchField } from "../routing";
+import {
+	useIsComposing,
+	useOpenCompose,
+	useOpenThreadPath,
+	useSearchField,
+} from "../routing";
 import "../lib/client";
 
 // `MailContext` / `useMailContext` live in `@/lib/mail-context` so the provider
@@ -162,7 +167,12 @@ function MailLayout() {
 	// Auto-trigger a mailbox-list sync for any account whose lastSyncAt is
 	// older than 15 minutes (or unset). Fires once per accountId per session
 	// — re-mounts of MailLayout will not retrigger. See #205.
-	useStaleAccountSync(accounts);
+	const openThread = useOpenThreadPath();
+	useStaleAccountSync(
+		accounts,
+		openThread?.threadId,
+		!isSinglePane || (!openThread && !isComposing),
+	);
 
 	const handleMailboxSelect = useCallback(() => {
 		// Auto-collapse the mobile drawer after the user picks an inbox from the

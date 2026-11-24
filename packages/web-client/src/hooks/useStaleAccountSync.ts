@@ -18,11 +18,7 @@ import {
 } from "../lib/hot-sync-window";
 import { getOfflineRuntime } from "../lib/offline-runtime";
 import { getRuntimeConfig } from "../runtime-config";
-import {
-	inboxSyncedAt,
-	REFRESH_TIMEOUT_MS,
-	waitForSettled,
-} from "./useRefreshControl";
+import { waitForSettled } from "./useRefreshControl";
 
 /**
  * Mailboxes are considered stale 15 minutes after the last successful sync.
@@ -188,34 +184,38 @@ export const handleBackgroundSyncFailure = (
 const runBackgroundSync = async (
 	accountId: string,
 	queryClient: QueryClient,
-): Promise<void> => {
+	signal: AbortSignal,
+): Promise<boolean> => {
 	const runtime = getOfflineRuntime();
-	if (runtime && !runtime.state.verified) return;
+	if (signal.aborted || (runtime && !runtime.state.verified)) return false;
 	const readStatus = async () =>
 		(
 			await syncOperationsGetSyncStatus({
 				path: { accountId },
 				throwOnError: true,
+				signal,
 			})
 		).data;
 	const baseline = runtime ? await readStatus() : undefined;
-	await syncOperationsTriggerSync({ path: { accountId }, throwOnError: true });
-	if (runtime && baseline) {
-		const outcome = await waitForSettled({
-			accountId,
-			readStatus,
-			baselineLastSyncAt: baseline.lastSyncAt ?? 0,
-			baselineInboxSyncedAt: inboxSyncedAt(baseline),
-			deadline: Date.now() + REFRESH_TIMEOUT_MS,
-		});
-		if (outcome) {
-			runtime.report(new Error(outcome.message));
-			return;
-		}
-	}
+	if (signal.aborted) return false;
+	triggeredAccountIds.add(accountId);
+	await syncOperationsTriggerSync({
+		path: { accountId },
+		throwOnError: true,
+		signal,
+	});
+	const settled = baseline
+		? await waitForSettled({
+				readStatus,
+				baselineLastSyncAt: baseline.lastSyncAt ?? 0,
+				signal,
+			})
+		: false;
+	if (signal.aborted) return false;
 	await queryClient.invalidateQueries({
 		queryKey: mailboxOperationsListMailboxesQueryKey({ path: { accountId } }),
 	});
+	return settled;
 };
 
 /**
@@ -225,20 +225,22 @@ const runBackgroundSync = async (
  * the client-side replacement for the server's removed "online" sync tier.
  * The poll runs on the ambient interval, or the hot one for the few minutes
  * after somebody presses refresh, and only while the tab is visible.
- * Fire-and-forget: does not block render, and silently logs failures (this
- * is a best-effort background refresh — the user-visible UI for triggering
- * is the "Refresh mailboxes" button in Settings).
+ * The poll keeps at most one round in flight per account.
  */
 export const useStaleAccountSync = (
 	accounts: RemitImapAccountResponse[],
+	openThreadId?: string,
+	listsVisible = true,
 ): void => {
 	const queryClient = useQueryClient();
 	const { pushError } = useErrorBanners();
-	// Hold the latest accounts in a ref so both effects can read them without
-	// re-running on every render; they re-run only when the joined accountId
+	// Hold the latest accounts in a ref so the polling effect can read them without
+	// re-running on every render; it re-runs only when the joined accountId
 	// list actually changes (account added / removed).
 	const accountsRef = useRef(accounts);
 	accountsRef.current = accounts;
+	const readingRef = useRef({ openThreadId, listsVisible });
+	readingRef.current = { openThreadId, listsVisible };
 	const stableKey = accounts.map((a) => a.accountId).join(",");
 	const onFailure = useCallback(
 		(accountId: string, error: unknown) => {
@@ -258,60 +260,53 @@ export const useStaleAccountSync = (
 		[pushError],
 	);
 
-	// biome-ignore lint/correctness/useExhaustiveDependencies: stableKey is a serialized account list used to trigger re-sync on account changes; adding it would cause issues without also referencing accountsRef
-	useEffect(() => {
-		if (getOfflineRuntime() && !getOfflineRuntime()?.state.verified) return;
-		const now = Date.now();
-		const stale = selectStaleAccountIds(accountsRef.current, now);
-		const fresh = stale.filter((id) => !triggeredAccountIds.has(id));
-		if (fresh.length === 0) return;
-
-		for (const accountId of fresh) triggeredAccountIds.add(accountId);
-		void pMap(
-			fresh,
-			(accountId) =>
-				runBackgroundSync(accountId, queryClient).catch((error: unknown) =>
-					onFailure(accountId, error),
-				),
-			{ concurrency: POLL_CONCURRENCY },
-		).then(() => getOfflineRuntime()?.refreshReading());
-	}, [stableKey, queryClient, onFailure]);
-
 	// biome-ignore lint/correctness/useExhaustiveDependencies: stableKey re-runs the poll loop when the account list changes; accountsRef supplies the live list each tick
 	useEffect(() => {
 		let lastPollAt = Date.now();
 		let timeoutId: ReturnType<typeof setTimeout> | undefined;
 		const inFlight = new Set<string>();
-
-		const poll = () => {
+		const controller = new AbortController();
+		const { signal } = controller;
+		const runPoll = (accountIds: string[]) => {
 			if (
+				signal.aborted ||
 				!navigator.onLine ||
 				(getOfflineRuntime() && !getOfflineRuntime()?.state.verified)
 			)
 				return;
-			lastPollAt = Date.now();
-			const ids = selectPollableAccountIds(
-				accountsRef.current.map((a) => a.accountId),
-				inFlight,
-			);
-			if (ids.length === 0) return;
-			// Mark every selected id in flight before dispatch (not as pMap
-			// starts each one) so a concurrency-queued id still counts as
-			// "already polling" for the next tick's `selectPollableAccountIds`
-			// check — no stacked requests even while waiting for a free slot.
+			const ids = selectPollableAccountIds(accountIds, inFlight);
 			for (const accountId of ids) inFlight.add(accountId);
+			let refreshedReading = false;
 			void pMap(
 				ids,
-				(accountId) =>
-					runBackgroundSync(accountId, queryClient)
-						.catch((err: unknown) => {
-							onFailure(accountId, err);
+				async (accountId) => {
+					const settled = await runBackgroundSync(
+						accountId,
+						queryClient,
+						signal,
+					)
+						.catch((error: unknown) => {
+							if (!signal.aborted) onFailure(accountId, error);
 						})
-						.finally(() => {
-							inFlight.delete(accountId);
-						}),
+						.finally(() => inFlight.delete(accountId));
+					if (settled && !signal.aborted && !refreshedReading) {
+						refreshedReading = true;
+						void getOfflineRuntime()?.refreshReading(readingRef.current);
+					}
+				},
 				{ concurrency: POLL_CONCURRENCY },
-			).then(() => getOfflineRuntime()?.refreshReading());
+			);
+		};
+
+		runPoll(
+			selectStaleAccountIds(accountsRef.current, lastPollAt).filter(
+				(id) => !triggeredAccountIds.has(id),
+			),
+		);
+
+		const poll = () => {
+			lastPollAt = Date.now();
+			runPoll(accountsRef.current.map((a) => a.accountId));
 		};
 
 		const tick = () => {
@@ -333,7 +328,7 @@ export const useStaleAccountSync = (
 		// and came back after the window lapsed is not due against a longer
 		// ambient interval, and used to stop polling for good (#1031).
 		const resumeVisible = () => {
-			if (document.visibilityState !== "visible") return;
+			if (signal.aborted || document.visibilityState !== "visible") return;
 			if (timeoutId !== undefined) clearTimeout(timeoutId);
 			const now = Date.now();
 			const intervalMs = currentPollIntervalMs(now);
@@ -394,6 +389,7 @@ export const useStaleAccountSync = (
 		const unsubscribeHotWindow = subscribeHotSyncWindow(handleHotWindow);
 
 		return () => {
+			controller.abort();
 			if (timeoutId !== undefined) clearTimeout(timeoutId);
 			document.removeEventListener("visibilitychange", handleVisibilityChange);
 			window.removeEventListener("online", handleReconnect);

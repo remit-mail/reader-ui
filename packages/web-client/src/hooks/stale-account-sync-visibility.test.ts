@@ -24,6 +24,8 @@ import {
 	HOT_WINDOW_MS,
 	startHotSyncWindow,
 } from "../lib/hot-sync-window";
+import { OFFLINE_ERROR_EVENT } from "../lib/offline-error";
+import { installOfflineRuntime } from "../lib/offline-runtime";
 import { createDomHarness, type DomHarness } from "../test-support/dom";
 import { makeAccount } from "../test-support/fixtures";
 import { type HttpMock, mockFetch } from "../test-support/http";
@@ -156,4 +158,40 @@ describe("the poll loop across hide and show, on a long ambient interval", () =>
 		await advance(dom, AMBIENT_MS);
 		assert.equal(polls(), 2, "the catch-up left no next tick behind it");
 	});
+});
+
+test("a failed poll calls the sync failure handler once without an offline error", async (t) => {
+	mock.timers.enable({ apis: ["setTimeout", "Date"], now: T0 });
+	setVisibility("visible");
+	const runtime = installOfflineRuntime({
+		verifySession: async () => ({ partitionKey: "test" }),
+		reauthenticate: () => {},
+	});
+	runtime.state = { verified: true };
+	const refreshReading = t.mock.method(runtime, "refreshReading");
+	const warn = t.mock.method(console, "warn", () => {});
+	const offlineError = t.mock.fn();
+	window.addEventListener(OFFLINE_ERROR_EVENT, offlineError);
+	let triggered = false;
+	const fetch = mockFetch(({ path, method }) => {
+		if (method === "POST" && path.endsWith("/sync")) triggered = true;
+		return { lastSyncAt: T0, syncPhase: triggered ? "error" : "complete" };
+	});
+	const dom = createDomHarness();
+	try {
+		dom.renderApp(createElement(PollLoop));
+		await advance(dom, AMBIENT_MS);
+		assert.equal(fetch.to("/sync/status").length, 2);
+		assert.equal(warn.mock.callCount(), 1);
+		assert.match(dom.text(), /Couldn't sync/);
+		assert.equal(offlineError.mock.callCount(), 0);
+		assert.equal(refreshReading.mock.callCount(), 0);
+	} finally {
+		dom.close();
+		mock.timers.reset();
+		fetch.restore();
+		window.removeEventListener(OFFLINE_ERROR_EVENT, offlineError);
+		(Reflect.get(runtime, "channel") as BroadcastChannel).close();
+		Reflect.deleteProperty(document, "visibilityState");
+	}
 });
