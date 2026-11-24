@@ -2,78 +2,38 @@ import assert from "node:assert/strict";
 import { chromium, type Page, type Worker } from "playwright";
 
 interface PeriodicControls {
-	messages(ids: string[], continuationToken?: string): void;
-	holdBody(status?: number): { requested: Promise<void>; release(): void };
-	session(status: number | "malformed"): void;
+	inboxes(
+		inboxes: Record<
+			string,
+			{ ids: string[]; continuationToken?: string } | null
+		>,
+	): void;
+	stopAdvertisingOversized(): void;
+	holdBody(): { requested: Promise<void>; release(): void };
+	session(status: number): void;
 	contentRequests: string[];
-	descriptionRequests: string[];
-	accountRequests: string[];
-	failedAccount(fail: boolean): void;
+	inboxRequests: string[];
 }
 
-function refresh(worker: Worker, failSnapshot = false): Promise<void> {
-	return worker.evaluate(async (failSnapshot) => {
+function refresh(worker: Worker): Promise<void> {
+	return worker.evaluate(async () => {
 		const event = new Event("periodicsync");
 		let completion: Promise<unknown> | undefined;
-		Object.defineProperties(event, {
-			tag: { value: "remit-refresh-downloads" },
-			waitUntil: {
-				value(promise: Promise<unknown>) {
-					completion = promise;
-				},
+		Object.assign(event, {
+			tag: "remit-refresh-downloads",
+			waitUntil(promise: Promise<unknown>) {
+				completion = promise;
 			},
 		});
-		const put = IDBObjectStore.prototype.put;
-		if (failSnapshot)
-			IDBObjectStore.prototype.put = function (value, key) {
-				if (typeof key === "string" && key.startsWith("queries:"))
-					throw new DOMException(
-						"Snapshot quota exhausted",
-						"QuotaExceededError",
-					);
-				return put.call(this, value, key);
-			};
-		try {
-			self.dispatchEvent(event);
-			if (!completion) throw new Error("Periodic event was not handled");
-			await completion;
-		} finally {
-			if (failSnapshot) IDBObjectStore.prototype.put = put;
-		}
-	}, failSnapshot);
-}
-
-function waitForHeldBody(requested: Promise<void>, completion: Promise<void>) {
-	return Promise.race([
-		requested,
-		completion.then(() => {
-			throw new Error(
-				"Periodic event finished before requesting the held body",
-			);
-		}),
-	]);
+		self.dispatchEvent(event);
+		if (!completion) throw new Error("Periodic event was not handled");
+		await completion;
+	});
 }
 
 function settleOfflineWrites(page: Page): Promise<void> {
 	return page.evaluate(() =>
 		navigator.locks.request("remit-offline-storage", () => {}),
-	);
-}
-
-async function assertNoHeldBody(page: Page): Promise<void> {
-	await page
-		.getByText("This message has not been downloaded.", { exact: true })
-		.waitFor();
-	await assert.rejects(
-		page.evaluate(async () => {
-			const runtime = window.pwaTest.offline();
-			if (!runtime?.state.partition)
-				throw new Error("Offline partition unavailable");
-			await runtime.content("/content/held-mail/body", "text/html", () => {
-				throw new Error("Unexpected network read");
-			});
-		}),
-		/Session unverified/,
 	);
 }
 
@@ -105,8 +65,6 @@ export async function testPeriodicReading(
 							);
 						},
 						async unregister() {
-							if (sessionStorage.getItem("fail-periodic-unregister"))
-								throw new Error("Browser refused to unregister the tag");
 							localStorage.removeItem("periodic-registration");
 						},
 					},
@@ -138,238 +96,147 @@ export async function testPeriodicReading(
 			await settleOfflineWrites(page);
 			return page;
 		};
-		controls.messages(["saved-first"], "saved-tail");
-		const page = await eligible("/downloads/background-mail");
-		await page
-			.getByText("This message has no body content.", { exact: true })
-			.waitFor();
-		assert.deepEqual(
-			await page.evaluate(() =>
-				JSON.parse(localStorage.getItem("periodic-registration") ?? "null"),
-			),
-			{ tag: "remit-refresh-downloads", minInterval: 86400000 },
-		);
-		await settleOfflineWrites(page);
-		await page.goto(`${origin}/mail/periodic-inbox`);
+		const inbox = (ids: string[], continuationToken?: string) =>
+			controls.inboxes({ "periodic-inbox": { ids, continuationToken } });
+		inbox(["saved-first"], "saved-tail");
+		const page = await eligible("/mail/periodic-inbox");
 		await page.getByText("Saved first page", { exact: true }).waitFor();
 		await page.getByText("Saved older page", { exact: true }).waitFor();
 		await settleOfflineWrites(page);
 		const worker = context.serviceWorkers()[0];
 		assert.ok(worker);
 		await page.close();
-		await context.setOffline(true);
-		const retainedDescription = await open("/downloads/background-mail");
-		await retainedDescription
-			.getByText("This message has no body content.", { exact: true })
-			.waitFor();
-		await retainedDescription.close();
-		await context.setOffline(false);
 
-		controls.messages(
-			[
-				"deleted-mail",
-				"unavailable-202",
-				"unavailable-403",
-				"unavailable-404",
-				"oversized-mail",
-				"background-mail",
-				"background-mail",
-				"failed-mail",
-			],
-			"saved-tail",
-		);
-		const before = controls.contentRequests.length;
-		controls.session("malformed");
-		try {
+		const bodyPath = (id: string) => `/content/${id}/body`;
+		const contentSince = async () => {
+			const start = controls.contentRequests.length;
 			await refresh(worker);
-		} finally {
-			controls.session(200);
-		}
-		await refresh(worker);
-		assert.equal(
-			controls.contentRequests.length,
-			before,
-			"malformed session backs off",
-		);
-		await (await eligible()).close();
-
-		const beforeDescriptions = controls.descriptionRequests.length;
-		await refresh(worker);
-		assert.equal(
-			controls.descriptionRequests
-				.slice(beforeDescriptions)
-				.filter((id) => id === "background-mail").length,
-			2,
-		);
-		assert.deepEqual(controls.contentRequests.slice(before), [
-			"/content/unavailable-202/body",
-			"/content/unavailable-403/body",
-			"/content/unavailable-404/body",
-			"/content/background-mail/expired-body",
-			"/content/background-mail/body",
-			"/content/failed-mail/body",
-		]);
-		await context.setOffline(true);
-		const reopened = await open("/downloads/background-mail");
-		await reopened
-			.getByRole("heading", { name: "New background mail", exact: true })
-			.waitFor();
-		await reopened.waitForFunction(() =>
-			document
-				.querySelector<HTMLIFrameElement>('iframe[title="Email content"]')
-				?.contentDocument?.body?.textContent?.includes(
-					"Background downloaded body",
-				),
-		);
-		await reopened.goto(`${origin}/mail/periodic-inbox`);
-		await reopened.getByText("New background mail", { exact: true }).waitFor();
-		await reopened.getByText("Saved older page", { exact: true }).waitFor();
-		assert.equal(
-			await reopened.getByText("Saved first page", { exact: true }).count(),
-			0,
-		);
-		await reopened.close();
-
-		await context.setOffline(false);
-		const renewed = await eligible();
-		await renewed.close();
-		controls.messages(["gap-head"], "gap-tail");
-		await refresh(worker);
-		await context.setOffline(true);
-		const gap = await open("/mail/periodic-inbox");
-		await gap.getByText("New background mail", { exact: true }).waitFor();
-		await gap.getByText("Saved older page", { exact: true }).waitFor();
-		assert.equal(
-			await gap.getByText("Incompatible worker head", { exact: true }).count(),
-			0,
-		);
-		await gap.goto(`${origin}/downloads`);
-		await gap
-			.getByRole("link", { name: "Incompatible worker head", exact: true })
-			.waitFor();
-		await gap.close();
-		await context.setOffline(false);
-
-		const assertDownloaded = async (messageId: string) => {
-			await context.setOffline(true);
-			try {
-				const downloaded = await open(`/downloads/${messageId}`);
-				await downloaded
-					.frameLocator('iframe[title="Email content"]')
-					.getByText("Background downloaded body", { exact: true })
-					.waitFor();
-				await downloaded.close();
-			} finally {
-				await context.setOffline(false);
-			}
+			return controls.contentRequests.slice(start);
 		};
-
-		controls.messages(["multi-chunk-mail", "after-budget"]);
-		const beforeBudget = controls.contentRequests.length;
-		await refresh(worker);
-		assert.deepEqual(controls.contentRequests.slice(beforeBudget), [
-			"/content/multi-chunk-mail/body",
-		]);
-		await refresh(worker);
-		await assertDownloaded("after-budget");
-
-		const pending = Array.from(
-			{ length: 20 },
-			(_, index) => `pending-${index}`,
-		);
-		controls.messages([...pending, "after-pending"]);
-		const beforePending = controls.descriptionRequests.length;
-		await refresh(worker);
-		assert.deepEqual(
-			controls.descriptionRequests.slice(beforePending),
-			pending,
-		);
-		await refresh(worker);
-		assert.deepEqual(
-			controls.descriptionRequests.slice(
-				beforePending + pending.length,
-				beforePending + pending.length + 2,
-			),
-			["after-pending", pending[0]],
-		);
-		await assertDownloaded("after-pending");
-
-		controls.failedAccount(true);
-		try {
-			controls.messages([]);
-			await refresh(worker);
-			const beforeAccount = controls.accountRequests.length;
-			controls.messages(["after-account-error"]);
-			await refresh(worker);
-			assert.deepEqual(controls.accountRequests.slice(beforeAccount), [
-				"/api/accounts/resumed-account/mailboxes",
-				"/api/accounts/failed-account/mailboxes",
-			]);
-			await assertDownloaded("after-account-error");
-		} finally {
-			controls.failedAccount(false);
-		}
-
-		controls.messages(["held-mail"]);
-		const stale = controls.holdBody(401);
-		const staleRun = refresh(worker);
-		try {
-			await waitForHeldBody(stale.requested, staleRun);
-			const reverified = await eligible();
-			await reverified.close();
-		} finally {
-			stale.release();
-			await staleRun;
-		}
+		const assertDownloaded = async (id: string) => {
+			await context.setOffline(true);
+			const downloaded = await open(`/downloads/${id}`);
+			await downloaded
+				.frameLocator('iframe[title="Email content"]')
+				.getByText("Background downloaded body", { exact: true })
+				.waitFor();
+			await downloaded.close();
+			await context.setOffline(false);
+		};
+		const messages = [
+			"deleted-mail",
+			"unavailable-202",
+			"unavailable-403",
+			"unavailable-404",
+			"failed-mail",
+			"oversized-mail",
+			"background-mail",
+		];
+		inbox(messages, "saved-tail");
+		controls.session(403);
+		assert.deepEqual(await contentSince(), []);
 		await context.setOffline(true);
-		const reverified = await open();
-		await reverified
-			.getByRole("heading", { name: "Downloaded mail", exact: true })
-			.waitFor();
-		assert.equal(
-			await reverified.evaluate(
-				() => window.pwaTest.offline()?.state.needsLogin,
-			),
-			false,
-		);
-		await reverified.close();
-		await context.setOffline(false);
-
-		const refused = controls.holdBody(401);
-		const refusedRun = refresh(worker, true);
-		try {
-			await waitForHeldBody(refused.requested, refusedRun);
-		} finally {
-			refused.release();
-			await refusedRun;
-		}
-		await context.setOffline(true);
-		const expired = await open();
-		await expired.waitForFunction(
+		const locked = await open();
+		await locked.waitForFunction(
 			() => window.pwaTest.offline()?.state.needsLogin,
 		);
-		await expired
-			.getByRole("link", { name: "New background mail", exact: true })
+		await locked.close();
+		await context.setOffline(false);
+		controls.session(200);
+		await (await eligible()).close();
+
+		const unavailable = messages.slice(1, 5).map(bodyPath);
+		assert.deepEqual(await contentSince(), [
+			...unavailable,
+			bodyPath("background-mail"),
+		]);
+		await assertDownloaded("background-mail");
+		controls.stopAdvertisingOversized();
+		assert.deepEqual(await contentSince(), unavailable);
+
+		inbox(["gap-head"], "gap-tail");
+		await refresh(worker);
+		await context.setOffline(true);
+		const saved = await open("/mail/periodic-inbox");
+		await saved.getByText("New background mail", { exact: true }).waitFor();
+		await saved.getByText("Saved older page", { exact: true }).waitFor();
+		assert.equal(
+			await saved.getByText("Saved first page", { exact: true }).count(),
+			0,
+		);
+		assert.equal(
+			await saved
+				.getByText("Incompatible worker head", { exact: true })
+				.count(),
+			0,
+		);
+		await saved.goto(`${origin}/downloads`);
+		await saved
+			.getByRole("link", { name: "Incompatible worker head", exact: true })
 			.waitFor();
-		await expired.close();
+		await saved.close();
 		await context.setOffline(false);
 
+		const mailboxes = [
+			"periodic-inbox",
+			"periodic-inbox-2",
+			"periodic-inbox-3",
+		];
+		const each = mailboxes.map((mailbox) =>
+			Array.from({ length: 6 }, (_, i) => `${mailbox}-mail-${i + 1}`),
+		);
+		controls.inboxes(
+			Object.fromEntries(
+				mailboxes.map((mailbox, i) => [mailbox, { ids: each[i] }]),
+			),
+		);
+		let beforeInbox = controls.inboxRequests.length;
+		assert.deepEqual(
+			await contentSince(),
+			each.flatMap((ids) => ids.slice(0, 5).map(bodyPath)),
+		);
+		assert.deepEqual(controls.inboxRequests.slice(beforeInbox), mailboxes);
+		beforeInbox = controls.inboxRequests.length;
+		assert.deepEqual(
+			await contentSince(),
+			[each[1][5], each[2][5], each[0][5]].map(bodyPath),
+		);
+		assert.deepEqual(controls.inboxRequests.slice(beforeInbox), [
+			mailboxes[1],
+			mailboxes[2],
+			mailboxes[0],
+		]);
+
+		controls.inboxes({
+			"periodic-inbox": null,
+			"periodic-inbox-2": { ids: ["after-account-error"] },
+		});
+		beforeInbox = controls.inboxRequests.length;
+		assert.deepEqual(await contentSince(), [bodyPath("after-account-error")]);
+		assert.deepEqual(
+			controls.inboxRequests.slice(beforeInbox),
+			mailboxes.slice(0, 2),
+		);
+		await assertDownloaded("after-account-error");
+
+		inbox(["held-mail"]);
 		for (const action of ["opt-out", "wipe"] as const) {
 			const optedIn = await eligible();
 			const held = controls.holdBody();
-			const completed = refresh(worker);
+			const completion = refresh(worker);
 			try {
-				await waitForHeldBody(held.requested, completed);
+				await Promise.race([
+					held.requested,
+					completion.then(() => {
+						throw new Error("Refresh never requested the held body");
+					}),
+				]);
 				if (action === "opt-out") {
 					const disabled = await open("/downloads?periodic=off");
 					await disabled.waitForFunction(
 						() => !localStorage.getItem("periodic-registration"),
 					);
-					await optedIn.evaluate(async () => {
-						const runtime = window.pwaTest.offline();
-						if (!runtime) throw new Error("Offline runtime unavailable");
-						await runtime.verify();
-					});
+					await optedIn.evaluate(() => window.pwaTest.offline()?.verify());
 					await settleOfflineWrites(optedIn);
 					assert.equal(
 						await optedIn.evaluate(() =>
@@ -379,20 +246,15 @@ export async function testPeriodicReading(
 					);
 					await disabled.close();
 				} else {
-					const witness = await open();
-					await witness.waitForFunction(
-						() => !!window.pwaTest.offline()?.state.verified,
+					await optedIn.evaluate(() =>
+						window.pwaTest.offline()?.removeDownloads(),
 					);
-					await optedIn.evaluate(async () => {
-						const runtime = window.pwaTest.offline();
-						if (!runtime) throw new Error("Offline runtime unavailable");
-						sessionStorage.setItem("fail-periodic-unregister", "yes");
-						await runtime.removeDownloads();
-					});
-					await witness.waitForFunction(
-						() => !window.pwaTest.offline()?.state.partition,
+					assert.equal(
+						await optedIn.evaluate(() =>
+							localStorage.getItem("periodic-registration"),
+						),
+						null,
 					);
-					await witness.close();
 					const rebound = await open("/downloads?periodic=off");
 					await rebound.waitForFunction(
 						() => !!window.pwaTest.offline()?.state.verified,
@@ -401,11 +263,20 @@ export async function testPeriodicReading(
 				}
 			} finally {
 				held.release();
-				await completed;
+				await completion;
 			}
+			await optedIn.close();
 			await context.setOffline(true);
 			const after = await open("/downloads/held-mail?periodic=off");
-			await assertNoHeldBody(after);
+			await after
+				.getByText("This message has not been downloaded.", { exact: true })
+				.waitFor();
+			assert.equal(
+				await after.evaluate(() =>
+					caches.match("/content/held-mail/body").then(Boolean),
+				),
+				false,
+			);
 			const retained = after.getByRole("link", {
 				name: "New background mail",
 				exact: true,
@@ -413,7 +284,6 @@ export async function testPeriodicReading(
 			if (action === "opt-out") await retained.waitFor();
 			else assert.equal(await retained.count(), 0);
 			await after.close();
-			await optedIn.close();
 			await context.setOffline(false);
 		}
 		await context.close();
@@ -421,6 +291,6 @@ export async function testPeriodicReading(
 		await browser.close();
 	}
 	console.log(
-		"Periodic packed consumer OK: Chromium joins compatible inbox pages and guards downloads across wipe and opt-out.",
+		"Periodic packed consumer OK: Chromium rotates Inboxes, skips unavailable and oversized mail, and honors opt-out and wipe.",
 	);
 }

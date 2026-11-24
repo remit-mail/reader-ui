@@ -246,30 +246,33 @@ reporter events or user notices. Logout, tenant change and remove-downloads revo
 writers, erase downloads and unregister. A successful foreground session is required
 to bind the worker configuration to the verified partition/generation.
 
-The worker uses the generated GET operations for accounts, mailboxes, the latest
-page of each account's appointed Inbox and message descriptions. Each run
-attempts up to twenty uncached candidates. Requests are sequential, the 10 MiB
-response budget includes metadata, and all work shares a thirty-second deadline.
-Bodies whose advertised size exceeds the full cap are skipped. At the candidate
-cap, the next event resumes after the last attempt. At the byte or time limit,
-the next event starts with the following account. Account-local mailbox and
-Inbox failures advance the cursor and let the current run continue. The cursor
-wraps around to revisit deferred mail. API
-responses need `X-Remit-Partition`, and body responses use U2's MIME and provenance
-checks. An expired content signature renews the description once.
+The worker walks the accounts in order from one saved account index, wrapping at
+the end. It requests each account's mailboxes and the newest page of the Inbox
+named in `account.folderAppointments`. It downloads up to five new bodies from
+that page in list order, skipping parts already in the offline cache. A failed
+mailbox or Inbox request skips that account. A failed message description or
+body response, including 202 while syncing and 403 or 404 for a missing part,
+skips that message for the run.
 
-The worker checks the partition cache and MIME for each selected body. It
-saves completed descriptions, including cache hits, in the reading snapshot
-even when a later download fails. An INBOX head can replace the saved first page
-when its continuation joins the retained pagination. A cursor gap leaves the
-saved list intact, and the new downloads appear in Downloads. Every commit
-rechecks the wipe epoch. A partition mismatch discards the staged reading snapshot.
-Bodies already admitted remain in the original partition.
+A run visits each account at most once and stops at twenty new bodies, 10 MiB of
+response bytes including metadata, or thirty seconds. If a cap ends the sweep,
+the next run starts at the next unvisited account. A full sweep advances the
+starting account by one. A part is permanently skipped for this partition
+generation if its description advertises more than 10 MiB or its body alone
+is observed to exceed 10 MiB. Exhausting the remaining run budget leaves no
+marker on the part.
 
-Transport failures retain previous downloads. Other failures record one warning
-through the existing recent-errors/telemetry reporter on the next foreground
-startup, without a user banner. Failed runs back off across browser events, starting
-at one day and doubling. After ten failed attempts the tag is removed.
-Foreground verification
-resets failure state. C4 must keep the session endpoint and existing protected API
-and content provenance contract available; no new server writes are required.
+API and body responses require `X-Remit-Partition`, and bodies use U2's MIME
+and provenance checks. The worker stages completed downloads and their
+descriptions with the original response timestamps, then commits once under
+the offline storage lock after checking the binding and wipe epoch. An Inbox
+head replaces the saved first page only when its cursor joins the saved list.
+A gap leaves the list intact and the new bodies appear through Downloads.
+A partition mismatch discards the staged changes and revokes the binding.
+
+Session, provenance and transport failures stop the run. Retriable run failures
+back off across browser events starting at one day, doubling each time, and
+unregister after ten failed attempts. Foreground verification resets the
+backoff. Transport failures are silent. Other run failures can report one
+warning at the next foreground startup through the existing recent-errors
+reporter. C4 uses the existing protected session, API and content endpoints.

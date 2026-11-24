@@ -66,10 +66,11 @@ const types: Record<string, string> = {
 let serving = dist;
 let failInstall = false;
 let briefProbe = true;
-let failingPeriodicAccount = false;
-let periodicInbox: { ids: string[]; continuationToken?: string } | undefined;
-const periodicDescriptions: string[] = [];
-const periodicAccountRequests: string[] = [];
+let periodicInboxes:
+	| Record<string, { ids: string[]; continuationToken?: string } | null>
+	| undefined;
+let advertiseOversized = true;
+const periodicInboxRequests: string[] = [];
 const periodicSubjects: Record<string, string> = {
 	"saved-first": "Saved first page",
 	"saved-tail": "Saved older page",
@@ -77,7 +78,7 @@ const periodicSubjects: Record<string, string> = {
 	"gap-head": "Incompatible worker head",
 };
 let heldPeriodicBody:
-	| { status: number; requested(): void; released: Promise<void> }
+	| { requested(): void; released: Promise<void> }
 	| undefined;
 const oldCategoryRow = makeThreadMessage({
 	messageId: "old-category-mail",
@@ -111,7 +112,7 @@ const draft = {
 	updatedAt: 0,
 };
 let tenant = "tenant-a";
-let sessionStatus: number | "malformed" = 200;
+let sessionStatus = 200;
 const contentRequests: string[] = [];
 const imageProxyRequests: string[] = [];
 let imageSlowReady!: () => void;
@@ -172,31 +173,15 @@ const server = createServer(async (request, response) => {
 		);
 		if (unavailableBody) {
 			response.writeHead(Number(unavailableBody[1])).end();
-		} else if (path === "/content/multi-chunk-mail/body") {
-			response.setHeader("Content-Type", "text/html");
-			const chunk = Buffer.alloc(256 * 1024, "x");
-			for (let index = 0; index < 41; index++) response.write(chunk);
-			response.end();
 		} else if (path === "/content/failed-mail/body") {
 			response.writeHead(500).end();
-		} else if (path === "/content/background-mail/expired-body") {
-			response.writeHead(403, { "x-remit-403-reason": "expired" }).end();
 		} else if (path === "/content/held-mail/body") {
 			const held = heldPeriodicBody;
 			held?.requested();
 			await held?.released;
-			response.statusCode = held?.status ?? 200;
 			response.setHeader("Content-Type", "text/html");
 			response.end("<p>Held background body</p>");
-		} else if (
-			[
-				"/content/background-mail/body",
-				"/content/gap-head/body",
-				"/content/after-budget/body",
-				"/content/after-pending/body",
-				"/content/after-account-error/body",
-			].includes(path)
-		) {
+		} else if (periodicInboxes && path.endsWith("/body")) {
 			response.setHeader("Content-Type", "text/html");
 			response.end("<p>Background downloaded body</p>");
 		} else if (path.endsWith("/html")) {
@@ -257,16 +242,14 @@ const server = createServer(async (request, response) => {
 		);
 	} else if (path.startsWith("/api/")) {
 		response.setHeader("Content-Type", "application/json");
-		if (failingPeriodicAccount && path.endsWith("/mailboxes"))
-			periodicAccountRequests.push(path);
 		if (!path.startsWith("/api/auth/") && path !== "/api/session")
 			response.setHeader("X-Remit-Partition", tenant);
+		const inbox = /^\/api\/mailboxes\/(periodic-inbox(?:-\d+)?)\/threads$/.exec(
+			path,
+		)?.[1];
+		const account = /^\/api\/accounts\/acc-(\d+)\/mailboxes$/.exec(path)?.[1];
 		if (path === "/api/session") {
 			response.setHeader("Cache-Control", "no-store");
-			if (sessionStatus === "malformed") {
-				response.end("{");
-				return;
-			}
 			response.statusCode = sessionStatus;
 			response.end(
 				JSON.stringify(
@@ -275,52 +258,41 @@ const server = createServer(async (request, response) => {
 						: { error: "Session unavailable" },
 				),
 			);
-		} else if (
-			failingPeriodicAccount &&
-			path === "/api/accounts/failed-account/mailboxes"
-		) {
-			response.writeHead(500).end();
-		} else if (
-			periodicInbox &&
-			[
-				"/api/accounts/acc-1/mailboxes",
-				"/api/accounts/resumed-account/mailboxes",
-			].includes(path)
-		) {
+		} else if (periodicInboxes && account) {
 			response.end(
 				JSON.stringify({
 					items: [
 						makeMailbox({
-							mailboxId: "periodic-inbox",
+							mailboxId:
+								account === "1"
+									? "periodic-inbox"
+									: `periodic-inbox-${account}`,
 							fullPath: "Appointed Inbox",
 						}),
 						makeMailbox({ mailboxId: "other-inbox", fullPath: "INBOX" }),
 					],
 				}),
 			);
-		} else if (
-			periodicInbox &&
-			path === "/api/mailboxes/periodic-inbox/threads"
-		) {
+		} else if (periodicInboxes && inbox && inbox in periodicInboxes) {
+			periodicInboxRequests.push(inbox);
+			const listing = periodicInboxes[inbox];
+			if (!listing) {
+				response.writeHead(500).end();
+				return;
+			}
 			const cursor = new URL(request.url!, "http://localhost").searchParams.get(
 				"continuationToken",
 			);
 			const ids =
-				cursor === "saved-tail"
-					? ["saved-tail"]
-					: cursor
-						? []
-						: periodicInbox.ids;
-			const continuationToken = cursor
-				? undefined
-				: periodicInbox.continuationToken;
+				cursor === "saved-tail" ? ["saved-tail"] : cursor ? [] : listing.ids;
+			const continuationToken = cursor ? undefined : listing.continuationToken;
 			response.end(
 				JSON.stringify({
 					items: ids.map((messageId) =>
 						makeThreadMessage({
 							messageId,
 							threadId: messageId,
-							mailboxId: "periodic-inbox",
+							mailboxId: inbox,
 							subject: periodicSubjects[messageId] ?? messageId,
 						}),
 					),
@@ -344,7 +316,6 @@ const server = createServer(async (request, response) => {
 		} else if (path.startsWith("/api/auth/")) response.end("null");
 		else if (path.startsWith("/api/messages/")) {
 			const messageId = path.split("/").at(-1)!;
-			if (periodicInbox) periodicDescriptions.push(messageId);
 			if (messageId === "deleted-mail") {
 				response.writeHead(404).end();
 				return;
@@ -386,18 +357,13 @@ const server = createServer(async (request, response) => {
 										dispositionFilename: "report.pdf",
 									}),
 								]
-							: periodicInbox?.ids.includes(messageId) &&
-									!messageId.startsWith("pending-")
+							: periodicInboxes &&
+									Object.values(periodicInboxes).some((inbox) =>
+										inbox?.ids.includes(messageId),
+									)
 								? [
 										part(messageId, "body", "TEXT", "HTML", {
-											contentUrl:
-												messageId === "background-mail" &&
-												!contentRequests.includes(
-													"/content/background-mail/expired-body",
-												)
-													? "/content/background-mail/expired-body"
-													: `/content/${messageId}/body`,
-											...(messageId === "oversized-mail"
+											...(advertiseOversized && messageId === "oversized-mail"
 												? { sizeOctets: 10 * 1024 * 1024 + 1 }
 												: {}),
 										}),
@@ -409,23 +375,16 @@ const server = createServer(async (request, response) => {
 			response.end(
 				JSON.stringify(
 					makeConfig(
-						[
-							...(failingPeriodicAccount
-								? [makeAccount({ accountId: "failed-account" })]
-								: []),
-							makeAccount({
-								accountId: failingPeriodicAccount ? "resumed-account" : "acc-1",
-								folderAppointments: periodicInbox
-									? [
-											{
-												role: "Inbox",
-												mailboxId: "periodic-inbox",
-												source: "Appointed",
-											},
-										]
-									: [],
-							}),
-						],
+						periodicInboxes
+							? Object.keys(periodicInboxes).map((mailboxId, index) =>
+									makeAccount({
+										accountId: `acc-${index + 1}`,
+										folderAppointments: [
+											{ role: "Inbox", mailboxId, source: "Appointed" },
+										],
+									}),
+								)
+							: [makeAccount({ accountId: "acc-1" })],
 						{
 							buildCommit:
 								serving === dist ? "consumer-pwa-v1" : "consumer-pwa-v2",
@@ -979,14 +938,16 @@ try {
 	);
 	await restoredContext.close();
 	await testPeriodicReading(origin, {
-		messages: (ids, continuationToken) => {
-			periodicInbox = { ids, continuationToken };
+		inboxes: (inboxes) => {
+			periodicInboxes = inboxes;
 		},
-		holdBody: (status = 200) => {
+		stopAdvertisingOversized: () => {
+			advertiseOversized = false;
+		},
+		holdBody: () => {
 			const requested = Promise.withResolvers<void>();
 			const released = Promise.withResolvers<void>();
 			heldPeriodicBody = {
-				status,
 				requested: requested.resolve,
 				released: released.promise,
 			};
@@ -1002,13 +963,9 @@ try {
 			sessionStatus = status;
 		},
 		contentRequests,
-		descriptionRequests: periodicDescriptions,
-		accountRequests: periodicAccountRequests,
-		failedAccount: (fail) => {
-			failingPeriodicAccount = fail;
-		},
+		inboxRequests: periodicInboxRequests,
 	});
-	periodicInbox = undefined;
+	periodicInboxes = undefined;
 	await testOfflineReading(origin, {
 		setSession: (key, status = 200) => {
 			tenant = key;

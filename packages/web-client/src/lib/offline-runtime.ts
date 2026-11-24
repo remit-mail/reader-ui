@@ -12,7 +12,10 @@ import { externalImageBytes, requestExternalImage } from "./external-image";
 import { OFFLINE_ERROR_EVENT, OfflineUnavailableError } from "./offline-error";
 import { mergePersistedQueries } from "./offline-queries";
 import {
+	admitContent,
 	commitOffline,
+	contentCacheName,
+	mailPartCacheKey,
 	OFFLINE_FORMAT,
 	offlineRecord,
 	PARTITION_HEADER,
@@ -20,7 +23,6 @@ import {
 	readMailPart,
 	requirePartition,
 	samePartition,
-	saveMailPart,
 	storageLock,
 	writeOfflineRecord,
 } from "./offline-store";
@@ -30,6 +32,7 @@ import {
 	periodicWarningKey,
 	readPeriodicConfig,
 	registerPeriodicRefresh,
+	supportsPeriodicRefresh,
 	wipePeriodicDownloads,
 } from "./periodic-registration";
 import {
@@ -124,7 +127,7 @@ export class OfflineRuntime {
 	}
 	private async startNow(queryClient: QueryClient): Promise<void> {
 		this.queryClient = queryClient;
-		if (this.options.periodicRefresh)
+		if (supportsPeriodicRefresh() && this.options.periodicRefresh)
 			await periodicOptOutRevision()
 				.then((revision) => {
 					this.periodicOptOut = { revision };
@@ -148,7 +151,7 @@ export class OfflineRuntime {
 			);
 		if (partition) await requirePartition(partition);
 		if (this.revoked) return;
-		if (partition) {
+		if (partition && supportsPeriodicRefresh()) {
 			await commitOffline(partition, async () => {
 				const binding = await readPeriodicConfig();
 				this.update({
@@ -350,18 +353,19 @@ export class OfflineRuntime {
 		const partition = this.state.partition;
 		if (!partition)
 			throw new OfflineUnavailableError("No remembered offline identity");
+		const key = mailPartCacheKey(url);
 		const cached = await commitOffline(partition, () =>
-			readMailPart(partition, url, mime),
+			readMailPart(partition, key, mime),
 		);
 		if (cached && !this.refreshing) return cached;
 		await this.authorizeNetwork("GET");
 		const response = await network();
-		if (
-			!(await saveMailPart(partition, url, mime, response, (work) =>
-				this.write(partition, work),
-			)) &&
-			response.status === 200
-		) {
+		if (await admitContent(response, mime, partition)) {
+			await this.write(partition, async () => {
+				const cache = await caches.open(contentCacheName(partition));
+				await cache.put(key, response.clone());
+			});
+		} else if (response.status === 200) {
 			throw new OfflineUnavailableError(
 				"Mail part was not saved: unexpected MIME, tenant, redirect, HTML shell or no-store response",
 			);

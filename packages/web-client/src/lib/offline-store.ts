@@ -147,34 +147,14 @@ export const mailPartCacheKey = (url: string): string => {
 	return target.origin + target.pathname;
 };
 
-/** Caller holds its partition guard. */
+/** Only a guarded write can create the partition cache. */
 export async function readMailPart(
 	partition: Partition,
-	url: string,
+	key: string,
 	mime: string,
 ): Promise<Response | undefined> {
-	const key = mailPartCacheKey(url);
-	const response = await (await caches.open(contentCacheName(partition))).match(
-		key,
-	);
-	if (response && hasContentMime(response, mime)) return response;
-}
-
-/** Both foreground and worker callers supply their own generation/run guard. */
-export async function saveMailPart(
-	partition: Partition,
-	url: string,
-	mime: string,
-	response: Response,
-	commit: (work: () => Promise<void>) => Promise<void>,
-): Promise<boolean> {
-	const key = mailPartCacheKey(url);
-	if (!(await admitContent(response, mime, partition))) return false;
-	await commit(async () => {
-		await (await caches.open(contentCacheName(partition))).put(
-			key,
-			response.clone(),
-		);
+	const response = await caches.match(key, {
+		cacheName: contentCacheName(partition),
 	});
-	return true;
+	if (response && hasContentMime(response, mime)) return response;
 }

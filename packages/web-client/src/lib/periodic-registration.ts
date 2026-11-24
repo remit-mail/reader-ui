@@ -14,6 +14,10 @@ export const PERIODIC_TAG = "remit-refresh-downloads";
 export const DAILY_INTERVAL = 24 * 60 * 60 * 1000;
 const CONFIG_KEY = "periodic:config";
 
+export const supportsPeriodicRefresh = (): boolean =>
+	typeof ServiceWorkerRegistration !== "undefined" &&
+	"periodicSync" in ServiceWorkerRegistration.prototype;
+
 export interface PeriodicRefreshOptions {
 	/** Same-origin authenticated endpoint returning { partitionKey }. */
 	sessionEndpoint: string;
@@ -91,8 +95,7 @@ export async function registerPeriodicRefresh(
 ): Promise<void> {
 	await (async () => {
 		if (
-			typeof ServiceWorkerRegistration === "undefined" ||
-			!("periodicSync" in ServiceWorkerRegistration.prototype) ||
+			!supportsPeriodicRefresh() ||
 			!window.matchMedia("(display-mode: standalone)").matches ||
 			!navigator.permissions
 		)
@@ -156,20 +159,19 @@ async function unregisterBrowserTag(): Promise<void> {
 	await unregisterTag(registration);
 }
 
-export class PeriodicUnregisterError extends Error {}
-
 /** Caller holds the storage lock and has checked the worker's revision. */
 export async function stopPeriodicRefresh(
 	registration: PeriodicRegistration,
-	revoke: boolean,
+	binding: PeriodicConfig,
+	revoke = false,
 ): Promise<void> {
-	if (revoke) await revokeConfig(await periodicOptOutRevision());
+	if (revoke) await revokeConfig(binding.optOut);
 	try {
 		await unregisterTag(registration);
-	} catch (cause) {
-		throw new PeriodicUnregisterError(
+	} catch {
+		await writeOfflineRecord(
+			periodicWarningKey(binding.partition),
 			"Periodic refresh could not unregister the browser tag",
-			{ cause },
 		);
 	}
 }
@@ -185,11 +187,7 @@ const revokeConfig = (optOut: string | undefined) =>
 export async function disablePeriodicRefresh(
 	reportWarning: (reason: string) => void,
 ): Promise<void> {
-	if (
-		typeof ServiceWorkerRegistration === "undefined" ||
-		!("periodicSync" in ServiceWorkerRegistration.prototype)
-	)
-		return;
+	if (!supportsPeriodicRefresh()) return;
 	let revoked = false;
 	await storageLock(async () => {
 		await revokeConfig(crypto.randomUUID());
@@ -207,10 +205,11 @@ export async function disablePeriodicRefresh(
 export const wipePeriodicDownloads = (
 	reportWarning: (reason: string) => void,
 ): Promise<void> =>
-	wipeOffline(() =>
-		unregisterBrowserTag().catch(() =>
+	wipeOffline(async () => {
+		if (!supportsPeriodicRefresh()) return;
+		await unregisterBrowserTag().catch(() =>
 			reportWarning(
 				"Periodic downloads were removed but the browser tag could not be unregistered",
 			),
-		),
-	);
+		);
+	});

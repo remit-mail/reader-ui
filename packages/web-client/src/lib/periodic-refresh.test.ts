@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
+	OversizedBody,
 	PERIODIC_MAX_BYTES,
 	PERIODIC_MAX_MS,
 	PeriodicBudget,
@@ -23,13 +24,30 @@ test("a metadata spike stops the run without marking the body oversized", async 
 	const body = new Uint8Array(PERIODIC_MAX_BYTES - 1024);
 	try {
 		await busy.read(new Response(new Uint8Array(2048)));
-		await assert.rejects(busy.read(new Response(body)), RunLimit);
+		await assert.rejects(
+			busy.read(new Response(body), true),
+			(error: unknown) =>
+				error instanceof RunLimit && !(error instanceof OversizedBody),
+		);
 		await quiet.read(new Response("{}"));
 		const response = await quiet.read(new Response(body));
 		assert.equal((await response.arrayBuffer()).byteLength, body.byteLength);
 	} finally {
 		busy.close();
 		quiet.close();
+	}
+});
+
+test("only body bytes can mark a part oversized", async () => {
+	const budget = new PeriodicBudget("tenant");
+	try {
+		await budget.read(new Response("{}"));
+		await assert.rejects(
+			budget.read(new Response(new Uint8Array(PERIODIC_MAX_BYTES + 1)), true),
+			OversizedBody,
+		);
+	} finally {
+		budget.close();
 	}
 });
 
