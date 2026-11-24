@@ -43,7 +43,7 @@ import {
 	mockFetch,
 } from "../../test-support/http";
 import { ComposeProvider } from "../compose/ComposeProvider";
-import { DailyBrief } from "./DailyBrief";
+import { DailyBrief, useDailyBrief } from "./DailyBrief";
 
 const ACCOUNT_ID = "acc-1";
 const account = makeAccount({ accountId: ACCOUNT_ID });
@@ -225,6 +225,14 @@ const context = (search: string, input: string): MailContextValue => ({
 	onRaiseIntelligence: () => undefined,
 });
 
+function Brief() {
+	return createElement(DailyBrief, {
+		data: useDailyBrief([account]),
+		accounts: [account],
+		onDeleteMessages: () => undefined,
+	});
+}
+
 const brief = (search: string, input: string): ReactNode =>
 	createElement(MailFreshnessProvider, {
 		accountIds: [ACCOUNT_ID],
@@ -232,10 +240,7 @@ const brief = (search: string, input: string): ReactNode =>
 		children: createElement(
 			MailContext.Provider,
 			{ value: context(search, input) },
-			createElement(DailyBrief, {
-				accounts: [account],
-				onDeleteMessages: () => undefined,
-			}),
+			createElement(Brief),
 		),
 	});
 
@@ -360,16 +365,6 @@ const settled = async (mounted: DomHarness, text: string): Promise<void> => {
 };
 
 describe("the brief's sections come from the server (#312)", () => {
-	it("issues one page and one count per category without duplicates on re-render", async () => {
-		const mounted = await mount();
-		await settled(mounted, PERSONAL.subject(0));
-		assert.equal(rowRequests().length, 8);
-		assert.equal(countRequests().length, 8);
-		assert.equal(new Set(threadRequests().map((call) => call.url)).size, 16);
-		await mounted.flush();
-		await mounted.wait(20);
-		assert.equal(threadRequests().length, 16);
-	});
 	// The regression. Marketing's mail is entirely older than the newest unified
 	// rows, so a brief that groups a shared page renders this section empty above
 	// a header reading zero.

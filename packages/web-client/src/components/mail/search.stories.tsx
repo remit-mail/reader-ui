@@ -93,7 +93,9 @@ export const Global: Story = {
 		await expect(await shown("Invoice #1042")).toBeVisible();
 		await expect(page().queryByText("Overdue invoice, act now")).toBeNull();
 		const offer = await page().findByRole("button", { name: "Go to Spam" });
-		await expect(offer.parentElement).toHaveTextContent("2 results from Spam");
+		await waitFor(() =>
+			expect(offer.parentElement).toHaveTextContent("2 results from Spam"),
+		);
 		await expect(page().queryByText("Q3 planning")).toBeNull();
 	},
 };
