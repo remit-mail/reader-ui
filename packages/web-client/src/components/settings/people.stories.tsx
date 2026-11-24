@@ -1,6 +1,5 @@
 import type {
 	PeopleOperationsCreatePasswordResetResponse,
-	PeopleOperationsCreateStepUpResponse,
 	PeopleOperationsListPeopleResponse,
 	PeopleOperationsUpdatePersonResponse,
 	RemitImapPerson,
@@ -52,13 +51,6 @@ const listPeople = http.get("/api/people", () =>
 	}),
 );
 
-const stepUp = http.post("/api/people/step-up", () =>
-	HttpResponse.json<PeopleOperationsCreateStepUpResponse>({
-		stepUpToken: "step-up-token",
-		expiresAt: NOW + 5 * 60 * 1000,
-	}),
-);
-
 const disable = http.patch("/api/people/:userId", () =>
 	HttpResponse.json<PeopleOperationsUpdatePersonResponse>({
 		...person1,
@@ -87,7 +79,7 @@ const meta = {
 	args: { url: "/settings/people" },
 	parameters: {
 		layout: "fullscreen",
-		msw: { handlers: handlers(stepUp, disable, resetLink) },
+		msw: { handlers: handlers(disable, resetLink) },
 	},
 } satisfies Meta<typeof AppStory>;
 export default meta;
@@ -98,17 +90,6 @@ const openMenu = async (canvasElement: HTMLElement, email: string) => {
 	const canvas = within(canvasElement);
 	await userEvent.click(
 		await canvas.findByRole("button", { name: `Actions for ${email}` }),
-	);
-};
-
-const confirmWithPassword = async (canvasElement: HTMLElement) => {
-	const dialog = within(await within(canvasElement).findByRole("dialog"));
-	await userEvent.type(
-		dialog.getByLabelText("Your password"),
-		"correct horse battery",
-	);
-	await userEvent.click(
-		dialog.getByRole("button", { name: /Disable|Make a reset link/ }),
 	);
 };
 
@@ -124,13 +105,17 @@ export const RowMenu: Story = {
 	},
 };
 
-export const ConfirmDisable: Story = {
+export const DisableImmediately: Story = {
 	play: async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
 		await openMenu(canvasElement, "person1@example.com");
 		await userEvent.click(
 			await canvas.findByRole("button", { name: "Disable" }),
 		);
+		await expect(
+			await canvas.findByRole("row", { name: /person1@example.com.*Disabled/ }),
+		).toBeVisible();
+		await expect(canvas.queryByRole("dialog")).toBeNull();
 	},
 };
 
@@ -141,7 +126,6 @@ export const ResetLink: Story = {
 		await userEvent.click(
 			await canvas.findByRole("button", { name: "Reset password" }),
 		);
-		await confirmWithPassword(canvasElement);
 		await expect(
 			await canvas.findByDisplayValue(RESET_URL),
 		).toBeInTheDocument();
@@ -153,37 +137,10 @@ export const ResetLink: Story = {
 	},
 };
 
-export const WrongPassword: Story = {
-	parameters: {
-		msw: {
-			handlers: handlers(
-				http.post("/api/people/step-up", () =>
-					HttpResponse.json(
-						{ code: "wrong_password", message: "Wrong password" },
-						{ status: 403 },
-					),
-				),
-			),
-		},
-	},
-	play: async ({ canvasElement }) => {
-		const canvas = within(canvasElement);
-		await openMenu(canvasElement, "person1@example.com");
-		await userEvent.click(
-			await canvas.findByRole("button", { name: "Disable" }),
-		);
-		await confirmWithPassword(canvasElement);
-		await expect(
-			await canvas.findByText("That is not your password. Try again."),
-		).toBeVisible();
-	},
-};
-
 export const ActionFailed: Story = {
 	parameters: {
 		msw: {
 			handlers: handlers(
-				stepUp,
 				http.patch("/api/people/:userId", () => HttpResponse.error()),
 			),
 		},
@@ -194,7 +151,6 @@ export const ActionFailed: Story = {
 		await userEvent.click(
 			await canvas.findByRole("button", { name: "Disable" }),
 		);
-		await confirmWithPassword(canvasElement);
 		await expect(
 			await canvas.findByText("Couldn't disable person1@example.com"),
 		).toBeVisible();

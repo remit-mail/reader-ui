@@ -20,7 +20,6 @@ import {
 	withoutSmtp,
 } from "../../mocks/story-frame/compose-world";
 import { mailHandlers } from "../../mocks/story-frame/mail-handlers";
-import { NOW } from "../../mocks/story-frame/mail-world";
 
 const world = composeWorld();
 const phone = { viewport: { value: "mobile", isRotated: false } };
@@ -436,7 +435,7 @@ export const UploadRefused: Story = {
 						sizeBytes: 4,
 						contentId: "file-1",
 						uploadUrl: new URL("/story-upload", window.location.origin).href,
-						uploadExpiresAt: NOW + 900000,
+						uploadExpiresAt: Math.floor(Date.now() / 1000) + 900,
 					}),
 				),
 				http.put("/story-upload", () =>
@@ -463,5 +462,91 @@ export const UploadRefused: Story = {
 				/The upload size does not match the reserved size/,
 			),
 		).toBeVisible();
+	},
+};
+
+let uploadMints = 0;
+let uploadRenewals = 0;
+let uploadedBytes = "";
+const renewedUpload = () => ({
+	outboxAttachmentId: "attachment-1",
+	outboxMessageId: "out-plain",
+	filename: "note.txt",
+	contentType: "text/plain",
+	sizeBytes: 4,
+	contentId: "file-1",
+	uploadUrl: new URL("/story-upload-renewed", window.location.origin).href,
+	uploadExpiresAt: Math.floor(Date.now() / 1000) + 900,
+});
+
+export const ExpiredUploadRenews: Story = {
+	args: { url: `/mail/${INBOX}/compose/out-plain` },
+	beforeEach: () => {
+		uploadMints = 0;
+		uploadRenewals = 0;
+		uploadedBytes = "";
+	},
+	parameters: {
+		msw: {
+			handlers: [
+				http.post("/api/outbox/:outboxMessageId/attachments", () => {
+					uploadMints += 1;
+					return HttpResponse.json({
+						...renewedUpload(),
+						uploadUrl: new URL("/story-upload-expired", window.location.origin)
+							.href,
+					});
+				}),
+				http.put(
+					"/story-upload-expired",
+					() =>
+						new HttpResponse("Upload URL is no longer usable", { status: 403 }),
+				),
+				http.post(
+					"/api/outbox/out-plain/attachments/attachment-1/renew",
+					() => {
+						uploadRenewals += 1;
+						return HttpResponse.json(renewedUpload());
+					},
+				),
+				http.put("/story-upload-renewed", async ({ request }) => {
+					uploadedBytes = await request.text();
+					return new HttpResponse(null, { status: 204 });
+				}),
+				http.post(
+					"/api/outbox/out-plain/attachments/attachment-1/complete",
+					() =>
+						HttpResponse.json({
+							...renewedUpload(),
+							state: "Stored",
+							contentUrl: new URL(
+								"/story-upload-content",
+								window.location.origin,
+							).href,
+						}),
+				),
+				...mailHandlers(composeWorld()),
+			],
+		},
+	},
+	play: async ({ canvasElement }) => {
+		const canvas = within(canvasElement);
+		await waitFor(() =>
+			expect(canvas.getByTestId("compose-body-plain")).toHaveValue(PLAIN_DRAFT),
+		);
+		await userEvent.upload(
+			canvas.getByTestId("compose-attach-input"),
+			new File(["note"], "note.txt", { type: "text/plain" }),
+		);
+		await waitFor(() =>
+			expect(canvas.getByTestId("compose-attachment")).toHaveAttribute(
+				"data-state",
+				"attached",
+			),
+		);
+		await expect(uploadMints).toBe(1);
+		await expect(uploadRenewals).toBe(1);
+		await expect(uploadedBytes).toBe("note");
+		await expect(canvas.queryByTestId("compose-attachment-error")).toBeNull();
 	},
 };

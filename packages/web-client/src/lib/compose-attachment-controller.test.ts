@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { wrapHttpFailure } from "./api";
 import {
 	type AttachmentTransport,
 	ComposeAttachmentController,
@@ -49,6 +50,14 @@ const createServer = () => {
 				return minted;
 			});
 		},
+		renew: async (_draft, id) => ({
+			outboxAttachmentId: id,
+			filename: "report.pdf",
+			contentType: "application/octet-stream",
+			contentId: `${id}@test`,
+			uploadUrl: `https://upload.test/${id}/renewed`,
+			uploadExpiresAt: Math.floor(Date.now() / 1000) + 900,
+		}),
 		put: async (uploadUrl, _file, signal) => {
 			if (signal.aborted) throw new Error("aborted");
 			put.push(uploadUrl);
@@ -73,7 +82,11 @@ const createServer = () => {
 		answer.reject(error);
 	};
 
-	const answerMint = (filename: string, outboxAttachmentId: string) => {
+	const answerMint = (
+		filename: string,
+		outboxAttachmentId: string,
+		uploadExpiresAt = Math.floor(Date.now() / 1000) + 900,
+	) => {
 		const answer = mints.get(filename);
 		if (!answer) throw new Error(`no reservation asked for ${filename}`);
 		answer.resolve({
@@ -82,6 +95,7 @@ const createServer = () => {
 			contentType: "application/octet-stream",
 			contentId: `${outboxAttachmentId}@test`,
 			uploadUrl: `https://upload.test/${outboxAttachmentId}`,
+			uploadExpiresAt,
 		});
 	};
 
@@ -122,6 +136,231 @@ const rowFor = (controller: ComposeAttachmentController, filename: string) =>
 	controller.getSnapshot().find((item) => item.filename === filename);
 
 describe("ComposeAttachmentController", () => {
+	it("renews a reservation close to expiry before starting the PUT", async () => {
+		const { server, controller } = setup();
+		const attaching = controller.attach([file("report.pdf")]);
+		await settle();
+		server.answerMint(
+			"report.pdf",
+			"att-1",
+			Math.floor(Date.now() / 1000) + 30,
+		);
+		await attaching;
+		assert.deepEqual(server.put, ["https://upload.test/att-1/renewed"]);
+		assert.deepEqual(server.completed, ["att-1"]);
+	});
+
+	it("preserves an active upload when a draft response lists its pending reservation", async () => {
+		const { server, controller } = setup();
+		const bytes = deferred<void>();
+		server.transport.put = () => bytes.promise;
+		const attaching = controller.attach([file("report.pdf")]);
+		await settle();
+		server.answerMint("report.pdf", "att-1");
+		await settle();
+		controller.load(DRAFT, [
+			{
+				outboxAttachmentId: "att-1",
+				outboxMessageId: DRAFT,
+				filename: "report.pdf",
+				contentType: "application/pdf",
+				sizeBytes: 5,
+				contentId: "att-1@test",
+				contentUrl: "",
+				state: "Pending",
+			},
+		]);
+		assert.equal(rowFor(controller, "report.pdf")?.state.status, "uploading");
+		bytes.resolve();
+		await attaching;
+		assert.equal(rowFor(controller, "report.pdf")?.state.status, "attached");
+	});
+
+	it("renews a slow upload before expiry without restarting its PUT", async (t) => {
+		t.mock.timers.enable({
+			apis: ["Date", "setTimeout"],
+			now: 1_800_000_000_000,
+		});
+		const { server, controller } = setup();
+		const bytes = deferred<void>();
+		let renewals = 0;
+		let puts = 0;
+		server.transport.put = async () => {
+			puts += 1;
+			await bytes.promise;
+		};
+		const renew = server.transport.renew;
+		server.transport.renew = async (draft, id) => {
+			assert.equal(draft, DRAFT);
+			assert.equal(id, "att-1");
+			renewals += 1;
+			return renew(draft, id);
+		};
+		const attaching = controller.attach([file("report.pdf")]);
+		await settle();
+		server.answerMint("report.pdf", "att-1");
+		await settle();
+		t.mock.timers.tick(840_000);
+		await settle();
+		assert.equal(renewals, 1);
+		assert.equal(puts, 1);
+		bytes.resolve();
+		await attaching;
+		t.mock.timers.tick(900_000);
+		await settle();
+		assert.equal(renewals, 1, "no renewal after completion");
+		assert.equal(rowFor(controller, "report.pdf")?.state.status, "attached");
+	});
+
+	for (const rejectionFirst of [false, true]) {
+		it(`completes a successful PUT when maintenance rejects ${rejectionFirst ? "before" : "after"} it`, async (t) => {
+			t.mock.timers.enable({
+				apis: ["Date", "setTimeout"],
+				now: 1_800_000_000_000,
+			});
+			const { server, controller } = setup();
+			const bytes = deferred<void>();
+			const renewal = deferred<MintedAttachment>();
+			let renewalSignal: AbortSignal | undefined;
+			let renewals = 0;
+			server.transport.put = () => bytes.promise;
+			server.transport.renew = (_draft, _id, signal) => {
+				renewals += 1;
+				renewalSignal = signal;
+				return renewal.promise;
+			};
+			const attaching = controller.attach([file("report.pdf")]);
+			await settle();
+			server.answerMint("report.pdf", "att-1");
+			await settle();
+			t.mock.timers.tick(840_000);
+			await settle();
+			assert.equal(renewals, 1);
+			if (rejectionFirst) {
+				renewal.reject(new Error("Maintenance refused"));
+				await settle();
+				assert.equal(
+					rowFor(controller, "report.pdf")?.state.status,
+					"uploading",
+				);
+			}
+			bytes.resolve();
+			await settle();
+			assert.equal(rowFor(controller, "report.pdf")?.state.status, "attached");
+			assert.deepEqual(server.completed, ["att-1"]);
+			assert.equal(renewalSignal?.aborted, true);
+			if (!rejectionFirst) renewal.reject(new Error("Maintenance refused"));
+			await attaching;
+			t.mock.timers.tick(900_000);
+			await settle();
+			assert.equal(renewals, 1);
+			assert.equal(rowFor(controller, "report.pdf")?.state.status, "attached");
+		});
+	}
+
+	for (const status of [403, 409]) {
+		it(`renews a ${status} PUT and uploads the retained File to the fresh URL`, async () => {
+			const { server, controller } = setup();
+			const retained = file("report.pdf");
+			const urls: string[] = [];
+			server.transport.put = async (url, uploaded) => {
+				assert.equal(uploaded, retained);
+				urls.push(url);
+				if (urls.length === 1)
+					throw wrapHttpFailure(
+						{ message: "Provider refused the upload" },
+						status,
+					);
+			};
+			const attaching = controller.attach([retained]);
+			await settle();
+			server.answerMint("report.pdf", "att-1");
+			await attaching;
+			assert.deepEqual(urls, [
+				"https://upload.test/att-1",
+				"https://upload.test/att-1/renewed",
+			]);
+			assert.deepEqual(server.completed, ["att-1"]);
+			assert.equal(rowFor(controller, "report.pdf")?.state.status, "attached");
+		});
+	}
+
+	it("shows a renewal refusal and retains the File for Retry", async () => {
+		const { server, controller } = setup();
+		const retained = file("report.pdf");
+		server.transport.put = async () => {
+			throw wrapHttpFailure({ message: "Upload refused" }, 403);
+		};
+		server.transport.renew = async () => {
+			throw new Error("Reservation could not be renewed");
+		};
+		const attaching = controller.attach([retained]);
+		await settle();
+		server.answerMint("report.pdf", "att-1");
+		await attaching;
+		const row = rowFor(controller, "report.pdf");
+		assert.equal(row?.state.status, "failed");
+		assert.match(
+			row?.state.status === "failed" ? row.state.reason : "",
+			/Reservation could not be renewed/,
+		);
+		server.transport.put = async (_url, uploaded) => {
+			assert.equal(uploaded, retained);
+		};
+		const retrying = controller.retry(row?.key ?? "");
+		await settle();
+		server.answerMint("report.pdf", "att-2");
+		await retrying;
+		assert.equal(rowFor(controller, "report.pdf")?.state.status, "attached");
+		assert.deepEqual(server.completed, ["att-2"]);
+		assert.deepEqual(server.keeps, [[]]);
+	});
+
+	it("does not restart or complete an upload removed during renewal", async () => {
+		const { server, controller } = setup();
+		const renewal = deferred<MintedAttachment>();
+		let puts = 0;
+		server.transport.put = async () => {
+			puts += 1;
+			throw wrapHttpFailure({ message: "Upload refused" }, 403);
+		};
+		server.transport.renew = () => renewal.promise;
+		const attaching = controller.attach([file("report.pdf")]);
+		await settle();
+		server.answerMint("report.pdf", "att-1");
+		await settle();
+		await controller.remove(controller.getSnapshot()[0].key);
+		renewal.resolve({
+			outboxAttachmentId: "att-1",
+			filename: "report.pdf",
+			contentType: "application/pdf",
+			contentId: "att-1@test",
+			uploadUrl: "https://upload.test/renewed",
+			uploadExpiresAt: Math.floor(Date.now() / 1000) + 900,
+		});
+		await attaching;
+		assert.equal(puts, 1);
+		assert.deepEqual(server.completed, []);
+		assert.deepEqual(server.keeps, [[]]);
+		assert.equal(controller.getSnapshot().length, 0);
+	});
+
+	it("stops after a fresh URL also reports expiry", async () => {
+		const { server, controller } = setup();
+		let puts = 0;
+		server.transport.put = async () => {
+			puts += 1;
+			throw wrapHttpFailure({ message: "Upload refused" }, 403);
+		};
+		const attaching = controller.attach([file("report.pdf")]);
+		await settle();
+		server.answerMint("report.pdf", "att-1");
+		await attaching;
+		assert.equal(puts, 2);
+		assert.equal(rowFor(controller, "report.pdf")?.state.status, "failed");
+		assert.deepEqual(server.completed, []);
+	});
+
 	it("attaches a file through reserve, upload and confirm", async () => {
 		const { server, controller } = setup();
 

@@ -4,6 +4,8 @@ import type {
 } from "@remit/api-http-client/types.gen.ts";
 import type { ComposeAttachmentItem, ComposeAttachmentState } from "@remit/ui";
 import { formatErrorDetail } from "../components/ui/error-banners";
+import { ApiError } from "./api";
+import { getErrorStatus } from "./error-classifier";
 
 export type DraftForAttachment =
 	| { outcome: "ready"; outboxMessageId: string }
@@ -15,6 +17,8 @@ export interface MintedAttachment {
 	contentType: string;
 	contentId: string;
 	uploadUrl: string;
+	/** Unix seconds, as returned by the reservation API. */
+	uploadExpiresAt: number;
 }
 
 export interface CompletedAttachment {
@@ -32,9 +36,14 @@ export interface StoredContent {
 	contentUrl: string;
 }
 
-/** The four requests a file on a draft is made of. Each throws on failure. */
+/** The requests that place and retain a file on a draft. Each throws on failure. */
 export interface AttachmentTransport {
 	mint: (outboxMessageId: string, file: File) => Promise<MintedAttachment>;
+	renew: (
+		outboxMessageId: string,
+		outboxAttachmentId: string,
+		signal?: AbortSignal,
+	) => Promise<MintedAttachment>;
 	put: (uploadUrl: string, file: File, signal: AbortSignal) => Promise<void>;
 	complete: (
 		outboxMessageId: string,
@@ -99,8 +108,9 @@ const refusalOf = (
 	filename: string,
 	error: unknown,
 ): ComposeAttachmentState => {
-	if (isRejection(error)) {
-		return failed(error.message, !FINAL_REASONS.has(error.reason));
+	const rejection = error instanceof ApiError ? error.body : error;
+	if (isRejection(rejection)) {
+		return failed(rejection.message, !FINAL_REASONS.has(rejection.reason));
 	}
 	return failed(
 		`"${filename}" could not be attached: ${formatErrorDetail(error) ?? "the request failed"}. Try again.`,
@@ -257,6 +267,83 @@ export class ComposeAttachmentController {
 		};
 	}
 
+	/** Keep maintenance independent of the PUT's authoritative outcome. */
+	private async putWithRenewal(
+		transport: AttachmentTransport,
+		outboxMessageId: string,
+		reservation: MintedAttachment,
+		file: File,
+		signal: AbortSignal,
+	): Promise<void> {
+		const maintenance = new AbortController();
+		const renewalSignal = AbortSignal.any([signal, maintenance.signal]);
+		let timer: ReturnType<typeof setTimeout> | undefined;
+		const cancel = () => clearTimeout(timer);
+		renewalSignal.addEventListener("abort", cancel, { once: true });
+		const schedule = (current: MintedAttachment): void => {
+			if (renewalSignal.aborted) return;
+			timer = setTimeout(
+				() => {
+					void transport
+						.renew(
+							outboxMessageId,
+							reservation.outboxAttachmentId,
+							renewalSignal,
+						)
+						.then(schedule, () => {
+							// Stop maintenance on refusal; the PUT can still succeed.
+							// A failed PUT renews explicitly before its one retry.
+						});
+				},
+				Math.max(0, current.uploadExpiresAt * 1000 - Date.now() - 60_000),
+			);
+		};
+		schedule(reservation);
+		try {
+			await transport.put(reservation.uploadUrl, file, signal);
+		} finally {
+			maintenance.abort();
+			renewalSignal.removeEventListener("abort", cancel);
+		}
+	}
+
+	private async transfer(
+		transport: AttachmentTransport,
+		outboxMessageId: string,
+		minted: MintedAttachment,
+		file: File,
+		signal: AbortSignal,
+	): Promise<void> {
+		const renew = () =>
+			transport.renew(outboxMessageId, minted.outboxAttachmentId, signal);
+		let reservation = minted;
+		if (reservation.uploadExpiresAt * 1000 - Date.now() <= 60_000) {
+			reservation = await renew();
+		}
+		if (signal.aborted) return;
+		try {
+			await this.putWithRenewal(
+				transport,
+				outboxMessageId,
+				reservation,
+				file,
+				signal,
+			);
+		} catch (error) {
+			const status = getErrorStatus(error);
+			if (signal.aborted || (status !== 403 && status !== 409)) throw error;
+			reservation = await renew();
+			if (signal.aborted) return;
+			await this.putWithRenewal(
+				transport,
+				outboxMessageId,
+				reservation,
+				file,
+				signal,
+			);
+		}
+	}
+
 	private upload = async (
 		generation: number,
 		key: string,
@@ -285,7 +372,13 @@ export class ComposeAttachmentController {
 		settle();
 		if (minted === null || signal.aborted) return;
 
-		const putFailure = await transport.put(minted.uploadUrl, file, signal).then(
+		const putFailure = await this.transfer(
+			transport,
+			outboxMessageId,
+			minted,
+			file,
+			signal,
+		).then(
 			() => null,
 			(error: unknown) => formatErrorDetail(error) ?? "the connection dropped",
 		);
@@ -503,7 +596,17 @@ export class ComposeAttachmentController {
 				entry.file !== null &&
 				(entry.serverId === null || !listed.has(entry.serverId)),
 		);
-		this.set([...attachments.map(fromServer), ...attachedHere]);
+		this.set([
+			...attachments.map(
+				(attachment) =>
+					this.entries.find(
+						(entry) =>
+							entry.serverId === attachment.outboxAttachmentId &&
+							entry.file !== null,
+					) ?? fromServer(attachment),
+			),
+			...attachedHere,
+		]);
 	};
 
 	reset = (outboxMessageId: string | undefined): void => {
