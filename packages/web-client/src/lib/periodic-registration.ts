@@ -1,12 +1,19 @@
+import { OfflineUnavailableError } from "./offline-error";
 import {
 	commitOffline,
+	OFFLINE_FORMAT,
+	offlineRecord,
 	type Partition,
+	samePartition,
 	storageLock,
+	wipeOffline,
 	writeOfflineRecord,
 } from "./offline-store";
 
 export const PERIODIC_TAG = "remit-refresh-downloads";
 export const DAILY_INTERVAL = 24 * 60 * 60 * 1000;
+const CONFIG_KEY = "periodic:config";
+
 export interface PeriodicRefreshOptions {
 	/** Same-origin authenticated endpoint returning { partitionKey }. */
 	sessionEndpoint: string;
@@ -17,6 +24,58 @@ export interface PeriodicRegistration extends ServiceWorkerRegistration {
 		unregister(tag: string): Promise<void>;
 	};
 }
+export interface PeriodicConfig {
+	revision: string;
+	partition: Partition;
+	sessionEndpoint: string;
+	apiBaseUrl: string;
+}
+export interface PeriodicStatus {
+	needsLogin?: boolean;
+	attempts?: number;
+	nextAttempt?: number;
+}
+export const periodicStatusKey = (partition: Partition): string =>
+	`periodic:status:${partition.generation}`;
+
+const readConfigRecord = () =>
+	offlineRecord<Partial<PeriodicConfig>>(CONFIG_KEY);
+
+const isPeriodicConfig = (
+	config: Partial<PeriodicConfig> | undefined,
+): config is PeriodicConfig =>
+	typeof config?.revision === "string" &&
+	config.revision.length > 0 &&
+	config.partition?.format === OFFLINE_FORMAT &&
+	typeof config.partition.key === "string" &&
+	config.partition.key.length > 0 &&
+	typeof config.partition.generation === "string" &&
+	config.partition.generation.length > 0 &&
+	typeof config.partition.epoch === "string" &&
+	config.partition.epoch.length > 0 &&
+	typeof config.sessionEndpoint === "string" &&
+	config.sessionEndpoint.length > 0 &&
+	typeof config.apiBaseUrl === "string" &&
+	config.apiBaseUrl.length > 0;
+
+export async function readPeriodicConfig(): Promise<
+	PeriodicConfig | undefined
+> {
+	const config = await readConfigRecord();
+	return isPeriodicConfig(config) ? config : undefined;
+}
+
+export const commitPeriodicRefresh = <T>(
+	config: PeriodicConfig,
+	work: () => Promise<T>,
+): Promise<T> =>
+	commitOffline(config.partition, async () => {
+		const current = await readPeriodicConfig();
+		if (current?.revision !== config.revision)
+			throw new OfflineUnavailableError("Periodic refresh was disabled");
+		return work();
+	});
+
 /** Browser eligibility is optional; every refusal, including registration, is silent. */
 export async function registerPeriodicRefresh(
 	partition: Partition,
@@ -31,6 +90,7 @@ export async function registerPeriodicRefresh(
 			!navigator.permissions
 		)
 			return;
+		const revision = (await readConfigRecord())?.revision;
 		const permission = await navigator.permissions.query({
 			name: "periodic-background-sync" as PermissionName,
 		});
@@ -42,34 +102,52 @@ export async function registerPeriodicRefresh(
 		const registration = (await navigator.serviceWorker
 			.ready) as PeriodicRegistration;
 		await commitOffline(partition, async () => {
-			await writeOfflineRecord("periodic:config", {
-				partition,
-				runId: crypto.randomUUID(),
-				sessionEndpoint: session.href,
-				apiBaseUrl,
-			});
-			await writeOfflineRecord(
-				`periodic:status:${partition.generation}`,
-				undefined,
-			);
+			const current = await readConfigRecord();
+			if (current?.revision !== revision) return;
 			await registration.periodicSync.register(PERIODIC_TAG, {
 				minInterval: DAILY_INTERVAL,
 			});
+			if (
+				!isPeriodicConfig(current) ||
+				!samePartition(current.partition, partition) ||
+				current.sessionEndpoint !== session.href ||
+				current.apiBaseUrl !== apiBaseUrl
+			) {
+				await writeOfflineRecord(CONFIG_KEY, {
+					partition,
+					revision: crypto.randomUUID(),
+					sessionEndpoint: session.href,
+					apiBaseUrl,
+				} satisfies PeriodicConfig);
+			}
+			await writeOfflineRecord(periodicStatusKey(partition), undefined);
 		});
 	} catch {
 		// Unsupported, uninstalled, denied and failed registrations have no UI/reporting.
 	}
 }
-export async function unregisterPeriodicRefresh(): Promise<void> {
-	try {
-		const registration = (await navigator.serviceWorker?.getRegistration()) as
-			| PeriodicRegistration
-			| undefined;
-		await registration?.periodicSync?.unregister(PERIODIC_TAG);
-	} catch {
-		// Registration is best effort, including its removal.
-	}
+
+const unregisterTag = (registration?: PeriodicRegistration) =>
+	registration?.periodicSync?.unregister(PERIODIC_TAG);
+
+async function unregisterBrowserTag(): Promise<void> {
+	const registration = (await navigator.serviceWorker?.getRegistration()) as
+		| PeriodicRegistration
+		| undefined;
+	await unregisterTag(registration);
 }
+
+/** Caller holds the storage lock and has checked the worker's revision. */
+export async function stopPeriodicRefresh(
+	registration: PeriodicRegistration,
+	revoke: boolean,
+): Promise<void> {
+	if (revoke) await revokeConfig();
+	await unregisterTag(registration);
+}
+
+const revokeConfig = () =>
+	writeOfflineRecord(CONFIG_KEY, { revision: crypto.randomUUID() });
 
 /** A foreground host opt-out also removes an earlier installation's registration. */
 export async function disablePeriodicRefresh(): Promise<void> {
@@ -79,7 +157,10 @@ export async function disablePeriodicRefresh(): Promise<void> {
 	)
 		return;
 	await storageLock(async () => {
-		await writeOfflineRecord("periodic:config", undefined);
-		await unregisterPeriodicRefresh();
+		await revokeConfig();
+		await unregisterBrowserTag();
 	}).catch(() => {});
 }
+
+export const wipePeriodicDownloads = (): Promise<void> =>
+	wipeOffline(() => unregisterBrowserTag().catch(() => {}));

@@ -79,7 +79,9 @@ export const commitOffline = <T>(
 		await requirePartition(partition);
 		return work();
 	});
-export const wipeOffline = async (): Promise<void> =>
+export const wipeOffline = async (
+	afterWipe?: () => Promise<void>,
+): Promise<void> =>
 	storageLock(async () => {
 		// Revoke first, durably, including identity checks already in flight.
 		const epoch = crypto.randomUUID();
@@ -101,6 +103,7 @@ export const wipeOffline = async (): Promise<void> =>
 		} finally {
 			db.close();
 		}
+		await afterWipe?.();
 	});
 
 export const admitContent = async (

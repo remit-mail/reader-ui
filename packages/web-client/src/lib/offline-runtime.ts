@@ -22,14 +22,14 @@ import {
 	samePartition,
 	saveMailPart,
 	storageLock,
-	wipeOffline,
 	writeOfflineRecord,
 } from "./offline-store";
-import { type PeriodicStatus, periodicStatusKey } from "./periodic-refresh";
 import {
 	type PeriodicRefreshOptions,
+	type PeriodicStatus,
+	periodicStatusKey,
 	registerPeriodicRefresh,
-	unregisterPeriodicRefresh,
+	wipePeriodicDownloads,
 } from "./periodic-registration";
 import { mergePeriodicBatch } from "./periodic-staging";
 import {
@@ -256,8 +256,7 @@ export class OfflineRuntime {
 			this.revoked = true;
 			// Keep the error-banner owner mounted until the wipe commits.
 			this.update({ verified: false });
-			await wipeOffline();
-			await unregisterPeriodicRefresh();
+			await wipePeriodicDownloads();
 			this.channel.postMessage("wipe");
 			await this.revokeMemory();
 			navigator.serviceWorker?.controller?.postMessage({

@@ -22,12 +22,10 @@ import {
 import { OfflineUnavailableError } from "./offline-error";
 import { mergePersistedQueries } from "./offline-queries";
 import {
-	commitOffline,
 	mailPartCacheKey,
 	OFFLINE_FORMAT,
 	offlineRecord,
 	PARTITION_HEADER,
-	type Partition,
 	readMailPart,
 	requirePartition,
 	samePartition,
@@ -35,9 +33,13 @@ import {
 	writeOfflineRecord,
 } from "./offline-store";
 import {
+	commitPeriodicRefresh,
 	DAILY_INTERVAL,
-	PERIODIC_TAG,
 	type PeriodicRegistration,
+	type PeriodicStatus,
+	periodicStatusKey,
+	readPeriodicConfig,
+	stopPeriodicRefresh,
 } from "./periodic-registration";
 import {
 	type PeriodicBatch,
@@ -49,20 +51,6 @@ import type { InboxHead } from "./thread-list-cache";
 export const PERIODIC_MAX_BYTES = 10 * 1024 * 1024;
 export const PERIODIC_MAX_MS = 30_000;
 export const PERIODIC_MAX_MESSAGES = 20;
-export interface PeriodicConfig {
-	partition: Partition;
-	runId?: string;
-	sessionEndpoint: string;
-	apiBaseUrl: string;
-}
-export interface PeriodicStatus {
-	needsLogin?: boolean;
-	attempts?: number;
-	nextAttempt?: number;
-}
-export const periodicStatusKey = (partition: Partition): string =>
-	`periodic:status:${partition.generation}`;
-
 class RunLimit extends Error {}
 class OversizedBody extends RunLimit {}
 class SessionRequired extends Error {}
@@ -202,8 +190,8 @@ class PeriodicBudget {
 async function runPeriodicRefresh(
 	registration: PeriodicRegistration,
 ): Promise<void> {
-	const config = await offlineRecord<PeriodicConfig>("periodic:config");
-	if (!config || config.partition.format !== OFFLINE_FORMAT) return;
+	const config = await readPeriodicConfig();
+	if (!config) return;
 	const { partition, apiBaseUrl } = config;
 	const statusKey = periodicStatusKey(partition);
 	const status = await offlineRecord<PeriodicStatus>(statusKey);
@@ -214,16 +202,7 @@ async function runPeriodicRefresh(
 	)
 		return;
 	const commit = <T>(work: () => Promise<T>): Promise<T> =>
-		commitOffline(partition, async () => {
-			const current = await offlineRecord<PeriodicConfig>("periodic:config");
-			if (
-				!current ||
-				current.runId !== config.runId ||
-				!samePartition(current.partition, partition)
-			)
-				throw new OfflineUnavailableError("Periodic refresh was disabled");
-			return work();
-		});
+		commitPeriodicRefresh(config, work);
 	const budget = new PeriodicBudget(partition.key);
 	const client = new QueryClient({
 		defaultOptions: { queries: { gcTime: Infinity } },
@@ -404,13 +383,12 @@ async function runPeriodicRefresh(
 		if (!outcome.ok && outcome.error instanceof PartitionMismatch) {
 			await commit(async () => {
 				await writeOfflineRecord(stagingKey(partition), undefined);
-				await writeOfflineRecord("periodic:config", undefined);
 				await writeOfflineRecord(
 					`periodic:warning:${partition.generation}`,
 					"Periodic partition provenance changed",
 				);
+				await stopPeriodicRefresh(registration, true);
 			});
-			await registration.periodicSync?.unregister(PERIODIC_TAG).catch(() => {});
 			return;
 		}
 
@@ -424,13 +402,15 @@ async function runPeriodicRefresh(
 		if (error instanceof RunLimit || budget.controller.signal.aborted) return;
 		const needsLogin = error instanceof SessionRequired;
 		const attempts = (status?.attempts ?? 0) + 1;
-		await commit(() =>
-			writeOfflineRecord(statusKey, {
+		await commit(async () => {
+			await writeOfflineRecord(statusKey, {
 				needsLogin,
 				attempts,
 				nextAttempt: Date.now() + DAILY_INTERVAL * 2 ** (attempts - 1),
-			} satisfies PeriodicStatus),
-		);
+			} satisfies PeriodicStatus);
+			if (needsLogin || attempts >= 10)
+				await stopPeriodicRefresh(registration, false);
+		});
 		if (!(error instanceof TransportFailure) && !needsLogin)
 			await commit(() =>
 				writeOfflineRecord(
@@ -438,8 +418,6 @@ async function runPeriodicRefresh(
 					"Periodic download refresh failed",
 				),
 			);
-		if (needsLogin || attempts >= 10)
-			await registration.periodicSync?.unregister(PERIODIC_TAG);
 	} finally {
 		budget.close();
 		client.clear();

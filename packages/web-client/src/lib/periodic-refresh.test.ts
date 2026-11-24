@@ -5,13 +5,13 @@ import { OFFLINE_FORMAT, type Partition, wipeOffline } from "./offline-store";
 import {
 	PERIODIC_MAX_BYTES,
 	PERIODIC_MAX_MS,
-	periodicStatusKey,
 	refreshPeriodicDownloads,
 } from "./periodic-refresh";
 import {
 	DAILY_INTERVAL,
 	PERIODIC_TAG,
 	type PeriodicRegistration,
+	periodicStatusKey,
 	registerPeriodicRefresh,
 } from "./periodic-registration";
 import { mergePeriodicBatch, stagingKey } from "./periodic-staging";
@@ -82,6 +82,7 @@ beforeEach(() => {
 	records.set("epoch", partition.epoch);
 	records.set("periodic:config", {
 		partition,
+		revision: "revision",
 		sessionEndpoint: "/api/session",
 		apiBaseUrl: "/api/",
 	});
