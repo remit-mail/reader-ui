@@ -934,7 +934,7 @@ function MailboxList() {
 		state: refreshState,
 		errorMessage: refreshError,
 		refresh: onRefreshMailbox,
-	} = useRefreshControl(refreshAccountIds, { onSettled: onRetry });
+	} = useRefreshControl(refreshAccountIds, { reload: onRetry });
 	// Memoized: this element is a dep of `MailListHeader`'s own `chrome` memo
 	// (via the `refreshControl` prop), so a fresh element identity every render
 	// would defeat that memo and re-render every chrome consumer with it.

@@ -20,9 +20,15 @@ const PREVIOUS = 100;
 const BACKGROUND = 101;
 const PRESSED = 102;
 
-function Button({ onSettled }: { onSettled: () => void }) {
-	const { state, errorMessage, refresh } = useRefreshControl(ids, {
-		onSettled,
+function Button({
+	accountIds = ids,
+	reload,
+}: {
+	accountIds?: readonly string[];
+	reload: () => void;
+}) {
+	const { state, errorMessage, refresh } = useRefreshControl(accountIds, {
+		reload,
 	});
 	return createElement(
 		"button",
@@ -31,18 +37,12 @@ function Button({ onSettled }: { onSettled: () => void }) {
 	);
 }
 
-function App({
-	onSettled,
-	presses,
-}: {
-	onSettled: () => void;
-	presses: number;
-}) {
+function App({ reload, presses }: { reload: () => void; presses: number }) {
 	return createElement(MailFreshnessProvider, {
 		accounts: [account],
 		// biome-ignore lint/correctness/noChildrenProp: the provider requires children in its props
 		children: Array.from({ length: presses }, (_, key) =>
-			createElement(Button, { key, onSettled }),
+			createElement(Button, { key, reload }),
 		),
 	});
 }
@@ -81,9 +81,9 @@ const mount = async (t: TestContext, presses = 1) => {
 			});
 		});
 	};
-	const onSettled = t.mock.fn();
+	const reload = t.mock.fn();
 	seed("error", PREVIOUS);
-	dom.renderApp(createElement(App, { onSettled, presses }));
+	dom.renderApp(createElement(App, { reload, presses }));
 	await dom.waitFor(() => posts === 1);
 	await dom.flush();
 	for (const button of dom.queryAll("button")) dom.click(button);
@@ -93,29 +93,29 @@ const mount = async (t: TestContext, presses = 1) => {
 		await act(async () => releasePost({ requestedAt: PRESSED }));
 		await dom.flush();
 	};
-	return { ack, dom, onSettled, seed };
+	return { ack, dom, reload, seed };
 };
 
 test("a press ignores the older error and owns its error even before the POST ack", async (t) => {
-	const { ack, dom, onSettled, seed } = await mount(t);
-	assert.equal(dom.byText("button", "refreshing").textContent, "refreshing");
+	const { ack, dom, reload, seed } = await mount(t);
+	dom.byText("button", "refreshing");
 
 	seed("error", PRESSED);
 	await dom.wait(1);
-	assert.equal(dom.byText("button", "refreshing").textContent, "refreshing");
+	dom.byText("button", "refreshing");
 	assert.doesNotMatch(dom.text(), /Couldn't sync/);
 	await ack();
 	await dom.waitFor(() => dom.text().includes("Sync failed for this account"));
 
 	assert.doesNotMatch(dom.text(), /Couldn't sync/);
-	assert.equal(onSettled.mock.callCount(), 1);
+	assert.equal(reload.mock.callCount(), 1);
 });
 
 test("one errored round settles both presses for the same account without a banner", async (t) => {
-	const { ack, dom, onSettled, seed } = await mount(t, 2);
+	const { ack, dom, reload, seed } = await mount(t, 2);
 	await ack();
 	seed("error", PRESSED);
-	await dom.waitFor(() => onSettled.mock.callCount() === 2);
+	await dom.waitFor(() => reload.mock.callCount() === 2);
 
 	assert.deepEqual(
 		dom.queryAll("button").map((button) => button.textContent),
@@ -125,7 +125,7 @@ test("one errored round settles both presses for the same account without a bann
 });
 
 test("the tracker hands off the INBOX once while the round is running", async (t) => {
-	const { ack, dom, onSettled, seed } = await mount(t);
+	const { ack, dom, reload, seed } = await mount(t);
 	await ack();
 
 	const mailbox = {
@@ -142,16 +142,81 @@ test("the tracker hands off the INBOX once while the round is running", async (t
 		{ ...mailbox, fullPath: "Junk" },
 	]);
 	await dom.wait(1);
-	assert.equal(onSettled.mock.callCount(), 0);
+	assert.equal(reload.mock.callCount(), 0);
 
 	seed("syncing_others", PRESSED, [mailbox]);
-	await dom.waitFor(() => onSettled.mock.callCount() === 1);
-	assert.equal(dom.byText("button", "refreshing").textContent, "refreshing");
+	await dom.waitFor(() => reload.mock.callCount() === 1);
+	dom.byText("button", "refreshing");
 	seed("syncing_others", PRESSED, [{ ...mailbox, lastSyncedAt: PRESSED + 1 }]);
 	await dom.wait(1);
-	assert.equal(onSettled.mock.callCount(), 1);
+	assert.equal(reload.mock.callCount(), 1);
 
 	seed("complete", PRESSED + 1, [mailbox]);
 	await dom.waitFor(() => dom.text().includes("success"));
-	assert.equal(onSettled.mock.callCount(), 2);
+	assert.equal(reload.mock.callCount(), 2);
+});
+
+test("hands off each INBOX early and reloads once after both accounts finish", async (t) => {
+	t.mock.timers.enable({ apis: ["setInterval"] });
+	const accountIds = ["a", "b"];
+	const accounts = accountIds.map((accountId) =>
+		makeAccount({ accountId, lastSyncAt: Date.now() }),
+	);
+	const statusKeyFor = (accountId: string) =>
+		syncOperationsGetSyncStatusQueryKey({ path: { accountId } });
+	const dom = createDomHarness();
+	const statusFor = (accountId: string) =>
+		dom.queryClient.getQueryData<RemitImapAccountSyncStatusResponse>(
+			statusKeyFor(accountId),
+		);
+	const reload = t.mock.fn();
+	let pressed = false;
+	const completed = new Set<string>();
+	const fetch = mockFetch(({ method, path }) => {
+		const accountId = path.match(/\/accounts\/([ab])\/sync(?:\/status)?$/)?.[1];
+		assert.ok(accountId, path);
+		if (method === "POST") return { requestedAt: PRESSED };
+		if (!pressed)
+			return { accountId, syncRequestedAt: PREVIOUS, syncPhase: "complete" };
+		return {
+			accountId,
+			syncRequestedAt: PRESSED,
+			syncPhase: completed.has(accountId) ? "complete" : "syncing_others",
+			mailboxes: [{ fullPath: "INBOX", lastSyncedAt: PRESSED }],
+		};
+	});
+	t.after(() => {
+		dom.close();
+		fetch.restore();
+		__resetHotSyncWindow();
+		__resetStaleAccountSyncGuard();
+	});
+
+	dom.renderApp(
+		createElement(MailFreshnessProvider, {
+			accounts,
+			// biome-ignore lint/correctness/noChildrenProp: the provider requires children in its props
+			children: createElement(Button, { accountIds, reload }),
+		}),
+	);
+	await dom.waitFor(() =>
+		accountIds.every(
+			(accountId) => statusFor(accountId)?.syncPhase === "complete",
+		),
+	);
+	pressed = true;
+	dom.click(dom.byText("button", "idle"));
+	await dom.waitFor(() => reload.mock.callCount() === 2);
+	dom.byText("button", "refreshing");
+
+	completed.add("a");
+	await act(async () => t.mock.timers.tick(2_000));
+	await dom.waitFor(() => statusFor("a")?.syncPhase === "complete");
+	dom.byText("button", "refreshing");
+	assert.equal(reload.mock.callCount(), 2);
+
+	completed.add("b");
+	await act(async () => t.mock.timers.tick(2_000));
+	await dom.waitFor(() => dom.text().includes("success"));
+	assert.equal(reload.mock.callCount(), 3);
 });
