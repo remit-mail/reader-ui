@@ -1,5 +1,11 @@
 /// <reference lib="webworker" />
+
 import { PrecacheController } from "workbox-precaching";
+import { refreshPeriodicDownloads } from "../../src/lib/periodic-refresh.ts";
+import {
+	PERIODIC_TAG,
+	type PeriodicRegistration,
+} from "../../src/lib/periodic-registration.ts";
 import {
 	activateWhenSafe,
 	askClient,
@@ -130,3 +136,22 @@ self.addEventListener("fetch", (event) => {
 		);
 	}
 });
+
+self.addEventListener("periodicsync", ((
+	event: ExtendableEvent & { tag: string },
+) => {
+	if (event.tag === PERIODIC_TAG)
+		event.waitUntil(
+			refreshPeriodicDownloads(
+				self.registration as PeriodicRegistration,
+				async () => {
+					const tabs = await self.clients.matchAll({
+						type: "window",
+						includeUncontrolled: true,
+					});
+					for (const tab of tabs)
+						tab.postMessage({ type: "remit:periodic-warning" });
+				},
+			),
+		);
+}) as EventListener);

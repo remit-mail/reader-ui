@@ -14,6 +14,7 @@ import {
 	makeUserSettings,
 } from "../packages/web-client/src/test-support/fixtures.ts";
 import { testOfflineReading } from "./offline-consumer.ts";
+import { testPeriodicReading } from "./periodic-consumer.ts";
 
 declare global {
 	interface Window {
@@ -64,6 +65,7 @@ const types: Record<string, string> = {
 let serving = dist;
 let failInstall = false;
 let briefProbe = true;
+let periodicProbe = false;
 const oldCategoryRow = makeThreadMessage({
 	messageId: "old-category-mail",
 	threadId: "old-category-thread",
@@ -152,7 +154,10 @@ const server = createServer(async (request, response) => {
 		response.setHeader("X-Remit-Partition", tenant);
 		response.setHeader("Cache-Control", "private, max-age=3600");
 		response.setHeader("Content-Security-Policy", "sandbox");
-		if (path.endsWith("/html")) {
+		if (path === "/content/background-mail/body") {
+			response.setHeader("Content-Type", "text/html");
+			response.end("<p>Background downloaded body</p>");
+		} else if (path.endsWith("/html")) {
 			response.setHeader("Content-Type", "text/html");
 			response.end(
 				'<p>Old downloaded body</p><img alt="first inline" src="cid:one"><img alt="second inline" src="cid:two"><!-- <img src="cid:unused"> --><script>"<img src=cid:unused>"</script><img alt="remote image" src="https://tracking.invalid/pixel?token=one">',
@@ -222,6 +227,28 @@ const server = createServer(async (request, response) => {
 						: { error: "Session unavailable" },
 				),
 			);
+		} else if (periodicProbe && path === "/api/accounts/acc-1/mailboxes") {
+			response.end(
+				JSON.stringify({
+					items: [
+						{
+							mailboxId: "periodic-inbox",
+							accountId: "acc-1",
+							fullPath: "INBOX",
+						},
+					],
+				}),
+			);
+		} else if (
+			periodicProbe &&
+			path === "/api/mailboxes/periodic-inbox/threads"
+		) {
+			response.end(
+				JSON.stringify({
+					items: [{ messageId: "background-mail" }],
+					hasMore: false,
+				}),
+			);
 		} else if (path === "/api/threads/old-category-thread/messages") {
 			response.end(JSON.stringify({ items: [oldCategoryRow], hasMore: false }));
 		} else if (path === "/api/threads" && briefProbe) {
@@ -244,7 +271,11 @@ const server = createServer(async (request, response) => {
 					envelope: {
 						messageId,
 						subject:
-							messageId === "old-mail" ? "Old retained mail" : "New list page",
+							messageId === "old-mail"
+								? "Old retained mail"
+								: messageId === "background-mail"
+									? "New background mail"
+									: "New list page",
 						date: 0,
 						from: [],
 						to: [],
@@ -273,7 +304,13 @@ const server = createServer(async (request, response) => {
 										dispositionFilename: "report.pdf",
 									}),
 								]
-							: [],
+							: messageId === "background-mail"
+								? [
+										part(messageId, "body", "TEXT", "HTML", {
+											contentUrl: "/content/background-mail/body",
+										}),
+									]
+								: [],
 				}),
 			);
 		} else if (path === "/api/config")
@@ -805,6 +842,9 @@ try {
 		"2",
 	);
 	await restoredContext.close();
+	periodicProbe = true;
+	await testPeriodicReading(origin);
+	periodicProbe = false;
 	await testOfflineReading(origin, {
 		setSession: (key, status = 200) => {
 			tenant = key;

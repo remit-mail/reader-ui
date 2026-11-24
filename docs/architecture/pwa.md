@@ -149,9 +149,9 @@ Cache Storage and IndexedDB writers share a Web Lock and validate a captured
 partition/generation inside it. Wiping durably rotates an identity-verification
 epoch (initialized before the first partition), revokes the partition, deletes private caches and IDB records, clears the
 query client, and revokes every runtime across tabs and through the
-worker. A response that started before a wipe cannot recreate data. The worker
-owns generic shell caches only; it forwards revocations to all windows and has
-no global current tenant or private runtime writer. Generic shell caches survive.
+worker. A response that started before a wipe cannot recreate data. The worker forwards revocations to all windows and has no global current tenant.
+U4 background writers capture the verified partition and use this same durable
+lock/generation/epoch admission before every private commit. Generic shell caches survive.
 Revocation also stops tabs still reading their initial identity, and removal does
 not manage push subscriptions or notifications; those belong to the later push owner.
 Pending commits block U1 updates, and prepared updates reject new storage writes.
@@ -164,8 +164,7 @@ reconnect and successful reauthentication verify the session before refresh.
 The existing cadence and in-flight guards remain; background sync waits for a
 new server round to settle before refetching active reading metadata and visible
 bodies. Explicit refresh bypasses content cache reads while retaining good saved
-responses when a replacement fails. Push and periodic synchronization are later
-chunks.
+responses when a replacement fails. Periodic synchronization is the optional U4 contract below; push remains separate.
 
 A wiped document never binds its old QueryClient to another generation. Confirmed
 identity changes wipe first, then invoke the host's foreground navigation. Other
@@ -217,3 +216,52 @@ revoking the live session. Hosts must delete their own `removeDownloads()` call 
 their account `signOut`: the host logout should only perform its existing
 credential/navigation work. This includes offline logout. A host-only logout
 outside the shared `Account` boundary still owns its cleanup.
+
+# Optional periodic downloads (U4 / C4)
+
+C4 opts in with `mountApp({ authProvider, offline: { verifySession,
+reauthenticate, periodicRefresh: { sessionEndpoint: "/api/session" } } })`
+and `webClientPreset({ pwa: { enabled: true }, ... })`. Omit `periodicRefresh`
+to leave background refresh disabled; the next foreground mount removes any earlier
+registration and worker configuration. The API base comes from runtime `apiUrl`;
+both it and `sessionEndpoint` must be same-origin. No Access-specific policy,
+IdP flow or service token lives in the shared client.
+
+The session endpoint is authenticated `GET`, `Cache-Control: no-store`, and
+returns status 200 JSON `{ "partitionKey": "<server-derived opaque ID>" }`.
+The worker sends same-origin cookies, disables HTTP caching, follows no redirects,
+and bounds this check to five seconds within a thirty-second run. Redirects,
+opaque redirects, 401 and 403 set durable `needsLogin`, unregister the tag and
+stop. `getOfflineRuntime()?.state.needsLogin` exposes this on next startup;
+foreground identity verification clears it and re-enables eligible registration.
+C4 keeps the existing explicit foreground `reauthenticate` navigation.
+
+Only installed standalone browsers with `periodicSync` on
+`ServiceWorkerRegistration.prototype` and granted `periodic-background-sync`
+permission register `remit-refresh-downloads`, requesting `minInterval: 86400000`.
+This is a daily minimum request, never a delivery schedule. Unsupported browsers,
+uninstalled tabs, denied permissions and registration failures produce no output,
+reporter events or user notices. Logout, tenant change and remove-downloads revoke
+writers, erase staging and unregister. A successful foreground session is required
+to bind the worker configuration to the verified partition/generation.
+
+The worker reads `/config` for accounts (without persisting config), each account's
+mailboxes, one newest INBOX thread page per account, and descriptions plus the
+selected HTML/plain body for at most twenty previously unknown messages in total.
+Every request is a sequential GET; there are no server sync writes, attachment,
+inline-image or remote-image downloads. All response bytes, including metadata,
+share a 10 MiB budget and all work shares a thirty-second deadline. API responses
+need `X-Remit-Partition`; body responses use U2's exact MIME/provenance admission.
+Complete bodies enter the existing content cache and part index. Completed query
+results enter `periodic:batch:<generation>` in the existing IndexedDB data store,
+separately from `queries:<generation>`. Foreground hydration merges by query hash
+and timestamp before mounting queries, then removes the staging batch. Partition
+mismatches discard staging; every commit rechecks the durable wipe epoch.
+
+Transport failures retain previous downloads. Other failures record one warning
+through the existing recent-errors/telemetry reporter on the next foreground
+startup, without a user banner. Failed runs back off across browser events, starting
+at one day and doubling; after ten failed attempts the tag is removed. There are
+no retries inside an event and no custom wake timers. Foreground verification
+resets failure state. C4 must keep the session endpoint and existing protected API
+and content provenance contract available; no new server writes are required.

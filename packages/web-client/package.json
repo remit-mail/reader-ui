@@ -169,7 +169,14 @@
 			"dist",
 			"public",
 			"harness/pwa/sw.ts",
-			"src/lib/pwa-protocol.ts"
+			"src/lib/pwa-protocol.ts",
+			"src/lib/periodic-refresh.ts",
+			"src/lib/periodic-registration.ts",
+			"src/lib/periodic-staging.ts",
+			"src/lib/offline-store.ts",
+			"src/lib/offline-error.ts",
+			"src/lib/offline-queries.ts",
+			"src/lib/message-body-source.ts"
 		]
 	}
 }

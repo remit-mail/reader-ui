@@ -7,8 +7,10 @@ import type {
 	PersistedClient,
 	Persister,
 } from "@tanstack/react-query-persist-client";
+import { getRuntimeConfig } from "../runtime-config";
 import { externalImageBytes, requestExternalImage } from "./external-image";
 import { OFFLINE_ERROR_EVENT, OfflineUnavailableError } from "./offline-error";
+import { mergePersistedQueries } from "./offline-queries";
 import {
 	admitContent,
 	commitOffline,
@@ -23,18 +25,33 @@ import {
 	wipeOffline,
 	writeOfflineRecord,
 } from "./offline-store";
-import { isUpdatePrepared, registerUpdateBlocker } from "./pwa-update";
+import { type PeriodicStatus, periodicStatusKey } from "./periodic-refresh";
+import {
+	type PeriodicRefreshOptions,
+	registerPeriodicRefresh,
+	unregisterPeriodicRefresh,
+} from "./periodic-registration";
+import { mergePeriodicBatch } from "./periodic-staging";
+import {
+	isUpdatePrepared,
+	registerUpdateBlocker,
+	reportPeriodicWarning,
+} from "./pwa-update";
 import { reportSignedOut, resetSignedOut } from "./signed-out";
+
+export { mergePersistedQueries } from "./offline-queries";
 
 export interface OfflineOptions {
 	/** Fresh authenticated no-store request. null means authentication is required;
 	 * reject only for transport/server failures. Never use a cached config as identity. */
 	verifySession(): Promise<{ partitionKey: string } | null>;
 	reauthenticate(): void;
+	periodicRefresh?: PeriodicRefreshOptions;
 }
 export interface OfflineState {
 	partition?: Partition;
 	verified: boolean;
+	needsLogin?: boolean;
 	usage?: number;
 	quota?: number;
 	persistent?: boolean;
@@ -54,25 +71,6 @@ export const retainedReadingQuery = (
 		"threadOperationsSearchThreads",
 		"unifiedThreadOperationsListAllThreads",
 	]).has(String(first._id));
-};
-
-/** Preserve the last successful descriptor even when a list page or error replaces it. */
-export const mergePersistedQueries = (
-	previous: PersistedClient | undefined,
-	client: PersistedClient,
-): PersistedClient => {
-	const queries = new Map(
-		previous?.clientState.queries.map((query) => [query.queryHash, query]),
-	);
-	for (const query of client.clientState.queries) {
-		const existing = queries.get(query.queryHash);
-		if (!existing || query.state.dataUpdatedAt >= existing.state.dataUpdatedAt)
-			queries.set(query.queryHash, query);
-	}
-	return {
-		...client,
-		clientState: { mutations: [], queries: [...queries.values()] },
-	};
 };
 
 export class OfflineRuntime {
@@ -97,6 +95,8 @@ export class OfflineRuntime {
 		this.channel.onmessage = revoked;
 		navigator.serviceWorker?.addEventListener("message", (event) => {
 			if (event.data?.type === "remit:offline-revoked") revoked();
+			if (event.data?.type === "remit:periodic-warning")
+				reportPeriodicWarning();
 		});
 	}
 	subscribe = (listener: () => void): (() => void) => {
@@ -141,6 +141,21 @@ export class OfflineRuntime {
 			);
 		if (partition) await requirePartition(partition);
 		if (this.revoked) return;
+		if (partition) {
+			const status = await commitOffline(partition, async () => {
+				const status = await offlineRecord<PeriodicStatus>(
+					periodicStatusKey(partition),
+				);
+				if (status?.warning)
+					await writeOfflineRecord(periodicStatusKey(partition), {
+						...status,
+						warning: undefined,
+					});
+				return status;
+			});
+			if (status?.warning) reportPeriodicWarning();
+			this.update({ needsLogin: status?.needsLogin ?? false });
+		}
 		this.update({ partition });
 		await this.verify().catch(this.report);
 		void this.storage(
@@ -213,8 +228,18 @@ export class OfflineRuntime {
 			return next;
 		});
 		if (this.revoked) return false;
-		this.update({ partition, verified: true });
+		this.update({ partition, verified: true, needsLogin: false });
 		resetSignedOut();
+		if (
+			this.options.periodicRefresh &&
+			typeof __REMIT_PWA_ENABLED__ !== "undefined" &&
+			__REMIT_PWA_ENABLED__
+		)
+			void registerPeriodicRefresh(
+				partition,
+				this.options.periodicRefresh,
+				getRuntimeConfig().apiUrl,
+			);
 		if (!wasVerified) window.dispatchEvent(new Event("remit:session-verified"));
 		return true;
 	}
@@ -232,6 +257,7 @@ export class OfflineRuntime {
 			// Keep the error-banner owner mounted until the wipe commits.
 			this.update({ verified: false });
 			await wipeOffline();
+			await unregisterPeriodicRefresh();
 			this.channel.postMessage("wipe");
 			await this.revokeMemory();
 			navigator.serviceWorker?.controller?.postMessage({
@@ -288,9 +314,7 @@ export class OfflineRuntime {
 				});
 			},
 			restoreClient: () =>
-				commitOffline(partition, () =>
-					offlineRecord<PersistedClient>(`queries:${partition.generation}`),
-				),
+				commitOffline(partition, () => mergePeriodicBatch(partition)),
 			removeClient: () => {
 				this.report(
 					new Error(
