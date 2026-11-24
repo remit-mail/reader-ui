@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { afterEach, beforeEach, describe, it } from "node:test";
+import { classifyBodyFetchFailure } from "../lib/message-body-source";
 import {
 	BodyFetchError,
-	classifyBodyFetchFailure,
 	fetchBodyContent,
 	isContentTypeMismatch,
 	isSpaShellResponse,

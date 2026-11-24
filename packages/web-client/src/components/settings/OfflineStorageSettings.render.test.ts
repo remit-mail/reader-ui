@@ -20,7 +20,7 @@ afterEach(() => mock.restoreAll());
 it("refreshes the storage estimate when Advanced settings opens", async () => {
 	const dom = createDomHarness();
 	const runtime = installOfflineRuntime({
-		verifySession: async () => null,
+		sessionUrl: "/api/session",
 		reauthenticate() {},
 	});
 	try {

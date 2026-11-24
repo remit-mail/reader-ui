@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { chromium, type Page } from "playwright";
+import { threadOperationsListThreadsQueryKey } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
+import { dehydrate, QueryClient } from "@tanstack/react-query";
+import { chromium, type Page, type Route } from "playwright";
 
 const shellStatus =
 	/Session verified|session unverified|Opening downloads|Restoring downloads|MiB used|may be removed|Keep downloads on this device|Remove downloads|Verify your session to download mail|First-time offline sign-in|Persistent storage granted|Verify session \/ sign in|Could not save downloads/;
@@ -21,6 +23,212 @@ interface Controls {
 	slowRequested: Promise<void>;
 	releaseSlow(): void;
 }
+
+export async function testBackgroundRefresh(
+	origin: string,
+	setMessages: (...messageIds: string[]) => void,
+) {
+	const tag = "remit-refresh";
+	const context = await chromium.launchPersistentContext("", {
+		channel: "chromium",
+		args: ["--no-sandbox"],
+	});
+	try {
+		await context.addInitScript(() =>
+			localStorage.setItem("pwa-offline-test", "yes"),
+		);
+		const page = await context.newPage();
+		const cdp = await context.newCDPSession(page);
+		await cdp.send("Browser.setPermission", {
+			permission: { name: "periodic-background-sync" },
+			setting: "granted",
+			origin,
+		});
+		const registrationId = new Promise<string>((resolve) => {
+			cdp.on("ServiceWorker.workerRegistrationUpdated", ({ registrations }) => {
+				const registration = registrations.find(
+					({ scopeURL }) => scopeURL === `${origin}/`,
+				);
+				if (registration) resolve(registration.registrationId);
+			});
+		});
+		await cdp.send("ServiceWorker.enable");
+		const workerReady = context.waitForEvent("serviceworker");
+		await page.goto(`${origin}/downloads`);
+		const worker = await workerReady;
+		const waitForTag = (tab: Page, present: boolean) =>
+			tab.waitForFunction(async (present) => {
+				const { periodicSync } = await navigator.serviceWorker.ready;
+				return (
+					(await periodicSync!.getTags()).includes("remit-refresh") === present
+				);
+			}, present);
+		await waitForTag(page, true);
+
+		// CDP acknowledges dispatch before waitUntil settles.
+		type TestWorker = typeof globalThis & {
+			refreshResult: PromiseWithResolvers<string | undefined>;
+		};
+		await worker.evaluate(() => {
+			const scope = globalThis as TestWorker;
+			const waitUntil = ExtendableEvent.prototype.waitUntil;
+			ExtendableEvent.prototype.waitUntil = function (work) {
+				if (this.type === "periodicsync") {
+					const { resolve } = scope.refreshResult;
+					void work.then(
+						() => resolve(undefined),
+						(error: Error) => resolve(error.message),
+					);
+				}
+				waitUntil.call(this, work);
+			};
+		});
+		const run = async (hold?: {
+			path: string;
+			respond(route: Route): Promise<void>;
+		}) => {
+			const held = Promise.withResolvers<Route>();
+			if (hold) {
+				await context.route(origin + hold.path, (route) => {
+					if (!route.request().serviceWorker()) return route.fallback();
+					held.resolve(route);
+				});
+			}
+			await worker.evaluate(() => {
+				(globalThis as TestWorker).refreshResult = Promise.withResolvers();
+			});
+			await cdp.send("ServiceWorker.dispatchPeriodicSyncEvent", {
+				origin,
+				registrationId: await registrationId,
+				tag,
+			});
+			if (hold) {
+				await hold.respond(await held.promise);
+				await context.unroute(origin + hold.path);
+			}
+			const error = await worker.evaluate(
+				() => (globalThis as TestWorker).refreshResult.promise,
+			);
+			if (error !== undefined) throw new Error(error);
+		};
+		const snapshot = () =>
+			page.evaluate(() => {
+				const runtime = window.pwaTest.offline()!;
+				return runtime.persister(runtime.state.partition!).restoreClient();
+			});
+		const inboxKey = threadOperationsListThreadsQueryKey({
+			baseUrl: "/api",
+			path: { mailboxId: "inbox" },
+			query: { order: "desc" },
+		});
+		const client = new QueryClient();
+		client.setQueryData(inboxKey, { items: [{ messageId: "old-mail" }] });
+		const clientState = dehydrate(client);
+		await page.evaluate(async (clientState) => {
+			const runtime = window.pwaTest.offline()!;
+			await runtime.persister(runtime.state.partition!).persistClient({
+				clientState,
+				buster: "2",
+				timestamp: Date.now(),
+			});
+		}, clientState);
+
+		setMessages("refresh-mail");
+		await run();
+		const afterRefresh = await snapshot();
+		assert.equal(
+			JSON.stringify(
+				afterRefresh?.clientState.queries.filter(
+					(query) =>
+						(query.queryKey[0] as { _id: string })._id ===
+						"threadOperationsListThreads",
+				),
+			),
+			JSON.stringify(clientState.queries),
+		);
+
+		setMessages("missing-mail", "next-mail");
+		await run();
+		assert.deepEqual(
+			await page.evaluate(async () =>
+				Promise.all(
+					["missing-mail", "next-mail"].map(
+						async (messageId) =>
+							!!(await caches.match(`/content/${messageId}/html`)),
+					),
+				),
+			),
+			[false, true],
+			"a 404 leaves the next body downloadable",
+		);
+		const before401 = await snapshot();
+		await run({
+			path: "/api/session",
+			async respond(route) {
+				assert.equal(
+					await route.request().headerValue("X-Requested-With"),
+					"XMLHttpRequest",
+				);
+				await route.fulfill({ status: 401 });
+			},
+		});
+		await waitForTag(page, false);
+		assert.deepEqual(await snapshot(), before401);
+
+		await context.setOffline(true);
+		await page.reload();
+		await page.getByRole("link", { name: "refresh-mail" }).click();
+		await page
+			.frameLocator('iframe[title="Email content"]')
+			.getByText("Background downloaded body")
+			.waitFor();
+		await context.setOffline(false);
+		await page.goto(`${origin}/downloads`);
+		await waitForTag(page, true);
+
+		const peer = await context.newPage();
+		await peer.goto(`${origin}/settings/advanced`);
+		await peer.waitForFunction(() => window.pwaTest.offline()?.state.verified);
+		const verify = () =>
+			peer.evaluate(() => window.pwaTest.offline()!.verify());
+		setMessages("late-mail");
+		// Other tabs can dehydrate restored queries again without changing their data.
+		const savedQueries = async () =>
+			(await snapshot())?.clientState.queries.map(({ queryHash, state }) => ({
+				queryHash,
+				state,
+			}));
+		const beforeOptOut = await savedQueries();
+		await assert.rejects(
+			run({
+				path: "/api/messages/late-mail",
+				async respond(route) {
+					await peer
+						.getByRole("button", { name: "Turn off background refresh" })
+						.click();
+					await peer.getByText("Background refresh is off").waitFor();
+					await route.continue();
+				},
+			}),
+			/Background refresh is off/,
+		);
+		assert.deepEqual(await savedQueries(), beforeOptOut);
+		assert.equal(
+			await page.evaluate(
+				async () => !!(await caches.match("/content/late-mail/html")),
+			),
+			false,
+		);
+		assert.equal(await verify(), true);
+		await waitForTag(peer, false);
+		console.log(
+			"Chromium background refresh OK: offline body, unchanged Inbox, 404 then 200, 401 and opt-out.",
+		);
+	} finally {
+		await context.close();
+	}
+}
+
 const imagesReady = async (page: Page) =>
 	page.waitForFunction(() => {
 		const frame = document.querySelector<HTMLIFrameElement>(
@@ -399,9 +607,9 @@ export async function testOfflineReading(
 		const readFailures = await page.evaluate(async () => {
 			const runtime = window.pwaTest.offline();
 			if (!runtime) throw new Error("Offline runtime did not start");
-			const match = Cache.prototype.match;
+			const match = CacheStorage.prototype.match;
 			const get = IDBObjectStore.prototype.get;
-			Cache.prototype.match = async () => {
+			CacheStorage.prototype.match = async () => {
 				throw new DOMException("Cache read failed", "UnknownError");
 			};
 			IDBObjectStore.prototype.get = function (key) {
@@ -423,7 +631,7 @@ export async function testOfflineReading(
 					.catch((error: Error) => error.message);
 				return [content, image];
 			} finally {
-				Cache.prototype.match = match;
+				CacheStorage.prototype.match = match;
 				IDBObjectStore.prototype.get = get;
 			}
 		});

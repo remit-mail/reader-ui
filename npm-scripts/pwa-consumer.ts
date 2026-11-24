@@ -13,7 +13,10 @@ import {
 	makeThreadMessage,
 	makeUserSettings,
 } from "../packages/web-client/src/test-support/fixtures.ts";
-import { testOfflineReading } from "./offline-consumer.ts";
+import {
+	testBackgroundRefresh,
+	testOfflineReading,
+} from "./offline-consumer.ts";
 
 declare global {
 	interface Window {
@@ -109,6 +112,7 @@ const draft = {
 };
 let tenant = "tenant-a";
 let sessionStatus = 200;
+let refreshMessages = ["old-mail"];
 const contentRequests: string[] = [];
 const imageProxyRequests: string[] = [];
 let imageSlowReady!: () => void;
@@ -164,13 +168,17 @@ const server = createServer(async (request, response) => {
 		response.setHeader("X-Remit-Partition", tenant);
 		response.setHeader("Cache-Control", "private, max-age=3600");
 		response.setHeader("Content-Security-Policy", "sandbox");
-		if (path === "/content/reply-mail/html") {
+		if (path === "/content/missing-mail/html") {
+			response.writeHead(404).end();
+		} else if (path === "/content/reply-mail/html") {
 			response.setHeader("Content-Type", "text/html");
 			response.end("<p>Body of the reply delivered while reading</p>");
 		} else if (path.endsWith("/html")) {
 			response.setHeader("Content-Type", "text/html");
 			response.end(
-				'<p>Old downloaded body</p><img alt="first inline" src="cid:one"><img alt="second inline" src="cid:two"><!-- <img src="cid:unused"> --><script>"<img src=cid:unused>"</script><img alt="remote image" src="https://tracking.invalid/pixel?token=one"><img alt="refused image" src="https://tracking.invalid/pixel?token=refused">',
+				path === "/content/refresh-mail/html"
+					? "<p>Background downloaded body</p>"
+					: '<p>Old downloaded body</p><img alt="first inline" src="cid:one"><img alt="second inline" src="cid:two"><!-- <img src="cid:unused"> --><script>"<img src=cid:unused>"</script><img alt="remote image" src="https://tracking.invalid/pixel?token=one"><img alt="refused image" src="https://tracking.invalid/pixel?token=refused">',
 			);
 		} else if (path.endsWith("/inline-a") || path.endsWith("/inline-b")) {
 			if (path.endsWith("/inline-a")) await inlineGate;
@@ -265,6 +273,15 @@ const server = createServer(async (request, response) => {
 					requestedAt: syncStamp,
 				}),
 			);
+		} else if (path === "/api/mailboxes/inbox/threads") {
+			response.end(
+				JSON.stringify({
+					items: refreshMessages.map((messageId) =>
+						makeThreadMessage({ messageId, mailboxId: "inbox" }),
+					),
+					hasMore: false,
+				}),
+			);
 		} else if (path === "/api/threads/old-category-thread/messages") {
 			response.end(
 				JSON.stringify({
@@ -296,7 +313,9 @@ const server = createServer(async (request, response) => {
 								? replyRow.subject
 								: messageId === "old-mail"
 									? "Old retained mail"
-									: "New list page",
+									: messageId === "new-mail"
+										? "New list page"
+										: messageId,
 						date: 0,
 						from: [],
 						to: [],
@@ -325,16 +344,24 @@ const server = createServer(async (request, response) => {
 										dispositionFilename: "report.pdf",
 									}),
 								]
-							: messageId === replyRow.messageId
-								? [part(messageId, "html", "TEXT", "HTML")]
-								: [],
+							: messageId === "new-mail"
+								? []
+								: [part(messageId, "html", "TEXT", "HTML")],
 				}),
 			);
 		} else if (path === "/api/config")
 			response.end(
 				JSON.stringify(
 					makeConfig(
-						[makeAccount({ accountId: "acc-1", lastSyncAt: syncStamp })],
+						[
+							makeAccount({
+								accountId: "acc-1",
+								lastSyncAt: syncStamp,
+								folderAppointments: [
+									{ role: "Inbox", mailboxId: "inbox", source: "Appointed" },
+								],
+							}),
+						],
 						{
 							buildCommit:
 								serving === dist ? "consumer-pwa-v1" : "consumer-pwa-v2",
@@ -444,7 +471,22 @@ try {
 		16,
 		"selecting old mail needs no second listing",
 	);
-	console.log("Firefox PWA installation and old category selection OK");
+	await page.evaluate(() => localStorage.setItem("pwa-offline-test", "yes"));
+	await page.goto(`${origin}/settings/advanced`);
+	await page
+		.getByRole("button", { name: "Remove downloads", exact: true })
+		.waitFor();
+	assert.equal(
+		await page.evaluate(() => window.pwaTest.offline()?.verify()),
+		true,
+	);
+	assert.doesNotMatch(
+		await page.locator("body").innerText(),
+		/Background refresh|Could not save downloads/i,
+	);
+	console.log(
+		"Firefox PWA installation, old category selection and background refresh silence OK",
+	);
 	await context.close();
 	briefProbe = false;
 
@@ -503,7 +545,7 @@ try {
 	);
 	assert.doesNotMatch(
 		await failed.locator("body").innerText(),
-		/Reload after offline support finishes installing/,
+		/Reload after offline support finishes installing|Could not save downloads/,
 	);
 	assert.equal(warnings.length, 1);
 	assert.deepEqual(errors, []);
@@ -536,6 +578,9 @@ const browser = await chromium.launch({
 	ignoreDefaultArgs: ["--disable-back-forward-cache"],
 });
 try {
+	await testBackgroundRefresh(origin, (...messageIds) => {
+		refreshMessages = messageIds;
+	});
 	const context = await browser.newContext({ serviceWorkers: "allow" });
 	const first = await context.newPage();
 	await first.goto(origin);

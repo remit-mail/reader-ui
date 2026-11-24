@@ -26,3 +26,19 @@ export const Downloads: Story = {
 		).toBeNull();
 	},
 };
+
+export const BackgroundRefresh: Story = {
+	args: { refreshOff: false, onDisableRefresh: fn() },
+	play: async ({ canvasElement, args }) => {
+		await userEvent.click(
+			within(canvasElement).getByRole("button", {
+				name: "Turn off background refresh",
+			}),
+		);
+		await expect(args.onDisableRefresh).toHaveBeenCalledOnce();
+	},
+};
+
+export const BackgroundRefreshOff: Story = {
+	args: { refreshOff: true },
+};
