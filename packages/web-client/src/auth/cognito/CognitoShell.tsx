@@ -267,8 +267,3 @@ export const CognitoProvider = ({ children }: CognitoShellProps) =>
 	) : (
 		<>{children}</>
 	);
-export const CognitoShell = ({ children }: CognitoShellProps) => (
-	<CognitoProvider>
-		<CognitoSessionGate>{children}</CognitoSessionGate>
-	</CognitoProvider>
-);

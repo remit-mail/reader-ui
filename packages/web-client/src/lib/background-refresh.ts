@@ -23,15 +23,19 @@ export const REFRESH_TAG = "remit-refresh";
 export const supportsBackgroundRefresh = (): boolean =>
 	"periodicSync" in (globalThis.ServiceWorkerRegistration?.prototype ?? {});
 
+async function refreshGranted(): Promise<boolean> {
+	if (!supportsBackgroundRefresh()) return false;
+	const permission = await navigator.permissions.query({
+		name: "periodic-background-sync" as PermissionName,
+	});
+	return permission.state === "granted";
+}
+
 export async function syncBackgroundRefresh(
 	partition: Partition,
 	sessionUrl: string,
 ) {
-	if (!supportsBackgroundRefresh()) return;
-	const permission = await navigator.permissions.query({
-		name: "periodic-background-sync" as PermissionName,
-	});
-	if (permission.state !== "granted") return;
+	if (!(await refreshGranted())) return;
 	const periodicSync = (await navigator.serviceWorker.ready).periodicSync!;
 	await commitOffline(partition, async () => {
 		if (await offlineRecord<boolean>("refresh-off")) return;
@@ -44,6 +48,7 @@ export async function syncBackgroundRefresh(
 }
 
 export async function unregisterBackgroundRefresh() {
+	if (!(await refreshGranted())) return;
 	const registration = await navigator.serviceWorker?.getRegistration();
 	await registration?.periodicSync?.unregister(REFRESH_TAG);
 }

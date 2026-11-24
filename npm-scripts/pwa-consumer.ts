@@ -242,6 +242,7 @@ const server = createServer(async (request, response) => {
 			response.setHeader("X-Remit-Partition", tenant);
 		if (path === "/api/session") {
 			response.setHeader("Cache-Control", "no-store");
+			if (sessionStatus === 302) response.setHeader("Location", "/sign-in");
 			response.statusCode = sessionStatus;
 			response.end(
 				JSON.stringify(

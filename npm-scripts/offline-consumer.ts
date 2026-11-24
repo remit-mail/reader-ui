@@ -295,6 +295,8 @@ export async function testOfflineReading(
 	let context = await launch();
 	try {
 		let page = await context.newPage();
+		const sessionStatus = () =>
+			page.evaluate(() => window.pwaTest.offline()?.snapshot().session?.status);
 		await page.addInitScript(() => {
 			Object.defineProperty(navigator.storage, "persist", {
 				async value() {
@@ -549,6 +551,7 @@ export async function testOfflineReading(
 			await page.evaluate(() => window.pwaTest.offline()?.state.verified),
 			false,
 		);
+		assert.equal(await sessionStatus(), "offline");
 		const cached = await page.evaluate(async () => {
 			const names = (await caches.keys()).filter((name) =>
 				name.startsWith("remit-content-"),
@@ -578,12 +581,14 @@ export async function testOfflineReading(
 			.getByRole("alert")
 			.filter({ hasText: "Session verification failed: 503" })
 			.waitFor();
+		assert.equal(await sessionStatus(), "failed");
 		assert.equal(
 			await page.evaluate(() => window.pwaTest.reauthentications),
 			0,
 		);
 		controls.setSession("tenant-a", 401);
 		await page.evaluate(() => window.pwaTest.offline()!.verify());
+		assert.equal(await sessionStatus(), "signedOut");
 		await page.getByRole("alertdialog").waitFor();
 		await page
 			.getByRole("button", { name: "Continue reading downloaded mail" })
@@ -600,6 +605,12 @@ export async function testOfflineReading(
 		});
 		controls.setSession("tenant-a");
 		await page.evaluate(() => window.pwaTest.offline()!.verify());
+		assert.equal(await sessionStatus(), "ready");
+		controls.setSession("tenant-a", 302);
+		await page.evaluate(() => window.pwaTest.offline()?.verify());
+		assert.equal(await sessionStatus(), "signedOut");
+		controls.setSession("tenant-a");
+		await page.evaluate(() => window.pwaTest.offline()?.verify());
 		await page.waitForFunction(
 			() => !!window.pwaTest.offline()?.state.verified,
 		);

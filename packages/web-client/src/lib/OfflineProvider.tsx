@@ -86,7 +86,7 @@ const VerifyAuthenticatedSession = ({
 	runtime: OfflineRuntime;
 }) => {
 	useEffect(() => {
-		void runtime.verify().catch(runtime.report);
+		void runtime.verify();
 	}, [runtime]);
 	return null;
 };

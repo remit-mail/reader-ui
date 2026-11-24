@@ -1,10 +1,16 @@
-import type { ReactNode } from "react";
 import { configureAmplify } from "./amplify-config";
 import { isBetterAuthEnabled } from "./better-auth-config";
 import { betterAuthProvider } from "./better-auth-provider";
 import { CognitoProvider, CognitoSessionGate } from "./cognito/CognitoShell";
 import { cognitoAuthProvider } from "./cognito-provider";
 import type { AuthAccountProps, AuthProvider } from "./provider";
+
+const CombinedAccount = (props: AuthAccountProps) =>
+	isBetterAuthEnabled() ? (
+		<betterAuthProvider.Account {...props} />
+	) : (
+		<cognitoAuthProvider.Account {...props} />
+	);
 
 /**
  * Both identity systems in one build, selected at runtime by
@@ -14,20 +20,6 @@ import type { AuthAccountProps, AuthProvider } from "./provider";
  * single provider composes `cognitoAuthProvider` or `betterAuthProvider`
  * directly and omits the other.
  */
-const CombinedShell = ({ children }: { children: ReactNode }) =>
-	isBetterAuthEnabled() ? (
-		<betterAuthProvider.Shell>{children}</betterAuthProvider.Shell>
-	) : (
-		<cognitoAuthProvider.Shell>{children}</cognitoAuthProvider.Shell>
-	);
-
-const CombinedAccount = (props: AuthAccountProps) =>
-	isBetterAuthEnabled() ? (
-		<betterAuthProvider.Account {...props} />
-	) : (
-		<cognitoAuthProvider.Account {...props} />
-	);
-
 export const combinedAuthProvider: AuthProvider = {
 	reauthenticate: () =>
 		isBetterAuthEnabled()
@@ -42,7 +34,6 @@ export const combinedAuthProvider: AuthProvider = {
 		betterAuthProvider.resetToken();
 		cognitoAuthProvider.resetToken();
 	},
-	Shell: CombinedShell,
 	Provider: ({ children }) =>
 		isBetterAuthEnabled() ? (
 			<>{children}</>
@@ -51,7 +42,9 @@ export const combinedAuthProvider: AuthProvider = {
 		),
 	SessionGate: ({ children }) =>
 		isBetterAuthEnabled() ? (
-			<betterAuthProvider.Shell>{children}</betterAuthProvider.Shell>
+			<betterAuthProvider.SessionGate>
+				{children}
+			</betterAuthProvider.SessionGate>
 		) : (
 			<CognitoSessionGate>{children}</CognitoSessionGate>
 		),

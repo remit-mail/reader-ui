@@ -31,7 +31,7 @@ const CognitoAccountInner = ({
 
 /**
  * Cognito identity for the account affordances. `useAuthenticator` throws when
- * called outside `Authenticator.Provider`, which `CognitoShell` only mounts
+ * called outside `Authenticator.Provider`, which `CognitoProvider` only mounts
  * once Cognito is configured — so the hook-using inner is gated on that,
  * constant for the app's lifetime, keeping the Rules of Hooks intact.
  */

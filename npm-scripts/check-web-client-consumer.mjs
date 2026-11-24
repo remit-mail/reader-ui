@@ -144,7 +144,6 @@ try {
 							"@vitejs/plugin-react",
 							"@tailwindcss/vite",
 							"tailwindcss",
-							"@tanstack/router-plugin",
 							"dictionary-en",
 						],
 						web.devDependencies,
@@ -159,6 +158,7 @@ try {
 	writeFileSync(
 		join(consumer, "src", "main.tsx"),
 		[
+			'import { Fragment } from "react";',
 			'import { noneAuthProvider } from "@remit/web-client/auth/provider";',
 			'import { mountApp } from "@remit/web-client/shell";',
 			'import { registerUpdateBlocker } from "@remit/web-client/pwa";',
@@ -174,8 +174,8 @@ try {
 			'const cognito = localStorage.getItem("pwa-auth") === "cognito";',
 			'if (offline && cognito) globalThis.__REMIT_CONFIG__.cognito = { userPoolId: "us-east-1_test", clientId: "testclient", region: "us-east-1" };',
 			"const baseAuth = offline ? (cognito ? cognitoAuthProvider : betterAuthProvider) : noneAuthProvider;",
-			"const IdentityProvider = baseAuth.Provider ?? (({ children }) => <>{children}</>);",
-			"const OnlineGate = baseAuth.SessionGate ?? baseAuth.Shell;",
+			"const IdentityProvider = baseAuth.Provider ?? Fragment;",
+			"const OnlineGate = baseAuth.SessionGate ?? Fragment;",
 			'const authProvider = offline ? { ...baseAuth, reauthenticate: () => { window.pwaTest.reauthentications++; }, getToken: async () => null, Provider: ({ children }) => <IdentityProvider><span data-identity-context="mounted" /><baseAuth.Account fallback={<span data-account-probe="signed-out" />}>{() => <span data-account-probe="signed-in" />}</baseAuth.Account>{children}</IdentityProvider>, SessionGate: ({ children }) => <div data-online-gate="mounted"><OnlineGate>{children}</OnlineGate></div> } : baseAuth;',
 			"window.pwaTest.offline = getOfflineRuntime;",
 			"window.pwaTest.reauthentications = 0;",

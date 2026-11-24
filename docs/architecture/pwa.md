@@ -89,14 +89,15 @@ or change a host.
 
 Enable `mountApp({ authProvider, offline: { sessionUrl: "/api/session", reauthenticate } })`
 only with the PWA preset enabled. Auth providers may expose `Provider` for
-identity context and `SessionGate` for online sign-in; `Shell` remains their
-legacy composition. The identity provider always mounts. The offline boundary
-restores remembered reading without mounting the online gate. With no remembered
+identity context and `SessionGate` for online sign-in. The identity provider
+always mounts. The offline boundary restores remembered reading without
+mounting the online gate. With no remembered
 partition, it renders the gate and verifies identity after authentication. Both
 shipped Cognito and Better Auth compositions support this separation, including
 explicit sign-in/reset-password navigations. Hosts with SDK context in their
 existing shell must split that context into `Provider` and its gate into
-`SessionGate`; a plain Access gate can continue to use `Shell`.
+`SessionGate`. A plain Access gate needs only `SessionGate`. Existing hosts
+must replace `AuthProvider.Shell` with these fields.
 The gate restores the remembered partition without claiming a current session.
 It restores successful reading queries through `PersistQueryClientProvider`
 before mounting routes. Unverified sessions keep local reading available and
@@ -108,8 +109,12 @@ The host contract for C2 is:
 
 - Implement authenticated `GET /api/session` with `Cache-Control: no-store` and
   a 200 JSON response with a nonempty `partitionKey`. Return 401, 403 or a
-  redirect when authentication is required. Hosts can import `readSession`
-  from `@remit/web-client/offline` for their Access probe.
+  redirect when authentication is required. Hosts can read the shared verdict
+  through `getOfflineRuntime()` from `@remit/web-client/offline` using its
+  `subscribe` and `snapshot` methods. `OfflineState.session` is initially absent
+  and reports `ready`, `signedOut`, `offline`, or `failed` with the error.
+  The verdict stays available while verification runs. Reconnect starts a
+  fresh check after any in-flight verification settles.
 - On successful protected API and `/content/*` responses, set
   `X-Remit-Partition` to the **server-derived** partition that produced the data.
   Never echo a client-supplied tenant. The mail API client boundary checks API
@@ -173,8 +178,10 @@ The packed Chromium consumer tests close and restart the browser with the same
 durable profile, age its snapshot by 90 days, and reopen old mail, referenced
 inline image blobs and attachment bytes offline. They exercise both shipped auth
 compositions, expired signed-link recovery, real Cache Storage and IndexedDB
-failures, a delayed network response across a two-tab wipe, and tenant changes.
-Unit tests retain only the pure admission and query-retention selectors.
+failures, a delayed network response across a two-tab wipe, tenant changes,
+and session verdicts for a 401 and an opaque redirect. Unit tests cover content
+admission, query retention, download removal at prompt permission, and
+reconnect during boot verification.
 
 # Periodic refresh (U4)
 
@@ -183,9 +190,10 @@ Periodic refresh uses the same offline options. Use a same-origin runtime
 
 After successful foreground verification, an eligible Chromium installation
 registers `remit-refresh` with a minimum interval of 24 hours. Chromium decides
-when to run it. Registration is silent when the browser lacks periodic sync or
-permission is unavailable. Settings → Advanced can turn it off for this
-device. Removing downloads unregisters the tag and preserves the opt-out.
+when to run it. Registration and unregistration require periodic sync support
+and granted permission. Settings → Advanced can turn it off for this device.
+Removing downloads preserves the opt-out and clears the partition and refresh
+settings, so a remaining tag cannot trigger network requests.
 
 Each run verifies the session before reading the newest Inbox page per account.
 It adds message descriptors and renderable bodies to Downloads, leaving saved

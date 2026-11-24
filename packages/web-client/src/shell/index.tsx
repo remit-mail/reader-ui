@@ -120,7 +120,7 @@ export const mountApp = ({
 	}
 
 	const Provider = authProvider.Provider ?? Fragment;
-	const Gate = authProvider.SessionGate ?? authProvider.Shell;
+	const Gate = authProvider.SessionGate ?? Fragment;
 	const app = <RouterProvider router={router} />;
 
 	createRoot(rootElement).render(

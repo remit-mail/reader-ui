@@ -1,10 +1,6 @@
 import { configureAmplify } from "./amplify-config";
 import { CognitoAccount } from "./cognito/CognitoAccount";
-import {
-	CognitoProvider,
-	CognitoSessionGate,
-	CognitoShell,
-} from "./cognito/CognitoShell";
+import { CognitoProvider, CognitoSessionGate } from "./cognito/CognitoShell";
 import {
 	getCognitoToken,
 	resetCognitoTokenCache,
@@ -22,7 +18,6 @@ export const cognitoAuthProvider: AuthProvider = {
 	configure: configureAmplify,
 	getToken: getCognitoToken,
 	resetToken: resetCognitoTokenCache,
-	Shell: CognitoShell,
 	Provider: CognitoProvider,
 	SessionGate: CognitoSessionGate,
 	Account: CognitoAccount,
