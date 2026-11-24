@@ -63,7 +63,8 @@ const refreshOneAccount = async (
 };
 
 export interface UseRefreshControlOptions {
-	onSettled?: () => void;
+	/** Reload the view when each INBOX becomes current and once after all account results arrive. */
+	reload?: () => void;
 }
 
 export interface UseRefreshControlResult {
@@ -118,8 +119,8 @@ export const useRefreshControl = (
 
 		startHotSyncWindow();
 
-		const showAccount = (): void => {
-			if (!run.signal.aborted) optionsRef.current.onSettled?.();
+		const showInbox = (): void => {
+			if (!run.signal.aborted) optionsRef.current.reload?.();
 		};
 
 		void (async () => {
@@ -130,7 +131,7 @@ export const useRefreshControl = (
 						telemetry,
 						accountId,
 						run.signal,
-						showAccount,
+						showInbox,
 					),
 				),
 			);
@@ -139,10 +140,10 @@ export const useRefreshControl = (
 			const enqueued = results
 				.filter((result) => result.enqueued)
 				.map((result) => result.accountId);
-			enqueued.forEach(showAccount);
 			if (enqueued.length > 0) {
 				acknowledge(enqueued);
 			}
+			optionsRef.current.reload?.();
 
 			const failures = results.filter((result) => !result.ok);
 			if (failures.length === 0) {

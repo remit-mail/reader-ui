@@ -61,7 +61,7 @@ export function MailTopBar({ accounts }: MailTopBarProps) {
 		// never reloaded: the sync landed, the button ticked, and the mail it
 		// fetched stayed off screen until something else invalidated the list.
 		// Every open account's folders, so whichever list is on screen reloads.
-		onSettled: () =>
+		reload: () =>
 			invalidateThreadListQueries(
 				queryClient,
 				threadListCacheKeys(resultFolderIndex.keys()),
