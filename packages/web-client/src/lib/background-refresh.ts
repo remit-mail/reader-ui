@@ -37,7 +37,11 @@ declare global {
 }
 
 export const REFRESH_TAG = "remit-refresh";
-export class LoginRequired extends Error {}
+export class LoginRequired extends Error {
+	constructor(readonly observed: { partition: Partition; stamp: string }) {
+		super();
+	}
+}
 
 export const supportsBackgroundRefresh = (): boolean =>
 	"periodicSync" in (globalThis.ServiceWorkerRegistration?.prototype ?? {});
@@ -61,9 +65,7 @@ export async function syncBackgroundRefresh(
 			sessionUrl,
 			stamp: crypto.randomUUID(),
 		} satisfies Refresh);
-		await periodicSync.register(REFRESH_TAG, {
-			minInterval: 24 * 60 * 60 * 1000,
-		});
+		await periodicSync.register(REFRESH_TAG, { minInterval: 86_400_000 });
 	});
 }
 
@@ -72,56 +74,44 @@ export async function unregisterBackgroundRefresh() {
 	await registration?.periodicSync?.unregister(REFRESH_TAG);
 }
 
-export const disableBackgroundRefresh = (sessionUrl: string): Promise<void> =>
-	commitOffline(undefined, async () => {
-		const current = await offlineRecord<Refresh>("refresh");
+export function disableBackgroundRefresh(sessionUrl: string) {
+	return commitOffline(undefined, async () => {
 		await writeOfflineRecord("refresh", {
 			apiUrl: getRuntimeConfig().apiUrl,
 			sessionUrl,
 			stamp: crypto.randomUUID(),
-			...current,
+			...(await offlineRecord<Refresh>("refresh")),
 			off: true,
 		} satisfies Refresh);
 		await unregisterBackgroundRefresh();
 	});
-
-interface ObservedRefresh {
-	partition: Partition;
-	refresh: Refresh;
 }
 
-export const unregisterIfCurrent = (
+export function unregisterIfCurrent(
 	registration: ServiceWorkerRegistration,
-	observed: ObservedRefresh,
-): Promise<void> =>
-	commitOffline(undefined, async () => {
+	{ observed: { partition, stamp } }: LoginRequired,
+) {
+	return commitOffline(undefined, async () => {
 		if (
-			samePartition(
-				await offlineRecord<Partition>("partition"),
-				observed.partition,
-			) &&
-			(await offlineRecord<Refresh>("refresh"))?.stamp ===
-				observed.refresh.stamp
+			samePartition(await offlineRecord<Partition>("partition"), partition) &&
+			(await offlineRecord<Refresh>("refresh"))?.stamp === stamp
 		)
 			await registration.periodicSync?.unregister(REFRESH_TAG);
 	});
+}
 
-export async function refreshInBackground(
-	observe: (state: ObservedRefresh) => void,
-) {
+export async function refreshInBackground() {
 	const { partition, refresh } = await commitOffline(undefined, async () => ({
 		partition: await offlineRecord<Partition>("partition"),
 		refresh: await offlineRecord<Refresh>("refresh"),
 	}));
 	if (!partition || !refresh || refresh.off) return;
-	observe({ partition, refresh });
-	const session = await taggedFetch(refresh.sessionUrl, { cache: "no-store" });
-	if (
-		session.status === 401 ||
-		session.status === 403 ||
-		session.type === "opaqueredirect"
-	)
-		throw new LoginRequired();
+	const loginRequired = new LoginRequired({ partition, stamp: refresh.stamp });
+	const session = await taggedFetch(refresh.sessionUrl, {
+		cache: "no-store",
+		headers: { "X-Requested-With": "XMLHttpRequest" },
+	});
+	if (session.status === 401 || session.status === 403) throw loginRequired;
 	if (
 		session.status !== 200 ||
 		session.headers.get("content-type")?.split(";")[0].trim().toLowerCase() !==
@@ -131,7 +121,7 @@ export async function refreshInBackground(
 	const { partitionKey } = await session.json();
 	if (typeof partitionKey !== "string" || !partitionKey)
 		throw new Error("Session partition key is empty");
-	if (partitionKey !== partition.key) throw new LoginRequired();
+	if (partitionKey !== partition.key) throw loginRequired;
 
 	const client = createClient({
 		baseUrl: refresh.apiUrl,
@@ -139,7 +129,7 @@ export async function refreshInBackground(
 		fetch: async (input, init) => {
 			const response = await taggedFetch(input, init);
 			if (response.status === 401 || response.status === 403)
-				throw new LoginRequired();
+				throw loginRequired;
 			await validateNetworkPartition(response, partition);
 			return response;
 		},
@@ -148,18 +138,18 @@ export async function refreshInBackground(
 	const { data: config } = await configOperationsGetConfig(options);
 	const messages = [];
 	for (const account of config.accounts) {
-		const inbox = account.folderAppointments.find((a) => a.role === "Inbox");
-		if (!inbox?.mailboxId) continue;
+		const mailboxId = account.folderAppointments.find(
+			(a) => a.role === "Inbox",
+		)?.mailboxId;
+		if (!mailboxId) continue;
 		const { data } = await threadOperationsListThreads({
 			...options,
-			path: { mailboxId: inbox.mailboxId },
+			path: { mailboxId },
 			query: { order: "desc" },
 		});
 		messages.push(...data.items);
 	}
-	const queryClient = new QueryClient({
-		defaultOptions: { queries: { gcTime: Infinity } },
-	});
+	const queryClient = new QueryClient();
 	const bodies = [];
 	for (const { messageId } of messages.sort(
 		(a, b) => b.sentDate - a.sentDate,
@@ -193,8 +183,8 @@ export async function refreshInBackground(
 	);
 	for (const { contentUrl, kind } of bodies) {
 		const mime = kind === "html" ? "text/html" : "text/plain";
-		if (await readContent(partition, contentCacheKey(contentUrl), mime))
-			continue;
+		const cacheKey = contentCacheKey(contentUrl);
+		if (await readContent(partition, cacheKey, mime)) continue;
 		const response = await taggedFetch(contentUrl);
 		if (
 			response.status === 202 ||
@@ -202,12 +192,9 @@ export async function refreshInBackground(
 				response.headers.get("x-remit-403-reason") === "expired")
 		)
 			continue;
-		if (response.status === 401) throw new LoginRequired();
-		if (
-			response.status !== 200 ||
-			!(await admitContent(response, mime, partition))
-		)
+		if (response.status === 401) throw loginRequired;
+		if (!(await admitContent(response, mime, partition)))
 			throw new Error(`Background body was not admitted (${response.status})`);
-		await storeContent(partition, contentUrl, mime, response, guard);
+		await storeContent(partition, cacheKey, mime, response, guard);
 	}
 }

@@ -278,7 +278,7 @@ export class OfflineRuntime {
 		await this.authorizeNetwork("GET");
 		const response = await network();
 		if (await admitContent(response, mime, partition)) {
-			await this.write(() => storeContent(partition, url, mime, response));
+			await this.write(() => storeContent(partition, cacheKey, mime, response));
 		} else if (response.status === 200) {
 			throw new OfflineUnavailableError(
 				"Mail part was not saved: unexpected MIME, tenant, redirect, HTML shell or no-store response",

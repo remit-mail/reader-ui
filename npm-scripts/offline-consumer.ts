@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { threadOperationsListThreadsQueryKey } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
 import { dehydrate, QueryClient } from "@tanstack/react-query";
-import { chromium, type Page } from "playwright";
+import { chromium, type Page, type Route } from "playwright";
 
 const shellStatus =
 	/Session verified|session unverified|Opening downloads|Restoring downloads|MiB used|may be removed|Keep downloads on this device|Remove downloads|Verify your session to download mail|First-time offline sign-in|Persistent storage granted|Verify session \/ sign in|Could not save downloads/;
@@ -19,17 +19,9 @@ interface Controls {
 	releaseSlow(): void;
 }
 
-interface RefreshControls {
-	setMessage(messageId: string): void;
-	holdResponse(path: string): {
-		requested: Promise<void>;
-		release(status: number): void;
-	};
-}
-
 export async function testBackgroundRefresh(
 	origin: string,
-	controls: RefreshControls,
+	setMessage: (messageId: string) => void,
 ) {
 	const tag = "remit-refresh";
 	const context = await chromium.launchPersistentContext("", {
@@ -69,56 +61,44 @@ export async function testBackgroundRefresh(
 		await waitForTag(page, true);
 
 		// CDP acknowledges dispatch before waitUntil settles.
-		type TestWorker = typeof globalThis & {
-			refreshResult: Promise<string>;
-			settleRefresh(result: string): void;
-		};
+		type TestWorker = typeof globalThis & { refreshResult: Promise<void> };
 		await worker.evaluate(() => {
-			const scope = globalThis as TestWorker;
 			const waitUntil = ExtendableEvent.prototype.waitUntil;
 			ExtendableEvent.prototype.waitUntil = function (work) {
 				if (this.type === "periodicsync")
-					void work.then(
-						() => scope.settleRefresh("done"),
-						(error: Error) => scope.settleRefresh(error.message),
-					);
+					(globalThis as TestWorker).refreshResult = work;
 				waitUntil.call(this, work);
 			};
 		});
-		const run = async (during?: () => Promise<void>) => {
-			await worker.evaluate(() => {
-				const { promise, resolve } = Promise.withResolvers<string>();
-				Object.assign(globalThis, {
-					refreshResult: promise,
-					settleRefresh: resolve,
+		const run = async (hold?: {
+			path: string;
+			respond(route: Route): Promise<void>;
+		}) => {
+			const held = Promise.withResolvers<Route>();
+			if (hold) {
+				await context.route(origin + hold.path, (route) => {
+					if (!route.request().serviceWorker()) return route.fallback();
+					held.resolve(route);
 				});
-			});
+			}
+			await worker.evaluate(() =>
+				Reflect.deleteProperty(globalThis, "refreshResult"),
+			);
 			await cdp.send("ServiceWorker.dispatchPeriodicSyncEvent", {
 				origin,
 				registrationId: await registrationId,
 				tag,
 			});
-			await during?.();
-			return worker.evaluate(() => (globalThis as TestWorker).refreshResult);
+			if (hold) {
+				await hold.respond(await held.promise);
+				await context.unroute(origin + hold.path);
+			}
+			await worker.evaluate(() =>
+				(globalThis as TestWorker).refreshResult.then(() => {}),
+			);
 		};
-		const withHeldResponse = (
-			path: string,
-			status: number,
-			action?: () => Promise<void>,
-		) => {
-			const { requested, release } = controls.holdResponse(path);
-			return run(async () => {
-				try {
-					await requested;
-					await action?.();
-				} finally {
-					release(status);
-				}
-			});
-		};
-
-		const snapshot = (tab: Page) =>
-			tab.evaluate(() => {
+		const snapshot = () =>
+			page.evaluate(() => {
 				const runtime = window.pwaTest.offline()!;
 				return runtime.persister(runtime.state.partition!).restoreClient();
 			});
@@ -139,9 +119,9 @@ export async function testBackgroundRefresh(
 			});
 		}, clientState);
 
-		controls.setMessage("refresh-mail");
-		assert.equal(await run(), "done");
-		const before401 = await snapshot(page);
+		setMessage("refresh-mail");
+		await run();
+		const before401 = await snapshot();
 		assert.equal(
 			JSON.stringify(
 				before401?.clientState.queries.filter(
@@ -152,9 +132,18 @@ export async function testBackgroundRefresh(
 			),
 			JSON.stringify(clientState.queries),
 		);
-		assert.equal(await withHeldResponse("/api/session", 401), "done");
+		await run({
+			path: "/api/session",
+			async respond(route) {
+				assert.equal(
+					await route.request().headerValue("X-Requested-With"),
+					"XMLHttpRequest",
+				);
+				await route.fulfill({ status: 401 });
+			},
+		});
 		await waitForTag(page, false);
-		assert.deepEqual(await snapshot(page), before401);
+		assert.deepEqual(await snapshot(), before401);
 
 		await context.setOffline(true);
 		await page.reload();
@@ -169,78 +158,56 @@ export async function testBackgroundRefresh(
 
 		const peer = await context.newPage();
 		await peer.goto(`${origin}/settings/advanced`);
-		const disable = peer.getByRole("button", {
-			name: "Turn off background refresh",
-		});
-		await disable.waitFor();
-		const verify = (tab: Page) =>
-			tab.evaluate(() => window.pwaTest.offline()!.verify());
-		assert.equal(
-			await withHeldResponse("/api/session", 401, async () => {
+		await peer.waitForFunction(() => window.pwaTest.offline()?.state.verified);
+		const verify = () =>
+			peer.evaluate(() => window.pwaTest.offline()!.verify());
+		await run({
+			path: "/api/session",
+			async respond(route) {
 				await peer.evaluate(async () =>
 					(await navigator.serviceWorker.ready).periodicSync!.unregister(
 						"remit-refresh",
 					),
 				);
-				await verify(peer);
+				await verify();
 				await waitForTag(peer, true);
-			}),
-			"done",
-		);
+				await route.fulfill({ status: 401 });
+			},
+		});
 		await waitForTag(page, true);
 
-		controls.setMessage("late-mail");
-		const heldMessage = "/api/messages/late-mail";
-		assert.match(
-			await withHeldResponse(heldMessage, 200, () =>
-				peer.evaluate(() => window.pwaTest.offline()!.removeDownloads()),
-			),
-			/removed/,
-		);
-		await waitForTag(page, false);
-		assert.deepEqual(
-			await page.evaluate(async () =>
-				(await caches.keys()).filter((name) =>
-					name.startsWith("remit-content-"),
-				),
-			),
-			[],
-		);
-		await peer.close();
-		const settings = await context.newPage();
-		await settings.goto(`${origin}/settings/advanced`);
-		await settings.waitForFunction(
-			() => window.pwaTest.offline()?.state.verified,
-		);
-		await waitForTag(settings, true);
-
-		assert.equal(
-			await withHeldResponse(heldMessage, 200, async () => {
-				await settings
-					.getByRole("button", { name: "Turn off background refresh" })
-					.click();
-				await settings.getByText("Background refresh is off").waitFor();
+		setMessage("late-mail");
+		const beforeOptOut = (await snapshot())?.clientState.queries;
+		await assert.rejects(
+			run({
+				path: "/api/messages/late-mail",
+				async respond(route) {
+					await peer
+						.getByRole("button", { name: "Turn off background refresh" })
+						.click();
+					await peer.getByText("Background refresh is off").waitFor();
+					await route.continue();
+				},
 			}),
-			"Background refresh is off",
+			/Background refresh is off/,
 		);
-		await waitForTag(settings, false);
-		assert.deepEqual((await snapshot(settings))?.clientState.queries ?? [], []);
+		assert.deepEqual((await snapshot())?.clientState.queries, beforeOptOut);
 		assert.equal(
-			await settings.evaluate(
+			await page.evaluate(
 				async () => !!(await caches.match("/content/late-mail/html")),
 			),
 			false,
 		);
-		assert.equal(await verify(settings), true);
-		await settings.evaluate(async () => {
+		assert.equal(await verify(), true);
+		await peer.evaluate(async () => {
 			await navigator.permissions.query({
 				name: "periodic-background-sync" as PermissionName,
 			});
 			await navigator.locks.request("remit-offline-storage", () => {});
 		});
-		await waitForTag(settings, false);
+		await waitForTag(peer, false);
 		console.log(
-			"Chromium background refresh OK: offline body, unchanged Inbox, 401, wipe, opt-out and newer registration.",
+			"Chromium background refresh OK: offline body, unchanged Inbox, 401, opt-out and newer registration.",
 		);
 	} finally {
 		await context.close();

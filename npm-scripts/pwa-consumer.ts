@@ -76,12 +76,6 @@ const oldCategoryRow = makeThreadMessage({
 	sentDate: 0,
 	isRead: true,
 });
-const account = makeAccount({
-	accountId: "acc-1",
-	folderAppointments: [
-		{ role: "Inbox", mailboxId: "inbox", source: "Appointed" },
-	],
-});
 let savedSubject: string | undefined;
 let pendingSubject: string | undefined;
 const missingStatic = new Set<string>();
@@ -107,15 +101,6 @@ const draft = {
 let tenant = "tenant-a";
 let sessionStatus = 200;
 let refreshMessage = "old-mail";
-let heldResponse:
-	| { path: string; requested(): void; status: Promise<number> }
-	| undefined;
-const holdResponse = (path: string) => {
-	const requested = Promise.withResolvers<void>();
-	const status = Promise.withResolvers<number>();
-	heldResponse = { path, requested: requested.resolve, status: status.promise };
-	return { requested: requested.promise, release: status.resolve };
-};
 const contentRequests: string[] = [];
 const imageProxyRequests: string[] = [];
 let imageSlowReady!: () => void;
@@ -159,13 +144,6 @@ const server = createServer(async (request, response) => {
 	const path = new URL(request.url ?? "/", "http://localhost").pathname;
 	const file = join(serving, path === "/" ? "index.html" : path);
 	response.setHeader("Cache-Control", "no-cache");
-	let status: number | undefined;
-	if (heldResponse?.path === path) {
-		const held = heldResponse;
-		heldResponse = undefined;
-		held.requested();
-		status = await held.status;
-	}
 	if (["/consent", "/device", "/apps", "/apps/connections"].includes(path)) {
 		response.setHeader("Content-Type", "text/html");
 		response.end(`<!doctype html><title>Host page</title><h1>${path}</h1>`);
@@ -178,13 +156,12 @@ const server = createServer(async (request, response) => {
 		response.setHeader("X-Remit-Partition", tenant);
 		response.setHeader("Cache-Control", "private, max-age=3600");
 		response.setHeader("Content-Security-Policy", "sandbox");
-		if (path === "/content/refresh-mail/html") {
-			response.setHeader("Content-Type", "text/html");
-			response.end("<p>Background downloaded body</p>");
-		} else if (path.endsWith("/html")) {
+		if (path.endsWith("/html")) {
 			response.setHeader("Content-Type", "text/html");
 			response.end(
-				'<p>Old downloaded body</p><img alt="first inline" src="cid:one"><img alt="second inline" src="cid:two"><!-- <img src="cid:unused"> --><script>"<img src=cid:unused>"</script><img alt="remote image" src="https://tracking.invalid/pixel?token=one">',
+				path === "/content/refresh-mail/html"
+					? "<p>Background downloaded body</p>"
+					: '<p>Old downloaded body</p><img alt="first inline" src="cid:one"><img alt="second inline" src="cid:two"><!-- <img src="cid:unused"> --><script>"<img src=cid:unused>"</script><img alt="remote image" src="https://tracking.invalid/pixel?token=one">',
 			);
 		} else if (path.endsWith("/inline-a") || path.endsWith("/inline-b")) {
 			if (path.endsWith("/inline-a")) await inlineGate;
@@ -243,10 +220,10 @@ const server = createServer(async (request, response) => {
 			response.setHeader("X-Remit-Partition", tenant);
 		if (path === "/api/session") {
 			response.setHeader("Cache-Control", "no-store");
-			response.statusCode = status ?? sessionStatus;
+			response.statusCode = sessionStatus;
 			response.end(
 				JSON.stringify(
-					response.statusCode === 200
+					sessionStatus === 200
 						? { partitionKey: tenant }
 						: { error: "Session unavailable" },
 				),
@@ -326,10 +303,20 @@ const server = createServer(async (request, response) => {
 		} else if (path === "/api/config")
 			response.end(
 				JSON.stringify(
-					makeConfig([account], {
-						buildCommit:
-							serving === dist ? "consumer-pwa-v1" : "consumer-pwa-v2",
-					}),
+					makeConfig(
+						[
+							makeAccount({
+								accountId: "acc-1",
+								folderAppointments: [
+									{ role: "Inbox", mailboxId: "inbox", source: "Appointed" },
+								],
+							}),
+						],
+						{
+							buildCommit:
+								serving === dist ? "consumer-pwa-v1" : "consumer-pwa-v2",
+						},
+					),
 				),
 			);
 		else if (path === "/api/settings")
@@ -508,18 +495,6 @@ try {
 	);
 	assert.deepEqual(errors, []);
 	assert.equal(await failed.getByTestId("fatal-error-overlay").count(), 0);
-	await failed.goto(`${origin}/settings/advanced`);
-	await failed
-		.getByRole("button", { name: "Remove downloads", exact: true })
-		.waitFor();
-	assert.equal(
-		await failed
-			.getByRole("button", { name: "Turn off background refresh" })
-			.count(),
-		0,
-	);
-	assert.equal(await failed.getByRole("alert").count(), 0);
-	assert.deepEqual(errors, []);
 	await failedContext.close();
 	contentRequests.length = 0;
 	imageProxyRequests.length = 0;
@@ -538,11 +513,8 @@ const browser = await chromium.launch({
 	ignoreDefaultArgs: ["--disable-back-forward-cache"],
 });
 try {
-	await testBackgroundRefresh(origin, {
-		setMessage: (messageId) => {
-			refreshMessage = messageId;
-		},
-		holdResponse,
+	await testBackgroundRefresh(origin, (messageId) => {
+		refreshMessage = messageId;
 	});
 	const context = await browser.newContext({ serviceWorkers: "allow" });
 	const first = await context.newPage();

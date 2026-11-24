@@ -48,13 +48,10 @@ self.addEventListener("periodicsync", ((
 	event: ExtendableEvent & { tag: string },
 ) => {
 	if (event.tag !== REFRESH_TAG) return;
-	let observed: Parameters<typeof unregisterIfCurrent>[1];
 	event.waitUntil(
-		refreshInBackground((state) => {
-			observed = state;
-		}).catch((error: unknown) =>
+		refreshInBackground().catch((error: unknown) =>
 			error instanceof LoginRequired
-				? unregisterIfCurrent(self.registration, observed)
+				? unregisterIfCurrent(self.registration, error)
 				: Promise.reject(error),
 		),
 	);

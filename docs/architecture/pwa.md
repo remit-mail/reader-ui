@@ -198,7 +198,9 @@ opt-out or wipe. An expired session unregisters the run's tag if its registratio
 is still current.
 
 The host must return a no-store 200 JSON session response with a nonempty
-`partitionKey`, or 401, 403 or a redirect when the session expires. Set
+`partitionKey`, or 401, 403 or a redirect when the session expires. The worker
+sends `X-Requested-With: XMLHttpRequest` on its session request so Cloudflare
+Access answers 401 for an expired session. Set
 `X-Remit-Partition` on config, thread, describe and content responses. Content
 can return 202 while fetching or 403 with `x-remit-403-reason: expired` for an
 expired link. Keep `periodic-background-sync` allowed in Permissions-Policy

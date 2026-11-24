@@ -4,7 +4,6 @@ import { OfflineUnavailableError } from "./offline-error";
 /** Independent of shell/build versions. Changing this requires an explicit wipe. */
 export const OFFLINE_FORMAT = 2;
 export const PERSIST_BUSTER = String(OFFLINE_FORMAT);
-export const OFFLINE_LOCK = "remit-offline-storage";
 export const PARTITION_HEADER = "x-remit-partition";
 export interface Partition {
 	key: string;
@@ -59,7 +58,7 @@ export const writeOfflineRecord = async (
 		db.close();
 	}
 };
-export const contentCacheName = (partition: Partition): string =>
+const contentCacheName = (partition: Partition): string =>
 	`remit-content-v${OFFLINE_FORMAT}-${encodeURIComponent(partition.key)}-${partition.generation}`;
 export const samePartition = (
 	a: Partition | undefined,
@@ -84,9 +83,9 @@ export const commitOffline = async <T>(
 	work: () => Promise<T>,
 	guard?: Guard,
 ): Promise<T> =>
-	await navigator.locks.request(OFFLINE_LOCK, async () => {
+	await navigator.locks.request("remit-offline-storage", async () => {
 		if (partition) await requirePartition(partition);
-		await guard?.();
+		if (guard) await guard();
 		return work();
 	});
 export const wipeOffline = async (): Promise<void> =>
@@ -156,38 +155,31 @@ export const contentCacheKey = (url: string): string => {
 	return `${target.origin}${target.pathname}`;
 };
 
-export const readContent = async (
+export async function readContent(
 	partition: Partition,
-	cacheKey: string,
+	key: string,
 	mime: string,
-): Promise<Response | undefined> => {
+) {
 	const saved = await offlineRecord<{ mime: string }>(
-		`part:${partition.generation}:${cacheKey}`,
+		`part:${partition.generation}:${key}`,
 	);
-	return saved?.mime === mime
-		? caches.match(cacheKey, { cacheName: contentCacheName(partition) })
-		: undefined;
-};
+	if (saved?.mime === mime)
+		return caches.match(key, { cacheName: contentCacheName(partition) });
+}
 
 export const storeContent = (
 	partition: Partition,
-	url: string,
+	key: string,
 	mime: string,
 	response: Response,
 	guard?: Guard,
-): Promise<void> =>
+) =>
 	commitOffline(
 		partition,
 		async () => {
-			const cacheKey = contentCacheKey(url);
-			await (await caches.open(contentCacheName(partition))).put(
-				cacheKey,
-				response.clone(),
-			);
-			await writeOfflineRecord(`part:${partition.generation}:${cacheKey}`, {
-				mime,
-				savedAt: Date.now(),
-			});
+			const cache = await caches.open(contentCacheName(partition));
+			await cache.put(key, response.clone());
+			await writeOfflineRecord(`part:${partition.generation}:${key}`, { mime });
 		},
 		guard,
 	);
@@ -232,7 +224,7 @@ export const persistQueries = (
 	partition: Partition,
 	client: PersistedClient,
 	guard?: Guard,
-): Promise<void> =>
+) =>
 	commitOffline(
 		partition,
 		async () => {
