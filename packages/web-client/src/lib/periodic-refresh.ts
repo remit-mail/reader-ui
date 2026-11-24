@@ -55,8 +55,8 @@ import type { InboxHead } from "./thread-list-cache";
 export const PERIODIC_MAX_BYTES = 10 * 1024 * 1024;
 export const PERIODIC_MAX_MS = 30_000;
 export const PERIODIC_MAX_MESSAGES = 20;
-class RunLimit extends Error {}
-class OversizedBody extends RunLimit {}
+export class RunLimit extends Error {}
+export class OversizedBody extends RunLimit {}
 class SessionRequired extends Error {}
 class SignedLinkExpired extends Error {}
 class BodyUnavailable extends Error {}
@@ -65,23 +65,22 @@ class TransportFailure extends Error {}
 class ResponseFailure extends Error {}
 
 /** Counts streamed bytes, including session and metadata, and aborts slow bodies. */
-class PeriodicBudget {
+export class PeriodicBudget {
 	readonly controller = new AbortController();
 	private bytes = 0;
 	private bodyBytes = 0;
-	private readonly started = Date.now();
 	private readonly timer = setTimeout(
 		() => this.controller.abort(),
 		PERIODIC_MAX_MS,
 	);
 
-	constructor(private readonly partitionKey: string) {}
+	constructor(
+		private readonly partitionKey: string,
+		private readonly started = Date.now(),
+	) {}
 
-	check(): void {
-		if (
-			this.controller.signal.aborted ||
-			Date.now() - this.started >= PERIODIC_MAX_MS
-		)
+	check(now = Date.now()): void {
+		if (this.controller.signal.aborted || now - this.started >= PERIODIC_MAX_MS)
 			throw new RunLimit();
 	}
 
@@ -155,6 +154,13 @@ class PeriodicBudget {
 			throw new ResponseFailure("Periodic refresh expected JSON");
 		}
 
+		return this.read(response, kind);
+	}
+
+	async read(
+		response: Response,
+		kind: "session" | "api" | "body",
+	): Promise<Response> {
 		const freshBodyBudget = kind === "body" && this.bodyBytes === 0;
 		const reader = response.body?.getReader();
 		const chunks: Uint8Array<ArrayBuffer>[] = [];
@@ -190,6 +196,17 @@ class PeriodicBudget {
 			status: response.status,
 			headers: response.headers,
 		});
+	}
+}
+
+export function* candidateMessages(
+	rows: readonly { messageId: string }[],
+	seen: Set<string>,
+): Iterable<string> {
+	for (const { messageId } of rows) {
+		if (seen.has(messageId)) continue;
+		seen.add(messageId);
+		yield messageId;
 	}
 }
 
@@ -339,9 +356,8 @@ async function runPeriodicRefresh(
 				page: threads,
 				updatedAt: Date.now(),
 			});
-			for (const { messageId } of threads.items ?? []) {
-				if (count >= PERIODIC_MAX_MESSAGES || seen.has(messageId)) continue;
-				seen.add(messageId);
+			for (const messageId of candidateMessages(threads.items ?? [], seen)) {
+				if (count >= PERIODIC_MAX_MESSAGES) break;
 				const path = { messageId };
 				const key = messageOperationsDescribeMessageQueryKey({
 					client: api,

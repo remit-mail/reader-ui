@@ -66,7 +66,10 @@ const types: Record<string, string> = {
 let serving = dist;
 let failInstall = false;
 let briefProbe = true;
-let periodicProbe = false;
+let periodicMessages: string[] | undefined;
+let heldPeriodicBody:
+	| { requested(): void; released: Promise<void> }
+	| undefined;
 const oldCategoryRow = makeThreadMessage({
 	messageId: "old-category-mail",
 	threadId: "old-category-thread",
@@ -160,6 +163,16 @@ const server = createServer(async (request, response) => {
 		);
 		if (unavailableBody) {
 			response.writeHead(Number(unavailableBody[1])).end();
+		} else if (path === "/content/oversized-mail/body") {
+			response.setHeader("Content-Type", "text/html");
+			response.end(Buffer.alloc(10 * 1024 * 1024 + 1, "x"));
+		} else if (path === "/content/failed-mail/body") {
+			response.writeHead(500).end();
+		} else if (path === "/content/held-mail/body") {
+			heldPeriodicBody?.requested();
+			await heldPeriodicBody?.released;
+			response.setHeader("Content-Type", "text/html");
+			response.end("<p>Held background body</p>");
 		} else if (path === "/content/background-mail/body") {
 			response.setHeader("Content-Type", "text/html");
 			response.end("<p>Background downloaded body</p>");
@@ -233,7 +246,7 @@ const server = createServer(async (request, response) => {
 						: { error: "Session unavailable" },
 				),
 			);
-		} else if (periodicProbe && path === "/api/accounts/acc-1/mailboxes") {
+		} else if (periodicMessages && path === "/api/accounts/acc-1/mailboxes") {
 			response.end(
 				JSON.stringify({
 					items: [
@@ -242,17 +255,12 @@ const server = createServer(async (request, response) => {
 				}),
 			);
 		} else if (
-			periodicProbe &&
+			periodicMessages &&
 			path === "/api/mailboxes/periodic-inbox/threads"
 		) {
 			response.end(
 				JSON.stringify({
-					items: [
-						"unavailable-202",
-						"unavailable-403",
-						"unavailable-404",
-						"background-mail",
-					].map((messageId) => ({ messageId })),
+					items: periodicMessages.map((messageId) => ({ messageId })),
 					hasMore: false,
 				}),
 			);
@@ -311,8 +319,7 @@ const server = createServer(async (request, response) => {
 										dispositionFilename: "report.pdf",
 									}),
 								]
-							: messageId === "background-mail" ||
-									messageId.startsWith("unavailable-")
+							: periodicMessages?.includes(messageId)
 								? [
 										part(messageId, "body", "TEXT", "HTML", {
 											contentUrl: `/content/${messageId}/body`,
@@ -850,9 +857,31 @@ try {
 		"2",
 	);
 	await restoredContext.close();
-	periodicProbe = true;
-	await testPeriodicReading(origin);
-	periodicProbe = false;
+	await testPeriodicReading(origin, {
+		messages: (ids) => {
+			periodicMessages = ids;
+		},
+		holdBody: () => {
+			const requested = Promise.withResolvers<void>();
+			const released = Promise.withResolvers<void>();
+			heldPeriodicBody = {
+				requested: requested.resolve,
+				released: released.promise,
+			};
+			return {
+				requested: requested.promise,
+				release: () => {
+					released.resolve();
+					heldPeriodicBody = undefined;
+				},
+			};
+		},
+		session: (status) => {
+			sessionStatus = status;
+		},
+		contentRequests,
+	});
+	periodicMessages = undefined;
 	await testOfflineReading(origin, {
 		setSession: (key, status = 200) => {
 			tenant = key;
