@@ -77,6 +77,17 @@ const oldCategoryRow = makeThreadMessage({
 	sentDate: 0,
 	isRead: true,
 });
+const replyRow = makeThreadMessage({
+	...oldCategoryRow,
+	messageId: "reply-mail",
+	threadMessageId: "reply-turn",
+	subject: "Reply delivered while reading",
+	fromName: "Reply sender",
+	sentDate: 1,
+});
+let syncStamp = Date.now();
+let replyPending = false;
+let replyDelivered = false;
 let savedSubject: string | undefined;
 let pendingSubject: string | undefined;
 const missingStatic = new Set<string>();
@@ -159,6 +170,9 @@ const server = createServer(async (request, response) => {
 		response.setHeader("Content-Security-Policy", "sandbox");
 		if (path === "/content/missing-mail/html") {
 			response.writeHead(404).end();
+		} else if (path === "/content/reply-mail/html") {
+			response.setHeader("Content-Type", "text/html");
+			response.end("<p>Body of the reply delivered while reading</p>");
 		} else if (path.endsWith("/html")) {
 			response.setHeader("Content-Type", "text/html");
 			response.end(
@@ -236,6 +250,29 @@ const server = createServer(async (request, response) => {
 						: { error: "Session unavailable" },
 				),
 			);
+		} else if (path === "/api/accounts/acc-1/sync/status") {
+			response.end(
+				JSON.stringify({
+					accountId: "acc-1",
+					syncPhase: "complete",
+					lastSyncAt: syncStamp,
+					syncRequestedAt: syncStamp,
+					mailboxes: [],
+				}),
+			);
+		} else if (
+			path === "/api/accounts/acc-1/sync" &&
+			request.method === "POST"
+		) {
+			syncStamp = Math.max(syncStamp + 1, Date.now());
+			if (replyPending) replyDelivered = true;
+			response.end(
+				JSON.stringify({
+					triggered: true,
+					message: "Sync requested",
+					requestedAt: syncStamp,
+				}),
+			);
 		} else if (path === "/api/mailboxes/inbox/threads") {
 			response.end(
 				JSON.stringify({
@@ -246,7 +283,12 @@ const server = createServer(async (request, response) => {
 				}),
 			);
 		} else if (path === "/api/threads/old-category-thread/messages") {
-			response.end(JSON.stringify({ items: [oldCategoryRow], hasMore: false }));
+			response.end(
+				JSON.stringify({
+					items: replyDelivered ? [oldCategoryRow, replyRow] : [oldCategoryRow],
+					hasMore: false,
+				}),
+			);
 		} else if (path === "/api/threads" && briefProbe) {
 			const query = new URL(request.url!, "http://localhost").searchParams;
 			const matches = query.getAll("category").includes("marketing");
@@ -267,11 +309,13 @@ const server = createServer(async (request, response) => {
 					envelope: {
 						messageId,
 						subject:
-							messageId === "old-mail"
-								? "Old retained mail"
-								: messageId === "new-mail"
-									? "New list page"
-									: messageId,
+							messageId === replyRow.messageId
+								? replyRow.subject
+								: messageId === "old-mail"
+									? "Old retained mail"
+									: messageId === "new-mail"
+										? "New list page"
+										: messageId,
 						date: 0,
 						from: [],
 						to: [],
@@ -312,6 +356,7 @@ const server = createServer(async (request, response) => {
 						[
 							makeAccount({
 								accountId: "acc-1",
+								lastSyncAt: syncStamp,
 								folderAppointments: [
 									{ role: "Inbox", mailboxId: "inbox", source: "Appointed" },
 								],
@@ -863,6 +908,9 @@ try {
 	);
 	await restoredContext.close();
 	await testOfflineReading(origin, {
+		queueReply: () => {
+			replyPending = true;
+		},
 		setSession: (key, status = 200) => {
 			tenant = key;
 			sessionStatus = status;

@@ -341,6 +341,7 @@ export const mailHandlers = (
 			HttpResponse.json<SyncOperationsTriggerSyncResponse>({
 				triggered: false,
 				message: "Already up to date",
+				requestedAt: Date.now(),
 			}),
 		),
 		http.get(`${API}/messages/:messageId/calendar-suggestions`, () =>

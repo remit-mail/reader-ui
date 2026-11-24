@@ -24,7 +24,6 @@ import { isSinglePaneTier, useLayoutTier } from "../hooks/useLayoutTier";
 import { useMailboxNameIndex } from "../hooks/useMailboxNameIndex";
 import { useRailPanels } from "../hooks/useRailPanels";
 import { useResultFolderIndex } from "../hooks/useResultFolderIndex";
-import { useStaleAccountSync } from "../hooks/useStaleAccountSync";
 import { MailContext } from "../lib/mail-context";
 import { MailFreshnessProvider } from "../lib/mail-freshness";
 import { mailListRoute } from "../lib/mail-route";
@@ -148,21 +147,12 @@ function MailLayout() {
 	}, [setSearchInput]);
 
 	const accounts = config?.accounts ?? [];
-	const accountIds = useMemo(
-		() => accounts.map((account) => account.accountId),
-		[accounts],
-	);
 	const mailboxNameIndex = useMailboxNameIndex(accounts);
 	const resultFolderIndex = useResultFolderIndex(accounts).index;
 	const accountNameIndex = useMemo(
 		() => buildAccountNameIndex(accounts),
 		[accounts],
 	);
-
-	// Auto-trigger a mailbox-list sync for any account whose lastSyncAt is
-	// older than 15 minutes (or unset). Fires once per accountId per session
-	// — re-mounts of MailLayout will not retrigger. See #205.
-	useStaleAccountSync(accounts);
 
 	const handleMailboxSelect = useCallback(() => {
 		// Auto-collapse the mobile drawer after the user picks an inbox from the
@@ -214,7 +204,7 @@ function MailLayout() {
 
 	return (
 		<MailContext.Provider value={mailContextValue}>
-			<MailFreshnessProvider accountIds={accountIds}>
+			<MailFreshnessProvider accounts={accounts}>
 				<AppFrame>
 					{isConfigError ? (
 						<DesktopChrome topBar={<MailTopBar accounts={accounts} />}>

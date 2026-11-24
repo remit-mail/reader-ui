@@ -1,287 +1,157 @@
 import assert from "node:assert/strict";
-import { describe, test } from "node:test";
-import {
-	inboxSyncedAt,
-	type SyncStatusReading,
-	waitForSettled,
-} from "./useRefreshControl.js";
+import { type TestContext, test } from "node:test";
+import { syncOperationsGetSyncStatusQueryKey } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
+import type { RemitImapAccountSyncStatusResponse } from "@remit/api-http-client/types.gen.ts";
+import { act, createElement } from "react";
+import { __resetHotSyncWindow } from "../lib/hot-sync-window";
+import { MailFreshnessProvider } from "../lib/mail-freshness";
+import { createDomHarness } from "../test-support/dom";
+import { makeAccount } from "../test-support/fixtures";
+import { mockFetch } from "../test-support/http";
+import { useRefreshControl } from "./useRefreshControl";
+import { __resetStaleAccountSyncGuard } from "./useStaleAccountSync";
 
-const BASELINE = 1_700_000_000_000;
-const LATER = BASELINE + 5_000;
+const account = makeAccount({ accountId: "acc-1", lastSyncAt: 0 });
+const ids = [account.accountId];
+const statusKey = syncOperationsGetSyncStatusQueryKey({
+	path: { accountId: account.accountId },
+});
+const PREVIOUS = 100;
+const BACKGROUND = 101;
+const PRESSED = 102;
 
-/** Replays `readings` in order and holds on the last one, counting reads so a
- * test can say when the wait made up its mind. */
-const scriptedReader = (readings: readonly SyncStatusReading[]) => {
-	const state = { reads: 0 };
-	const readStatus = async (): Promise<SyncStatusReading> => {
-		const reading = readings[Math.min(state.reads, readings.length - 1)];
-		state.reads += 1;
-		if (!reading) throw new Error("no reading scripted");
-		return reading;
+function Button({ onSettled }: { onSettled: () => void }) {
+	const { state, errorMessage, refresh } = useRefreshControl(ids, {
+		onSettled,
+	});
+	return createElement(
+		"button",
+		{ type: "button", onClick: refresh },
+		errorMessage ?? state,
+	);
+}
+
+function App({
+	onSettled,
+	presses,
+}: {
+	onSettled: () => void;
+	presses: number;
+}) {
+	return createElement(MailFreshnessProvider, {
+		accounts: [account],
+		// biome-ignore lint/correctness/noChildrenProp: the provider requires children in its props
+		children: Array.from({ length: presses }, (_, key) =>
+			createElement(Button, { key, onSettled }),
+		),
+	});
+}
+
+const mount = async (t: TestContext, presses = 1) => {
+	const dom = createDomHarness();
+	let posts = 0;
+	let releasePost: (ack: { requestedAt: number }) => void = () => {};
+	const pendingPost = new Promise<{ requestedAt: number }>((resolve) => {
+		releasePost = resolve;
+	});
+	const fetch = mockFetch(({ method, path }) => {
+		if (method === "POST" && path.endsWith("/sync")) {
+			posts += 1;
+			return posts === 1 ? { requestedAt: BACKGROUND } : pendingPost;
+		}
+		return dom.queryClient.getQueryData(statusKey);
+	});
+	t.after(() => {
+		dom.close();
+		fetch.restore();
+		__resetHotSyncWindow();
+		__resetStaleAccountSyncGuard();
+	});
+	const seed = (
+		syncPhase: RemitImapAccountSyncStatusResponse["syncPhase"],
+		syncRequestedAt: number,
+		mailboxes: RemitImapAccountSyncStatusResponse["mailboxes"] = [],
+	): void => {
+		act(() => {
+			dom.queryClient.setQueryData(statusKey, {
+				accountId: account.accountId,
+				syncPhase,
+				syncRequestedAt,
+				mailboxes,
+			});
+		});
 	};
-	return { state, readStatus };
+	const onSettled = t.mock.fn();
+	seed("error", PREVIOUS);
+	dom.renderApp(createElement(App, { onSettled, presses }));
+	await dom.waitFor(() => posts === 1);
+	await dom.flush();
+	for (const button of dom.queryAll("button")) dom.click(button);
+	await dom.waitFor(() => posts === presses + 1);
+
+	const ack = async () => {
+		await act(async () => releasePost({ requestedAt: PRESSED }));
+		await dom.flush();
+	};
+	return { ack, dom, onSettled, seed };
 };
 
-const wait = (
-	readings: readonly SyncStatusReading[],
-	deadline = Date.now() + 10_000,
-) => {
-	const { state, readStatus } = scriptedReader(readings);
-	return {
-		state,
-		outcome: waitForSettled({
-			accountId: "a-1",
-			readStatus,
-			baselineLastSyncAt: BASELINE,
-			deadline,
-			pollMs: 0,
-		}),
+test("a press ignores the older error and owns its error even before the POST ack", async (t) => {
+	const { ack, dom, onSettled, seed } = await mount(t);
+	assert.equal(dom.byText("button", "refreshing").textContent, "refreshing");
+
+	seed("error", PRESSED);
+	await dom.wait(1);
+	assert.equal(dom.byText("button", "refreshing").textContent, "refreshing");
+	assert.doesNotMatch(dom.text(), /Couldn't sync/);
+	await ack();
+	await dom.waitFor(() => dom.text().includes("Sync failed for this account"));
+
+	assert.doesNotMatch(dom.text(), /Couldn't sync/);
+	assert.equal(onSettled.mock.callCount(), 1);
+});
+
+test("one errored round settles both presses for the same account without a banner", async (t) => {
+	const { ack, dom, onSettled, seed } = await mount(t, 2);
+	await ack();
+	seed("error", PRESSED);
+	await dom.waitFor(() => onSettled.mock.callCount() === 2);
+
+	assert.deepEqual(
+		dom.queryAll("button").map((button) => button.textContent),
+		["Sync failed for this account", "Sync failed for this account"],
+	);
+	assert.doesNotMatch(dom.text(), /Couldn't sync/);
+});
+
+test("the tracker hands off the INBOX once while the round is running", async (t) => {
+	const { ack, dom, onSettled, seed } = await mount(t);
+	await ack();
+
+	const mailbox = {
+		mailboxId: "inbox",
+		fullPath: "Inbox",
+		phase: "complete" as const,
+		messagesSynced: 1,
+		messagesTotal: 1,
+		highWaterMarkUid: 1,
+		lastSyncedAt: PRESSED,
 	};
-};
+	seed("syncing_inbox", PRESSED, [
+		{ ...mailbox, lastSyncedAt: PREVIOUS },
+		{ ...mailbox, fullPath: "Junk" },
+	]);
+	await dom.wait(1);
+	assert.equal(onSettled.mock.callCount(), 0);
 
-describe("waitForSettled", () => {
-	// #953: the tab's own background poll, another tab, and every GET /config
-	// start rounds the user never clicked for. Seeing one of those in flight and
-	// then complete used to be read as confirmation, so the button showed a
-	// checkmark and invalidated the list with the clicked round still unrun —
-	// new mail stayed unshown until the next poll. Only the account's own
-	// round-start stamp moving past the pre-trigger reading counts.
-	test("does not confirm on a round that was already in flight at the trigger", async () => {
-		const { state, outcome } = wait([
-			{ syncPhase: "syncing_inbox", lastSyncAt: BASELINE },
-			{ syncPhase: "complete", lastSyncAt: BASELINE },
-			{ syncPhase: "complete", lastSyncAt: LATER },
-		]);
+	seed("syncing_others", PRESSED, [mailbox]);
+	await dom.waitFor(() => onSettled.mock.callCount() === 1);
+	assert.equal(dom.byText("button", "refreshing").textContent, "refreshing");
+	seed("syncing_others", PRESSED, [{ ...mailbox, lastSyncedAt: PRESSED + 1 }]);
+	await dom.wait(1);
+	assert.equal(onSettled.mock.callCount(), 1);
 
-		assert.equal(await outcome, undefined);
-		assert.equal(state.reads, 3);
-	});
-
-	test("a settled foreign round times out rather than confirming", async () => {
-		const { outcome } = wait(
-			[{ syncPhase: "complete", lastSyncAt: BASELINE }],
-			Date.now() - 1,
-		);
-
-		assert.deepEqual(await outcome, {
-			accountId: "a-1",
-			message: "Refresh is taking longer than usual",
-		});
-	});
-
-	test("confirms once the account's own round has started and settled", async () => {
-		const { state, outcome } = wait([
-			{ syncPhase: "complete", lastSyncAt: LATER },
-		]);
-
-		assert.equal(await outcome, undefined);
-		assert.equal(state.reads, 1);
-	});
-
-	test("reports the failure of a round that started after the trigger", async () => {
-		const { outcome } = wait([{ syncPhase: "error", lastSyncAt: LATER }]);
-
-		assert.deepEqual(await outcome, {
-			accountId: "a-1",
-			message: "Sync failed for this account",
-		});
-	});
-
-	// The stale-phase half of the same rule: POST /sync only enqueues, so the
-	// first reading back can still carry the previous round's error phase.
-	test("does not borrow the error phase of a round that predates the trigger", async () => {
-		const { outcome } = wait(
-			[{ syncPhase: "error", lastSyncAt: BASELINE }],
-			Date.now() - 1,
-		);
-
-		assert.deepEqual(await outcome, {
-			accountId: "a-1",
-			message: "Refresh is taking longer than usual",
-		});
-	});
-
-	test("an account that has never synced confirms on its first stamp", async () => {
-		const { state, readStatus } = scriptedReader([
-			{ syncPhase: "idle", lastSyncAt: undefined },
-			{ syncPhase: "complete", lastSyncAt: LATER },
-		]);
-
-		const outcome = await waitForSettled({
-			accountId: "a-1",
-			readStatus,
-			baselineLastSyncAt: 0,
-			deadline: Date.now() + 10_000,
-			pollMs: 0,
-		});
-
-		assert.equal(outcome, undefined);
-		assert.equal(state.reads, 2);
-	});
-
-	test("surfaces a failed status read", async () => {
-		const outcome = await waitForSettled({
-			accountId: "a-1",
-			readStatus: () => Promise.reject(new Error("signed out")),
-			baselineLastSyncAt: BASELINE,
-			deadline: Date.now() + 10_000,
-			pollMs: 0,
-		});
-
-		assert.deepEqual(outcome, { accountId: "a-1", message: "signed out" });
-	});
-});
-
-const inbox = (lastSyncedAt: number) => ({
-	fullPath: "INBOX",
-	lastSyncedAt,
-});
-const junk = (lastSyncedAt: number) => ({
-	fullPath: "Junk",
-	lastSyncedAt,
-});
-
-describe("inboxSyncedAt", () => {
-	test("reads the INBOX stamp whatever case the server spells it in", () => {
-		assert.equal(
-			inboxSyncedAt({
-				mailboxes: [junk(LATER), { fullPath: "Inbox", lastSyncedAt: BASELINE }],
-			}),
-			BASELINE,
-		);
-	});
-
-	test("is zero for an account with no INBOX or no stamp yet", () => {
-		assert.equal(inboxSyncedAt({ mailboxes: [junk(LATER)] }), 0);
-		assert.equal(inboxSyncedAt({ mailboxes: [{ fullPath: "INBOX" }] }), 0);
-		assert.equal(inboxSyncedAt({}), 0);
-	});
-});
-
-describe("waitForSettled inbox handoff", () => {
-	// A round is every folder in queue order, but the mail somebody pressed
-	// refresh for is in their inbox. Waiting for the whole round meant the new
-	// mail sat unshown while Junk and Trash went by.
-	test("announces the inbox while the round is still running", async () => {
-		const announced: number[] = [];
-		const { state, readStatus } = scriptedReader([
-			{
-				syncPhase: "syncing_inbox",
-				lastSyncAt: LATER,
-				mailboxes: [inbox(BASELINE)],
-			},
-			{
-				syncPhase: "syncing_others",
-				lastSyncAt: LATER,
-				mailboxes: [inbox(LATER)],
-			},
-			{
-				syncPhase: "syncing_others",
-				lastSyncAt: LATER,
-				mailboxes: [inbox(LATER)],
-			},
-			{
-				syncPhase: "complete",
-				lastSyncAt: LATER,
-				mailboxes: [inbox(LATER)],
-			},
-		]);
-
-		const outcome = await waitForSettled({
-			accountId: "a-1",
-			readStatus,
-			baselineLastSyncAt: BASELINE,
-			baselineInboxSyncedAt: BASELINE,
-			onInboxSynced: () => announced.push(state.reads),
-			deadline: Date.now() + 10_000,
-			pollMs: 0,
-		});
-
-		assert.equal(outcome, undefined);
-		// Second reading, two readings before the round confirmed.
-		assert.deepEqual(announced, [2]);
-		assert.equal(state.reads, 4);
-	});
-
-	test("announces the inbox once, not on every poll", async () => {
-		let announced = 0;
-		const { readStatus } = scriptedReader([
-			{
-				syncPhase: "syncing_others",
-				lastSyncAt: LATER,
-				mailboxes: [inbox(LATER)],
-			},
-			{
-				syncPhase: "syncing_others",
-				lastSyncAt: LATER,
-				mailboxes: [inbox(LATER)],
-			},
-			{
-				syncPhase: "complete",
-				lastSyncAt: LATER,
-				mailboxes: [inbox(LATER)],
-			},
-		]);
-
-		await waitForSettled({
-			accountId: "a-1",
-			readStatus,
-			baselineLastSyncAt: BASELINE,
-			baselineInboxSyncedAt: BASELINE,
-			onInboxSynced: () => {
-				announced += 1;
-			},
-			deadline: Date.now() + 10_000,
-			pollMs: 0,
-		});
-
-		assert.equal(announced, 1);
-	});
-
-	// The caller already treats a settled round as the confirmed state and
-	// reloads there, so announcing on the same reading would double the work.
-	test("does not announce when the round settles first", async () => {
-		let announced = 0;
-
-		await waitForSettled({
-			accountId: "a-1",
-			readStatus: async () => ({
-				syncPhase: "complete" as const,
-				lastSyncAt: LATER,
-				mailboxes: [inbox(LATER)],
-			}),
-			baselineLastSyncAt: BASELINE,
-			baselineInboxSyncedAt: BASELINE,
-			onInboxSynced: () => {
-				announced += 1;
-			},
-			deadline: Date.now() + 10_000,
-			pollMs: 0,
-		});
-
-		assert.equal(announced, 0);
-	});
-
-	// A folder other than INBOX syncing is not the mail being waited for.
-	test("does not announce on another folder's stamp moving", async () => {
-		let announced = 0;
-
-		await waitForSettled({
-			accountId: "a-1",
-			readStatus: async () => ({
-				syncPhase: "syncing_others" as const,
-				lastSyncAt: LATER,
-				mailboxes: [inbox(BASELINE), junk(LATER)],
-			}),
-			baselineLastSyncAt: BASELINE,
-			baselineInboxSyncedAt: BASELINE,
-			onInboxSynced: () => {
-				announced += 1;
-			},
-			deadline: Date.now() - 1,
-			pollMs: 0,
-		});
-
-		assert.equal(announced, 0);
-	});
+	seed("complete", PRESSED + 1, [mailbox]);
+	await dom.waitFor(() => dom.text().includes("success"));
+	assert.equal(onSettled.mock.callCount(), 2);
 });
