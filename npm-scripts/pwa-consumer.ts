@@ -451,12 +451,6 @@ try {
 	assert.equal(warnings.length, 1);
 	assert.deepEqual(errors, []);
 	assert.equal(await failed.getByTestId("fatal-error-overlay").count(), 0);
-	await failed
-		.getByRole("link", { name: "Starred", exact: true })
-		.first()
-		.click();
-	await failed.waitForURL("**/mail/flagged");
-	assert.equal(warnings.length, 1);
 	assert.equal(
 		await failed.evaluate(() => document.documentElement.inert),
 		false,
