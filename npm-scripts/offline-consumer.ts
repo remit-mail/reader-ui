@@ -65,12 +65,20 @@ export async function testBackgroundRefresh(
 		await waitForTag(page, true);
 
 		// CDP acknowledges dispatch before waitUntil settles.
-		type TestWorker = typeof globalThis & { refreshResult: Promise<void> };
+		type TestWorker = typeof globalThis & {
+			refreshResult: PromiseWithResolvers<string | undefined>;
+		};
 		await worker.evaluate(() => {
+			const scope = globalThis as TestWorker;
 			const waitUntil = ExtendableEvent.prototype.waitUntil;
 			ExtendableEvent.prototype.waitUntil = function (work) {
-				if (this.type === "periodicsync")
-					(globalThis as TestWorker).refreshResult = work;
+				if (this.type === "periodicsync") {
+					const { resolve } = scope.refreshResult;
+					void work.then(
+						() => resolve(undefined),
+						(error: Error) => resolve(error.message),
+					);
+				}
 				waitUntil.call(this, work);
 			};
 		});
@@ -85,9 +93,9 @@ export async function testBackgroundRefresh(
 					held.resolve(route);
 				});
 			}
-			await worker.evaluate(() =>
-				Reflect.deleteProperty(globalThis, "refreshResult"),
-			);
+			await worker.evaluate(() => {
+				(globalThis as TestWorker).refreshResult = Promise.withResolvers();
+			});
 			await cdp.send("ServiceWorker.dispatchPeriodicSyncEvent", {
 				origin,
 				registrationId: await registrationId,
@@ -97,9 +105,10 @@ export async function testBackgroundRefresh(
 				await hold.respond(await held.promise);
 				await context.unroute(origin + hold.path);
 			}
-			await worker.evaluate(() =>
-				(globalThis as TestWorker).refreshResult.then(() => {}),
+			const error = await worker.evaluate(
+				() => (globalThis as TestWorker).refreshResult.promise,
 			);
+			if (error !== undefined) throw new Error(error);
 		};
 		const snapshot = () =>
 			page.evaluate(() => {
