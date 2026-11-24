@@ -417,13 +417,7 @@ export class OfflineRuntime {
 					type: "active",
 					predicate: (query) => {
 						const key = readingQueryKey(query);
-						return (
-							!!key &&
-							threadLists.has(String(key._id)) &&
-							(!("query" in key) ||
-								(key.query as { results?: boolean } | undefined)?.results !==
-									false)
-						);
+						return !!key && threadLists.has(String(key._id));
 					},
 				}),
 			thread &&
