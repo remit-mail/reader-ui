@@ -54,6 +54,7 @@ export const RefreshFailed: Story = {
 		},
 	},
 	play: async () => {
+		await expect(await conversation()).toBeVisible();
 		await userEvent.click(
 			await page().findByRole("button", { name: "Refresh all accounts" }),
 		);
