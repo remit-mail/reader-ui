@@ -2,14 +2,14 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { wrapHttpFailure } from "./api";
 import { NetworkError } from "./network-error";
-import { classifyPeopleFailure, peopleListFailureReason } from "./people";
+import { classifyPeopleFailure, peopleFailureReason } from "./people";
 
 test("People failures preserve the server's reason, including unavailable hosts", () => {
 	const error = wrapHttpFailure(
 		{ message: "People administration is unavailable on this host." },
 		404,
 	);
-	assert.equal(peopleListFailureReason(error), error.message);
+	assert.equal(peopleFailureReason(error), error.message);
 	assert.deepEqual(classifyPeopleFailure(error), {
 		kind: "failed",
 		reason: error.message,
