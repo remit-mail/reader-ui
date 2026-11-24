@@ -1,9 +1,6 @@
 /// <reference lib="webworker" />
 import { PrecacheController } from "workbox-precaching";
-import {
-	REFRESH_TAG,
-	refreshInBackground,
-} from "../../src/lib/background-refresh.ts";
+import { REFRESH_TAG } from "../../src/lib/background-refresh.ts";
 import {
 	activateWhenSafe,
 	askClient,
@@ -15,6 +12,8 @@ import {
 	shellCacheName,
 	WORKER_VERSION,
 } from "../../src/lib/pwa-protocol.ts";
+
+import { refreshInBackground } from "./background-refresh.ts";
 
 declare const self: ServiceWorkerGlobalScope & {
 	__WB_MANIFEST: { url: string; revision: string | null }[];

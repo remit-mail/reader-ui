@@ -10,20 +10,17 @@ import {
 import { externalImageBytes, requestExternalImage } from "./external-image";
 import { OFFLINE_ERROR_EVENT, OfflineUnavailableError } from "./offline-error";
 import {
-	admitContent,
 	commitOffline,
-	contentCacheKey,
+	downloadPart,
 	OFFLINE_FORMAT,
 	offlineRecord,
 	type Partition,
 	persistQueries,
-	readContent,
 	readSession,
 	requirePartition,
 	retainedReadingQuery,
 	samePartition,
 	storageLock,
-	storeContent,
 	wipeOffline,
 	writeOfflineRecord,
 } from "./offline-store";
@@ -118,18 +115,9 @@ export class OfflineRuntime {
 		});
 	}
 	verify = (): Promise<boolean> => {
-		this.verifying ??= this.verifyNow()
-			.then((verified) => {
-				const { partition } = this.state;
-				if (verified && partition)
-					void syncBackgroundRefresh(partition, this.options.sessionUrl).catch(
-						this.report,
-					);
-				return verified;
-			})
-			.finally(() => {
-				this.verifying = undefined;
-			});
+		this.verifying ??= this.verifyNow().finally(() => {
+			this.verifying = undefined;
+		});
 		return this.verifying;
 	};
 	private async verifyNow(): Promise<boolean> {
@@ -189,6 +177,9 @@ export class OfflineRuntime {
 		this.update({ partition, verified: true });
 		resetSignedOut();
 		if (!wasVerified) window.dispatchEvent(new Event("remit:session-verified"));
+		await syncBackgroundRefresh(partition, this.options.sessionUrl).catch(
+			this.report,
+		);
 		return true;
 	}
 	sessionUnverified(): void {
@@ -229,10 +220,7 @@ export class OfflineRuntime {
 		await requirePartition(partition);
 		return partition;
 	}
-	private async commit<T>(
-		partition: Partition,
-		work: () => Promise<T>,
-	): Promise<T> {
+	async commit<T>(partition: Partition, work: () => Promise<T>): Promise<T> {
 		try {
 			return await commitOffline(partition, work);
 		} catch (error) {
@@ -281,23 +269,18 @@ export class OfflineRuntime {
 		const partition = this.state.partition;
 		if (!partition)
 			throw new OfflineUnavailableError("No remembered offline identity");
-		const cacheKey = contentCacheKey(url);
-		const cached = await this.commit(partition, () =>
-			readContent(partition, cacheKey, mime),
+		const { response, saved } = await downloadPart(
+			partition,
+			url,
+			mime,
+			() => this.authorizeNetwork("GET").then(network),
+			this,
 		);
-		if (cached && !this.refreshing) return cached;
-		await this.authorizeNetwork("GET");
-		const response = await network();
-		if (await admitContent(response, mime, partition)) {
-			await this.write(partition, () =>
-				storeContent(partition, cacheKey, mime, response),
-			);
-		} else if (response.status === 200) {
+		if (response.status === 200 && !saved) {
 			throw new OfflineUnavailableError(
 				"Mail part was not saved: unexpected MIME, tenant, redirect, HTML shell or no-store response",
 			);
 		}
-		await requirePartition(partition);
 		return response;
 	}
 	/** Binary records use the complete destination URL, including authorization queries. */

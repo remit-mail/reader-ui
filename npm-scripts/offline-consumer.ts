@@ -25,7 +25,7 @@ interface Controls {
 
 export async function testBackgroundRefresh(
 	origin: string,
-	setMessage: (messageId: string) => void,
+	setMessages: (...messageIds: string[]) => void,
 ) {
 	const tag = "remit-refresh";
 	const context = await chromium.launchPersistentContext("", {
@@ -132,12 +132,12 @@ export async function testBackgroundRefresh(
 			});
 		}, clientState);
 
-		setMessage("refresh-mail");
+		setMessages("refresh-mail");
 		await run();
-		const before401 = await snapshot();
+		const afterRefresh = await snapshot();
 		assert.equal(
 			JSON.stringify(
-				before401?.clientState.queries.filter(
+				afterRefresh?.clientState.queries.filter(
 					(query) =>
 						(query.queryKey[0] as { _id: string })._id ===
 						"threadOperationsListThreads",
@@ -145,6 +145,22 @@ export async function testBackgroundRefresh(
 			),
 			JSON.stringify(clientState.queries),
 		);
+
+		setMessages("missing-mail", "next-mail");
+		await run();
+		assert.deepEqual(
+			await page.evaluate(async () =>
+				Promise.all(
+					["missing-mail", "next-mail"].map(
+						async (messageId) =>
+							!!(await caches.match(`/content/${messageId}/html`)),
+					),
+				),
+			),
+			[false, true],
+			"a 404 leaves the next body downloadable",
+		);
+		const before401 = await snapshot();
 		await run({
 			path: "/api/session",
 			async respond(route) {
@@ -174,7 +190,7 @@ export async function testBackgroundRefresh(
 		await peer.waitForFunction(() => window.pwaTest.offline()?.state.verified);
 		const verify = () =>
 			peer.evaluate(() => window.pwaTest.offline()!.verify());
-		setMessage("late-mail");
+		setMessages("late-mail");
 		// Other tabs can dehydrate restored queries again without changing their data.
 		const savedQueries = async () =>
 			(await snapshot())?.clientState.queries.map(({ queryHash, state }) => ({
@@ -182,16 +198,19 @@ export async function testBackgroundRefresh(
 				state,
 			}));
 		const beforeOptOut = await savedQueries();
-		await run({
-			path: "/api/messages/late-mail",
-			async respond(route) {
-				await peer
-					.getByRole("button", { name: "Turn off background refresh" })
-					.click();
-				await peer.getByText("Background refresh is off").waitFor();
-				await route.continue();
-			},
-		});
+		await assert.rejects(
+			run({
+				path: "/api/messages/late-mail",
+				async respond(route) {
+					await peer
+						.getByRole("button", { name: "Turn off background refresh" })
+						.click();
+					await peer.getByText("Background refresh is off").waitFor();
+					await route.continue();
+				},
+			}),
+			/Background refresh is off/,
+		);
 		assert.deepEqual(await savedQueries(), beforeOptOut);
 		assert.equal(
 			await page.evaluate(
@@ -200,15 +219,9 @@ export async function testBackgroundRefresh(
 			false,
 		);
 		assert.equal(await verify(), true);
-		await peer.evaluate(async () => {
-			await navigator.permissions.query({
-				name: "periodic-background-sync" as PermissionName,
-			});
-			await navigator.locks.request("remit-offline-storage", () => {});
-		});
 		await waitForTag(peer, false);
 		console.log(
-			"Chromium background refresh OK: offline body, unchanged Inbox, 401 and opt-out.",
+			"Chromium background refresh OK: offline body, unchanged Inbox, 404 then 200, 401 and opt-out.",
 		);
 	} finally {
 		await context.close();

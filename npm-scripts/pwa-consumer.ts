@@ -101,7 +101,7 @@ const draft = {
 };
 let tenant = "tenant-a";
 let sessionStatus = 200;
-let refreshMessage = "old-mail";
+let refreshMessages = ["old-mail"];
 const contentRequests: string[] = [];
 const imageProxyRequests: string[] = [];
 let imageSlowReady!: () => void;
@@ -157,7 +157,9 @@ const server = createServer(async (request, response) => {
 		response.setHeader("X-Remit-Partition", tenant);
 		response.setHeader("Cache-Control", "private, max-age=3600");
 		response.setHeader("Content-Security-Policy", "sandbox");
-		if (path.endsWith("/html")) {
+		if (path === "/content/missing-mail/html") {
+			response.writeHead(404).end();
+		} else if (path.endsWith("/html")) {
 			response.setHeader("Content-Type", "text/html");
 			response.end(
 				path === "/content/refresh-mail/html"
@@ -237,12 +239,9 @@ const server = createServer(async (request, response) => {
 		} else if (path === "/api/mailboxes/inbox/threads") {
 			response.end(
 				JSON.stringify({
-					items: [
-						makeThreadMessage({
-							messageId: refreshMessage,
-							mailboxId: "inbox",
-						}),
-					],
+					items: refreshMessages.map((messageId) =>
+						makeThreadMessage({ messageId, mailboxId: "inbox" }),
+					),
 					hasMore: false,
 				}),
 			);
@@ -427,7 +426,22 @@ try {
 		16,
 		"selecting old mail needs no second listing",
 	);
-	console.log("Firefox PWA installation and old category selection OK");
+	await page.evaluate(() => localStorage.setItem("pwa-offline-test", "yes"));
+	await page.goto(`${origin}/settings/advanced`);
+	await page
+		.getByRole("button", { name: "Remove downloads", exact: true })
+		.waitFor();
+	assert.equal(
+		await page.evaluate(() => window.pwaTest.offline()?.verify()),
+		true,
+	);
+	assert.doesNotMatch(
+		await page.locator("body").innerText(),
+		/Background refresh|Could not save downloads/i,
+	);
+	console.log(
+		"Firefox PWA installation, old category selection and background refresh silence OK",
+	);
 	await context.close();
 	briefProbe = false;
 
@@ -519,8 +533,8 @@ const browser = await chromium.launch({
 	ignoreDefaultArgs: ["--disable-back-forward-cache"],
 });
 try {
-	await testBackgroundRefresh(origin, (messageId) => {
-		refreshMessage = messageId;
+	await testBackgroundRefresh(origin, (...messageIds) => {
+		refreshMessages = messageIds;
 	});
 	const context = await browser.newContext({ serviceWorkers: "allow" });
 	const first = await context.newPage();

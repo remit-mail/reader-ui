@@ -1,6 +1,6 @@
 import { taggedFetch } from "./network-error";
 import { getOfflineRuntime } from "./offline-runtime";
-import { validateNetworkPartition } from "./offline-store";
+import { fetchInPartition } from "./offline-store";
 
 /** The mail API boundary, independent of API origin and authentication transport. */
 export const apiFetch: typeof fetch = async (input, init) => {
@@ -10,7 +10,7 @@ export const apiFetch: typeof fetch = async (input, init) => {
 				init?.method ?? (input instanceof Request ? input.method : "GET"),
 			)
 		: undefined;
-	const response = await taggedFetch(input, init);
-	if (partition) await validateNetworkPartition(response, partition);
-	return response;
+	return partition
+		? fetchInPartition(partition, input, init)
+		: taggedFetch(input, init);
 };

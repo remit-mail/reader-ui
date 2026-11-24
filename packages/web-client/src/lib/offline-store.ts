@@ -1,5 +1,6 @@
 import type { Query } from "@tanstack/react-query";
 import type { PersistedClient } from "@tanstack/react-query-persist-client";
+import { taggedFetch } from "./network-error";
 import { OfflineUnavailableError } from "./offline-error";
 /** Independent of shell/build versions. Changing this requires an explicit wipe. */
 export const OFFLINE_FORMAT = 2;
@@ -170,7 +171,7 @@ export const admitContent = async (
 	return true;
 };
 
-export const contentCacheKey = (url: string): string => {
+const contentCacheKey = (url: string): string => {
 	const target = new URL(url, location.origin);
 	if (
 		target.origin !== location.origin ||
@@ -181,11 +182,7 @@ export const contentCacheKey = (url: string): string => {
 	return `${target.origin}${target.pathname}`;
 };
 
-export async function readContent(
-	partition: Partition,
-	key: string,
-	mime: string,
-) {
+async function readContent(partition: Partition, key: string, mime: string) {
 	const saved = await offlineRecord<{ mime: string }>(
 		`part:${partition.generation}:${key}`,
 	);
@@ -193,7 +190,7 @@ export async function readContent(
 		return caches.match(key, { cacheName: contentCacheName(partition) });
 }
 
-export async function storeContent(
+async function storeContent(
 	partition: Partition,
 	key: string,
 	mime: string,
@@ -202,6 +199,33 @@ export async function storeContent(
 	const cache = await caches.open(contentCacheName(partition));
 	await cache.put(key, response.clone());
 	await writeOfflineRecord(`part:${partition.generation}:${key}`, { mime });
+}
+
+type ContentCommits = {
+	commit<T>(partition: Partition, work: () => Promise<T>): Promise<T>;
+	write<T>(partition: Partition, work: () => Promise<T>): Promise<T>;
+};
+
+export async function downloadPart(
+	partition: Partition,
+	url: string,
+	mime: string,
+	network: () => Promise<Response>,
+	commits: ContentCommits,
+): Promise<{ response: Response; saved: boolean }> {
+	const key = contentCacheKey(url);
+	const cached = await commits.commit(partition, () =>
+		readContent(partition, key, mime),
+	);
+	if (cached) return { response: cached, saved: true };
+	const response = await network();
+	const saved = await admitContent(response, mime, partition);
+	if (saved)
+		await commits.write(partition, () =>
+			storeContent(partition, key, mime, response),
+		);
+	await requirePartition(partition);
+	return { response, saved };
 }
 
 /** Explicit reading allowlist; settings, auth, drafts and mutations never persist. */
@@ -249,7 +273,7 @@ export async function persistQueries(
 	await writeOfflineRecord(key, mergePersistedQueries(previous, client));
 }
 
-export const validateNetworkPartition = async (
+const validateNetworkPartition = async (
 	response: Response,
 	partition: Partition,
 ): Promise<void> => {
@@ -259,3 +283,13 @@ export const validateNetworkPartition = async (
 			"Response tenant provenance is missing or changed; nothing was saved",
 		);
 };
+
+export async function fetchInPartition(
+	partition: Partition,
+	input: Parameters<typeof fetch>[0],
+	init?: RequestInit,
+): Promise<Response> {
+	const response = await taggedFetch(input, init);
+	await validateNetworkPartition(response, partition);
+	return response;
+}

@@ -160,8 +160,8 @@ and save failures. Browser/user eviction remains possible. Foreground resume,
 reconnect and successful reauthentication verify the session before refresh.
 The existing cadence and in-flight guards remain; background sync waits for a
 new server round to settle before refetching active reading metadata and visible
-bodies. Explicit refresh bypasses content cache reads while retaining good saved
-responses when a replacement fails.
+bodies. Mail parts use their saved bytes when available. Explicit refresh bypasses the
+external image cache while retaining saved bytes when a replacement fails.
 
 A wiped document never binds its old QueryClient to another generation. Confirmed
 identity changes wipe first, then invoke the host's foreground navigation. Other
