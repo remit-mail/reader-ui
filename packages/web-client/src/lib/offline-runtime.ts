@@ -108,7 +108,9 @@ export class OfflineRuntime {
 		if (partition) await requirePartition(partition);
 		if (this.revoked) return;
 		this.update({ partition });
-		window.addEventListener("offline", () => this.update({ verified: false }));
+		window.addEventListener("offline", () =>
+			this.update({ verified: false, session: { status: "offline" } }),
+		);
 		window.addEventListener("online", () => {
 			void (this.verifying ?? Promise.resolve()).then(this.verify);
 		});

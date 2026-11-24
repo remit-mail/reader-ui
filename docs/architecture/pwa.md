@@ -179,9 +179,9 @@ durable profile, age its snapshot by 90 days, and reopen old mail, referenced
 inline image blobs and attachment bytes offline. They exercise both shipped auth
 compositions, expired signed-link recovery, real Cache Storage and IndexedDB
 failures, a delayed network response across a two-tab wipe, tenant changes,
-and session verdicts for a 401 and an opaque redirect. Unit tests cover content
-admission, query retention, download removal at prompt permission, and
-reconnect during boot verification.
+download removal at prompt permission, and reconnect during boot verification.
+They also check session verdicts on going offline, a 401 and an opaque redirect.
+Unit tests retain only the pure admission and query-retention selectors.
 
 # Periodic refresh (U4)
 
