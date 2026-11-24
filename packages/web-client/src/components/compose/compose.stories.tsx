@@ -422,6 +422,7 @@ export const PhoneSavedDraftClosesWithoutPrompt: Story = {
 };
 
 export const UploadRefused: Story = {
+	args: { url: `/mail/${INBOX}/compose/out-plain` },
 	parameters: {
 		msw: {
 			handlers: [
@@ -449,6 +450,8 @@ export const UploadRefused: Story = {
 	},
 	play: async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
+		const editor = await canvas.findByTestId("compose-body-plain");
+		await waitFor(() => expect(editor).toHaveValue(PLAIN_DRAFT));
 		await canvas.findByRole("button", { name: "Attach files" });
 		await userEvent.upload(
 			canvas.getByTestId("compose-attach-input"),

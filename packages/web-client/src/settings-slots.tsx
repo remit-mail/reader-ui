@@ -17,9 +17,19 @@ export interface SettingsSlot {
 	help: ReactNode;
 }
 
-const SettingsSlotsContext = createContext<SettingsSlot[]>([]);
+interface SettingsComposition {
+	settingsSlots: SettingsSlot[];
+	peopleDestinationUrl?: string;
+}
 
-export const SettingsSlotsProvider = SettingsSlotsContext.Provider;
+const SettingsContext = createContext<SettingsComposition>({
+	settingsSlots: [],
+});
+
+export const SettingsProvider = SettingsContext.Provider;
 
 export const useSettingsSlots = (): SettingsSlot[] =>
-	useContext(SettingsSlotsContext);
+	useContext(SettingsContext).settingsSlots;
+
+export const usePeopleDestinationUrl = (): string | undefined =>
+	useContext(SettingsContext).peopleDestinationUrl;

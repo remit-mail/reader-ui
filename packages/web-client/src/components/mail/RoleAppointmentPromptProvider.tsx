@@ -173,12 +173,10 @@ export const RoleAppointmentPromptProvider = ({
 				.catch((error: unknown) => {
 					setPhase({
 						kind: "appoint-failed",
-						message:
-							formatErrorDetail(error) ??
-							"The folder appointment failed without an error message.",
-						cause: isMailboxNotSettledRefusal(error)
-							? "mailbox-pending"
-							: "generic",
+						message: isMailboxNotSettledRefusal(error)
+							? `${mailboxes.find((mailbox) => mailbox.mailboxId === mailboxId)?.fullPath ?? "That folder"} is still being created on the mail server. Wait for it to finish, then try again.`
+							: (formatErrorDetail(error) ??
+								"The folder appointment failed without an error message."),
 					});
 					return APPOINT_FAILED;
 				})
@@ -195,7 +193,7 @@ export const RoleAppointmentPromptProvider = ({
 				// leaving the ceremony up over it would ask for the folder twice.
 				.catch(() => closeFinished(request));
 		},
-		[request, appointMutation, queryClient, closeFinished],
+		[request, appointMutation, queryClient, closeFinished, mailboxes],
 	);
 
 	const value = useMemo(() => ({ requestAppointment }), [requestAppointment]);

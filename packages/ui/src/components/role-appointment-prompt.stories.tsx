@@ -207,7 +207,6 @@ export const AppointFailed: Story = {
 		initialSelectedId: "mb-prullenbak",
 		phase: {
 			kind: "appoint-failed",
-			cause: "generic",
 			message: "The mail server refused the folder appointment.",
 		},
 	},
@@ -226,8 +225,8 @@ export const AppointRefusedPendingMailbox: Story = {
 		initialSelectedId: "mb-prullenbak",
 		phase: {
 			kind: "appoint-failed",
-			cause: "mailbox-pending",
-			message: "The folder is still being created.",
+			message:
+				"Prullenbak is still being created on the mail server. Wait for it to finish, then try again.",
 		},
 	},
 };

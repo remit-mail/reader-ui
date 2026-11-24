@@ -16,3 +16,9 @@ npm run storybook
 ```
 
 `AGENTS.md` holds the rules, the scripts and how a change reaches reader.
+
+Hosts composing `mountApp` from `@remit/web-client/shell` can pass
+`peopleDestinationUrl?: string` (for example, `https://login.example.com/admin`).
+Settings → People then links to that URL, and visiting `/settings/people` redirects
+there without mounting or querying self-host People. When omitted, the existing
+self-host People panel and its availability check apply.

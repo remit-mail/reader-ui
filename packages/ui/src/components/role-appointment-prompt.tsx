@@ -23,7 +23,6 @@ export type PromptPhase =
 	| { kind: "acting" }
 	| {
 			kind: "appoint-failed";
-			cause: "generic" | "mailbox-pending";
 			message: string;
 	  };
 
@@ -175,15 +174,6 @@ const deletesInPlace = (
 	guessedMailboxId !== undefined &&
 	selectedId === guessedMailboxId;
 
-const failureCopy = (
-	cause: "generic" | "mailbox-pending",
-	message: string,
-	folderLabel: string,
-): string =>
-	cause === "mailbox-pending"
-		? `${folderLabel} is still being created on the mail server. Wait for it to finish, then try again.`
-		: message;
-
 export interface RoleAppointmentPromptProps {
 	open: boolean;
 	reason: PromptReason;
@@ -306,11 +296,7 @@ export const RoleAppointmentPrompt = ({
 				{phase.kind === "appoint-failed" && (
 					<div className="px-5 pb-3">
 						<Banner tone="danger" variant="soft">
-							{failureCopy(
-								phase.cause,
-								phase.message,
-								selected?.label ?? "That folder",
-							)}
+							{phase.message}
 						</Banner>
 					</div>
 				)}

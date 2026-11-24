@@ -254,3 +254,38 @@ export const ListFailed: Story = {
 		).toBeVisible();
 	},
 };
+
+let hostedPeopleRequests = 0;
+
+export const HostedPeople: Story = {
+	beforeEach: () => {
+		hostedPeopleRequests = 0;
+	},
+	args: {
+		url: "/settings/accounts",
+		peopleDestinationUrl: "https://login.example.com/admin",
+	},
+	parameters: {
+		msw: {
+			handlers: [
+				http.get("/api/people", () => {
+					hostedPeopleRequests += 1;
+					return HttpResponse.json(
+						{ message: "Self-host People must not be queried" },
+						{ status: 404 },
+					);
+				}),
+				...mailHandlers(mailWorld()),
+			],
+		},
+	},
+	play: async ({ canvasElement }) => {
+		const canvas = within(canvasElement);
+		await expect(
+			await canvas.findByRole("link", { name: "People" }),
+		).toHaveAttribute("href", "https://login.example.com/admin");
+		await expect(canvas.queryByRole("button", { name: "People" })).toBeNull();
+		await canvas.findByText("Personal");
+		await expect(hostedPeopleRequests).toBe(0);
+	},
+};

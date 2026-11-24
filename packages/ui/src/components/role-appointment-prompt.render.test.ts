@@ -216,7 +216,6 @@ describe("RoleAppointmentPrompt", () => {
 			selectedId: "mb-prullenbak",
 			phase: {
 				kind: "appoint-failed",
-				cause: "generic",
 				message: "The mail server refused the folder appointment.",
 			},
 		});
