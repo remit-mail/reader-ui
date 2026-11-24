@@ -103,8 +103,8 @@ export const requirePartition = async (partition: Partition): Promise<void> => {
 			"Downloads were removed in another tab. Reopen the app.",
 		);
 };
-export const storageLock = <T>(work: () => Promise<T>): Promise<T> =>
-	navigator.locks.request("remit-offline-storage", work);
+export const storageLock = async <T>(work: () => Promise<T>): Promise<T> =>
+	await navigator.locks.request("remit-offline-storage", work);
 
 export const commitOffline = async <T>(
 	partition: Partition,
