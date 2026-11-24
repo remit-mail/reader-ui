@@ -41,15 +41,14 @@ export function mergeInboxHead(
 	return { ...saved, pages: [head, ...saved.pages.slice(1)] };
 }
 
-/** Convert joined heads into query state and leave any gap in the staged data. */
+/** Convert heads that join the saved pages into query state. */
 export function reconcileInboxHeads(
 	savedQueries: DehydratedState["queries"] | undefined,
 	heads: readonly InboxHead[],
-): { queries: DehydratedState["queries"]; pending: InboxHead[] } {
+): DehydratedState["queries"] {
 	const lists = new QueryClient({
 		defaultOptions: { queries: { gcTime: Infinity } },
 	});
-	const pending: InboxHead[] = [];
 	for (const head of heads) {
 		const queryHash = hashKey(head.key);
 		const saved = savedQueries?.find((query) => query.queryHash === queryHash);
@@ -60,11 +59,10 @@ export function reconcileInboxHeads(
 		);
 		if (pages)
 			lists.setQueryData(head.key, pages, { updatedAt: head.updatedAt });
-		else pending.push(head);
 	}
 	const { queries } = dehydrate(lists);
 	lists.clear();
-	return { queries, pending };
+	return queries;
 }
 
 export interface SnapshotEntry<T> {

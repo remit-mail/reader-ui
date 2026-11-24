@@ -40,8 +40,6 @@ import {
 } from "./pwa-update";
 import { reportSignedOut, resetSignedOut } from "./signed-out";
 
-export { mergePersistedQueries } from "./offline-queries";
-
 export interface OfflineOptions {
 	/** Fresh authenticated no-store request. null means authentication is required;
 	 * reject only for transport/server failures. Never use a cached config as identity. */

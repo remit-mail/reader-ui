@@ -26,7 +26,7 @@ export async function stagePeriodicBatch(batch: PeriodicBatch): Promise<void> {
 			? stored
 			: undefined;
 	const heads = new Map(
-		prior?.inboxHeads?.map((head) => [hashKey(head.key), head]),
+		prior?.inboxHeads.map((head) => [hashKey(head.key), head]),
 	);
 	for (const head of batch.inboxHeads) {
 		const key = hashKey(head.key);
@@ -54,40 +54,19 @@ export async function mergePeriodicBatch(
 		return previous;
 	}
 
-	const { queries: heads, pending } = reconcileInboxHeads(
+	const heads = reconcileInboxHeads(
 		previous?.clientState.queries,
-		batch.inboxHeads ?? [],
+		batch.inboxHeads,
 	);
-
-	// Earlier workers also dehydrate their private head key. Only the typed
-	// inboxHeads field can supply a list to hydrate.
-	const staged = batch.client.clientState.queries.filter(
-		({ queryKey: [key] }) =>
-			!(
-				key &&
-				typeof key === "object" &&
-				"_id" in key &&
-				key._id === "threadOperationsListThreads"
-			),
-	);
+	const queries = [...batch.client.clientState.queries, ...heads];
 	let merged = previous;
-	if (staged.length || heads.length) {
+	if (queries.length) {
 		merged = mergePersistedQueries(previous, {
 			...batch.client,
-			clientState: { mutations: [], queries: [...staged, ...heads] },
+			clientState: { mutations: [], queries },
 		});
 		await writeOfflineRecord(key, merged);
 	}
-	if (!pending.length) await writeOfflineRecord(batchKey, undefined);
-	else if (
-		batch.client.clientState.queries.length ||
-		pending.length !== batch.inboxHeads.length
-	) {
-		await writeOfflineRecord(batchKey, {
-			...batch,
-			client: { ...batch.client, clientState: { mutations: [], queries: [] } },
-			inboxHeads: pending,
-		} satisfies PeriodicBatch);
-	}
+	await writeOfflineRecord(batchKey, undefined);
 	return merged;
 }
