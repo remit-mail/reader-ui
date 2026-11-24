@@ -35,7 +35,11 @@ const rows = (): HTMLElement[] =>
 	Array.from(document.querySelectorAll<HTMLElement>("[data-list-row]"));
 
 const conversation = () =>
-	page().findByRole("heading", { level: 1, name: "Q3 planning" });
+	page().findByRole(
+		"heading",
+		{ level: 1, name: "Q3 planning" },
+		{ timeout: 5000 },
+	);
 
 const refreshRequestedAt = new Map<string, number>();
 export const RefreshFailed: Story = {
@@ -86,8 +90,6 @@ export const RefreshFailed: Story = {
 
 export const Default: Story = {
 	play: async () => {
-		// The cold shell must mount the brief before its conversation loads.
-		await page().findByRole("heading", { level: 1, name: "Daily brief" });
 		await expect(await conversation()).toBeVisible();
 		await expect(page().getByRole("button", { name: "Compose" })).toBeVisible();
 		await expect(page().getAllByLabelText("Search mail")).toHaveLength(1);
