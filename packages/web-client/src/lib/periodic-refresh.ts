@@ -3,12 +3,14 @@ import {
 	messageOperationsDescribeMessageQueryKey,
 	threadOperationsListThreadsQueryKey,
 } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
-import type {
-	RemitImapConfigDescriptionResponse,
-	RemitImapDescribeMessageResponse,
-	RemitImapMailboxListResponse,
-	RemitImapThreadSearchResponse,
-} from "@remit/api-http-client/types.gen.ts";
+import { createClient } from "@remit/api-http-client/client/index.ts";
+import {
+	configOperationsGetConfig,
+	mailboxOperationsListMailboxes,
+	messageOperationsDescribeMessage,
+	threadOperationsListThreads,
+} from "@remit/api-http-client/sdk.gen.ts";
+import type { RemitImapDescribeMessageResponse } from "@remit/api-http-client/types.gen.ts";
 import { dehydrate, hashKey, QueryClient } from "@tanstack/react-query";
 import type { PersistedClient } from "@tanstack/react-query-persist-client";
 import { pickRenderablePart } from "./message-body-source";
@@ -38,6 +40,7 @@ export const PERIODIC_MAX_MS = 30_000;
 export const PERIODIC_MAX_MESSAGES = 20;
 export interface PeriodicConfig {
 	partition: Partition;
+	runId?: string;
 	sessionEndpoint: string;
 	apiBaseUrl: string;
 }
@@ -45,7 +48,6 @@ export interface PeriodicStatus {
 	needsLogin?: boolean;
 	attempts?: number;
 	nextAttempt?: number;
-	warning?: string;
 }
 export const periodicStatusKey = (partition: Partition): string =>
 	`periodic:status:${partition.generation}`;
@@ -142,31 +144,35 @@ async function runPeriodicRefresh(
 		(status?.nextAttempt ?? 0) > Date.now()
 	)
 		return;
+	const commit = <T>(work: () => Promise<T>): Promise<T> =>
+		commitOffline(partition, async () => {
+			const current = await offlineRecord<PeriodicConfig>("periodic:config");
+			if (
+				!current ||
+				current.runId !== config.runId ||
+				!samePartition(current.partition, partition)
+			)
+				throw new OfflineUnavailableError("Periodic refresh was disabled");
+			return work();
+		});
 	const budget = new PeriodicBudget();
 	const client = new QueryClient({
 		defaultOptions: { queries: { gcTime: Infinity } },
 	});
-	let admitted = false;
-	const apiUrl = (path: string) => `${apiBaseUrl.replace(/\/$/, "")}${path}`;
-	const json = async <T>(path: string): Promise<T> => {
-		const response = await budget.fetch(apiUrl(path));
-		if (response.headers.get(PARTITION_HEADER) !== partition.key)
-			throw new PartitionMismatch();
-		if (
-			!response.headers
-				.get("content-type")
-				?.split(";")[0]
-				.trim()
-				.endsWith("/json")
-		)
-			throw new Error("Background refresh expected JSON");
-		return response.json() as Promise<T>;
-	};
+	const api = createClient({
+		baseUrl: new URL(apiBaseUrl, location.origin).href,
+		fetch: async (input: RequestInfo | URL) => {
+			const response = await budget.fetch(
+				input instanceof Request ? input.url : String(input),
+			);
+			if (response.headers.get(PARTITION_HEADER) !== partition.key)
+				throw new PartitionMismatch();
+			return response;
+		},
+	});
 	const saveBatch = async () => {
-		if (!admitted) return;
-		budget.check();
-		await commitOffline(partition, async () => {
-			budget.check();
+		if (!client.getQueryCache().getAll().length) return;
+		await commit(async () => {
 			const previous = await offlineRecord<PeriodicBatch>(
 				stagingKey(partition),
 			);
@@ -204,7 +210,7 @@ async function runPeriodicRefresh(
 				`queries:${partition.generation}`,
 			);
 			const staged = await offlineRecord<PeriodicBatch>(stagingKey(partition));
-			const known = new Set(
+			const known = new Map(
 				[
 					...(previous?.clientState.queries ?? []),
 					...(staged && samePartition(staged.partition, partition)
@@ -212,57 +218,88 @@ async function runPeriodicRefresh(
 						: []),
 				]
 					.filter((q) => q.state.status === "success")
-					.map((q) => q.queryHash),
+					.map(
+						(q) =>
+							[
+								q.queryHash,
+								q.state.data as RemitImapDescribeMessageResponse,
+							] as const,
+					),
 			);
-			const configData =
-				await json<RemitImapConfigDescriptionResponse>("/config");
+			const { data: configData } = await configOperationsGetConfig({
+				client: api,
+				throwOnError: true,
+			});
 			let count = 0;
 			const seen = new Set<string>();
 			for (const account of configData.accounts) {
 				const path = { accountId: account.accountId };
-				const mailboxes = await json<RemitImapMailboxListResponse>(
-					`/accounts/${encodeURIComponent(path.accountId)}/mailboxes`,
-				);
+				const { data: mailboxes } = await mailboxOperationsListMailboxes({
+					client: api,
+					path,
+					throwOnError: true,
+				});
 				client.setQueryData(
 					mailboxOperationsListMailboxesQueryKey({ baseUrl: apiBaseUrl, path }),
 					mailboxes,
 				);
-				admitted = true;
 				const inbox = mailboxes.items.find(
 					(mailbox) => mailbox.fullPath.toUpperCase() === "INBOX",
 				);
-				await saveBatch();
 				if (!inbox) continue;
 				const threadPath = { mailboxId: inbox.mailboxId };
-				const threads = await json<RemitImapThreadSearchResponse>(
-					`/mailboxes/${encodeURIComponent(inbox.mailboxId)}/threads?order=desc`,
-				);
+				const { data: threads } = await threadOperationsListThreads({
+					client: api,
+					path: threadPath,
+					query: { order: "desc" },
+					throwOnError: true,
+				});
 				client.setQueryData(
-					threadOperationsListThreadsQueryKey({
-						baseUrl: apiBaseUrl,
-						path: threadPath,
-						query: { order: "desc" },
-					}),
+					[
+						...threadOperationsListThreadsQueryKey({
+							baseUrl: apiBaseUrl,
+							path: threadPath,
+							query: { order: "desc" },
+						}),
+					].map((key) => ({ ...key, _periodicHead: true })),
 					{ pages: [threads], pageParams: [undefined] },
 				);
-				await saveBatch();
 				for (const row of threads.items ?? []) {
 					const key = messageOperationsDescribeMessageQueryKey({
 						baseUrl: apiBaseUrl,
 						path: { messageId: row.messageId },
 					});
-					if (
-						count >= PERIODIC_MAX_MESSAGES ||
-						seen.has(row.messageId) ||
-						known.has(hashKey(key))
-					)
+					if (count >= PERIODIC_MAX_MESSAGES || seen.has(row.messageId))
 						continue;
 					seen.add(row.messageId);
-					count++;
-					const description = await json<RemitImapDescribeMessageResponse>(
-						`/messages/${encodeURIComponent(row.messageId)}`,
-					);
+					const description =
+						known.get(hashKey(key)) ??
+						(
+							await messageOperationsDescribeMessage({
+								client: api,
+								path: { messageId: row.messageId },
+								throwOnError: true,
+							})
+						).data;
 					const part = pickRenderablePart(description.bodyParts);
+					if (!part && known.has(hashKey(key))) continue;
+					if (part) {
+						const target = new URL(part.contentUrl, location.origin);
+						const canonical = target.origin + target.pathname;
+						const mime = part.kind === "html" ? "text/html" : "text/plain";
+						const downloaded = await commit(async () => {
+							const index = await offlineRecord<{ mime: string }>(
+								`part:${partition.generation}:${canonical}`,
+							);
+							return (
+								index?.mime === mime &&
+								!!(await (
+									await caches.open(contentCacheName(partition))
+								).match(canonical))
+							);
+						});
+						if (downloaded) continue;
+					}
 					if (part) {
 						const url = new URL(part.contentUrl, location.origin);
 						if (
@@ -280,7 +317,7 @@ async function runPeriodicRefresh(
 						if (!(await admitContent(response, mime, partition)))
 							throw new Error("Background mail part admission refused");
 						const cacheKey = `${url.origin}${url.pathname}`;
-						await commitOffline(partition, async () => {
+						await commit(async () => {
 							budget.check();
 							await (await caches.open(contentCacheName(partition))).put(
 								cacheKey,
@@ -292,47 +329,49 @@ async function runPeriodicRefresh(
 							);
 						});
 					}
+					count++;
 					client.setQueryData(key, description);
-					await saveBatch();
 				}
-				await saveBatch();
 			}
 			await saveBatch();
-			await commitOffline(partition, () =>
-				writeOfflineRecord(
-					statusKey,
-					status?.warning ? { warning: status.warning } : undefined,
-				),
-			);
+			await commit(() => writeOfflineRecord(statusKey, undefined));
 		})().catch(async (error: unknown) => {
 			if (error instanceof OfflineUnavailableError) return;
 			if (error instanceof PartitionMismatch) {
-				await commitOffline(partition, async () => {
+				await commit(async () => {
 					await writeOfflineRecord(stagingKey(partition), undefined);
 					await writeOfflineRecord("periodic:config", undefined);
-					await writeOfflineRecord(statusKey, {
-						warning: "Periodic partition provenance changed",
-					});
+					await writeOfflineRecord(
+						`periodic:warning:${partition.generation}`,
+						"Periodic partition provenance changed",
+					);
 				});
 				await registration.periodicSync
 					?.unregister(PERIODIC_TAG)
 					.catch(() => {});
 				return;
 			}
-			if (error instanceof RunLimit || budget.controller.signal.aborted) return;
+			if (error instanceof RunLimit || budget.controller.signal.aborted) {
+				await saveBatch();
+				return;
+			}
 			const needsLogin = error instanceof SessionRequired;
 			const attempts = (status?.attempts ?? 0) + 1;
-			await commitOffline(partition, () =>
+			await commit(() =>
 				writeOfflineRecord(statusKey, {
 					needsLogin,
-					warning: status?.warning,
+
 					attempts,
 					nextAttempt: Date.now() + DAILY_INTERVAL * 2 ** (attempts - 1),
-					...(!(error instanceof TransportFailure) && !needsLogin
-						? { warning: "Periodic download refresh failed" }
-						: {}),
 				} satisfies PeriodicStatus),
 			);
+			if (!(error instanceof TransportFailure) && !needsLogin)
+				await commit(() =>
+					writeOfflineRecord(
+						`periodic:warning:${partition.generation}`,
+						"Periodic download refresh failed",
+					),
+				);
 			if (needsLogin || attempts >= 10)
 				await registration.periodicSync?.unregister(PERIODIC_TAG);
 		});

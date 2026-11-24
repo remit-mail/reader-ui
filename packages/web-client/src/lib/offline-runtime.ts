@@ -142,19 +142,19 @@ export class OfflineRuntime {
 		if (partition) await requirePartition(partition);
 		if (this.revoked) return;
 		if (partition) {
-			const status = await commitOffline(partition, async () => {
-				const status = await offlineRecord<PeriodicStatus>(
-					periodicStatusKey(partition),
-				);
-				if (status?.warning)
-					await writeOfflineRecord(periodicStatusKey(partition), {
-						...status,
-						warning: undefined,
-					});
-				return status;
+			const result = await commitOffline(partition, async () => {
+				const key = `periodic:warning:${partition.generation}`;
+				const warning = await offlineRecord<string>(key);
+				if (warning) await writeOfflineRecord(key, undefined);
+				return {
+					warning,
+					status: await offlineRecord<PeriodicStatus>(
+						periodicStatusKey(partition),
+					),
+				};
 			});
-			if (status?.warning) reportPeriodicWarning();
-			this.update({ needsLogin: status?.needsLogin ?? false });
+			if (result.warning) reportPeriodicWarning();
+			this.update({ needsLogin: result.status?.needsLogin ?? false });
 		}
 		this.update({ partition });
 		await this.verify().catch(this.report);

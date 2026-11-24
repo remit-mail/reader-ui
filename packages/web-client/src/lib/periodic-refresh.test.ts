@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { afterEach, beforeEach, mock, test } from "node:test";
+import { dehydrate, hashKey, QueryClient } from "@tanstack/react-query";
 import { OFFLINE_FORMAT, type Partition, wipeOffline } from "./offline-store";
 import {
 	PERIODIC_MAX_BYTES,
@@ -13,7 +14,11 @@ import {
 	type PeriodicRegistration,
 	registerPeriodicRefresh,
 } from "./periodic-registration";
-import { mergePeriodicBatch, stagingKey } from "./periodic-staging";
+import {
+	mergePeriodicBatch,
+	reconcilePeriodicBatch,
+	stagingKey,
+} from "./periodic-staging";
 
 const partition: Partition = {
 	key: "tenant",
@@ -153,6 +158,7 @@ beforeEach(() => {
 				return true;
 			},
 			open: async () => ({
+				match: async (key: string) => bytes.get(key),
 				put: async (key: string, value: Response) => {
 					bytes.set(key, value);
 				},
@@ -366,7 +372,7 @@ test("transport keeps caches; other failures warn, back off and stop after ten a
 	await run();
 	assert.equal(bytes.size, 1);
 	assert.equal(
-		(records.get(periodicStatusKey(partition)) as { warning?: string }).warning,
+		records.get(`periodic:warning:${partition.generation}`),
 		undefined,
 	);
 	records.set(periodicStatusKey(partition), { attempts: 9 });
@@ -383,9 +389,7 @@ test("transport keeps caches; other failures warn, back off and stop after ten a
 			.attempts,
 		10,
 	);
-	assert.ok(
-		(records.get(periodicStatusKey(partition)) as { warning?: string }).warning,
-	);
+	assert.ok(records.get(`periodic:warning:${partition.generation}`));
 	assert.deepEqual(unregistered, [PERIODIC_TAG]);
 });
 
@@ -421,8 +425,112 @@ test("API provenance mismatch discards staging, stops and leaves one reporter wa
 	await run();
 	assert.equal(bytes.size, 0);
 	assert.equal(records.has(stagingKey(partition)), false);
-	assert.ok(
-		(records.get(periodicStatusKey(partition)) as { warning?: string }).warning,
-	);
+	assert.ok(records.get(`periodic:warning:${partition.generation}`));
 	assert.deepEqual(unregistered, [PERIODIC_TAG]);
+});
+
+test("opt-out revokes a body response already in flight", async () => {
+	const original = fetch;
+	mock.method(
+		globalThis,
+		"fetch",
+		async (input: RequestInfo | URL, init?: RequestInit) => {
+			const result = await original(input, init);
+			if (String(input).includes("/content/"))
+				records.delete("periodic:config");
+			return result;
+		},
+	);
+	await run();
+	assert.equal(bytes.size, 0);
+	assert.equal(records.has(stagingKey(partition)), false);
+});
+
+test("background heads preserve saved INBOX pages and pagination", () => {
+	const key = [
+		{ _id: "threadOperationsListThreads", path: { mailboxId: "inbox" } },
+	];
+	const previous = new QueryClient({
+		defaultOptions: { queries: { gcTime: Infinity } },
+	});
+	const stage = new QueryClient({
+		defaultOptions: { queries: { gcTime: Infinity } },
+	});
+	previous.setQueryData(
+		key,
+		{
+			pages: [
+				{
+					items: [{ messageId: "a" }, { messageId: "b" }],
+					continuationToken: "older",
+				},
+				{ items: [{ messageId: "c" }], continuationToken: "oldest" },
+			],
+			pageParams: [undefined, "older"],
+		},
+		{ updatedAt: 1 },
+	);
+	stage.setQueryData(
+		[{ ...key[0], _periodicHead: true }],
+		{
+			pages: [{ items: [{ messageId: "d" }, { messageId: "a" }] }],
+			pageParams: [undefined],
+		},
+		{ updatedAt: 2 },
+	);
+	const snapshot = (client: QueryClient) => ({
+		timestamp: Date.now(),
+		buster: String(OFFLINE_FORMAT),
+		clientState: dehydrate(client),
+	});
+	const merged = reconcilePeriodicBatch(snapshot(previous), snapshot(stage));
+	assert.equal(merged.clientState.queries[0].queryHash, hashKey(key));
+	assert.deepEqual(merged.clientState.queries[0].state.data, {
+		pages: [
+			{
+				items: [{ messageId: "d" }, { messageId: "a" }, { messageId: "b" }],
+				continuationToken: "older",
+			},
+			{ items: [{ messageId: "c" }], continuationToken: "oldest" },
+		],
+		pageParams: [undefined, "older"],
+	});
+	previous.clear();
+	stage.clear();
+});
+
+test("prefetched metadata without cached bytes still downloads its body", async () => {
+	const client = new QueryClient({
+		defaultOptions: { queries: { gcTime: Infinity } },
+	});
+	client.setQueryData(
+		[
+			{
+				_id: "messageOperationsDescribeMessage",
+				baseUrl: "/api",
+				path: { messageId: "message-0" },
+			},
+		],
+		{
+			message: { messageId: "message-0" },
+			bodyParts: [
+				{
+					partPath: "1",
+					mediaType: "TEXT",
+					mediaSubtype: "PLAIN",
+					isMultipart: false,
+					contentUrl: "/content/message-0",
+				},
+			],
+		},
+	);
+	records.set(`queries:${partition.generation}`, {
+		timestamp: Date.now(),
+		buster: String(OFFLINE_FORMAT),
+		clientState: dehydrate(client),
+	});
+	await run();
+	assert.equal(requests.includes("/api/messages/message-0"), false);
+	assert.equal(bytes.has("http://localhost/content/message-0"), true);
+	client.clear();
 });

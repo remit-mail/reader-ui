@@ -44,6 +44,7 @@ export async function registerPeriodicRefresh(
 		await commitOffline(partition, async () => {
 			await writeOfflineRecord("periodic:config", {
 				partition,
+				runId: crypto.randomUUID(),
 				sessionEndpoint: session.href,
 				apiBaseUrl,
 			});
