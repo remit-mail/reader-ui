@@ -42,7 +42,10 @@ export const periodicStatusKey = (partition: Partition): string =>
 	`periodic:status:${partition.generation}`;
 
 const readConfigRecord = () =>
-	offlineRecord<Partial<PeriodicConfig>>(CONFIG_KEY);
+	offlineRecord<Partial<PeriodicConfig> & { optOut?: string }>(CONFIG_KEY);
+
+export const periodicOptOutRevision = async (): Promise<string | undefined> =>
+	(await readConfigRecord())?.optOut;
 
 const isPeriodicConfig = (
 	config: Partial<PeriodicConfig> | undefined,
@@ -84,6 +87,7 @@ export async function registerPeriodicRefresh(
 	partition: Partition,
 	options: PeriodicRefreshOptions,
 	apiBaseUrl: string,
+	optOut: string | undefined,
 ): Promise<void> {
 	try {
 		if (
@@ -106,7 +110,7 @@ export async function registerPeriodicRefresh(
 			.ready) as PeriodicRegistration;
 		await commitOffline(partition, async () => {
 			const current = await readConfigRecord();
-			if (current?.revision !== revision) return;
+			if (current?.revision !== revision || current?.optOut !== optOut) return;
 			await registration.periodicSync.register(PERIODIC_TAG, {
 				minInterval: DAILY_INTERVAL,
 			});
@@ -119,9 +123,10 @@ export async function registerPeriodicRefresh(
 				await writeOfflineRecord(CONFIG_KEY, {
 					partition,
 					revision: crypto.randomUUID(),
+					optOut,
 					sessionEndpoint: session.href,
 					apiBaseUrl,
-				} satisfies PeriodicConfig);
+				});
 			}
 			await writeOfflineRecord(periodicStatusKey(partition), {
 				verification: crypto.randomUUID(),
@@ -149,7 +154,7 @@ export async function stopPeriodicRefresh(
 	registration: PeriodicRegistration,
 	revoke: boolean,
 ): Promise<void> {
-	if (revoke) await revokeConfig();
+	if (revoke) await revokeConfig(await periodicOptOutRevision());
 	try {
 		await unregisterTag(registration);
 	} catch (cause) {
@@ -160,8 +165,8 @@ export async function stopPeriodicRefresh(
 	}
 }
 
-const revokeConfig = () =>
-	writeOfflineRecord(CONFIG_KEY, { revision: crypto.randomUUID() });
+const revokeConfig = (optOut: string | undefined) =>
+	writeOfflineRecord(CONFIG_KEY, { revision: crypto.randomUUID(), optOut });
 
 /** A foreground host opt-out also removes an earlier installation's registration. */
 export async function disablePeriodicRefresh(): Promise<void> {
@@ -171,7 +176,7 @@ export async function disablePeriodicRefresh(): Promise<void> {
 	)
 		return;
 	await storageLock(async () => {
-		await revokeConfig();
+		await revokeConfig(crypto.randomUUID());
 		await unregisterBrowserTag();
 	}).catch(() => {});
 }

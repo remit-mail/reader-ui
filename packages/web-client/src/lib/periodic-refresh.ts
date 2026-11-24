@@ -20,7 +20,6 @@ import {
 	pickRenderablePart,
 } from "./message-body-source";
 import { OfflineUnavailableError } from "./offline-error";
-import { mergePersistedQueries } from "./offline-queries";
 import {
 	commitOffline,
 	mailPartCacheKey,
@@ -29,7 +28,6 @@ import {
 	PARTITION_HEADER,
 	readMailPart,
 	requirePartition,
-	samePartition,
 	saveMailPart,
 	writeOfflineRecord,
 } from "./offline-store";
@@ -45,11 +43,7 @@ import {
 	readPeriodicConfig,
 	stopPeriodicRefresh,
 } from "./periodic-registration";
-import {
-	type PeriodicBatch,
-	stagePeriodicBatch,
-	stagingKey,
-} from "./periodic-staging";
+import { savePeriodicDownloads } from "./periodic-staging";
 import type { InboxHead } from "./thread-list-cache";
 
 export const PERIODIC_MAX_BYTES = 10 * 1024 * 1024;
@@ -254,15 +248,15 @@ async function runPeriodicRefresh(
 		const clientState = dehydrate(client);
 		if (!clientState.queries.length && !inboxHeads.length) return;
 		await commit(async () => {
-			await stagePeriodicBatch({
+			await savePeriodicDownloads(
 				partition,
-				client: {
+				{
 					timestamp: Date.now(),
 					buster: String(OFFLINE_FORMAT),
 					clientState,
 				},
 				inboxHeads,
-			});
+			);
 			if (oversizedPartKey) await writeOfflineRecord(oversizedPartKey, true);
 		});
 	};
@@ -321,13 +315,8 @@ async function runPeriodicRefresh(
 		const previous = await offlineRecord<PersistedClient>(
 			`queries:${partition.generation}`,
 		);
-		const staged = await offlineRecord<PeriodicBatch>(stagingKey(partition));
-		const retained =
-			staged && samePartition(staged.partition, partition)
-				? mergePersistedQueries(previous, staged.client)
-				: previous;
 		const known = new Map(
-			retained?.clientState.queries
+			previous?.clientState.queries
 				.filter((query) => query.state.status === "success")
 				.map((query) => [query.queryHash, query.state]),
 		);
@@ -417,7 +406,6 @@ async function runPeriodicRefresh(
 		if (!outcome.ok && outcome.error instanceof OfflineUnavailableError) return;
 		if (!outcome.ok && outcome.error instanceof PartitionMismatch) {
 			await commitStatus(async () => {
-				await writeOfflineRecord(stagingKey(partition), undefined);
 				await writeOfflineRecord(
 					periodicWarningKey(partition),
 					"Periodic partition provenance changed",

@@ -27,12 +27,12 @@ import {
 import {
 	type PeriodicRefreshOptions,
 	type PeriodicStatus,
+	periodicOptOutRevision,
 	periodicStatusKey,
 	periodicWarningKey,
 	registerPeriodicRefresh,
 	wipePeriodicDownloads,
 } from "./periodic-registration";
-import { mergePeriodicBatch } from "./periodic-staging";
 import {
 	isUpdatePrepared,
 	registerUpdateBlocker,
@@ -83,6 +83,7 @@ export class OfflineRuntime {
 	private queryClient?: QueryClient;
 	private refreshing = 0;
 	private persistenceRequested = false;
+	private periodicOptOut?: string;
 	constructor(readonly options: OfflineOptions) {
 		registerUpdateBlocker(
 			() => this.pending > 0 || this.verifying !== undefined,
@@ -124,6 +125,8 @@ export class OfflineRuntime {
 	}
 	private async startNow(queryClient: QueryClient): Promise<void> {
 		this.queryClient = queryClient;
+		if (this.options.periodicRefresh)
+			this.periodicOptOut = await periodicOptOutRevision();
 		// Late mutation rollbacks still hold this client after a wipe. Keep its
 		// cache empty until the required fresh-document navigation.
 		queryClient.getQueryCache().subscribe((event) => {
@@ -236,6 +239,7 @@ export class OfflineRuntime {
 				partition,
 				this.options.periodicRefresh,
 				getRuntimeConfig().apiUrl,
+				this.periodicOptOut,
 			);
 		if (!wasVerified) window.dispatchEvent(new Event("remit:session-verified"));
 		return true;
@@ -310,7 +314,9 @@ export class OfflineRuntime {
 				});
 			},
 			restoreClient: () =>
-				commitOffline(partition, () => mergePeriodicBatch(partition)),
+				commitOffline(partition, () =>
+					offlineRecord<PersistedClient>(`queries:${partition.generation}`),
+				),
 			removeClient: () => {
 				this.report(
 					new Error(

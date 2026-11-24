@@ -242,7 +242,7 @@ permission register `remit-refresh-downloads`, requesting `minInterval: 86400000
 This is a daily minimum request, never a delivery schedule. Unsupported browsers,
 uninstalled tabs, denied permissions and registration failures produce no output,
 reporter events or user notices. Logout, tenant change and remove-downloads revoke
-writers, erase staging and unregister. A successful foreground session is required
+writers, erase downloads and unregister. A successful foreground session is required
 to bind the worker configuration to the verified partition/generation.
 
 The worker uses the generated GET operations for accounts, mailboxes, the latest
@@ -255,13 +255,11 @@ responses need `X-Remit-Partition`, and body responses use U2's MIME and provena
 checks. An expired content signature renews the description once.
 
 The worker checks the part index and content cache for each selected body. It
-stages completed descriptions, including cache hits, together in
-`periodic:batch:<generation>` even when a later download fails. The batch holds
-INBOX heads separately from query results. On restore, a head can replace the
-saved first page when its continuation joins the retained pagination. When
-there is a gap, both cursors remain available and the new downloads appear in
-Downloads until the foreground list refreshes. Every commit rechecks the wipe
-epoch, and a partition mismatch discards staging.
+saves completed descriptions, including cache hits, in the reading snapshot
+even when a later download fails. An INBOX head can replace the saved first page
+when its continuation joins the retained pagination. A cursor gap leaves the
+saved list intact, and the new downloads appear in Downloads. Every commit
+rechecks the wipe epoch. A partition mismatch discards that run's results.
 
 Transport failures retain previous downloads. Other failures record one warning
 through the existing recent-errors/telemetry reporter on the next foreground
