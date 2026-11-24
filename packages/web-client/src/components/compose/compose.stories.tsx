@@ -20,6 +20,7 @@ import {
 	withoutSmtp,
 } from "../../mocks/story-frame/compose-world";
 import { mailHandlers } from "../../mocks/story-frame/mail-handlers";
+import { NOW } from "../../mocks/story-frame/mail-world";
 
 const world = composeWorld();
 const phone = { viewport: { value: "mobile", isRotated: false } };
@@ -435,7 +436,7 @@ export const UploadRefused: Story = {
 						sizeBytes: 4,
 						contentId: "file-1",
 						uploadUrl: new URL("/story-upload", window.location.origin).href,
-						uploadExpiresAt: Date.now() + 900000,
+						uploadExpiresAt: NOW + 900000,
 					}),
 				),
 				http.put("/story-upload", () =>
