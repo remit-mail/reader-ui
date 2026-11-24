@@ -21,6 +21,7 @@ declare global {
 			dirty: boolean;
 			offline: () => OfflineRuntime | undefined;
 			reauthentications: number;
+			offlineReports?: string[];
 			latePersist?: () => Promise<string>;
 			slowSave?: Promise<string>;
 			slowImageSave?: Promise<string>;
@@ -155,7 +156,7 @@ const server = createServer(async (request, response) => {
 		if (path.endsWith("/html")) {
 			response.setHeader("Content-Type", "text/html");
 			response.end(
-				'<p>Old downloaded body</p><img alt="first inline" src="cid:one"><img alt="second inline" src="cid:two"><!-- <img src="cid:unused"> --><script>"<img src=cid:unused>"</script><img alt="remote image" src="https://tracking.invalid/pixel?token=one">',
+				'<p>Old downloaded body</p><img alt="first inline" src="cid:one"><img alt="second inline" src="cid:two"><!-- <img src="cid:unused"> --><script>"<img src=cid:unused>"</script><img alt="remote image" src="https://tracking.invalid/pixel?token=one"><img alt="refused image" src="https://tracking.invalid/pixel?token=refused">',
 			);
 		} else if (path.endsWith("/inline-a") || path.endsWith("/inline-b")) {
 			if (path.endsWith("/inline-a")) await inlineGate;
@@ -195,6 +196,11 @@ const server = createServer(async (request, response) => {
 		for await (const chunk of request) chunks.push(Buffer.from(chunk));
 		const destination = Buffer.concat(chunks).toString("utf8");
 		imageProxyRequests.push(destination);
+		if (destination.endsWith("token=refused")) {
+			response.writeHead(404);
+			response.end();
+			return;
+		}
 		response.setHeader("X-Remit-Partition", tenant);
 		if (destination.endsWith("token=slow")) {
 			imageSlowReady();

@@ -146,11 +146,6 @@ export const MessageBody = ({
 		},
 		[proxyUrl],
 	);
-	const [imageError, setImageError] = useState<unknown>();
-	const reportImageError = useCallback((error: unknown) => {
-		getOfflineRuntime()?.report(error);
-		setImageError(error);
-	}, []);
 	const isDark = useIsDark();
 	const { toggleTrusted, isPending: isTrustPending } = useToggleTrusted({
 		messageId: messageId ?? "",
@@ -182,8 +177,7 @@ export const MessageBody = ({
 		urls: Map<string, string>;
 	}>();
 	useEffect(() => {
-		const runtime = getOfflineRuntime();
-		if (!runtime || !renderedHtml || !bodyParts) return;
+		if (!getOfflineRuntime() || !renderedHtml || !bodyParts) return;
 		const template = document.createElement("template");
 		template.innerHTML = renderedHtml;
 		const referenced = new Set(
@@ -206,10 +200,7 @@ export const MessageBody = ({
 					part.contentUrl,
 					getToken,
 					`${part.mediaType}/${part.mediaSubtype}`.toLowerCase(),
-				).catch((error: unknown) => {
-					runtime.report(error);
-					return undefined;
-				});
+				).catch(() => undefined);
 				if (blob && !stopped)
 					urls.set(
 						part.contentId!.replace(/^<|>$/g, ""),
@@ -286,9 +277,6 @@ export const MessageBody = ({
 					onRetry={() => refetchBody()}
 				/>
 			)}
-			{imageError !== undefined && (
-				<MessageBodyErrorBanner error={imageError} />
-			)}
 			<MessageBodyView
 				className={className}
 				html={renderedHtml}
@@ -297,7 +285,6 @@ export const MessageBody = ({
 				category={category}
 				allowImages={allowImages}
 				loadExternalImage={proxyUrl ? loadExternalImage : undefined}
-				onImageError={reportImageError}
 				resolveCid={resolveCid}
 				renderBlockedNotice={(blockedImageCount) => (
 					<BlockedImagesNotice

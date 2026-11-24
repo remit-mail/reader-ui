@@ -40,7 +40,6 @@ export interface MessageBodyViewProps {
 	resolveCid?: CidResolver;
 	/** Optional host image loader. Called only after explicit image permission. */
 	loadExternalImage?: (url: string) => Promise<Blob>;
-	onImageError?: (error: unknown) => void;
 	/** Extra classes for the body wrapper. */
 	className?: string;
 	/**
@@ -102,7 +101,6 @@ export const MessageBodyView = ({
 	allowImages = false,
 	resolveCid,
 	loadExternalImage,
-	onImageError,
 	className,
 	renderBlockedNotice,
 }: MessageBodyViewProps) => {
@@ -143,10 +141,7 @@ export const MessageBodyView = ({
 		const urls = new Map<string, string>();
 		void Promise.all(
 			[...plan.urls].map(async (url) => {
-				const bytes = await loadExternalImage(url).catch((error: unknown) => {
-					if (!stopped) onImageError?.(error);
-					return undefined;
-				});
+				const bytes = await loadExternalImage(url).catch(() => undefined);
 				if (bytes && !stopped) urls.set(url, URL.createObjectURL(bytes));
 			}),
 		).then(() => {
@@ -156,7 +151,7 @@ export const MessageBodyView = ({
 			stopped = true;
 			for (const url of urls.values()) URL.revokeObjectURL(url);
 		};
-	}, [plan, allowImages, loadExternalImage, onImageError]);
+	}, [plan, allowImages, loadExternalImage]);
 
 	const sanitizedHtml = sanitized?.html ?? null;
 

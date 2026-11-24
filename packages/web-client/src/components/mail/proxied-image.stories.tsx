@@ -12,6 +12,7 @@ import { mailHandlers } from "../../mocks/story-frame/mail-handlers";
 import { withRuntimeConfig } from "../../mocks/story-frame/session";
 
 const remote = "https://images.example/newsletter.png?edition=42";
+const refused = "https://images.example/refused.png";
 const routeLoad = { timeout: 5000 };
 const handlers = mailHandlers(composeWorld());
 let destinationRequests = 0;
@@ -37,6 +38,10 @@ const meta = {
 					destinationRequests++;
 					return HttpResponse.error();
 				}),
+				http.get(refused, () => {
+					destinationRequests++;
+					return HttpResponse.error();
+				}),
 				http.get("/api/messages/:messageId", async ({ request }) => {
 					const response = await getResponse(handlers, request);
 					const data =
@@ -53,14 +58,17 @@ const meta = {
 					"/content/accounts/:accountConfigId/:accountId/messages/:messageId/parts/*",
 					() =>
 						HttpResponse.html(
-							`<p>A newsletter image, loaded only with permission.</p><img src="${remote}" alt="Newsletter image" width="120" height="120">${rejectedImageSet}`,
+							`<p>A newsletter image, loaded only with permission.</p><img src="${remote}" alt="Newsletter image" width="120" height="120"><img src="${refused}" alt="Refused image" width="120" height="120">${rejectedImageSet}`,
 						),
 				),
 				http.post("/api/image-proxy", async ({ request }) => {
-					expect(await request.text()).toBe(remote);
+					const destination = await request.text();
 					expect(request.headers.get("content-type")).toBe(
 						"text/plain;charset=UTF-8",
 					);
+					if (destination === refused)
+						return new HttpResponse(null, { status: 404 });
+					expect(destination).toBe(remote);
 					const bytes = Uint8Array.from(
 						atob(
 							"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aX1sAAAAASUVORK5CYII=",
@@ -105,7 +113,13 @@ export const LoadOnce: Story = {
 			expect(frame?.contentDocument?.querySelector("img")?.naturalWidth).toBe(
 				1,
 			);
+			expect(
+				frame?.contentDocument
+					?.querySelector('img[alt="Refused image"]')
+					?.getAttribute("src"),
+			).toMatch(/^data:image\//);
 		}, routeLoad);
+		expect(canvas.queryByTestId("message-body-error-banner")).toBeNull();
 		expect(destinationRequests).toBe(0);
 	},
 };
