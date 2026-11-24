@@ -1,4 +1,3 @@
-import type { RemitImapStepUpAction } from "@remit/api-http-client/types.gen.ts";
 import { PeopleErrorCode } from "@remit/domain-enums";
 import { formatErrorDetail } from "../components/ui/error-banners";
 import { codedApiErrorBody } from "./api";
@@ -25,16 +24,6 @@ export const isPeopleSignedOut = (error: unknown): boolean => {
 export const peopleFailureReason = (error: unknown): string =>
 	formatErrorDetail(error) ??
 	"The People request failed without an error message.";
-
-export const personActionFailedTitle = (
-	action: RemitImapStepUpAction,
-	email: string,
-): string => {
-	if (action === "Disable") return `Couldn't disable ${email}`;
-	if (action === "Enable") return `Couldn't enable ${email}`;
-	if (action === "SignOut") return `Couldn't sign ${email} out`;
-	return `Couldn't make a reset link for ${email}`;
-};
 
 /**
  * A prefilled issue for a People action the server failed. It names the action

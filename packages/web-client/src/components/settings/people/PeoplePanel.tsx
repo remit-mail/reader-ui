@@ -25,7 +25,6 @@ import {
 	isPeopleSignedOut,
 	peopleFailureReason,
 	peopleReportHref,
-	personActionFailedTitle,
 } from "../../../lib/people";
 import { reportSignedOut } from "../../../lib/signed-out";
 import { ReportLink } from "../ReportLink";
@@ -300,7 +299,12 @@ export function PeoplePanel() {
 						return;
 					}
 					setFailure({
-						title: personActionFailedTitle(action, person.email),
+						title: {
+							Disable: `Couldn't disable ${person.email}`,
+							Enable: `Couldn't enable ${person.email}`,
+							SignOut: `Couldn't sign ${person.email} out`,
+							ResetPassword: `Couldn't make a reset link for ${person.email}`,
+						}[action],
 						reason: peopleFailureReason(error),
 						error,
 					});
