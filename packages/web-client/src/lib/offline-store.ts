@@ -36,7 +36,7 @@ export async function readSession(
 		response.headers.get("content-type")?.split(";")[0].trim().toLowerCase() !==
 			"application/json"
 	)
-		throw new Error("Expected a 200 JSON session response");
+		throw new Error(`Session verification failed: ${response.status}`);
 	const session: { partitionKey?: unknown } | null = await response.json();
 	const partitionKey = session?.partitionKey;
 	if (typeof partitionKey !== "string" || !partitionKey)
