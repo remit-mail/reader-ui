@@ -231,6 +231,50 @@ export async function testPeriodicReading(
 		await gap.close();
 		await context.setOffline(false);
 
+		const assertDownloaded = async (messageId: string) => {
+			await context.setOffline(true);
+			try {
+				const downloaded = await open(`/downloads/${messageId}`);
+				await downloaded
+					.frameLocator('iframe[title="Email content"]')
+					.getByText("Background downloaded body", { exact: true })
+					.waitFor();
+				await downloaded.close();
+			} finally {
+				await context.setOffline(false);
+			}
+		};
+
+		controls.messages(["multi-chunk-mail", "after-budget"]);
+		const beforeBudget = controls.contentRequests.length;
+		await refresh(worker);
+		assert.deepEqual(controls.contentRequests.slice(beforeBudget), [
+			"/content/multi-chunk-mail/body",
+		]);
+		await refresh(worker);
+		await assertDownloaded("after-budget");
+
+		const pending = Array.from(
+			{ length: 20 },
+			(_, index) => `pending-${index}`,
+		);
+		controls.messages([...pending, "after-pending"]);
+		const beforePending = controls.descriptionRequests.length;
+		await refresh(worker);
+		assert.deepEqual(
+			controls.descriptionRequests.slice(beforePending),
+			pending,
+		);
+		await refresh(worker);
+		assert.deepEqual(
+			controls.descriptionRequests.slice(
+				beforePending + pending.length,
+				beforePending + pending.length + 2,
+			),
+			["after-pending", pending[0]],
+		);
+		await assertDownloaded("after-pending");
+
 		controls.messages(["held-mail"]);
 		const stale = controls.holdBody(401);
 		const staleRun = refresh(worker);
@@ -282,11 +326,23 @@ export async function testPeriodicReading(
 			try {
 				await waitForHeldBody(held.requested, completed);
 				if (action === "opt-out") {
-					await optedIn.close();
 					const disabled = await open("/downloads?periodic=off");
 					await disabled.waitForFunction(
 						() => !localStorage.getItem("periodic-registration"),
 					);
+					await optedIn.evaluate(async () => {
+						const runtime = window.pwaTest.offline();
+						if (!runtime) throw new Error("Offline runtime unavailable");
+						await runtime.verify();
+					});
+					await settleOfflineWrites(optedIn);
+					assert.equal(
+						await optedIn.evaluate(() =>
+							localStorage.getItem("periodic-registration"),
+						),
+						null,
+					);
+					await optedIn.close();
 					await disabled.close();
 				} else {
 					await optedIn.evaluate(async () => {

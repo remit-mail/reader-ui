@@ -170,6 +170,11 @@ const server = createServer(async (request, response) => {
 		);
 		if (unavailableBody) {
 			response.writeHead(Number(unavailableBody[1])).end();
+		} else if (path === "/content/multi-chunk-mail/body") {
+			response.setHeader("Content-Type", "text/html");
+			const chunk = Buffer.alloc(256 * 1024, "x");
+			for (let index = 0; index < 41; index++) response.write(chunk);
+			response.end();
 		} else if (path === "/content/failed-mail/body") {
 			response.writeHead(500).end();
 		} else if (path === "/content/held-mail/body") {
@@ -180,7 +185,12 @@ const server = createServer(async (request, response) => {
 			response.setHeader("Content-Type", "text/html");
 			response.end("<p>Held background body</p>");
 		} else if (
-			["/content/background-mail/body", "/content/gap-head/body"].includes(path)
+			[
+				"/content/background-mail/body",
+				"/content/gap-head/body",
+				"/content/after-budget/body",
+				"/content/after-pending/body",
+			].includes(path)
 		) {
 			response.setHeader("Content-Type", "text/html");
 			response.end("<p>Background downloaded body</p>");
@@ -262,7 +272,11 @@ const server = createServer(async (request, response) => {
 			response.end(
 				JSON.stringify({
 					items: [
-						makeMailbox({ mailboxId: "periodic-inbox", fullPath: "INBOX" }),
+						makeMailbox({
+							mailboxId: "periodic-inbox",
+							fullPath: "Appointed Inbox",
+						}),
+						makeMailbox({ mailboxId: "other-inbox", fullPath: "INBOX" }),
 					],
 				}),
 			);
@@ -354,7 +368,8 @@ const server = createServer(async (request, response) => {
 										dispositionFilename: "report.pdf",
 									}),
 								]
-							: periodicInbox?.ids.includes(messageId)
+							: periodicInbox?.ids.includes(messageId) &&
+									!messageId.startsWith("pending-")
 								? [
 										part(messageId, "body", "TEXT", "HTML", {
 											contentUrl: `/content/${messageId}/body`,
@@ -369,10 +384,26 @@ const server = createServer(async (request, response) => {
 		} else if (path === "/api/config")
 			response.end(
 				JSON.stringify(
-					makeConfig([makeAccount({ accountId: "acc-1" })], {
-						buildCommit:
-							serving === dist ? "consumer-pwa-v1" : "consumer-pwa-v2",
-					}),
+					makeConfig(
+						[
+							makeAccount({
+								accountId: "acc-1",
+								folderAppointments: periodicInbox
+									? [
+											{
+												role: "Inbox",
+												mailboxId: "periodic-inbox",
+												source: "Appointed",
+											},
+										]
+									: [],
+							}),
+						],
+						{
+							buildCommit:
+								serving === dist ? "consumer-pwa-v1" : "consumer-pwa-v2",
+						},
+					),
 				),
 			);
 		else if (path === "/api/settings")

@@ -23,7 +23,6 @@ import { OfflineUnavailableError } from "./offline-error";
 import { mergePersistedQueries } from "./offline-queries";
 import {
 	commitOffline,
-	mailPartCacheKey,
 	OFFLINE_FORMAT,
 	offlineRecord,
 	PARTITION_HEADER,
@@ -53,7 +52,6 @@ export const PERIODIC_MAX_BYTES = 10 * 1024 * 1024;
 export const PERIODIC_MAX_MS = 30_000;
 export const PERIODIC_MAX_MESSAGES = 20;
 export class RunLimit extends Error {}
-export class OversizedBody extends RunLimit {}
 class SessionRequired extends Error {}
 class SignedLinkExpired extends Error {}
 class BodyUnavailable extends Error {}
@@ -159,16 +157,12 @@ export class PeriodicBudget {
 			throw new ResponseFailure("Periodic refresh expected JSON");
 		}
 
-		return this.read(response, kind);
+		return this.read(response);
 	}
 
-	async read(
-		response: Response,
-		kind: "session" | "api" | "body",
-	): Promise<Response> {
+	async read(response: Response): Promise<Response> {
 		const reader = response.body?.getReader();
 		const chunks: Uint8Array<ArrayBuffer>[] = [];
-		let streamed = 0;
 		try {
 			while (reader) {
 				const { value, done } = await reader.read().catch((cause: unknown) => {
@@ -179,13 +173,8 @@ export class PeriodicBudget {
 				});
 				this.check();
 				if (done) break;
-				streamed += value.byteLength;
 				this.bytes += value.byteLength;
-				if (this.bytes > PERIODIC_MAX_BYTES) {
-					if (kind === "body" && streamed > PERIODIC_MAX_BYTES)
-						throw new OversizedBody();
-					throw new RunLimit();
-				}
+				if (this.bytes > PERIODIC_MAX_BYTES) throw new RunLimit();
 				chunks.push(value);
 			}
 		} finally {
@@ -233,10 +222,12 @@ async function runPeriodicRefresh(
 		throwOnError: true,
 	} as const;
 	const inboxHeads: InboxHead[] = [];
-	let oversizedPartKey: string | undefined;
+	const resumeKey = `periodic:resume:${partition.generation}`;
+	let lastAttempted: string | undefined;
 	const flush = async () => {
 		if (!client.getQueryCache().getAll().length && !inboxHeads.length) return;
 		await commit(async () => {
+			if (lastAttempted) await writeOfflineRecord(resumeKey, lastAttempted);
 			const key = `queries:${partition.generation}`;
 			const previous = await offlineRecord<PersistedClient>(key);
 			for (const head of inboxHeads) {
@@ -260,7 +251,6 @@ async function runPeriodicRefresh(
 					clientState: dehydrate(client),
 				}),
 			);
-			if (oversizedPartKey) await writeOfflineRecord(oversizedPartKey, true);
 		});
 	};
 
@@ -268,20 +258,13 @@ async function runPeriodicRefresh(
 		if (!part) return false;
 		const { contentUrl, kind, sizeOctets } = part;
 		const mime = kind === "html" ? "text/html" : "text/plain";
-		const canonical = mailPartCacheKey(contentUrl);
-		const oversizeKey = `periodic:oversize:${partition.generation}:${canonical}`;
 		if (await commit(() => readMailPart(partition, contentUrl, mime)))
 			return true;
-		if (
-			(sizeOctets ?? 0) > PERIODIC_MAX_BYTES ||
-			(await offlineRecord<boolean>(oversizeKey))
-		)
-			return false;
+		if ((sizeOctets ?? 0) > PERIODIC_MAX_BYTES) return false;
 
 		const response = await budget
 			.fetch(contentUrl, "body")
 			.catch((error: unknown) => {
-				if (error instanceof OversizedBody) oversizedPartKey = oversizeKey;
 				if (error instanceof BodyUnavailable) return;
 				throw error;
 			});
@@ -324,8 +307,7 @@ async function runPeriodicRefresh(
 				.map((query) => [query.queryHash, query.state]),
 		);
 		const { data: configData } = await configOperationsGetConfig(get);
-		let count = 0;
-		const seen = new Set<string>();
+		const candidates = new Set<string>();
 		for (const account of configData.accounts) {
 			const path = { accountId: account.accountId };
 			const { data: mailboxes } = await mailboxOperationsListMailboxes({
@@ -336,12 +318,12 @@ async function runPeriodicRefresh(
 				mailboxOperationsListMailboxesQueryKey({ client: api, path }),
 				mailboxes,
 			);
-			const inbox = mailboxes.items.find(
-				(mailbox) => mailbox.fullPath.toUpperCase() === "INBOX",
-			);
-			if (!inbox) continue;
+			const mailboxId = account.folderAppointments.find(
+				(appointment) => appointment.role === "Inbox",
+			)?.mailboxId;
+			if (!mailboxId) continue;
 			const options = {
-				path: { mailboxId: inbox.mailboxId },
+				path: { mailboxId },
 				query: { order: "desc" },
 			} as const;
 			const { data: threads } = await threadOperationsListThreads({
@@ -356,66 +338,71 @@ async function runPeriodicRefresh(
 				page: threads,
 				updatedAt: Date.now(),
 			});
-			for (const { messageId } of threads.items ?? []) {
-				if (seen.has(messageId)) continue;
-				seen.add(messageId);
-				const path = { messageId };
-				const key = messageOperationsDescribeMessageQueryKey({
-					client: api,
+			for (const { messageId } of threads.items ?? [])
+				candidates.add(messageId);
+		}
+		const ids = [...candidates];
+		const resume = await offlineRecord<string>(resumeKey);
+		const start = resume === undefined ? 0 : ids.indexOf(resume) + 1;
+		let count = 0;
+		for (let offset = 0; offset < ids.length; offset++) {
+			const messageId = ids[(start + offset) % ids.length];
+			const path = { messageId };
+			const key = messageOperationsDescribeMessageQueryKey({
+				client: api,
+				path,
+			});
+			const describe = async () => {
+				const result = await messageOperationsDescribeMessage({
+					...get,
 					path,
+				}).catch((error: unknown) => {
+					if (error instanceof ResponseFailure && error.status === 404) return;
+					throw error;
 				});
-				const describe = async () => {
-					const result = await messageOperationsDescribeMessage({
-						...get,
-						path,
-					}).catch((error: unknown) => {
-						if (error instanceof ResponseFailure && error.status === 404)
-							return;
-						throw error;
-					});
-					if (result) return { data: result.data, dataUpdatedAt: Date.now() };
-				};
-				const saved = known.get(hashKey(key));
-				const retained = saved?.data as
-					| RemitImapDescribeMessageResponse
-					| undefined;
-				const cachedPart = retained && pickRenderablePart(retained.bodyParts);
-				if (
-					cachedPart &&
-					(await commit(() =>
-						readMailPart(
-							partition,
-							cachedPart.contentUrl,
-							cachedPart.kind === "html" ? "text/html" : "text/plain",
-						),
-					))
-				)
-					continue;
-				if (count >= PERIODIC_MAX_MESSAGES) continue;
-				count++;
-				let description = await describe();
+				if (result) return { data: result.data, dataUpdatedAt: Date.now() };
+			};
+			const saved = known.get(hashKey(key));
+			const retained = saved?.data as
+				| RemitImapDescribeMessageResponse
+				| undefined;
+			const cachedPart = retained && pickRenderablePart(retained.bodyParts);
+			if (
+				cachedPart &&
+				(await commit(() =>
+					readMailPart(
+						partition,
+						cachedPart.contentUrl,
+						cachedPart.kind === "html" ? "text/html" : "text/plain",
+					),
+				))
+			)
+				continue;
+			if (count >= PERIODIC_MAX_MESSAGES) break;
+			count++;
+			lastAttempted = messageId;
+			let description = await describe();
+			if (!description) continue;
+			let downloaded: boolean;
+			try {
+				downloaded = await downloadBody(
+					pickRenderablePart(description.data.bodyParts),
+				);
+			} catch (error) {
+				if (!(error instanceof SignedLinkExpired)) throw error;
+				description = await describe();
 				if (!description) continue;
-				let downloaded: boolean;
-				try {
-					downloaded = await downloadBody(
-						pickRenderablePart(description.data.bodyParts),
-					);
-				} catch (error) {
-					if (!(error instanceof SignedLinkExpired)) throw error;
-					description = await describe();
-					if (!description) continue;
-					downloaded = await downloadBody(
-						pickRenderablePart(description.data.bodyParts),
-					).catch((retryError: unknown) => {
-						if (retryError instanceof SignedLinkExpired) return false;
-						throw retryError;
-					});
-				}
-				if (!downloaded) continue;
-				client.setQueryData(key, description.data, {
-					updatedAt: description.dataUpdatedAt,
+				downloaded = await downloadBody(
+					pickRenderablePart(description.data.bodyParts),
+				).catch((retryError: unknown) => {
+					if (retryError instanceof SignedLinkExpired) return false;
+					throw retryError;
 				});
 			}
+			if (!downloaded) continue;
+			client.setQueryData(key, description.data, {
+				updatedAt: description.dataUpdatedAt,
+			});
 		}
 	};
 
@@ -436,10 +423,23 @@ async function runPeriodicRefresh(
 			return;
 		}
 
-		const result = await flush().then(
-			() => outcome,
+		const flushResult = await flush().then(
+			() => ({ ok: true }) as const,
 			(error: unknown) => ({ ok: false, error }) as const,
 		);
+		if (!outcome.ok && outcome.error instanceof SessionRequired) {
+			await commitStatus(async (current) => {
+				await writePeriodicStatus(current, { kind: "login-required" });
+				await stopPeriodicRefresh(registration, false);
+				if (!flushResult.ok)
+					await writeOfflineRecord(
+						periodicWarningKey(partition),
+						periodicFailureWarning(flushResult.error),
+					);
+			});
+			return;
+		}
+		const result = flushResult.ok ? outcome : flushResult;
 		if (result.ok) {
 			await commitStatus((current) =>
 				writePeriodicStatus(current, { kind: "ready" }),
@@ -451,11 +451,6 @@ async function runPeriodicRefresh(
 		if (error instanceof OfflineUnavailableError || error instanceof RunLimit)
 			return;
 		await commitStatus(async (current) => {
-			if (error instanceof SessionRequired) {
-				await writePeriodicStatus(current, { kind: "login-required" });
-				await stopPeriodicRefresh(registration, false);
-				return;
-			}
 			const attempts =
 				(current.status.kind === "retry" ? current.status.attempts : 0) + 1;
 			await writePeriodicStatus(current, {

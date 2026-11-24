@@ -106,6 +106,10 @@ export const wipeOffline = async (
 		await afterWipe?.();
 	});
 
+const hasContentMime = (response: Response, mime: string): boolean =>
+	response.headers.get("content-type")?.split(";")[0]?.trim().toLowerCase() ===
+	mime.toLowerCase();
+
 export const admitContent = async (
 	response: Response,
 	mime: string,
@@ -117,11 +121,7 @@ export const admitContent = async (
 		!["basic", "cors", "default"].includes(response.type) ||
 		(partition && response.headers.get(PARTITION_HEADER) !== partition.key) ||
 		/(?:^|,)\s*no-store\b/i.test(response.headers.get("cache-control") ?? "") ||
-		response.headers
-			.get("content-type")
-			?.split(";")[0]
-			?.trim()
-			.toLowerCase() !== mime.toLowerCase()
+		!hasContentMime(response, mime)
 	)
 		return false;
 	if (mime === "text/html") {
@@ -147,9 +147,6 @@ export const mailPartCacheKey = (url: string): string => {
 	return target.origin + target.pathname;
 };
 
-const mailPartIndexKey = (partition: Partition, key: string): string =>
-	`part:${partition.generation}:${key}`;
-
 /** Caller holds its partition guard. */
 export async function readMailPart(
 	partition: Partition,
@@ -157,11 +154,10 @@ export async function readMailPart(
 	mime: string,
 ): Promise<Response | undefined> {
 	const key = mailPartCacheKey(url);
-	const part = await offlineRecord<{ mime: string }>(
-		mailPartIndexKey(partition, key),
+	const response = await (await caches.open(contentCacheName(partition))).match(
+		key,
 	);
-	if (part?.mime === mime)
-		return (await caches.open(contentCacheName(partition))).match(key);
+	if (response && hasContentMime(response, mime)) return response;
 }
 
 /** Both foreground and worker callers supply their own generation/run guard. */
@@ -179,9 +175,6 @@ export async function saveMailPart(
 			key,
 			response.clone(),
 		);
-		await writeOfflineRecord(mailPartIndexKey(partition, key), {
-			mime,
-		});
 	});
 	return true;
 }

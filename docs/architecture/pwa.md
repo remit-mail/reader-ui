@@ -6,7 +6,8 @@ keeps its plugins, public directory, installation icons and credentialed manifes
 link. Manifest id, start URL and scope stay `/`; the Vite base must be `/`.
 `updateMode: "managed"` still disables the self-host updater UI.
 
-The packed package includes the TypeScript worker. `injectManifest` builds one
+The packed preset points `injectManifest` at the compiled worker beside the
+plugin. `injectManifest` builds one
 root `/sw.js` without imports. Registration is manual in `mountApp`, with scope
 `/` and no plugin reload code. The runtime config is a Rollup asset, emitted
 before precache generation. Hosts that copy runtime assets after building must
@@ -246,15 +247,16 @@ writers, erase downloads and unregister. A successful foreground session is requ
 to bind the worker configuration to the verified partition/generation.
 
 The worker uses the generated GET operations for accounts, mailboxes, the latest
-INBOX page per account and message descriptions. It downloads selected HTML/plain
-bodies for up to twenty messages per run. Every request is sequential. The
-10 MiB response budget includes metadata, and all work shares a thirty-second
-deadline. The worker skips bodies whose advertised size exceeds the run budget
-and remembers parts that exhaust a fresh body budget while streaming. API
+page of each account's appointed Inbox and message descriptions. Each run
+attempts up to twenty uncached candidates. Requests are sequential, the 10 MiB
+response budget includes metadata, and all work shares a thirty-second deadline.
+Bodies whose advertised size exceeds the full cap are skipped. The worker
+stops when its remaining budget is spent. The next event resumes after the
+last attempted candidate and wraps around to revisit deferred mail. API
 responses need `X-Remit-Partition`, and body responses use U2's MIME and provenance
 checks. An expired content signature renews the description once.
 
-The worker checks the part index and content cache for each selected body. It
+The worker checks the partition cache and MIME for each selected body. It
 saves completed descriptions, including cache hits, in the reading snapshot
 even when a later download fails. An INBOX head can replace the saved first page
 when its continuation joins the retained pagination. A cursor gap leaves the

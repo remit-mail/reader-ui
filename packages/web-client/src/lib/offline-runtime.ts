@@ -82,7 +82,7 @@ export class OfflineRuntime {
 	private queryClient?: QueryClient;
 	private refreshing = 0;
 	private persistenceRequested = false;
-	private periodicOptOut?: string;
+	private periodicOptOut?: { revision: string | undefined };
 	constructor(readonly options: OfflineOptions) {
 		registerUpdateBlocker(
 			() => this.pending > 0 || this.verifying !== undefined,
@@ -125,7 +125,15 @@ export class OfflineRuntime {
 	private async startNow(queryClient: QueryClient): Promise<void> {
 		this.queryClient = queryClient;
 		if (this.options.periodicRefresh)
-			this.periodicOptOut = await periodicOptOutRevision();
+			await periodicOptOutRevision()
+				.then((revision) => {
+					this.periodicOptOut = { revision };
+				})
+				.catch(() =>
+					reportPeriodicWarning(
+						"Periodic refresh could not read its opt-out revision",
+					),
+				);
 		// Late mutation rollbacks still hold this client after a wipe. Keep its
 		// cache empty until the required fresh-document navigation.
 		queryClient.getQueryCache().subscribe((event) => {
@@ -141,29 +149,27 @@ export class OfflineRuntime {
 		if (partition) await requirePartition(partition);
 		if (this.revoked) return;
 		if (partition) {
-			const binding = await commitOffline(partition, readPeriodicConfig);
-			if (this.revoked) return;
-			this.update({
-				needsLogin:
-					samePartition(binding?.partition, partition) &&
-					binding?.status.kind === "login-required",
-			});
-			void commitOffline(partition, async () => {
+			await commitOffline(partition, async () => {
+				const binding = await readPeriodicConfig();
+				this.update({
+					needsLogin:
+						samePartition(binding?.partition, partition) &&
+						binding?.status.kind === "login-required",
+				});
 				const key = periodicWarningKey(partition);
 				const warning = await offlineRecord<string>(key);
-				if (warning) await writeOfflineRecord(key, undefined);
-				return warning;
-			})
-				.then((warning) => {
-					if (warning) reportPeriodicWarning(warning);
-				})
-				.catch((error: unknown) => {
-					if (!(error instanceof OfflineUnavailableError))
-						reportPeriodicWarning(
-							"Periodic refresh could not read or clear its diagnostic",
-						);
-				});
+				if (warning) {
+					await writeOfflineRecord(key, undefined);
+					reportPeriodicWarning(warning);
+				}
+			}).catch((error: unknown) => {
+				if (!(error instanceof OfflineUnavailableError))
+					reportPeriodicWarning(
+						"Periodic refresh could not read its binding or drain its diagnostic",
+					);
+			});
 		}
+		if (this.revoked) return;
 		this.update({ partition });
 		await this.verify().catch(this.report);
 		void this.storage(
@@ -240,6 +246,7 @@ export class OfflineRuntime {
 		resetSignedOut();
 		if (
 			this.options.periodicRefresh &&
+			this.periodicOptOut &&
 			typeof __REMIT_PWA_ENABLED__ !== "undefined" &&
 			__REMIT_PWA_ENABLED__
 		)
@@ -247,7 +254,7 @@ export class OfflineRuntime {
 				partition,
 				this.options.periodicRefresh,
 				getRuntimeConfig().apiUrl,
-				this.periodicOptOut,
+				this.periodicOptOut.revision,
 			);
 		if (!wasVerified) window.dispatchEvent(new Event("remit:session-verified"));
 		return true;

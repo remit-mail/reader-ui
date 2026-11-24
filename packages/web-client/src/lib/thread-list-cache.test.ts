@@ -9,7 +9,6 @@ import type { RemitImapThreadMessageResponse } from "@remit/api-http-client/type
 import { QueryClient } from "@tanstack/react-query";
 import {
 	invalidateThreadListQueries,
-	mergeInboxHead,
 	patchThreadListQueries,
 	restoreThreadListQueries,
 	snapshotThreadListQueries,
@@ -69,33 +68,6 @@ const thread = (
 		isRead: false,
 		...overrides,
 	}) as RemitImapThreadMessageResponse;
-
-const savedInbox = {
-	pages: [
-		{ items: [thread({ messageId: "moved" })], continuationToken: "older" },
-		{ items: [thread({ messageId: "retained" })], continuationToken: "oldest" },
-	],
-	pageParams: [undefined, "older"],
-};
-
-test("a background head replaces the saved first page at the retained cursor", () => {
-	const head = {
-		items: [thread({ messageId: "new" })],
-		continuationToken: "older",
-	};
-	assert.deepStrictEqual(mergeInboxHead(savedInbox, head), {
-		pages: [head, savedInbox.pages[1]],
-		pageParams: savedInbox.pageParams,
-	});
-});
-
-test("a background head with a gap leaves saved pages and pagination alone", () => {
-	const head = {
-		items: [thread({ messageId: "new" })],
-		continuationToken: "gap",
-	};
-	assert.strictEqual(mergeInboxHead(savedInbox, head), undefined);
-});
 
 /** The single-shot page the daily brief and Flagged cache under the unified key. */
 const briefKey = unifiedThreadOperationsListAllThreadsQueryKey();
