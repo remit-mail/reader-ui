@@ -206,27 +206,34 @@ export async function testBackgroundRefresh(
 			),
 			[],
 		);
-		await peer.reload();
-		await waitForTag(peer, true);
+		await peer.close();
+		const settings = await context.newPage();
+		await settings.goto(`${origin}/settings/advanced`);
+		await settings.waitForFunction(
+			() => window.pwaTest.offline()?.state.verified,
+		);
+		await waitForTag(settings, true);
 
-		const beforeOff = await snapshot(peer);
+		const beforeOff = await snapshot(settings);
 		assert.equal(
 			await withHeldResponse(heldMessage, 200, async () => {
-				await disable.click();
-				await peer.getByText("Background refresh is off").waitFor();
+				await settings
+					.getByRole("button", { name: "Turn off background refresh" })
+					.click();
+				await settings.getByText("Background refresh is off").waitFor();
 			}),
 			"Background refresh is off",
 		);
-		await waitForTag(peer, false);
-		assert.deepEqual(await snapshot(peer), beforeOff);
-		assert.equal(await verify(peer), true);
-		await peer.evaluate(async () => {
+		await waitForTag(settings, false);
+		assert.deepEqual(await snapshot(settings), beforeOff);
+		assert.equal(await verify(settings), true);
+		await settings.evaluate(async () => {
 			await navigator.permissions.query({
 				name: "periodic-background-sync" as PermissionName,
 			});
 			await navigator.locks.request("remit-offline-storage", () => {});
 		});
-		await waitForTag(peer, false);
+		await waitForTag(settings, false);
 		console.log(
 			"Chromium background refresh OK: offline body, unchanged Inbox, 401, wipe, opt-out and newer registration.",
 		);
