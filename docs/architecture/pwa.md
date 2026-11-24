@@ -192,9 +192,8 @@ It adds message descriptors and renderable bodies to Downloads, leaving saved
 Inbox queries untouched. Writes share the foreground storage lock and stop on
 opt-out or wipe. A refused session unregisters the tag.
 
-The host must return a no-store 200 JSON session response with a nonempty
-`partitionKey`, or 401, 403 or a redirect when the session expires. The shared
-session request sends `X-Requested-With: XMLHttpRequest` so Cloudflare
+The [C2 session contract](#durable-reading-u2) applies. The shared session
+request sends `X-Requested-With: XMLHttpRequest` so Cloudflare
 Access answers 401 for an expired session. Set
 `X-Remit-Partition` on config, thread, describe and content responses. Content
 can return 202 while fetching or 403 with `x-remit-403-reason: expired` for an
