@@ -176,7 +176,9 @@
 			"src/lib/offline-store.ts",
 			"src/lib/offline-error.ts",
 			"src/lib/offline-queries.ts",
-			"src/lib/message-body-source.ts"
+			"src/lib/message-body-source.ts",
+			"src/lib/thread-list-cache.ts",
+			"src/lib/thread-cache.ts"
 		]
 	}
 }
