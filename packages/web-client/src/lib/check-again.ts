@@ -57,6 +57,7 @@ export const EMPTY_SUMMARY: CheckAgainSummary = {
 	nowSpam: 0,
 	nowSuspected: 0,
 	noLongerSuspected: 0,
+	moved: 0,
 };
 
 /** Adds one checked message to the run's summary of what changed. */
@@ -88,7 +89,11 @@ export const applyRescanResult = (
 	const byId = new Map(batch.targets.map((t) => [t.messageId, t]));
 	const summary = result.successful.reduce(
 		(sum, success) =>
-			tallyOutcome(sum, byId.get(success.messageId)?.before, success.verdict),
+			tallyOutcome(
+				{ ...sum, moved: sum.moved + Number(success.moved) },
+				byId.get(success.messageId)?.before,
+				success.verdict,
+			),
 		outcome.summary,
 	);
 	const failures = [

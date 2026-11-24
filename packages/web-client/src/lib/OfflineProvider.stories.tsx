@@ -1,26 +1,40 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { OfflineStatus } from "./OfflineProvider";
+import { expect, fn, userEvent, within } from "storybook/test";
+import "./i18n";
+import { OfflineStartupFailure } from "./OfflineProvider";
 
 const meta = {
-	title: "Playground/Shipped/Downloads/Status",
-	component: OfflineStatus,
-	args: {
-		verified: false,
-		usage: 12582912,
-		quota: 1073741824,
-		persistent: false,
-		onVerify: () => undefined,
-		onPersist: () => undefined,
-		onRemove: () => undefined,
-	},
-} satisfies Meta<typeof OfflineStatus>;
+	title: "Playground/Shipped/Downloads/Startup failure",
+	component: OfflineStartupFailure,
+	args: { onRemove: fn() },
+} satisfies Meta<typeof OfflineStartupFailure>;
 export default meta;
 type Story = StoryObj<typeof meta>;
-export const SessionUnverified: Story = {};
-export const Verified: Story = { args: { verified: true, persistent: true } };
-export const SaveFailed: Story = {
+export const IncompatibleDownloads: Story = {
+	play: async ({ canvasElement, args }) => {
+		const canvas = within(canvasElement);
+		await expect(canvas.getByRole("alert")).toBeVisible();
+		await expect(args.onRemove).not.toHaveBeenCalled();
+		await userEvent.click(
+			canvas.getByRole("button", { name: "Remove downloads and reload" }),
+		);
+		await expect(args.onRemove).toHaveBeenCalledOnce();
+	},
+};
+
+export const RemoveFailed: Story = {
 	args: {
-		error:
-			"Storage quota exceeded. This part is not saved for offline reading.",
+		onRemove: fn(async () => {
+			throw new Error("Storage unavailable");
+		}),
+	},
+	play: async ({ canvasElement }) => {
+		const canvas = within(canvasElement);
+		await userEvent.click(
+			canvas.getByRole("button", { name: "Remove downloads and reload" }),
+		);
+		await expect(
+			await canvas.findByText("Downloads could not be removed. Try again."),
+		).toBeVisible();
 	},
 };

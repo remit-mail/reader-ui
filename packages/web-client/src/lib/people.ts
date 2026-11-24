@@ -3,9 +3,10 @@ import type {
 	RemitImapStepUpAction,
 } from "@remit/api-http-client/types.gen.ts";
 import { PeopleErrorCode } from "@remit/domain-enums";
+import { formatErrorDetail } from "../components/ui/error-banners";
 import { codedApiErrorBody } from "./api";
 import { buildBugReportContext, buildGitHubIssueUrl } from "./bug-report";
-import { getErrorStatus, isNetworkError } from "./error-classifier";
+import { getErrorStatus } from "./error-classifier";
 import { formatDatePreset } from "./format";
 
 const SIGNED_OUT_CODES = new Set<string>([
@@ -27,32 +28,11 @@ export type PeopleFailure =
 	| { kind: "signedOut" }
 	| { kind: "wrongPassword" }
 	| { kind: "locked" }
-	| { kind: "failed"; reason: string };
+	| { kind: "failed" };
 
-const failureReason = (error: unknown): string => {
-	if (isNetworkError(error)) {
-		return "The server could not be reached. Nothing changed. Try again.";
-	}
-	const code = codedApiErrorBody(error)?.code;
-	if (code === PeopleErrorCode.CannotDisableSelf) {
-		return "You cannot disable your own account, so one account always stays on.";
-	}
-	if (code === PeopleErrorCode.StepUpRequired) {
-		return "The password check did not carry over to the action. Nothing changed. Try again.";
-	}
-	if (code === PeopleErrorCode.ForeignOrigin) {
-		return "The server refused a request from this address. Nothing changed. Open this page from the server's own address.";
-	}
-	if (getErrorStatus(error) === 404) {
-		return "That account is gone, or this server no longer has a People page. Reload the page.";
-	}
-	return "Something went wrong on the server. Nothing changed. Try again.";
-};
-
-export const peopleListFailureReason = (error: unknown): string =>
-	isNetworkError(error)
-		? "The server could not be reached. Check your connection and try again."
-		: "The server did not answer as expected. Try again.";
+export const peopleFailureReason = (error: unknown): string =>
+	formatErrorDetail(error) ??
+	"The People request failed without an error message.";
 
 export const classifyPeopleFailure = (error: unknown): PeopleFailure => {
 	if (getErrorStatus(error) === 401 || isPeopleSignedOut(error)) {
@@ -61,7 +41,7 @@ export const classifyPeopleFailure = (error: unknown): PeopleFailure => {
 	const code = codedApiErrorBody(error)?.code;
 	if (code === PeopleErrorCode.WrongPassword) return { kind: "wrongPassword" };
 	if (code === PeopleErrorCode.StepUpLocked) return { kind: "locked" };
-	return { kind: "failed", reason: failureReason(error) };
+	return { kind: "failed" };
 };
 
 export interface PersonActionCopy {
@@ -81,7 +61,7 @@ export const personActionCopy = (
 			title: `Disable ${email}?`,
 			body: "They are signed out everywhere within 15 minutes and cannot sign in until you enable them again. Their calendar feed links stop working. Their mail stays.",
 			confirmLabel: "Disable",
-			failedTitle: `${email} was not disabled`,
+			failedTitle: `Couldn't disable ${email}`,
 			destructive: true,
 		};
 	}
@@ -90,7 +70,7 @@ export const personActionCopy = (
 			title: `Enable ${email}?`,
 			body: "They can sign in again with their password. Calendar feed links they shared before stay off; they make new ones in Settings.",
 			confirmLabel: "Enable",
-			failedTitle: `${email} was not enabled`,
+			failedTitle: `Couldn't enable ${email}`,
 			destructive: false,
 		};
 	}
@@ -99,7 +79,7 @@ export const personActionCopy = (
 			title: `Sign ${email} out everywhere?`,
 			body: "Every session and connected app of theirs ends within 15 minutes. They can sign in again with their password.",
 			confirmLabel: "Sign out everywhere",
-			failedTitle: `${email} was not signed out`,
+			failedTitle: `Couldn't sign ${email} out`,
 			destructive: true,
 		};
 	}
@@ -107,7 +87,7 @@ export const personActionCopy = (
 		title: `Reset the password of ${email}?`,
 		body: "Their password stops working at once and they are signed out everywhere. You get a link to give them, which works once, for 24 hours.",
 		confirmLabel: "Make a reset link",
-		failedTitle: `No reset link was made for ${email}`,
+		failedTitle: `Couldn't make a reset link for ${email}`,
 		destructive: true,
 	};
 };

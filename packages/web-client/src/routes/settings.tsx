@@ -25,7 +25,7 @@ import { createFileRoute, Outlet } from "@tanstack/react-router";
 import { AdvancedNavIcon } from "../components/settings/AdvancedNavIcon";
 import { WarningsNavIcon } from "../components/settings/WarningsNavIcon";
 import { usePeople } from "../hooks/usePeople";
-import { useSettingsSlots } from "../settings-slots";
+import { usePeopleDestinationUrl, useSettingsSlots } from "../settings-slots";
 
 /* ------------------------------------------------------------------ */
 /* Nav items — single source of truth shared by all settings pages    */
@@ -88,11 +88,12 @@ const PEOPLE_NAV_ITEM: SettingsNavItem = {
 };
 
 /**
- * The nav every settings page renders. People shows only once the server lists
- * people: it answers 404 while self sign-up is open or off self-host.
+ * The nav every settings page renders. A host destination always shows People;
+ * otherwise it shows only once the self-host server lists people.
  */
 export const useSettingsNavItems = (): SettingsNavItem[] => {
-	const people = usePeople();
+	const peopleDestinationUrl = usePeopleDestinationUrl();
+	const people = usePeople(!peopleDestinationUrl);
 	const slots = useSettingsSlots();
 	const items = [...SETTINGS_NAV_ITEMS];
 	items.splice(
@@ -100,11 +101,11 @@ export const useSettingsNavItems = (): SettingsNavItem[] => {
 		0,
 		...slots.map(({ id, label, icon }) => ({ id, label, icon })),
 	);
-	if (!people.isSuccess) return items;
+	if (!peopleDestinationUrl && !people.isSuccess) return items;
 	const advanced = items.findIndex((item) => item.id === "advanced");
 	return [
 		...items.slice(0, advanced),
-		PEOPLE_NAV_ITEM,
+		{ ...PEOPLE_NAV_ITEM, href: peopleDestinationUrl },
 		...items.slice(advanced),
 	];
 };

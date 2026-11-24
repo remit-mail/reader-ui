@@ -16,7 +16,7 @@ import type { PersonActionResult } from "../../../hooks/usePersonAction";
 import {
 	classifyPeopleFailure,
 	formatPersonDate,
-	peopleListFailureReason,
+	peopleFailureReason,
 	peopleReportHref,
 	personActionCopy,
 } from "../../../lib/people";
@@ -205,12 +205,7 @@ export function PeoplePanel() {
 	}
 
 	if (people.unavailable) {
-		return (
-			<Banner tone="info">
-				This server has no People page. It shows on a self-hosted server once
-				self sign-up is turned off.
-			</Banner>
-		);
+		return <Banner tone="info">{peopleFailureReason(people.error)}</Banner>;
 	}
 
 	if (people.isError) {
@@ -219,7 +214,7 @@ export function PeoplePanel() {
 			<Banner tone="danger">
 				<p className="font-medium">{LIST_FAILED}.</p>
 				<p className="mt-1 text-fg-muted">
-					{peopleListFailureReason(people.error)}
+					{peopleFailureReason(people.error)}
 				</p>
 				<p className="mt-2 flex items-center gap-3">
 					<Button
@@ -249,13 +244,9 @@ export function PeoplePanel() {
 
 	const failed = (error: unknown) => {
 		if (!pending) return;
-		const classified = classifyPeopleFailure(error);
 		setFailure({
 			title: personActionCopy(pending.action, pending.person.email).failedTitle,
-			reason:
-				classified.kind === "failed"
-					? classified.reason
-					: "Something went wrong. Nothing changed. Try again.",
+			reason: peopleFailureReason(error),
 			error,
 		});
 		setPending(null);

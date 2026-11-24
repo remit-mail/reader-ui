@@ -38,6 +38,17 @@ export const codedApiErrorBody = (
 };
 
 const failureMessage = (body: unknown, status: number): string => {
+	if (isRecord(body) && Array.isArray(body.errors)) {
+		const details = body.errors
+			.filter(
+				(error) =>
+					isRecord(error) &&
+					typeof error.path === "string" &&
+					typeof error.message === "string",
+			)
+			.map((error) => `${error.path || "/"}: ${error.message}`);
+		if (details.length > 0) return details.join("; ");
+	}
 	if (isRecord(body) && body.message !== undefined && body.message !== null) {
 		const message = String(body.message);
 		if (message) return message;

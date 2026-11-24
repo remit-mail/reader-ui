@@ -133,3 +133,34 @@ export const EmptyFolderChecksWithoutConfirming: Story = {
 		).toBeNull();
 	},
 };
+
+export const RenameRefused: Story = {
+	parameters: {
+		msw: {
+			handlers: [
+				http.patch("/api/accounts/:accountId/mailboxes/:mailboxId", () =>
+					HttpResponse.json(
+						{ message: "A folder with that name already exists." },
+						{ status: 409 },
+					),
+				),
+				...mailHandlers(world),
+			],
+		},
+	},
+	play: async ({ canvasElement }) => {
+		const canvas = within(canvasElement);
+		await userEvent.click(
+			await canvas.findByRole("button", { name: "Rename Travel" }),
+		);
+		const dialog = within(
+			await page.findByRole("dialog", { name: "Rename Travel" }),
+		);
+		await userEvent.clear(dialog.getByRole("textbox"));
+		await userEvent.type(dialog.getByRole("textbox"), "Family");
+		await userEvent.click(dialog.getByRole("button", { name: "Save name" }));
+		await expect(
+			await dialog.findByText("A folder with that name already exists."),
+		).toBeVisible();
+	},
+};

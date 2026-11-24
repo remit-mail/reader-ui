@@ -23,6 +23,8 @@ export interface SettingsNavItem {
 	id: string;
 	label: string;
 	icon?: ReactNode;
+	/** A host-supplied destination outside the settings router. */
+	href?: string;
 }
 
 export interface SettingsShellProps {
@@ -69,34 +71,38 @@ export function SettingsShell({
 				Settings
 			</div>
 			<nav className="flex-1 overflow-y-auto px-2 py-1">
-				{items.map((item) => (
-					<button
-						key={item.id}
-						type="button"
-						onClick={() => {
-							onSelect?.(item.id);
-							setNavOpen(false);
-						}}
-						className={cn(
-							"flex min-h-11 w-full items-center gap-2 rounded-md px-2 py-1 text-left text-sm transition-colors lg:min-h-0",
-							item.id === activeId
-								? "bg-accent-2-soft font-medium text-accent-2"
-								: "text-fg-muted hover:bg-surface hover:text-fg",
-						)}
-					>
-						{item.icon && (
-							<span
-								className={cn(
-									"shrink-0",
-									item.id === activeId ? "text-accent-2" : "text-fg-subtle",
-								)}
-							>
-								{item.icon}
-							</span>
-						)}
-						{item.label}
-					</button>
-				))}
+				{items.map((item) => {
+					const Item = item.href ? "a" : "button";
+					return (
+						<Item
+							key={item.id}
+							href={item.href}
+							type={item.href ? undefined : "button"}
+							onClick={() => {
+								if (!item.href) onSelect?.(item.id);
+								setNavOpen(false);
+							}}
+							className={cn(
+								"flex min-h-11 w-full items-center gap-2 rounded-md px-2 py-1 text-left text-sm transition-colors lg:min-h-0",
+								item.id === activeId
+									? "bg-accent-2-soft font-medium text-accent-2"
+									: "text-fg-muted hover:bg-surface hover:text-fg",
+							)}
+						>
+							{item.icon && (
+								<span
+									className={cn(
+										"shrink-0",
+										item.id === activeId ? "text-accent-2" : "text-fg-subtle",
+									)}
+								>
+									{item.icon}
+								</span>
+							)}
+							{item.label}
+						</Item>
+					);
+				})}
 			</nav>
 		</>
 	);

@@ -5,6 +5,7 @@ import {
 } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
 import { useMutation } from "@tanstack/react-query";
 import { useRef, useState, useSyncExternalStore } from "react";
+import { wrapHttpFailure } from "../lib/api";
 import {
 	type AttachmentTransport,
 	ComposeAttachmentController,
@@ -18,11 +19,19 @@ const putFile = (
 	file: File,
 	signal: AbortSignal,
 ): Promise<void> =>
-	fetch(uploadUrl, { method: "PUT", body: file, signal }).then((response) => {
-		if (!response.ok) {
-			throw new Error(`the server answered ${response.status}`);
-		}
-	});
+	fetch(uploadUrl, { method: "PUT", body: file, signal }).then(
+		async (response) => {
+			if (!response.ok) {
+				const text = await response.text();
+				const body = response.headers
+					.get("content-type")
+					?.includes("application/json")
+					? JSON.parse(text)
+					: { message: text };
+				throw wrapHttpFailure(body, response.status);
+			}
+		},
+	);
 
 interface UseComposeAttachmentsOptions {
 	ensureDraft: () => Promise<DraftForAttachment>;

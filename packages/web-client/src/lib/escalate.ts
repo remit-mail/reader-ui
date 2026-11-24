@@ -8,6 +8,7 @@ export const escalate = (error: unknown): void => {
 	const runtime = getOfflineRuntime();
 	if (runtime) {
 		runtime.sessionUnverified();
+		if (navigator.onLine) reportSignedOut();
 		return;
 	}
 	reportSignedOut();

@@ -9,5 +9,14 @@
     "dismiss": "Installationsoption ausblenden",
     "hidden": "Die Installationsoption ist auf diesem Gerät ausgeblendet.",
     "restore": "Installationsoption wieder anzeigen"
+  },
+  "offlineStorage": {
+    "usage": "Heruntergeladene E-Mails: {{usage}} MiB belegt",
+    "remove": "Downloads entfernen",
+    "startupFailed": "Heruntergeladene E-Mails konnten nicht geöffnet werden. Entfernen Sie die Downloads auf diesem Gerät, um die App erneut zu öffnen.",
+    "removeAndReload": "Downloads entfernen und neu laden",
+    "failed": "Downloads konnten nicht aktualisiert werden",
+    "removeFailed": "Downloads konnten nicht entfernt werden. Versuchen Sie es erneut.",
+    "continueReading": "Heruntergeladene E-Mails weiterlesen"
   }
 }

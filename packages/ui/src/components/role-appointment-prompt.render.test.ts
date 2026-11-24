@@ -214,12 +214,12 @@ describe("RoleAppointmentPrompt", () => {
 	it("keeps the picker and the selection through a failed appointment", () => {
 		const html = render({
 			selectedId: "mb-prullenbak",
-			phase: { kind: "appoint-failed", cause: "generic" },
+			phase: {
+				kind: "appoint-failed",
+				message: "The mail server refused the folder appointment.",
+			},
 		});
-		assert.match(
-			html,
-			/Couldn&#x27;t set that folder as Trash\. Nothing has been deleted\. Please try again\./,
-		);
+		assert.match(html, /The mail server refused the folder appointment\./);
 		assert.match(html, /Set as Trash and delete 12 messages/);
 		assert.match(html, /role="alert"/);
 	});

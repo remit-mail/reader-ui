@@ -28,7 +28,7 @@ import { TelemetryContext } from "../lib/telemetry-context";
 import { installThemeSync } from "../lib/theme";
 import { createAppRouter } from "../router";
 import { getRuntimeConfig } from "../runtime-config";
-import { type SettingsSlot, SettingsSlotsProvider } from "../settings-slots";
+import { SettingsProvider, type SettingsSlot } from "../settings-slots";
 import "../lib/i18n";
 import "../index.css";
 import { installPwaBuildObservation } from "../lib/client";
@@ -40,6 +40,8 @@ export interface MountOptions {
 	offline?: OfflineOptions;
 	/** Settings sections the host adds, each at `/settings/<id>`. */
 	settingsSlots?: SettingsSlot[];
+	/** Host People administration URL, replacing the self-host People panel. */
+	peopleDestinationUrl?: string;
 	/** Element to mount into. Defaults to `#root`. */
 	rootElementId?: string;
 }
@@ -54,6 +56,7 @@ export const mountApp = ({
 	authProvider,
 	offline,
 	settingsSlots = [],
+	peopleDestinationUrl,
 	rootElementId = "root",
 }: MountOptions): void => {
 	installConsoleErrorCatcher();
@@ -125,7 +128,7 @@ export const mountApp = ({
 			<TelemetryContext.Provider value={telemetry}>
 				<QueryClientProvider client={queryClient}>
 					<AuthProviderProvider value={authProvider}>
-						<SettingsSlotsProvider value={settingsSlots}>
+						<SettingsProvider value={{ settingsSlots, peopleDestinationUrl }}>
 							<InstallProvider>
 								<Provider>
 									{offlineRuntime ? (
@@ -145,7 +148,7 @@ export const mountApp = ({
 										)}
 								</Provider>
 							</InstallProvider>
-						</SettingsSlotsProvider>
+						</SettingsProvider>
 					</AuthProviderProvider>
 				</QueryClientProvider>
 			</TelemetryContext.Provider>

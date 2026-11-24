@@ -3,6 +3,7 @@ import {
 	SMTP_MISSING_MESSAGE,
 } from "@remit/ui";
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { HttpResponse, http } from "msw";
 import { expect, userEvent, waitFor, within } from "storybook/test";
 import { AppStory } from "../../mocks/story-frame/AppStory";
 import {
@@ -19,6 +20,7 @@ import {
 	withoutSmtp,
 } from "../../mocks/story-frame/compose-world";
 import { mailHandlers } from "../../mocks/story-frame/mail-handlers";
+import { NOW } from "../../mocks/story-frame/mail-world";
 
 const world = composeWorld();
 const phone = { viewport: { value: "mobile", isRotated: false } };
@@ -417,5 +419,49 @@ export const PhoneSavedDraftClosesWithoutPrompt: Story = {
 			expect(page().queryByTestId("compose-body-plain")).toBeNull(),
 		);
 		await expect(page().queryByText("Discard draft?")).toBeNull();
+	},
+};
+
+export const UploadRefused: Story = {
+	args: { url: `/mail/${INBOX}/compose/out-plain` },
+	parameters: {
+		msw: {
+			handlers: [
+				http.post("/api/outbox/:outboxMessageId/attachments", ({ params }) =>
+					HttpResponse.json({
+						outboxAttachmentId: "attachment-1",
+						outboxMessageId: params.outboxMessageId,
+						filename: "note.txt",
+						contentType: "text/plain",
+						sizeBytes: 4,
+						contentId: "file-1",
+						uploadUrl: new URL("/story-upload", window.location.origin).href,
+						uploadExpiresAt: NOW + 900000,
+					}),
+				),
+				http.put("/story-upload", () =>
+					HttpResponse.json(
+						{ message: "The upload size does not match the reserved size." },
+						{ status: 400 },
+					),
+				),
+				...mailHandlers(composeWorld()),
+			],
+		},
+	},
+	play: async ({ canvasElement }) => {
+		const canvas = within(canvasElement);
+		const editor = await canvas.findByTestId("compose-body-plain");
+		await waitFor(() => expect(editor).toHaveValue(PLAIN_DRAFT));
+		await canvas.findByRole("button", { name: "Attach files" });
+		await userEvent.upload(
+			canvas.getByTestId("compose-attach-input"),
+			new File(["note"], "note.txt", { type: "text/plain" }),
+		);
+		await expect(
+			await canvas.findByText(
+				/The upload size does not match the reserved size/,
+			),
+		).toBeVisible();
 	},
 };

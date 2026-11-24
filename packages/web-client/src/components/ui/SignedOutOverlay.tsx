@@ -1,7 +1,9 @@
-import { useModalFocus, useOverlayScope } from "@remit/ui";
+import { Button, useModalFocus, useOverlayScope } from "@remit/ui";
 import { LogIn } from "@remit/ui/icons";
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useAuthProvider } from "../../auth/provider";
+import { getOfflineRuntime } from "../../lib/offline-runtime";
 import {
 	isSignedOut,
 	resetSignedOut,
@@ -17,6 +19,7 @@ const SIGN_IN_CLASS =
  * in renews authentication without revoking the login session.
  */
 export function SignedOutOverlay() {
+	const { t } = useTranslation("common", { useSuspense: false });
 	const [open, setOpen] = useState(isSignedOut);
 	const { reauthenticate } = useAuthProvider();
 	const dialogRef = useRef<HTMLDivElement>(null);
@@ -56,6 +59,14 @@ export function SignedOutOverlay() {
 					<LogIn className="size-4" aria-hidden="true" />
 					Sign in
 				</button>
+				{getOfflineRuntime() && (
+					<Button variant="ghost" onClick={resetSignedOut}>
+						{t(
+							"offlineStorage.continueReading",
+							"Continue reading downloaded mail",
+						)}
+					</Button>
+				)}
 			</div>
 		</div>
 	);
