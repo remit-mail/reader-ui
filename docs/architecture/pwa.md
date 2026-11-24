@@ -7,8 +7,8 @@ link. Manifest id, start URL and scope stay `/`; the Vite base must be `/`.
 `updateMode: "managed"` still disables the self-host updater UI.
 
 The packed preset points `injectManifest` at the compiled worker beside the
-plugin. `injectManifest` builds one
-root `/sw.js` without imports. Registration is manual in `mountApp`, with scope
+plugin and builds a single, self-contained `/sw.js` at the root.
+Registration is manual in `mountApp`, with scope
 `/` and no plugin reload code. The runtime config is a Rollup asset, emitted
 before precache generation. Hosts that copy runtime assets after building must
 move that work to the awaited `pwa.beforePrecache(outDir)` hook. Every output
@@ -250,9 +250,11 @@ The worker uses the generated GET operations for accounts, mailboxes, the latest
 page of each account's appointed Inbox and message descriptions. Each run
 attempts up to twenty uncached candidates. Requests are sequential, the 10 MiB
 response budget includes metadata, and all work shares a thirty-second deadline.
-Bodies whose advertised size exceeds the full cap are skipped. The worker
-stops when its remaining budget is spent. The next event resumes after the
-last attempted candidate and wraps around to revisit deferred mail. API
+Bodies whose advertised size exceeds the full cap are skipped. At the candidate
+cap, the next event resumes after the last attempt. At the byte or time limit,
+the next event starts with the following account. Account-local mailbox and
+Inbox failures advance the cursor and let the current run continue. The cursor
+wraps around to revisit deferred mail. API
 responses need `X-Remit-Partition`, and body responses use U2's MIME and provenance
 checks. An expired content signature renews the description once.
 

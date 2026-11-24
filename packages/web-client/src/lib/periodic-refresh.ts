@@ -163,14 +163,17 @@ export class PeriodicBudget {
 	async read(response: Response): Promise<Response> {
 		const reader = response.body?.getReader();
 		const chunks: Uint8Array<ArrayBuffer>[] = [];
+		let readable = true;
 		try {
 			while (reader) {
 				const { value, done } = await reader.read().catch((cause: unknown) => {
+					readable = false;
 					this.check();
 					throw new TransportFailure("Background body transport failed", {
 						cause,
 					});
 				});
+				readable = !done;
 				this.check();
 				if (done) break;
 				this.bytes += value.byteLength;
@@ -178,7 +181,11 @@ export class PeriodicBudget {
 				chunks.push(value);
 			}
 		} finally {
-			await reader?.cancel();
+			if (reader) {
+				// The stream can error after the last read. Preserve the run failure.
+				if (readable) await reader.cancel().catch(() => undefined);
+				reader.releaseLock();
+			}
 		}
 		return new Response(new Blob(chunks), {
 			status: response.status,
@@ -376,36 +383,22 @@ async function runPeriodicRefresh(
 				if (count >= PERIODIC_MAX_MESSAGES) return;
 				count++;
 				lastAttempted = { accountId, messageId };
-				let description = await describe();
-				if (!description) continue;
-				let downloaded: boolean;
-				try {
-					downloaded = await downloadBody(
-						pickRenderablePart(description.data.bodyParts),
-					);
-				} catch (error) {
-					if (!(error instanceof SignedLinkExpired)) throw error;
-					description = await describe();
-					if (!description) continue;
-					downloaded = await downloadBody(
-						pickRenderablePart(description.data.bodyParts),
-					).catch((retryError: unknown) => {
-						if (retryError instanceof SignedLinkExpired) return false;
-						throw retryError;
-					});
+				for (let pass = 0; pass < 2; pass++) {
+					const description = await describe();
+					if (!description) break;
+					try {
+						if (
+							await downloadBody(pickRenderablePart(description.data.bodyParts))
+						)
+							client.setQueryData(key, description.data, {
+								updatedAt: description.dataUpdatedAt,
+							});
+						break;
+					} catch (error) {
+						if (!(error instanceof SignedLinkExpired)) throw error;
+					}
 				}
-				if (!downloaded) continue;
-				client.setQueryData(key, description.data, {
-					updatedAt: description.dataUpdatedAt,
-				});
 			}
-		};
-		const deferAccount = (error: unknown) => {
-			if (
-				!(error instanceof ResponseFailure || error instanceof TransportFailure)
-			)
-				throw error;
-			accountWarning ??= error.message;
 		};
 		let wrapped: readonly { messageId: string }[] = [];
 		for (
@@ -416,6 +409,17 @@ async function runPeriodicRefresh(
 			const account = accounts[(start + offset) % accounts.length];
 			activeAccountId = account.accountId;
 			const path = { accountId: account.accountId };
+			const deferAccount = (error: unknown) => {
+				if (
+					!(
+						error instanceof ResponseFailure ||
+						error instanceof TransportFailure
+					)
+				)
+					throw error;
+				accountWarning ??= error.message;
+				lastAttempted = { ...path, advanceAccount: true };
+			};
 			const mailboxes = await mailboxOperationsListMailboxes({ ...get, path })
 				.then((result) => result.data)
 				.catch(deferAccount);
@@ -496,15 +500,23 @@ async function runPeriodicRefresh(
 			(error: unknown) => ({ ok: false, error }) as const,
 		);
 		if (!outcome.ok && outcome.error instanceof SessionRequired) {
+			const failures = flushResult.ok ? [] : [flushResult.error];
+			const report = (error: unknown) => {
+				failures.push(error);
+			};
 			await commitStatus(async (current) => {
-				await writePeriodicStatus(current, { kind: "login-required" });
-				await stopPeriodicRefresh(registration, false);
-				if (!flushResult.ok)
-					await writeOfflineRecord(
-						periodicWarningKey(partition),
-						periodicFailureWarning(flushResult.error),
-					);
+				await writePeriodicStatus(current, { kind: "login-required" }).catch(
+					report,
+				);
+				await stopPeriodicRefresh(registration, false).catch(report);
 			});
+			if (failures.length)
+				await commit(() =>
+					writeOfflineRecord(
+						periodicWarningKey(partition),
+						failures.map(periodicFailureWarning).join(". "),
+					),
+				);
 			return;
 		}
 		const result = flushResult.ok ? outcome : flushResult;

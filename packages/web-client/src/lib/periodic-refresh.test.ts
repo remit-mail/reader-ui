@@ -32,3 +32,22 @@ test("a metadata spike stops the run without marking the body oversized", async 
 		quiet.close();
 	}
 });
+
+test("a deadline keeps its run limit when the response stream errors", async () => {
+	const budget = new PeriodicBudget("tenant");
+	const body = new ReadableStream({
+		start(controller) {
+			budget.controller.signal.addEventListener("abort", () =>
+				controller.error(budget.controller.signal.reason),
+			);
+		},
+	});
+	try {
+		const reading = budget.read(new Response(body));
+		budget.controller.abort();
+		await assert.rejects(reading, RunLimit);
+		assert.equal(body.locked, false);
+	} finally {
+		budget.close();
+	}
+});

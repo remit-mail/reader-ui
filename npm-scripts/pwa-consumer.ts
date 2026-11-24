@@ -69,6 +69,7 @@ let briefProbe = true;
 let failingPeriodicAccount = false;
 let periodicInbox: { ids: string[]; continuationToken?: string } | undefined;
 const periodicDescriptions: string[] = [];
+const periodicAccountRequests: string[] = [];
 const periodicSubjects: Record<string, string> = {
 	"saved-first": "Saved first page",
 	"saved-tail": "Saved older page",
@@ -178,6 +179,8 @@ const server = createServer(async (request, response) => {
 			response.end();
 		} else if (path === "/content/failed-mail/body") {
 			response.writeHead(500).end();
+		} else if (path === "/content/background-mail/expired-body") {
+			response.writeHead(403, { "x-remit-403-reason": "expired" }).end();
 		} else if (path === "/content/held-mail/body") {
 			const held = heldPeriodicBody;
 			held?.requested();
@@ -254,6 +257,8 @@ const server = createServer(async (request, response) => {
 		);
 	} else if (path.startsWith("/api/")) {
 		response.setHeader("Content-Type", "application/json");
+		if (failingPeriodicAccount && path.endsWith("/mailboxes"))
+			periodicAccountRequests.push(path);
 		if (!path.startsWith("/api/auth/") && path !== "/api/session")
 			response.setHeader("X-Remit-Partition", tenant);
 		if (path === "/api/session") {
@@ -385,7 +390,13 @@ const server = createServer(async (request, response) => {
 									!messageId.startsWith("pending-")
 								? [
 										part(messageId, "body", "TEXT", "HTML", {
-											contentUrl: `/content/${messageId}/body`,
+											contentUrl:
+												messageId === "background-mail" &&
+												!contentRequests.includes(
+													"/content/background-mail/expired-body",
+												)
+													? "/content/background-mail/expired-body"
+													: `/content/${messageId}/body`,
 											...(messageId === "oversized-mail"
 												? { sizeOctets: 10 * 1024 * 1024 + 1 }
 												: {}),
@@ -992,6 +1003,7 @@ try {
 		},
 		contentRequests,
 		descriptionRequests: periodicDescriptions,
+		accountRequests: periodicAccountRequests,
 		failedAccount: (fail) => {
 			failingPeriodicAccount = fail;
 		},

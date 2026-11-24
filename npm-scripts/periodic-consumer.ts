@@ -7,11 +7,12 @@ interface PeriodicControls {
 	session(status: number | "malformed"): void;
 	contentRequests: string[];
 	descriptionRequests: string[];
+	accountRequests: string[];
 	failedAccount(fail: boolean): void;
 }
 
-function refresh(worker: Worker): Promise<void> {
-	return worker.evaluate(async () => {
+function refresh(worker: Worker, failSnapshot = false): Promise<void> {
+	return worker.evaluate(async (failSnapshot) => {
 		const event = new Event("periodicsync");
 		let completion: Promise<unknown> | undefined;
 		Object.defineProperties(event, {
@@ -22,10 +23,24 @@ function refresh(worker: Worker): Promise<void> {
 				},
 			},
 		});
-		self.dispatchEvent(event);
-		if (!completion) throw new Error("Periodic event was not handled");
-		await completion;
-	});
+		const put = IDBObjectStore.prototype.put;
+		if (failSnapshot)
+			IDBObjectStore.prototype.put = function (value, key) {
+				if (typeof key === "string" && key.startsWith("queries:"))
+					throw new DOMException(
+						"Snapshot quota exhausted",
+						"QuotaExceededError",
+					);
+				return put.call(this, value, key);
+			};
+		try {
+			self.dispatchEvent(event);
+			if (!completion) throw new Error("Periodic event was not handled");
+			await completion;
+		} finally {
+			if (failSnapshot) IDBObjectStore.prototype.put = put;
+		}
+	}, failSnapshot);
 }
 
 function waitForHeldBody(requested: Promise<void>, completion: Promise<void>) {
@@ -90,6 +105,8 @@ export async function testPeriodicReading(
 							);
 						},
 						async unregister() {
+							if (sessionStorage.getItem("fail-periodic-unregister"))
+								throw new Error("Browser refused to unregister the tag");
 							localStorage.removeItem("periodic-registration");
 						},
 					},
@@ -182,12 +199,13 @@ export async function testPeriodicReading(
 			controls.descriptionRequests
 				.slice(beforeDescriptions)
 				.filter((id) => id === "background-mail").length,
-			1,
+			2,
 		);
 		assert.deepEqual(controls.contentRequests.slice(before), [
 			"/content/unavailable-202/body",
 			"/content/unavailable-403/body",
 			"/content/unavailable-404/body",
+			"/content/background-mail/expired-body",
 			"/content/background-mail/body",
 			"/content/failed-mail/body",
 		]);
@@ -276,10 +294,17 @@ export async function testPeriodicReading(
 		);
 		await assertDownloaded("after-pending");
 
-		controls.messages(["after-account-error"]);
 		controls.failedAccount(true);
 		try {
+			controls.messages([]);
 			await refresh(worker);
+			const beforeAccount = controls.accountRequests.length;
+			controls.messages(["after-account-error"]);
+			await refresh(worker);
+			assert.deepEqual(controls.accountRequests.slice(beforeAccount), [
+				"/api/accounts/resumed-account/mailboxes",
+				"/api/accounts/failed-account/mailboxes",
+			]);
 			await assertDownloaded("after-account-error");
 		} finally {
 			controls.failedAccount(false);
@@ -310,13 +335,13 @@ export async function testPeriodicReading(
 		await reverified.close();
 		await context.setOffline(false);
 
-		controls.session(401);
-		const beforeExpired = controls.contentRequests.length;
+		const refused = controls.holdBody(401);
+		const refusedRun = refresh(worker, true);
 		try {
-			await refresh(worker);
-			assert.equal(controls.contentRequests.length, beforeExpired);
+			await waitForHeldBody(refused.requested, refusedRun);
 		} finally {
-			controls.session(200);
+			refused.release();
+			await refusedRun;
 		}
 		await context.setOffline(true);
 		const expired = await open();
@@ -352,15 +377,22 @@ export async function testPeriodicReading(
 						),
 						null,
 					);
-					await optedIn.close();
 					await disabled.close();
 				} else {
+					const witness = await open();
+					await witness.waitForFunction(
+						() => !!window.pwaTest.offline()?.state.verified,
+					);
 					await optedIn.evaluate(async () => {
 						const runtime = window.pwaTest.offline();
 						if (!runtime) throw new Error("Offline runtime unavailable");
+						sessionStorage.setItem("fail-periodic-unregister", "yes");
 						await runtime.removeDownloads();
 					});
-					await optedIn.close();
+					await witness.waitForFunction(
+						() => !window.pwaTest.offline()?.state.partition,
+					);
+					await witness.close();
 					const rebound = await open("/downloads?periodic=off");
 					await rebound.waitForFunction(
 						() => !!window.pwaTest.offline()?.state.verified,
@@ -381,6 +413,7 @@ export async function testPeriodicReading(
 			if (action === "opt-out") await retained.waitFor();
 			else assert.equal(await retained.count(), 0);
 			await after.close();
+			await optedIn.close();
 			await context.setOffline(false);
 		}
 		await context.close();

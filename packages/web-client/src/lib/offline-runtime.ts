@@ -273,7 +273,7 @@ export class OfflineRuntime {
 			this.revoked = true;
 			// Keep the error-banner owner mounted until the wipe commits.
 			this.update({ verified: false });
-			await wipePeriodicDownloads();
+			await wipePeriodicDownloads(reportPeriodicWarning);
 			this.channel.postMessage("wipe");
 			await this.revokeMemory();
 			navigator.serviceWorker?.controller?.postMessage({

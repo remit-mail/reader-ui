@@ -204,5 +204,13 @@ export async function disablePeriodicRefresh(
 	);
 }
 
-export const wipePeriodicDownloads = (): Promise<void> =>
-	wipeOffline(() => unregisterBrowserTag().catch(() => {}));
+export const wipePeriodicDownloads = (
+	reportWarning: (reason: string) => void,
+): Promise<void> =>
+	wipeOffline(() =>
+		unregisterBrowserTag().catch(() =>
+			reportWarning(
+				"Periodic downloads were removed but the browser tag could not be unregistered",
+			),
+		),
+	);
