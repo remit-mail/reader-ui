@@ -1,4 +1,11 @@
+import { peopleOperationsListPeopleQueryKey } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
+import {
+	peopleOperationsCreatePasswordReset,
+	peopleOperationsSignOutPerson,
+	peopleOperationsUpdatePerson,
+} from "@remit/api-http-client/sdk.gen.ts";
 import type {
+	RemitImapPeopleListResponse,
 	RemitImapPerson,
 	RemitImapStepUpAction,
 } from "@remit/api-http-client/types.gen.ts";
@@ -10,12 +17,12 @@ import {
 	DropdownMenuSeparator,
 } from "@remit/ui";
 import { Ellipsis } from "@remit/ui/icons";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { usePeople } from "../../../hooks/usePeople";
-import { usePersonAction } from "../../../hooks/usePersonAction";
 import {
-	classifyPeopleFailure,
 	formatPersonDate,
+	isPeopleSignedOut,
 	peopleFailureReason,
 	peopleReportHref,
 	personActionFailedTitle,
@@ -189,7 +196,54 @@ function PeopleTable({
 
 export function PeoplePanel() {
 	const people = usePeople();
-	const mutation = usePersonAction();
+	const queryClient = useQueryClient();
+	const mutation = useMutation({
+		gcTime: 0,
+		mutationFn: async ({
+			action,
+			person,
+		}: {
+			action: RemitImapStepUpAction;
+			person: RemitImapPerson;
+		}) => {
+			const path = { userId: person.userId };
+			if (action === "SignOut") {
+				const { data } = await peopleOperationsSignOutPerson({
+					path,
+					throwOnError: true,
+				});
+				return { person: data, resetUrl: undefined };
+			}
+			if (action === "ResetPassword") {
+				const { data } = await peopleOperationsCreatePasswordReset({
+					path,
+					throwOnError: true,
+				});
+				return { person: data.person, resetUrl: data.resetUrl };
+			}
+			const { data } = await peopleOperationsUpdatePerson({
+				path,
+				body: {
+					status: action === "Disable" ? "Disabled" : "Active",
+				},
+				throwOnError: true,
+			});
+			return { person: data, resetUrl: undefined };
+		},
+		onSuccess: ({ person }) => {
+			queryClient.setQueryData<RemitImapPeopleListResponse>(
+				peopleOperationsListPeopleQueryKey(),
+				(list) =>
+					list
+						? {
+								people: list.people.map((candidate) =>
+									candidate.userId === person.userId ? person : candidate,
+								),
+							}
+						: list,
+			);
+		},
+	});
 	const [failure, setFailure] = useState<ActionFailure | null>(null);
 	const [resetLink, setResetLink] = useState<ResetLink | null>(null);
 
@@ -209,7 +263,7 @@ export function PeoplePanel() {
 	}
 
 	if (people.isError) {
-		if (classifyPeopleFailure(people.error).kind === "signedOut") return null;
+		if (isPeopleSignedOut(people.error)) return null;
 		return (
 			<Banner tone="danger">
 				<p className="font-medium">{LIST_FAILED}.</p>
@@ -241,7 +295,7 @@ export function PeoplePanel() {
 						setResetLink({ email: person.email, resetUrl: result.resetUrl });
 				},
 				onError: (error) => {
-					if (classifyPeopleFailure(error).kind === "signedOut") {
+					if (isPeopleSignedOut(error)) {
 						reportSignedOut();
 						return;
 					}
