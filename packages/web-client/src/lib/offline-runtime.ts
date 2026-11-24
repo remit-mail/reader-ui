@@ -18,9 +18,11 @@ import {
 	type Partition,
 	persistQueries,
 	readContent,
+	readSession,
 	requirePartition,
 	retainedReadingQuery,
 	samePartition,
+	storageLock,
 	storeContent,
 	wipeOffline,
 	writeOfflineRecord,
@@ -29,11 +31,8 @@ import { isUpdatePrepared, registerUpdateBlocker } from "./pwa-update";
 import { reportSignedOut, resetSignedOut } from "./signed-out";
 
 export interface OfflineOptions {
-	/** Fresh authenticated no-store request. null means authentication is required;
-	 * reject only for transport/server failures. Never use a cached config as identity. */
-	verifySession(): Promise<{ partitionKey: string } | null>;
+	sessionUrl: string;
 	reauthenticate(): void;
-	sessionUrl?: string;
 }
 export interface OfflineState {
 	partition?: Partition;
@@ -119,16 +118,25 @@ export class OfflineRuntime {
 		});
 	}
 	verify = (): Promise<boolean> => {
-		this.verifying ??= this.verifyNow().finally(() => {
-			this.verifying = undefined;
-		});
+		this.verifying ??= this.verifyNow()
+			.then((verified) => {
+				const { partition } = this.state;
+				if (verified && partition)
+					void syncBackgroundRefresh(partition, this.options.sessionUrl).catch(
+						this.report,
+					);
+				return verified;
+			})
+			.finally(() => {
+				this.verifying = undefined;
+			});
 		return this.verifying;
 	};
 	private async verifyNow(): Promise<boolean> {
 		if (!navigator.onLine || this.revoked || isUpdatePrepared()) return false;
 		const wasVerified = this.state.verified;
 		this.update({ verified: false });
-		const epoch = await commitOffline(undefined, async () => {
+		const epoch = await storageLock(async () => {
 			const existing = await offlineRecord<string>("epoch");
 			if (existing) return existing;
 			const epoch = crypto.randomUUID();
@@ -144,15 +152,13 @@ export class OfflineRuntime {
 			await this.revokeMemory();
 			return false;
 		}
-		const session = await this.options.verifySession();
+		const session = await readSession(this.options.sessionUrl);
 		if (!session || this.revoked) {
 			if (!session && !this.revoked && navigator.onLine) reportSignedOut();
 			return false;
 		}
 		const unchanged = await offlineRecord<Partition>("partition");
 		if (observed && !samePartition(unchanged, observed)) return false;
-		if (!session.partitionKey)
-			throw new Error("Session partition key is empty");
 		const previous = await offlineRecord<Partition>("partition");
 		if (previous && previous.key !== session.partitionKey) {
 			// A fresh document also isolates late mutation rollback callbacks that
@@ -161,7 +167,7 @@ export class OfflineRuntime {
 			this.options.reauthenticate();
 			return false;
 		}
-		const partition = await commitOffline(undefined, async () => {
+		const partition = await storageLock(async () => {
 			if ((await offlineRecord<string>("epoch")) !== epoch)
 				throw new Error("Downloads were removed while verifying identity");
 			const current = await offlineRecord<Partition>("partition");
@@ -182,9 +188,6 @@ export class OfflineRuntime {
 		if (this.revoked) return false;
 		this.update({ partition, verified: true });
 		resetSignedOut();
-		void syncBackgroundRefresh(partition, this.options.sessionUrl).catch(
-			this.report,
-		);
 		if (!wasVerified) window.dispatchEvent(new Event("remit:session-verified"));
 		return true;
 	}
@@ -226,9 +229,12 @@ export class OfflineRuntime {
 		await requirePartition(partition);
 		return partition;
 	}
-	private async commit<T>(work: () => Promise<T>): Promise<T> {
+	private async commit<T>(
+		partition: Partition,
+		work: () => Promise<T>,
+	): Promise<T> {
 		try {
-			return await work();
+			return await commitOffline(partition, work);
 		} catch (error) {
 			this.report(error);
 			if (error instanceof DOMException)
@@ -236,14 +242,14 @@ export class OfflineRuntime {
 			throw error;
 		}
 	}
-	async write<T>(work: () => Promise<T>): Promise<T> {
+	async write<T>(partition: Partition, work: () => Promise<T>): Promise<T> {
 		if (isUpdatePrepared())
 			throw new OfflineUnavailableError(
 				"App update in progress; download was not saved",
 			);
 		this.pending++;
 		try {
-			const result = await this.commit(work);
+			const result = await this.commit(partition, work);
 			void this.storage(!this.persistenceRequested).catch(this.report);
 			return result;
 		} finally {
@@ -253,7 +259,7 @@ export class OfflineRuntime {
 	persister(partition: Partition): Persister {
 		return {
 			persistClient: (client) =>
-				this.write(() => persistQueries(partition, client)),
+				this.write(partition, () => persistQueries(partition, client)),
 			restoreClient: () =>
 				commitOffline(partition, () =>
 					offlineRecord<PersistedClient>(`queries:${partition.generation}`),
@@ -276,14 +282,16 @@ export class OfflineRuntime {
 		if (!partition)
 			throw new OfflineUnavailableError("No remembered offline identity");
 		const cacheKey = contentCacheKey(url);
-		const cached = await this.commit(() =>
-			commitOffline(partition, () => readContent(partition, cacheKey, mime)),
+		const cached = await this.commit(partition, () =>
+			readContent(partition, cacheKey, mime),
 		);
 		if (cached && !this.refreshing) return cached;
 		await this.authorizeNetwork("GET");
 		const response = await network();
 		if (await admitContent(response, mime, partition)) {
-			await this.write(() => storeContent(partition, cacheKey, mime, response));
+			await this.write(partition, () =>
+				storeContent(partition, cacheKey, mime, response),
+			);
 		} else if (response.status === 200) {
 			throw new OfflineUnavailableError(
 				"Mail part was not saved: unexpected MIME, tenant, redirect, HTML shell or no-store response",
@@ -301,18 +309,14 @@ export class OfflineRuntime {
 		if (!partition)
 			throw new OfflineUnavailableError("No remembered offline identity");
 		const key = `external-image:${partition.generation}:${JSON.stringify(["external-image", resolvedRemoteUrl])}`;
-		const saved = await this.commit(() =>
-			commitOffline(partition, () => offlineRecord<Blob>(key)),
-		);
+		const saved = await this.commit(partition, () => offlineRecord<Blob>(key));
 		if (saved && !this.refreshing) return saved;
 		await this.authorizeNetwork("POST");
 		const bytes = await externalImageBytes(
 			await requestExternalImage(proxyUrl, resolvedRemoteUrl),
 			partition,
 		);
-		await this.write(() =>
-			commitOffline(partition, () => writeOfflineRecord(key, bytes)),
-		);
+		await this.write(partition, () => writeOfflineRecord(key, bytes));
 		await requirePartition(partition);
 		return bytes;
 	}

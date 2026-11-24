@@ -6,7 +6,7 @@ keeps its plugins, public directory, installation icons and credentialed manifes
 link. Manifest id, start URL and scope stay `/`; the Vite base must be `/`.
 `updateMode: "managed"` still disables the self-host updater UI.
 
-The packed package includes the TypeScript worker. `injectManifest` builds one
+The packed package includes the compiled worker. `injectManifest` builds one
 root `/sw.js` without imports. Registration is manual in `mountApp`, with scope
 `/` and no plugin reload code. The runtime config is a Rollup asset, emitted
 before precache generation. Hosts that copy runtime assets after building must
@@ -87,7 +87,7 @@ or change a host.
 
 # Durable reading (U2)
 
-Enable `mountApp({ authProvider, offline: { verifySession, reauthenticate } })`
+Enable `mountApp({ authProvider, offline: { sessionUrl: "/api/session", reauthenticate } })`
 only with the PWA preset enabled. Auth providers may expose `Provider` for
 identity context and `SessionGate` for online sign-in; `Shell` remains their
 legacy composition. The identity provider always mounts. The offline boundary
@@ -107,12 +107,9 @@ have `gcTime: Infinity`, and persistence has `maxAge: Infinity`.
 The host contract for C2 is:
 
 - Implement authenticated `GET /api/session` with `Cache-Control: no-store` and
-  JSON `{ "partitionKey": "<opaque account-config ID>" }`. `verifySession` must
-  make a fresh same-origin fetch with `cache: "no-store"`, `credentials:
-  "same-origin"`, `redirect: "manual"` and a bounded timeout. Validate a 200 JSON
-  response before returning that object; return `null` for 401, 403 or an opaque
-  redirect, and reject transport/server failures. Never derive identity from
-  persisted config, a URL, a user-editable email, or a login HTML response.
+  a 200 JSON response with a nonempty `partitionKey`. Return 401, 403 or a
+  redirect when authentication is required. Hosts can import `readSession`
+  from `@remit/web-client/offline` for their Access probe.
 - On successful protected API and `/content/*` responses, set
   `X-Remit-Partition` to the **server-derived** partition that produced the data.
   Never echo a client-supplied tenant. The mail API client boundary checks API
@@ -181,9 +178,8 @@ Unit tests retain only the pure admission and query-retention selectors.
 
 # Periodic refresh (U4)
 
-Hosts opt in by passing `sessionUrl: "/api/session"` alongside `verifySession`
-and `reauthenticate` in `mountApp({ offline: … })`. Use a same-origin runtime
-`apiUrl` and cookie authentication. No Vite preset option is needed.
+Periodic refresh uses the same offline options. Use a same-origin runtime
+`apiUrl` and cookie authentication.
 
 After successful foreground verification, an eligible Chromium installation
 registers `remit-refresh` with a minimum interval of 24 hours. Chromium decides
@@ -194,12 +190,11 @@ device. Removing downloads unregisters the tag and preserves the opt-out.
 Each run verifies the session before reading the newest Inbox page per account.
 It adds message descriptors and renderable bodies to Downloads, leaving saved
 Inbox queries untouched. Writes share the foreground storage lock and stop on
-opt-out or wipe. An expired session unregisters the run's tag if its registration
-is still current.
+opt-out or wipe. A refused session unregisters the tag.
 
 The host must return a no-store 200 JSON session response with a nonempty
-`partitionKey`, or 401, 403 or a redirect when the session expires. The worker
-sends `X-Requested-With: XMLHttpRequest` on its session request so Cloudflare
+`partitionKey`, or 401, 403 or a redirect when the session expires. The shared
+session request sends `X-Requested-With: XMLHttpRequest` so Cloudflare
 Access answers 401 for an expired session. Set
 `X-Remit-Partition` on config, thread, describe and content responses. Content
 can return 202 while fetching or 403 with `x-remit-403-reason: expired` for an

@@ -27,7 +27,7 @@ Object.defineProperty(globalThis, "self", {
 test("account menu awaits exactly one wipe before provider logout", async (t) => {
 	const view = createDomHarness({ viewportWidth: 390 });
 	const runtime = installOfflineRuntime({
-		verifySession: async () => null,
+		sessionUrl: "/api/session",
 		reauthenticate: () => {},
 	});
 	t.after(() => {
@@ -83,7 +83,7 @@ test("account menu awaits exactly one wipe before provider logout", async (t) =>
 test("mobile navigation awaits exactly one wipe before provider logout", async (t) => {
 	const view = createDomHarness({ viewportWidth: 390 });
 	const runtime = installOfflineRuntime({
-		verifySession: async () => null,
+		sessionUrl: "/api/session",
 		reauthenticate: () => {},
 	});
 	t.after(() => {
@@ -145,7 +145,7 @@ test("mobile navigation awaits exactly one wipe before provider logout", async (
 test("delete account awaits exactly one wipe before provider logout", async (t) => {
 	const view = createDomHarness();
 	const runtime = installOfflineRuntime({
-		verifySession: async () => null,
+		sessionUrl: "/api/session",
 		reauthenticate: () => {},
 	});
 	t.after(() => {

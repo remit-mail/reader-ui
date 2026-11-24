@@ -174,36 +174,18 @@ export async function testBackgroundRefresh(
 		await peer.waitForFunction(() => window.pwaTest.offline()?.state.verified);
 		const verify = () =>
 			peer.evaluate(() => window.pwaTest.offline()!.verify());
-		await run({
-			path: "/api/session",
-			async respond(route) {
-				await peer.evaluate(async () =>
-					(await navigator.serviceWorker.ready).periodicSync!.unregister(
-						"remit-refresh",
-					),
-				);
-				await verify();
-				await waitForTag(peer, true);
-				await route.fulfill({ status: 401 });
-			},
-		});
-		await waitForTag(page, true);
-
 		setMessage("late-mail");
 		const beforeOptOut = (await snapshot())?.clientState.queries;
-		await assert.rejects(
-			run({
-				path: "/api/messages/late-mail",
-				async respond(route) {
-					await peer
-						.getByRole("button", { name: "Turn off background refresh" })
-						.click();
-					await peer.getByText("Background refresh is off").waitFor();
-					await route.continue();
-				},
-			}),
-			/Background refresh is off/,
-		);
+		await run({
+			path: "/api/messages/late-mail",
+			async respond(route) {
+				await peer
+					.getByRole("button", { name: "Turn off background refresh" })
+					.click();
+				await peer.getByText("Background refresh is off").waitFor();
+				await route.continue();
+			},
+		});
 		assert.deepEqual((await snapshot())?.clientState.queries, beforeOptOut);
 		assert.equal(
 			await page.evaluate(
@@ -220,7 +202,7 @@ export async function testBackgroundRefresh(
 		});
 		await waitForTag(peer, false);
 		console.log(
-			"Chromium background refresh OK: offline body, unchanged Inbox, 401, opt-out and newer registration.",
+			"Chromium background refresh OK: offline body, unchanged Inbox, 401 and opt-out.",
 		);
 	} finally {
 		await context.close();

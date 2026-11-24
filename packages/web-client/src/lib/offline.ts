@@ -7,4 +7,5 @@ export {
 	OFFLINE_FORMAT,
 	PARTITION_HEADER,
 	type Partition,
+	readSession,
 } from "./offline-store";

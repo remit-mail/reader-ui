@@ -19,8 +19,9 @@ import {
 	persistQueries,
 	type Refresh,
 	readContent,
+	readSession,
 	retainedReadingQuery,
-	samePartition,
+	storageLock,
 	storeContent,
 	validateNetworkPartition,
 	writeOfflineRecord,
@@ -37,20 +38,16 @@ declare global {
 }
 
 export const REFRESH_TAG = "remit-refresh";
-export class LoginRequired extends Error {
-	constructor(readonly observed: { partition: Partition; stamp: string }) {
-		super();
-	}
-}
+declare const self: { registration: ServiceWorkerRegistration };
 
 export const supportsBackgroundRefresh = (): boolean =>
 	"periodicSync" in (globalThis.ServiceWorkerRegistration?.prototype ?? {});
 
 export async function syncBackgroundRefresh(
 	partition: Partition,
-	sessionUrl?: string,
+	sessionUrl: string,
 ) {
-	if (!sessionUrl || !supportsBackgroundRefresh()) return;
+	if (!supportsBackgroundRefresh()) return;
 	const permission = await navigator.permissions.query({
 		name: "periodic-background-sync" as PermissionName,
 	});
@@ -58,12 +55,10 @@ export async function syncBackgroundRefresh(
 	const { periodicSync } = await navigator.serviceWorker.ready;
 	if (!periodicSync) return;
 	await commitOffline(partition, async () => {
-		if ((await offlineRecord<Refresh>("refresh"))?.off) return;
+		if (await offlineRecord<boolean>("refresh-off")) return;
 		await writeOfflineRecord("refresh", {
-			off: false,
 			apiUrl: getRuntimeConfig().apiUrl,
 			sessionUrl,
-			stamp: crypto.randomUUID(),
 		} satisfies Refresh);
 		await periodicSync.register(REFRESH_TAG, { minInterval: 86_400_000 });
 	});
@@ -74,62 +69,35 @@ export async function unregisterBackgroundRefresh() {
 	await registration?.periodicSync?.unregister(REFRESH_TAG);
 }
 
-export function disableBackgroundRefresh(sessionUrl: string) {
-	return commitOffline(undefined, async () => {
-		await writeOfflineRecord("refresh", {
-			apiUrl: getRuntimeConfig().apiUrl,
-			sessionUrl,
-			stamp: crypto.randomUUID(),
-			...(await offlineRecord<Refresh>("refresh")),
-			off: true,
-		} satisfies Refresh);
-		await unregisterBackgroundRefresh();
-	});
-}
-
-export function unregisterIfCurrent(
-	registration: ServiceWorkerRegistration,
-	{ observed: { partition, stamp } }: LoginRequired,
-) {
-	return commitOffline(undefined, async () => {
-		if (
-			samePartition(await offlineRecord<Partition>("partition"), partition) &&
-			(await offlineRecord<Refresh>("refresh"))?.stamp === stamp
-		)
-			await registration.periodicSync?.unregister(REFRESH_TAG);
-	});
+export async function disableBackgroundRefresh() {
+	await storageLock(() => writeOfflineRecord("refresh-off", true));
+	await unregisterBackgroundRefresh();
 }
 
 export async function refreshInBackground() {
-	const { partition, refresh } = await commitOffline(undefined, async () => ({
+	const { partition, refresh, off } = await storageLock(async () => ({
 		partition: await offlineRecord<Partition>("partition"),
 		refresh: await offlineRecord<Refresh>("refresh"),
+		off: await offlineRecord<boolean>("refresh-off"),
 	}));
-	if (!partition || !refresh || refresh.off) return;
-	const loginRequired = new LoginRequired({ partition, stamp: refresh.stamp });
-	const session = await taggedFetch(refresh.sessionUrl, {
-		cache: "no-store",
-		headers: { "X-Requested-With": "XMLHttpRequest" },
-	});
-	if (session.status === 401 || session.status === 403) throw loginRequired;
-	if (
-		session.status !== 200 ||
-		session.headers.get("content-type")?.split(";")[0].trim().toLowerCase() !==
-			"application/json"
-	)
-		throw new Error("Expected a 200 JSON session response");
-	const { partitionKey } = await session.json();
-	if (typeof partitionKey !== "string" || !partitionKey)
-		throw new Error("Session partition key is empty");
-	if (partitionKey !== partition.key) throw loginRequired;
+	if (!partition || !refresh || off) return;
+	const unregister = () =>
+		self.registration.periodicSync?.unregister(REFRESH_TAG);
+	const session = await readSession(refresh.sessionUrl);
+	if (session?.partitionKey !== partition.key) {
+		await unregister();
+		return;
+	}
 
 	const client = createClient({
 		baseUrl: refresh.apiUrl,
 		throwOnError: true,
 		fetch: async (input, init) => {
 			const response = await taggedFetch(input, init);
-			if (response.status === 401 || response.status === 403)
-				throw loginRequired;
+			if (response.status === 401 || response.status === 403) {
+				await unregister();
+				throw new Error(`Background refresh was refused (${response.status})`);
+			}
 			await validateNetworkPartition(response, partition);
 			return response;
 		},
@@ -149,7 +117,9 @@ export async function refreshInBackground() {
 		});
 		messages.push(...data.items);
 	}
-	const queryClient = new QueryClient();
+	const queryClient = new QueryClient({
+		defaultOptions: { queries: { gcTime: Infinity } },
+	});
 	const bodies = [];
 	for (const { messageId } of messages.sort(
 		(a, b) => b.sentDate - a.sentDate,
@@ -166,25 +136,33 @@ export async function refreshInBackground() {
 		const body = pickRenderablePart(data.bodyParts);
 		if (body) bodies.push(body);
 	}
-	const guard = async () => {
-		if ((await offlineRecord<Refresh>("refresh"))?.off)
-			throw new Error("Background refresh is off");
-	};
-	await persistQueries(
-		partition,
-		{
-			buster: PERSIST_BUSTER,
-			timestamp: Date.now(),
-			clientState: dehydrate(queryClient, {
-				shouldDehydrateQuery: retainedReadingQuery,
+	const write = (work: () => Promise<void>) =>
+		commitOffline(partition, async () => {
+			if (await offlineRecord<boolean>("refresh-off")) return false;
+			await work();
+			return true;
+		});
+	if (
+		!(await write(() =>
+			persistQueries(partition, {
+				buster: PERSIST_BUSTER,
+				timestamp: Date.now(),
+				clientState: dehydrate(queryClient, {
+					shouldDehydrateQuery: retainedReadingQuery,
+				}),
 			}),
-		},
-		guard,
-	);
+		))
+	)
+		return;
 	for (const { contentUrl, kind } of bodies) {
 		const mime = kind === "html" ? "text/html" : "text/plain";
 		const cacheKey = contentCacheKey(contentUrl);
-		if (await readContent(partition, cacheKey, mime)) continue;
+		if (
+			await commitOffline(partition, () =>
+				readContent(partition, cacheKey, mime),
+			)
+		)
+			continue;
 		const response = await taggedFetch(contentUrl);
 		if (
 			response.status === 202 ||
@@ -192,9 +170,13 @@ export async function refreshInBackground() {
 				response.headers.get("x-remit-403-reason") === "expired")
 		)
 			continue;
-		if (response.status === 401) throw loginRequired;
+		if (response.status === 401) {
+			await unregister();
+			throw new Error("Background body was refused (401)");
+		}
 		if (!(await admitContent(response, mime, partition)))
 			throw new Error(`Background body was not admitted (${response.status})`);
-		await storeContent(partition, cacheKey, mime, response, guard);
+		if (!(await write(() => storeContent(partition, cacheKey, mime, response))))
+			return;
 	}
 }

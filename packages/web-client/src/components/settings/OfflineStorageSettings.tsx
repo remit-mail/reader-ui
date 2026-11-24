@@ -9,7 +9,7 @@ import {
 	getOfflineRuntime,
 	type OfflineRuntime,
 } from "../../lib/offline-runtime";
-import { offlineRecord, type Refresh } from "../../lib/offline-store";
+import { offlineRecord } from "../../lib/offline-store";
 
 export function OfflineStorageRow({
 	usage,
@@ -54,14 +54,13 @@ export function OfflineStorageSettings() {
 
 function Storage({ runtime }: { runtime: OfflineRuntime }) {
 	const { usage } = useSyncExternalStore(runtime.subscribe, runtime.snapshot);
-	const sessionUrl = runtime.options.sessionUrl;
 	const [refreshOff, setRefreshOff] = useState<boolean>();
 	useEffect(() => {
-		if (sessionUrl && supportsBackgroundRefresh())
-			void offlineRecord<Refresh>("refresh")
-				.then((refresh) => setRefreshOff(!!refresh?.off))
+		if (supportsBackgroundRefresh())
+			void offlineRecord<boolean>("refresh-off")
+				.then((off) => setRefreshOff(off === true))
 				.catch(runtime.report);
-	}, [runtime, sessionUrl]);
+	}, [runtime]);
 	useEffect(() => {
 		void runtime.storage().catch(runtime.report);
 	}, [runtime]);
@@ -70,10 +69,9 @@ function Storage({ runtime }: { runtime: OfflineRuntime }) {
 			usage={usage}
 			refreshOff={refreshOff}
 			onDisableRefresh={() => {
-				if (sessionUrl)
-					void disableBackgroundRefresh(sessionUrl)
-						.then(() => setRefreshOff(true))
-						.catch(runtime.report);
+				void disableBackgroundRefresh()
+					.then(() => setRefreshOff(true))
+					.catch(runtime.report);
 			}}
 			onRemove={() => {
 				void runtime.removeDownloadsAndReload().catch(runtime.report);

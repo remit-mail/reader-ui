@@ -486,7 +486,7 @@ try {
 	);
 	assert.doesNotMatch(
 		await failed.locator("body").innerText(),
-		/Reload after offline support finishes installing/,
+		/Reload after offline support finishes installing|Could not save downloads/,
 	);
 	assert.equal(warnings.length, 1);
 	assert.deepEqual(errors, []);

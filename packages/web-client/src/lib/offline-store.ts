@@ -12,12 +12,38 @@ export interface Partition {
 	epoch: string;
 }
 export interface Refresh {
-	off: boolean;
 	apiUrl: string;
 	sessionUrl: string;
-	stamp: string;
 }
-type Guard = () => Promise<void>;
+
+export async function readSession(
+	url: string,
+): Promise<{ partitionKey: string } | null> {
+	const response = await fetch(url, {
+		cache: "no-store",
+		credentials: "same-origin",
+		redirect: "manual",
+		headers: { "X-Requested-With": "XMLHttpRequest" },
+	});
+	if (
+		response.status === 401 ||
+		response.status === 403 ||
+		response.type === "opaqueredirect"
+	)
+		return null;
+	if (
+		response.status !== 200 ||
+		response.headers.get("content-type")?.split(";")[0].trim().toLowerCase() !==
+			"application/json"
+	)
+		throw new Error("Expected a 200 JSON session response");
+	const session: { partitionKey?: unknown } | null = await response.json();
+	const partitionKey = session?.partitionKey;
+	if (typeof partitionKey !== "string" || !partitionKey)
+		throw new Error("Session partition key is empty");
+	return { partitionKey };
+}
+
 const database = (): Promise<IDBDatabase> =>
 	new Promise((resolve, reject) => {
 		const request = indexedDB.open("remit-offline", 1);
@@ -77,20 +103,20 @@ export const requirePartition = async (partition: Partition): Promise<void> => {
 			"Downloads were removed in another tab. Reopen the app.",
 		);
 };
-/** Lifecycle operations pass undefined. Partition-bound writes cannot pass a wipe. */
+export const storageLock = <T>(work: () => Promise<T>): Promise<T> =>
+	navigator.locks.request("remit-offline-storage", work);
+
 export const commitOffline = async <T>(
-	partition: Partition | undefined,
+	partition: Partition,
 	work: () => Promise<T>,
-	guard?: Guard,
 ): Promise<T> =>
-	await navigator.locks.request("remit-offline-storage", async () => {
-		if (partition) await requirePartition(partition);
-		if (guard) await guard();
+	storageLock(async () => {
+		await requirePartition(partition);
 		return work();
 	});
 export const wipeOffline = async (): Promise<void> =>
-	commitOffline(undefined, async () => {
-		const refresh = await offlineRecord<Refresh>("refresh");
+	storageLock(async () => {
+		const refreshOff = await offlineRecord<boolean>("refresh-off");
 		// Revoke first, durably, including identity checks already in flight.
 		const epoch = crypto.randomUUID();
 		await writeOfflineRecord("epoch", epoch);
@@ -104,7 +130,7 @@ export const wipeOffline = async (): Promise<void> =>
 				const tx = db.transaction("data", "readwrite");
 				tx.objectStore("data").clear();
 				tx.objectStore("data").put(epoch, "epoch");
-				if (refresh) tx.objectStore("data").put(refresh, "refresh");
+				if (refreshOff) tx.objectStore("data").put(true, "refresh-off");
 				tx.oncomplete = () => resolve();
 				tx.onabort = () => reject(tx.error);
 				tx.onerror = () => reject(tx.error);
@@ -167,22 +193,16 @@ export async function readContent(
 		return caches.match(key, { cacheName: contentCacheName(partition) });
 }
 
-export const storeContent = (
+export async function storeContent(
 	partition: Partition,
 	key: string,
 	mime: string,
 	response: Response,
-	guard?: Guard,
-) =>
-	commitOffline(
-		partition,
-		async () => {
-			const cache = await caches.open(contentCacheName(partition));
-			await cache.put(key, response.clone());
-			await writeOfflineRecord(`part:${partition.generation}:${key}`, { mime });
-		},
-		guard,
-	);
+) {
+	const cache = await caches.open(contentCacheName(partition));
+	await cache.put(key, response.clone());
+	await writeOfflineRecord(`part:${partition.generation}:${key}`, { mime });
+}
 
 /** Explicit reading allowlist; settings, auth, drafts and mutations never persist. */
 export const retainedReadingQuery = (
@@ -220,20 +240,14 @@ export const mergePersistedQueries = (
 	};
 };
 
-export const persistQueries = (
+export async function persistQueries(
 	partition: Partition,
 	client: PersistedClient,
-	guard?: Guard,
-) =>
-	commitOffline(
-		partition,
-		async () => {
-			const key = `queries:${partition.generation}`;
-			const previous = await offlineRecord<PersistedClient>(key);
-			await writeOfflineRecord(key, mergePersistedQueries(previous, client));
-		},
-		guard,
-	);
+) {
+	const key = `queries:${partition.generation}`;
+	const previous = await offlineRecord<PersistedClient>(key);
+	await writeOfflineRecord(key, mergePersistedQueries(previous, client));
+}
 
 export const validateNetworkPartition = async (
 	response: Response,

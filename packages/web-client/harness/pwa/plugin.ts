@@ -1,5 +1,6 @@
 import { readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import type { PluginOption } from "vite";
 import { type ManifestOptions, VitePWA } from "vite-plugin-pwa";
 
@@ -78,8 +79,8 @@ export const pwaPlugins = (
 					await options.beforePrecache?.(outDir);
 				},
 			},
-			srcDir: join(packageRoot, "harness/pwa"),
-			filename: "sw.ts",
+			srcDir: dirname(fileURLToPath(import.meta.url)),
+			filename: import.meta.url.endsWith(".ts") ? "sw.ts" : "sw.js",
 			scope: "/",
 			injectRegister: false,
 			manifest: false,

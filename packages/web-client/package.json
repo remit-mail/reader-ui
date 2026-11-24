@@ -167,16 +167,7 @@
 		},
 		"files": [
 			"dist",
-			"public",
-			"harness/pwa/sw.ts",
-			"src/lib/pwa-protocol.ts",
-			"src/lib/background-refresh.ts",
-			"src/lib/message-body-source.ts",
-			"src/lib/network-error.ts",
-			"src/lib/offline-error.ts",
-			"src/lib/offline-store.ts",
-			"src/lib/request-breadcrumbs.ts",
-			"src/runtime-config.ts"
+			"public"
 		]
 	}
 }

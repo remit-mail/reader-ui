@@ -1,10 +1,8 @@
 /// <reference lib="webworker" />
 import { PrecacheController } from "workbox-precaching";
 import {
-	LoginRequired,
 	REFRESH_TAG,
 	refreshInBackground,
-	unregisterIfCurrent,
 } from "../../src/lib/background-refresh.ts";
 import {
 	activateWhenSafe,
@@ -48,13 +46,7 @@ self.addEventListener("periodicsync", ((
 	event: ExtendableEvent & { tag: string },
 ) => {
 	if (event.tag !== REFRESH_TAG) return;
-	event.waitUntil(
-		refreshInBackground().catch((error: unknown) =>
-			error instanceof LoginRequired
-				? unregisterIfCurrent(self.registration, error)
-				: Promise.reject(error),
-		),
-	);
+	event.waitUntil(refreshInBackground());
 }) as EventListener);
 let checking: Promise<boolean> | undefined;
 self.addEventListener("message", (event) => {
