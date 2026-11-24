@@ -28,6 +28,7 @@ import {
 	type PeriodicRefreshOptions,
 	type PeriodicStatus,
 	periodicStatusKey,
+	periodicWarningKey,
 	registerPeriodicRefresh,
 	wipePeriodicDownloads,
 } from "./periodic-registration";
@@ -95,8 +96,6 @@ export class OfflineRuntime {
 		this.channel.onmessage = revoked;
 		navigator.serviceWorker?.addEventListener("message", (event) => {
 			if (event.data?.type === "remit:offline-revoked") revoked();
-			if (event.data?.type === "remit:periodic-warning")
-				reportPeriodicWarning();
 		});
 	}
 	subscribe = (listener: () => void): (() => void) => {
@@ -143,7 +142,7 @@ export class OfflineRuntime {
 		if (this.revoked) return;
 		if (partition) {
 			const result = await commitOffline(partition, async () => {
-				const key = `periodic:warning:${partition.generation}`;
+				const key = periodicWarningKey(partition);
 				const warning = await offlineRecord<string>(key);
 				if (warning) await writeOfflineRecord(key, undefined);
 				return {
@@ -153,7 +152,7 @@ export class OfflineRuntime {
 					),
 				};
 			});
-			if (result.warning) reportPeriodicWarning();
+			if (result.warning) reportPeriodicWarning(result.warning);
 			this.update({ needsLogin: result.status?.needsLogin ?? false });
 		}
 		this.update({ partition });

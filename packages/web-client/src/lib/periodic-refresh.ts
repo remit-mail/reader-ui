@@ -22,6 +22,7 @@ import {
 import { OfflineUnavailableError } from "./offline-error";
 import { mergePersistedQueries } from "./offline-queries";
 import {
+	commitOffline,
 	mailPartCacheKey,
 	OFFLINE_FORMAT,
 	offlineRecord,
@@ -35,9 +36,12 @@ import {
 import {
 	commitPeriodicRefresh,
 	DAILY_INTERVAL,
+	type PeriodicConfig,
 	type PeriodicRegistration,
 	type PeriodicStatus,
+	PeriodicUnregisterError,
 	periodicStatusKey,
+	periodicWarningKey,
 	readPeriodicConfig,
 	stopPeriodicRefresh,
 } from "./periodic-registration";
@@ -58,6 +62,7 @@ class SignedLinkExpired extends Error {}
 class BodyUnavailable extends Error {}
 class PartitionMismatch extends Error {}
 class TransportFailure extends Error {}
+class ResponseFailure extends Error {}
 
 /** Counts streamed bytes, including session and metadata, and aborts slow bodies. */
 class PeriodicBudget {
@@ -92,7 +97,7 @@ class PeriodicBudget {
 		const request = input instanceof Request ? input : undefined;
 		const target = new URL(request?.url ?? String(input), location.origin);
 		if (target.origin !== location.origin)
-			throw new Error("Background refresh requires same-origin URLs");
+			throw new ResponseFailure("Periodic refresh requires same-origin URLs");
 		const response = await fetch(target, {
 			headers: request?.headers,
 			credentials: "same-origin",
@@ -131,7 +136,9 @@ class PeriodicBudget {
 			) {
 				throw new SessionRequired();
 			}
-			throw new Error(`Background refresh HTTP ${response.status}`);
+			throw new ResponseFailure(
+				`Periodic refresh received HTTP ${response.status}`,
+			);
 		}
 		if (
 			kind !== "session" &&
@@ -145,7 +152,7 @@ class PeriodicBudget {
 			!response.headers.get("content-type")?.startsWith("application/json")
 		) {
 			await response.body?.cancel();
-			throw new Error("Background refresh expected JSON");
+			throw new ResponseFailure("Periodic refresh expected JSON");
 		}
 
 		const freshBodyBudget = kind === "body" && this.bodyBytes === 0;
@@ -188,10 +195,9 @@ class PeriodicBudget {
 
 /** No retries inside a run except renewing an expired signature once. */
 async function runPeriodicRefresh(
+	config: PeriodicConfig,
 	registration: PeriodicRegistration,
 ): Promise<void> {
-	const config = await readPeriodicConfig();
-	if (!config) return;
 	const { partition, apiBaseUrl } = config;
 	const statusKey = periodicStatusKey(partition);
 	const status = await offlineRecord<PeriodicStatus>(statusKey);
@@ -266,7 +272,7 @@ async function runPeriodicRefresh(
 				}),
 			))
 		)
-			throw new Error("Background mail part admission refused");
+			throw new ResponseFailure("Periodic refresh rejected a mail body");
 		return "saved";
 	};
 
@@ -284,7 +290,7 @@ async function runPeriodicRefresh(
 			typeof session.partitionKey !== "string" ||
 			!session.partitionKey
 		)
-			throw new Error("Invalid background session");
+			throw new ResponseFailure("Periodic refresh received an invalid session");
 		if (session.partitionKey !== partition.key) throw new PartitionMismatch();
 
 		const previous = await offlineRecord<PersistedClient>(
@@ -389,7 +395,7 @@ async function runPeriodicRefresh(
 			await commit(async () => {
 				await writeOfflineRecord(stagingKey(partition), undefined);
 				await writeOfflineRecord(
-					`periodic:warning:${partition.generation}`,
+					periodicWarningKey(partition),
 					"Periodic partition provenance changed",
 				);
 				await stopPeriodicRefresh(registration, true);
@@ -406,6 +412,11 @@ async function runPeriodicRefresh(
 		const { error } = outcome;
 		if (error instanceof RunLimit || budget.controller.signal.aborted) return;
 		const needsLogin = error instanceof SessionRequired;
+		if (
+			!needsLogin &&
+			!(error instanceof TransportFailure || error instanceof ResponseFailure)
+		)
+			throw error;
 		const attempts = (status?.attempts ?? 0) + 1;
 		await commit(async () => {
 			await writeOfflineRecord(statusKey, {
@@ -413,28 +424,39 @@ async function runPeriodicRefresh(
 				attempts,
 				nextAttempt: Date.now() + DAILY_INTERVAL * 2 ** (attempts - 1),
 			} satisfies PeriodicStatus);
+			if (error instanceof ResponseFailure)
+				await writeOfflineRecord(periodicWarningKey(partition), error.message);
 			if (needsLogin || attempts >= 10)
 				await stopPeriodicRefresh(registration, false);
 		});
-		if (!(error instanceof TransportFailure) && !needsLogin)
-			await commit(() =>
-				writeOfflineRecord(
-					`periodic:warning:${partition.generation}`,
-					"Periodic download refresh failed",
-				),
-			);
 	} finally {
 		budget.close();
 		client.clear();
 	}
 }
 
-/** Route unexpected storage/runtime failures to the worker's reporter bridge. */
 export async function refreshPeriodicDownloads(
 	registration: PeriodicRegistration,
-	report: (error: unknown) => Promise<void>,
 ): Promise<void> {
-	await runPeriodicRefresh(registration).catch(async (error: unknown) => {
-		if (!(error instanceof OfflineUnavailableError)) await report(error);
-	});
+	const config = await readPeriodicConfig();
+	if (!config) return;
+	try {
+		await runPeriodicRefresh(config, registration);
+	} catch (error) {
+		if (error instanceof OfflineUnavailableError) return;
+		const warning =
+			error instanceof PeriodicUnregisterError
+				? error.message
+				: error instanceof DOMException && error.name === "QuotaExceededError"
+					? "Periodic refresh exceeded offline storage quota"
+					: "Periodic refresh could not finish saving downloads";
+		const record = () =>
+			writeOfflineRecord(periodicWarningKey(config.partition), warning);
+		await (error instanceof PeriodicUnregisterError
+			? commitOffline(config.partition, record)
+			: commitPeriodicRefresh(config, record)
+		).catch((failure: unknown) => {
+			if (!(failure instanceof OfflineUnavailableError)) throw failure;
+		});
+	}
 }

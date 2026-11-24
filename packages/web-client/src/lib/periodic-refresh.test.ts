@@ -27,7 +27,6 @@ const bytes = new Map<string, Response>();
 let requests: string[];
 let registered: unknown[][];
 let unregistered: string[];
-let warnings: unknown[];
 let registration: PeriodicRegistration;
 const response = (
 	data: unknown,
@@ -75,7 +74,6 @@ beforeEach(() => {
 	requests = [];
 	registered = [];
 	unregistered = [];
-	warnings = [];
 	records.clear();
 	bytes.clear();
 	records.set("partition", partition);
@@ -195,10 +193,7 @@ beforeEach(() => {
 	});
 });
 afterEach(() => mock.restoreAll());
-const run = () =>
-	refreshPeriodicDownloads(registration, async (error) => {
-		warnings.push(error);
-	});
+const run = () => refreshPeriodicDownloads(registration);
 test("unsupported, uninstalled, denied and failed registrations are silent", async () => {
 	const log = mock.method(console, "log", () => {});
 	const warn = mock.method(console, "warn", () => {});
@@ -287,7 +282,6 @@ test("session redirects, opaque redirects, 401 and 403 record needsLogin and sto
 		);
 	}
 	assert.equal(unregistered.length, 4);
-	assert.deepEqual(warnings, []);
 });
 test("twenty-message cap, staging hydration and subsequent new-message selection", async () => {
 	await run();
@@ -300,7 +294,6 @@ test("twenty-message cap, staging hydration and subsequent new-message selection
 	const merged = await mergePeriodicBatch(partition);
 	assert.equal(merged?.clientState.queries.length, 22);
 	assert.equal(records.has(stagingKey(partition)), false);
-	assert.deepEqual(warnings, []);
 	requests = [];
 	await run();
 	assert.equal(
@@ -365,7 +358,6 @@ test("the body budget skips advertised and previously streamed oversized parts",
 	await run();
 	assert.equal(streamed.mock.callCount(), 1);
 	assert.equal(bytes.has("http://localhost/content/message-2"), true);
-	assert.deepEqual(warnings, []);
 });
 
 test("a completed body and its descriptor survive a later download failure", async () => {
@@ -500,7 +492,6 @@ test("a response completing after a wipe cannot recreate bytes or staging", asyn
 	await run();
 	assert.equal(bytes.size, 0);
 	assert.equal(records.has(stagingKey(partition)), false);
-	assert.deepEqual(warnings, []);
 });
 
 test("API provenance mismatch discards staging, stops and leaves one reporter warning", async () => {

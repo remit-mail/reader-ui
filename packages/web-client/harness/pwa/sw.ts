@@ -142,16 +142,6 @@ self.addEventListener("periodicsync", ((
 ) => {
 	if (event.tag === PERIODIC_TAG)
 		event.waitUntil(
-			refreshPeriodicDownloads(
-				self.registration as PeriodicRegistration,
-				async () => {
-					const tabs = await self.clients.matchAll({
-						type: "window",
-						includeUncontrolled: true,
-					});
-					for (const tab of tabs)
-						tab.postMessage({ type: "remit:periodic-warning" });
-				},
-			),
+			refreshPeriodicDownloads(self.registration as PeriodicRegistration),
 		);
 }) as EventListener);

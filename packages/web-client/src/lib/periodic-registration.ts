@@ -35,6 +35,8 @@ export interface PeriodicStatus {
 	attempts?: number;
 	nextAttempt?: number;
 }
+export const periodicWarningKey = (partition: Partition): string =>
+	`periodic:warning:${partition.generation}`;
 export const periodicStatusKey = (partition: Partition): string =>
 	`periodic:status:${partition.generation}`;
 
@@ -137,13 +139,22 @@ async function unregisterBrowserTag(): Promise<void> {
 	await unregisterTag(registration);
 }
 
+export class PeriodicUnregisterError extends Error {}
+
 /** Caller holds the storage lock and has checked the worker's revision. */
 export async function stopPeriodicRefresh(
 	registration: PeriodicRegistration,
 	revoke: boolean,
 ): Promise<void> {
 	if (revoke) await revokeConfig();
-	await unregisterTag(registration);
+	try {
+		await unregisterTag(registration);
+	} catch (cause) {
+		throw new PeriodicUnregisterError(
+			"Periodic refresh could not unregister the browser tag",
+			{ cause },
+		);
+	}
 }
 
 const revokeConfig = () =>

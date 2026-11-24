@@ -195,8 +195,8 @@ export const installPwaUpdateCoordinator = (
 		.catch(reportPwaWarning);
 };
 
-export const reportPeriodicWarning = (): void => {
-	const error = new Error("Periodic download refresh failed");
+export const reportPeriodicWarning = (reason: string): void => {
+	const error = new Error(reason);
 	recordError(`Warning: ${error.message}`);
 	telemetry.recordError(error, {
 		severity: "warning",
