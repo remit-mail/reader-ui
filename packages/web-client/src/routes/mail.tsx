@@ -1,7 +1,4 @@
-import {
-	configOperationsGetConfigOptions,
-	unifiedThreadOperationsListAllThreadsOptions,
-} from "@remit/api-http-client/@tanstack/react-query.gen.ts";
+import { configOperationsGetConfigOptions } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
 import {
 	ErrorState,
 	KeyboardShortcutsModal,
@@ -43,17 +40,10 @@ import "../lib/client";
 export { useMailContext } from "../lib/mail-context";
 
 export const Route = createFileRoute("/mail")({
-	// Kick off config and the cross-account thread list together, without
-	// awaiting either — the route paints its skeleton shell immediately and the
-	// queries resolve in parallel rather than serialized behind config. The
-	// zero-account onboarding redirect moved into the component (see
-	// MailLayout), so a cold load no longer blocks first paint on the network.
+	// Start config without blocking the shell's first paint. Each list owns
+	// the queries for the rows it displays.
 	loader: ({ context: { queryClient } }) => {
 		void queryClient.prefetchQuery(configOperationsGetConfigOptions());
-		void queryClient.prefetchQuery({
-			...unifiedThreadOperationsListAllThreadsOptions(),
-			staleTime: 60_000,
-		});
 	},
 	component: MailLayout,
 	validateSearch: mailSearchSchema,
