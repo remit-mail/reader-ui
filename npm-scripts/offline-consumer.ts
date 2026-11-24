@@ -605,9 +605,9 @@ export async function testOfflineReading(
 		const readFailures = await page.evaluate(async () => {
 			const runtime = window.pwaTest.offline();
 			if (!runtime) throw new Error("Offline runtime did not start");
-			const match = Cache.prototype.match;
+			const match = CacheStorage.prototype.match;
 			const get = IDBObjectStore.prototype.get;
-			Cache.prototype.match = async () => {
+			CacheStorage.prototype.match = async () => {
 				throw new DOMException("Cache read failed", "UnknownError");
 			};
 			IDBObjectStore.prototype.get = function (key) {
@@ -629,7 +629,7 @@ export async function testOfflineReading(
 					.catch((error: Error) => error.message);
 				return [content, image];
 			} finally {
-				Cache.prototype.match = match;
+				CacheStorage.prototype.match = match;
 				IDBObjectStore.prototype.get = get;
 			}
 		});
