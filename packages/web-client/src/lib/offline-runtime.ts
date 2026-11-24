@@ -26,10 +26,9 @@ import {
 } from "./offline-store";
 import {
 	type PeriodicRefreshOptions,
-	type PeriodicStatus,
 	periodicOptOutRevision,
-	periodicStatusKey,
 	periodicWarningKey,
+	readPeriodicConfig,
 	registerPeriodicRefresh,
 	wipePeriodicDownloads,
 } from "./periodic-registration";
@@ -148,13 +147,15 @@ export class OfflineRuntime {
 				if (warning) await writeOfflineRecord(key, undefined);
 				return {
 					warning,
-					status: await offlineRecord<PeriodicStatus>(
-						periodicStatusKey(partition),
-					),
+					binding: await readPeriodicConfig(),
 				};
 			});
 			if (result.warning) reportPeriodicWarning(result.warning);
-			this.update({ needsLogin: result.status?.needsLogin ?? false });
+			this.update({
+				needsLogin:
+					samePartition(result.binding?.partition, partition) &&
+					result.binding?.status.kind === "login-required",
+			});
 		}
 		this.update({ partition });
 		await this.verify().catch(this.report);

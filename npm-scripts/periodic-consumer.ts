@@ -7,7 +7,7 @@ import { makeThreadMessage } from "../packages/web-client/src/test-support/fixtu
 interface PeriodicControls {
 	messages(ids: string[]): void;
 	holdBody(status?: number): { requested: Promise<void>; release(): void };
-	session(status: number): void;
+	session(status: number | "malformed"): void;
 	contentRequests: string[];
 }
 
@@ -192,6 +192,7 @@ export async function testPeriodicReading(
 		await context.setOffline(false);
 
 		controls.messages([
+			"deleted-mail",
 			"unavailable-202",
 			"unavailable-403",
 			"unavailable-404",
@@ -200,6 +201,20 @@ export async function testPeriodicReading(
 			"failed-mail",
 		]);
 		const before = controls.contentRequests.length;
+		controls.session("malformed");
+		try {
+			await refresh(worker);
+		} finally {
+			controls.session(200);
+		}
+		await refresh(worker);
+		assert.equal(
+			controls.contentRequests.length,
+			before,
+			"malformed session backs off",
+		);
+		await (await eligible()).close();
+
 		await refresh(worker);
 		assert.deepEqual(controls.contentRequests.slice(before), [
 			"/content/unavailable-202/body",

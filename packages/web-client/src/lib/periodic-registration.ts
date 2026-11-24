@@ -26,20 +26,22 @@ export interface PeriodicRegistration extends ServiceWorkerRegistration {
 }
 export interface PeriodicConfig {
 	revision: string;
+	verification: string;
+	status: PeriodicStatus;
 	partition: Partition;
 	sessionEndpoint: string;
 	apiBaseUrl: string;
 }
-export interface PeriodicStatus {
-	verification?: string;
-	needsLogin?: boolean;
-	attempts?: number;
-	nextAttempt?: number;
-}
+export type PeriodicStatus =
+	| { kind: "ready" }
+	| { kind: "login-required" }
+	| { kind: "retry"; attempts: number; nextAttempt: number };
 export const periodicWarningKey = (partition: Partition): string =>
 	`periodic:warning:${partition.generation}`;
-export const periodicStatusKey = (partition: Partition): string =>
-	`periodic:status:${partition.generation}`;
+export const writePeriodicStatus = (
+	binding: PeriodicConfig,
+	status: PeriodicStatus,
+): Promise<void> => writeOfflineRecord(CONFIG_KEY, { ...binding, status });
 
 const readConfigRecord = () =>
 	offlineRecord<Partial<PeriodicConfig> & { optOut?: string }>(CONFIG_KEY);
@@ -52,6 +54,9 @@ const isPeriodicConfig = (
 ): config is PeriodicConfig =>
 	typeof config?.revision === "string" &&
 	config.revision.length > 0 &&
+	typeof config.verification === "string" &&
+	config.verification.length > 0 &&
+	config.status !== undefined &&
 	config.partition?.format === OFFLINE_FORMAT &&
 	typeof config.partition.key === "string" &&
 	config.partition.key.length > 0 &&
@@ -73,13 +78,13 @@ export async function readPeriodicConfig(): Promise<
 
 export const commitPeriodicRefresh = <T>(
 	config: PeriodicConfig,
-	work: () => Promise<T>,
+	work: (binding: PeriodicConfig) => Promise<T>,
 ): Promise<T> =>
 	commitOffline(config.partition, async () => {
 		const current = await readPeriodicConfig();
 		if (current?.revision !== config.revision)
 			throw new OfflineUnavailableError("Periodic refresh was disabled");
-		return work();
+		return work(current);
 	});
 
 /** Browser eligibility is optional; every refusal, including registration, is silent. */
@@ -114,23 +119,20 @@ export async function registerPeriodicRefresh(
 			await registration.periodicSync.register(PERIODIC_TAG, {
 				minInterval: DAILY_INTERVAL,
 			});
-			if (
-				!isPeriodicConfig(current) ||
-				!samePartition(current.partition, partition) ||
-				current.sessionEndpoint !== session.href ||
-				current.apiBaseUrl !== apiBaseUrl
-			) {
-				await writeOfflineRecord(CONFIG_KEY, {
-					partition,
-					revision: crypto.randomUUID(),
-					optOut,
-					sessionEndpoint: session.href,
-					apiBaseUrl,
-				});
-			}
-			await writeOfflineRecord(periodicStatusKey(partition), {
+			const sameBinding =
+				isPeriodicConfig(current) &&
+				samePartition(current.partition, partition) &&
+				current.sessionEndpoint === session.href &&
+				current.apiBaseUrl === apiBaseUrl;
+			await writeOfflineRecord(CONFIG_KEY, {
+				partition,
+				revision: sameBinding ? current.revision : crypto.randomUUID(),
 				verification: crypto.randomUUID(),
-			} satisfies PeriodicStatus);
+				status: { kind: "ready" },
+				optOut,
+				sessionEndpoint: session.href,
+				apiBaseUrl,
+			} satisfies PeriodicConfig & { optOut?: string });
 		});
 	} catch {
 		// Unsupported, uninstalled, denied and failed registrations have no UI/reporting.

@@ -102,7 +102,7 @@ const draft = {
 	updatedAt: 0,
 };
 let tenant = "tenant-a";
-let sessionStatus = 200;
+let sessionStatus: number | "malformed" = 200;
 const contentRequests: string[] = [];
 const imageProxyRequests: string[] = [];
 let imageSlowReady!: () => void;
@@ -237,6 +237,10 @@ const server = createServer(async (request, response) => {
 			response.setHeader("X-Remit-Partition", tenant);
 		if (path === "/api/session") {
 			response.setHeader("Cache-Control", "no-store");
+			if (sessionStatus === "malformed") {
+				response.end("{");
+				return;
+			}
 			response.statusCode = sessionStatus;
 			response.end(
 				JSON.stringify(
@@ -279,6 +283,10 @@ const server = createServer(async (request, response) => {
 		} else if (path.startsWith("/api/auth/")) response.end("null");
 		else if (path.startsWith("/api/messages/")) {
 			const messageId = path.split("/").at(-1)!;
+			if (messageId === "deleted-mail") {
+				response.writeHead(404).end();
+				return;
+			}
 			response.end(
 				JSON.stringify({
 					message: { messageId, mailboxId: "inbox", status: "active" },
