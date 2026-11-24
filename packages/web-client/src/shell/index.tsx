@@ -22,7 +22,10 @@ import {
 	type OfflineOptions,
 } from "../lib/offline-runtime";
 import { disablePeriodicRefresh } from "../lib/periodic-registration";
-import { installPwaUpdateCoordinator } from "../lib/pwa-update";
+import {
+	installPwaUpdateCoordinator,
+	reportPeriodicWarning,
+} from "../lib/pwa-update";
 import { initRum } from "../lib/rum-adapter";
 import { installStaleBuildReload } from "../lib/stale-build";
 import { TelemetryContext } from "../lib/telemetry-context";
@@ -104,7 +107,8 @@ export const mountApp = ({
 		installStaleBuildReload(() => queryClient.isMutating() > 0);
 	}
 
-	if (!offline?.periodicRefresh) void disablePeriodicRefresh();
+	if (!offline?.periodicRefresh)
+		void disablePeriodicRefresh(reportPeriodicWarning);
 	const offlineRuntime = offline ? installOfflineRuntime(offline) : undefined;
 	const router = createAppRouter(queryClient, telemetry);
 	for (const slot of settingsSlots) {

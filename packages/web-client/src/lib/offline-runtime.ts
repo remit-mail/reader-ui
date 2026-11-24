@@ -141,21 +141,28 @@ export class OfflineRuntime {
 		if (partition) await requirePartition(partition);
 		if (this.revoked) return;
 		if (partition) {
-			const result = await commitOffline(partition, async () => {
+			const binding = await commitOffline(partition, readPeriodicConfig);
+			if (this.revoked) return;
+			this.update({
+				needsLogin:
+					samePartition(binding?.partition, partition) &&
+					binding?.status.kind === "login-required",
+			});
+			void commitOffline(partition, async () => {
 				const key = periodicWarningKey(partition);
 				const warning = await offlineRecord<string>(key);
 				if (warning) await writeOfflineRecord(key, undefined);
-				return {
-					warning,
-					binding: await readPeriodicConfig(),
-				};
-			});
-			if (result.warning) reportPeriodicWarning(result.warning);
-			this.update({
-				needsLogin:
-					samePartition(result.binding?.partition, partition) &&
-					result.binding?.status.kind === "login-required",
-			});
+				return warning;
+			})
+				.then((warning) => {
+					if (warning) reportPeriodicWarning(warning);
+				})
+				.catch((error: unknown) => {
+					if (!(error instanceof OfflineUnavailableError))
+						reportPeriodicWarning(
+							"Periodic refresh could not read or clear its diagnostic",
+						);
+				});
 		}
 		this.update({ partition });
 		await this.verify().catch(this.report);

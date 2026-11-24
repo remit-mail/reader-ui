@@ -171,16 +171,26 @@ const revokeConfig = (optOut: string | undefined) =>
 	writeOfflineRecord(CONFIG_KEY, { revision: crypto.randomUUID(), optOut });
 
 /** A foreground host opt-out also removes an earlier installation's registration. */
-export async function disablePeriodicRefresh(): Promise<void> {
+export async function disablePeriodicRefresh(
+	reportWarning: (reason: string) => void,
+): Promise<void> {
 	if (
 		typeof ServiceWorkerRegistration === "undefined" ||
 		!("periodicSync" in ServiceWorkerRegistration.prototype)
 	)
 		return;
+	let revoked = false;
 	await storageLock(async () => {
 		await revokeConfig(crypto.randomUUID());
+		revoked = true;
 		await unregisterBrowserTag();
-	}).catch(() => {});
+	}).catch(() =>
+		reportWarning(
+			revoked
+				? "Periodic refresh was revoked but could not unregister the browser tag"
+				: "Periodic refresh could not be durably revoked",
+		),
+	);
 }
 
 export const wipePeriodicDownloads = (): Promise<void> =>
