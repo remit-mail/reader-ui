@@ -189,7 +189,8 @@ export class PeriodicBudget {
 
 interface CandidatePosition {
 	accountId: string;
-	messageId: string;
+	messageId?: string;
+	advanceAccount?: boolean;
 }
 
 /** No retries inside a run except renewing an expired signature once. */
@@ -229,10 +230,20 @@ async function runPeriodicRefresh(
 	const inboxHeads: InboxHead[] = [];
 	const resumeKey = `periodic:resume:${partition.generation}`;
 	let lastAttempted: CandidatePosition | undefined;
+	let activeAccountId: string | undefined;
+	let accountWarning: string | undefined;
 	const flush = async () => {
-		if (!client.getQueryCache().getAll().length && !inboxHeads.length) return;
+		if (
+			!lastAttempted &&
+			!accountWarning &&
+			!client.getQueryCache().getAll().length &&
+			!inboxHeads.length
+		)
+			return;
 		await commit(async () => {
 			if (lastAttempted) await writeOfflineRecord(resumeKey, lastAttempted);
+			if (accountWarning)
+				await writeOfflineRecord(periodicWarningKey(partition), accountWarning);
 			const key = `queries:${partition.generation}`;
 			const previous = await offlineRecord<PersistedClient>(key);
 			for (const head of inboxHeads) {
@@ -314,10 +325,13 @@ async function runPeriodicRefresh(
 		const { data: configData } = await configOperationsGetConfig(get);
 		const resume = await offlineRecord<CandidatePosition>(resumeKey);
 		const accounts = configData.accounts;
-		const start = Math.max(
-			0,
-			accounts.findIndex((account) => account.accountId === resume?.accountId),
+		const previousAccount = accounts.findIndex(
+			(account) => account.accountId === resume?.accountId,
 		);
+		const start =
+			previousAccount < 0
+				? 0
+				: previousAccount + Number(!!resume?.advanceAccount);
 		const seen = new Set<string>();
 		let count = 0;
 		const attempt = async (
@@ -386,6 +400,13 @@ async function runPeriodicRefresh(
 				});
 			}
 		};
+		const deferAccount = (error: unknown) => {
+			if (
+				!(error instanceof ResponseFailure || error instanceof TransportFailure)
+			)
+				throw error;
+			accountWarning ??= error.message;
+		};
 		let wrapped: readonly { messageId: string }[] = [];
 		for (
 			let offset = 0;
@@ -393,11 +414,12 @@ async function runPeriodicRefresh(
 			offset++
 		) {
 			const account = accounts[(start + offset) % accounts.length];
+			activeAccountId = account.accountId;
 			const path = { accountId: account.accountId };
-			const { data: mailboxes } = await mailboxOperationsListMailboxes({
-				...get,
-				path,
-			});
+			const mailboxes = await mailboxOperationsListMailboxes({ ...get, path })
+				.then((result) => result.data)
+				.catch(deferAccount);
+			if (!mailboxes) continue;
 			client.setQueryData(
 				mailboxOperationsListMailboxesQueryKey({ client: api, path }),
 				mailboxes,
@@ -410,10 +432,10 @@ async function runPeriodicRefresh(
 				path: { mailboxId },
 				query: { order: "desc" },
 			} as const;
-			const { data: threads } = await threadOperationsListThreads({
-				...get,
-				...options,
-			});
+			const threads = await threadOperationsListThreads({ ...get, ...options })
+				.then((result) => result.data)
+				.catch(deferAccount);
+			if (!threads) continue;
 			inboxHeads.push({
 				key: threadOperationsListThreadsQueryKey({
 					...options,
@@ -431,8 +453,10 @@ async function runPeriodicRefresh(
 			if (boundary) wrapped = rows.slice(0, boundary);
 			await attempt(account.accountId, rows.slice(boundary));
 		}
-		if (resume && count < PERIODIC_MAX_MESSAGES)
+		if (resume && wrapped.length && count < PERIODIC_MAX_MESSAGES) {
+			activeAccountId = resume.accountId;
 			await attempt(resume.accountId, wrapped);
+		}
 	};
 
 	try {
@@ -442,16 +466,31 @@ async function runPeriodicRefresh(
 		);
 		if (!outcome.ok && outcome.error instanceof OfflineUnavailableError) return;
 		if (!outcome.ok && outcome.error instanceof PartitionMismatch) {
+			let revoked = false;
 			await commitStatus(async () => {
-				await writeOfflineRecord(
-					periodicWarningKey(partition),
-					"Periodic partition provenance changed",
-				);
 				await stopPeriodicRefresh(registration, true);
+				revoked = true;
 			});
+			if (revoked)
+				await commitOffline(partition, () =>
+					writeOfflineRecord(
+						periodicWarningKey(partition),
+						"Periodic partition provenance changed",
+					),
+				);
 			return;
 		}
 
+		if (!outcome.ok && outcome.error instanceof RunLimit && activeAccountId) {
+			lastAttempted = {
+				accountId: activeAccountId,
+				messageId:
+					lastAttempted?.accountId === activeAccountId
+						? lastAttempted.messageId
+						: undefined,
+				advanceAccount: true,
+			};
+		}
 		const flushResult = await flush().then(
 			() => ({ ok: true }) as const,
 			(error: unknown) => ({ ok: false, error }) as const,

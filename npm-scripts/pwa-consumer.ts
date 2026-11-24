@@ -66,6 +66,7 @@ const types: Record<string, string> = {
 let serving = dist;
 let failInstall = false;
 let briefProbe = true;
+let failingPeriodicAccount = false;
 let periodicInbox: { ids: string[]; continuationToken?: string } | undefined;
 const periodicDescriptions: string[] = [];
 const periodicSubjects: Record<string, string> = {
@@ -190,6 +191,7 @@ const server = createServer(async (request, response) => {
 				"/content/gap-head/body",
 				"/content/after-budget/body",
 				"/content/after-pending/body",
+				"/content/after-account-error/body",
 			].includes(path)
 		) {
 			response.setHeader("Content-Type", "text/html");
@@ -268,7 +270,18 @@ const server = createServer(async (request, response) => {
 						: { error: "Session unavailable" },
 				),
 			);
-		} else if (periodicInbox && path === "/api/accounts/acc-1/mailboxes") {
+		} else if (
+			failingPeriodicAccount &&
+			path === "/api/accounts/failed-account/mailboxes"
+		) {
+			response.writeHead(500).end();
+		} else if (
+			periodicInbox &&
+			[
+				"/api/accounts/acc-1/mailboxes",
+				"/api/accounts/resumed-account/mailboxes",
+			].includes(path)
+		) {
 			response.end(
 				JSON.stringify({
 					items: [
@@ -386,8 +399,11 @@ const server = createServer(async (request, response) => {
 				JSON.stringify(
 					makeConfig(
 						[
+							...(failingPeriodicAccount
+								? [makeAccount({ accountId: "failed-account" })]
+								: []),
 							makeAccount({
-								accountId: "acc-1",
+								accountId: failingPeriodicAccount ? "resumed-account" : "acc-1",
 								folderAppointments: periodicInbox
 									? [
 											{
@@ -976,6 +992,9 @@ try {
 		},
 		contentRequests,
 		descriptionRequests: periodicDescriptions,
+		failedAccount: (fail) => {
+			failingPeriodicAccount = fail;
+		},
 	});
 	periodicInbox = undefined;
 	await testOfflineReading(origin, {

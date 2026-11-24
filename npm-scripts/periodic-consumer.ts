@@ -7,6 +7,7 @@ interface PeriodicControls {
 	session(status: number | "malformed"): void;
 	contentRequests: string[];
 	descriptionRequests: string[];
+	failedAccount(fail: boolean): void;
 }
 
 function refresh(worker: Worker): Promise<void> {
@@ -274,6 +275,15 @@ export async function testPeriodicReading(
 			["after-pending", pending[0]],
 		);
 		await assertDownloaded("after-pending");
+
+		controls.messages(["after-account-error"]);
+		controls.failedAccount(true);
+		try {
+			await refresh(worker);
+			await assertDownloaded("after-account-error");
+		} finally {
+			controls.failedAccount(false);
+		}
 
 		controls.messages(["held-mail"]);
 		const stale = controls.holdBody(401);
