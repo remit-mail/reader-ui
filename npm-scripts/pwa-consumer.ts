@@ -68,7 +68,7 @@ let failInstall = false;
 let briefProbe = true;
 let periodicMessages: string[] | undefined;
 let heldPeriodicBody:
-	| { requested(): void; released: Promise<void> }
+	| { status: number; requested(): void; released: Promise<void> }
 	| undefined;
 const oldCategoryRow = makeThreadMessage({
 	messageId: "old-category-mail",
@@ -169,8 +169,10 @@ const server = createServer(async (request, response) => {
 		} else if (path === "/content/failed-mail/body") {
 			response.writeHead(500).end();
 		} else if (path === "/content/held-mail/body") {
-			heldPeriodicBody?.requested();
-			await heldPeriodicBody?.released;
+			const held = heldPeriodicBody;
+			held?.requested();
+			await held?.released;
+			response.statusCode = held?.status ?? 200;
 			response.setHeader("Content-Type", "text/html");
 			response.end("<p>Held background body</p>");
 		} else if (path === "/content/background-mail/body") {
@@ -861,10 +863,11 @@ try {
 		messages: (ids) => {
 			periodicMessages = ids;
 		},
-		holdBody: () => {
+		holdBody: (status = 200) => {
 			const requested = Promise.withResolvers<void>();
 			const released = Promise.withResolvers<void>();
 			heldPeriodicBody = {
+				status,
 				requested: requested.resolve,
 				released: released.promise,
 			};

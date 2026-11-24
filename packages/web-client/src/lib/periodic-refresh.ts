@@ -226,6 +226,14 @@ async function runPeriodicRefresh(
 		return;
 	const commit = <T>(work: () => Promise<T>): Promise<T> =>
 		commitPeriodicRefresh(config, work);
+	const verification = status?.verification;
+	// A newer foreground verification can supersede a failed session or retry.
+	// It leaves valid downloads for this binding free to finish.
+	const commitStatus = (work: () => Promise<void>): Promise<void> =>
+		commit(async () => {
+			const current = await offlineRecord<PeriodicStatus>(statusKey);
+			if (current?.verification === verification) await work();
+		});
 	const budget = new PeriodicBudget(partition.key);
 	const client = new QueryClient({
 		defaultOptions: { queries: { gcTime: Infinity } },
@@ -408,7 +416,7 @@ async function runPeriodicRefresh(
 		);
 		if (!outcome.ok && outcome.error instanceof OfflineUnavailableError) return;
 		if (!outcome.ok && outcome.error instanceof PartitionMismatch) {
-			await commit(async () => {
+			await commitStatus(async () => {
 				await writeOfflineRecord(stagingKey(partition), undefined);
 				await writeOfflineRecord(
 					periodicWarningKey(partition),
@@ -421,7 +429,7 @@ async function runPeriodicRefresh(
 
 		await flush();
 		if (outcome.ok) {
-			await commit(() => writeOfflineRecord(statusKey, undefined));
+			await commitStatus(() => writeOfflineRecord(statusKey, { verification }));
 			return;
 		}
 
@@ -434,8 +442,9 @@ async function runPeriodicRefresh(
 		)
 			throw error;
 		const attempts = (status?.attempts ?? 0) + 1;
-		await commit(async () => {
+		await commitStatus(async () => {
 			await writeOfflineRecord(statusKey, {
+				verification,
 				needsLogin,
 				attempts,
 				nextAttempt: Date.now() + DAILY_INTERVAL * 2 ** (attempts - 1),

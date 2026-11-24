@@ -6,7 +6,7 @@ import { makeThreadMessage } from "../packages/web-client/src/test-support/fixtu
 
 interface PeriodicControls {
 	messages(ids: string[]): void;
-	holdBody(): { requested: Promise<void>; release(): void };
+	holdBody(status?: number): { requested: Promise<void>; release(): void };
 	session(status: number): void;
 	contentRequests: string[];
 }
@@ -27,6 +27,17 @@ function refresh(worker: Worker): Promise<void> {
 		if (!completion) throw new Error("Periodic event was not handled");
 		await completion;
 	});
+}
+
+function waitForHeldBody(requested: Promise<void>, completion: Promise<void>) {
+	return Promise.race([
+		requested,
+		completion.then(() => {
+			throw new Error(
+				"Periodic event finished before requesting the held body",
+			);
+		}),
+	]);
 }
 
 async function seedSavedInbox(page: Page): Promise<void> {
@@ -215,6 +226,30 @@ export async function testPeriodicReading(
 		const renewed = await eligible();
 		await renewed.close();
 		controls.messages(["held-mail"]);
+		const stale = controls.holdBody(401);
+		const staleRun = refresh(worker);
+		try {
+			await waitForHeldBody(stale.requested, staleRun);
+			const reverified = await eligible();
+			await reverified.close();
+		} finally {
+			stale.release();
+			await staleRun;
+		}
+		await context.setOffline(true);
+		const reverified = await open();
+		await reverified
+			.getByRole("heading", { name: "Downloaded mail", exact: true })
+			.waitFor();
+		assert.equal(
+			await reverified.evaluate(
+				() => window.pwaTest.offline()?.state.needsLogin,
+			),
+			false,
+		);
+		await reverified.close();
+		await context.setOffline(false);
+
 		controls.session(401);
 		const beforeExpired = controls.contentRequests.length;
 		try {
@@ -239,14 +274,7 @@ export async function testPeriodicReading(
 			const held = controls.holdBody();
 			const completed = refresh(worker);
 			try {
-				await Promise.race([
-					held.requested,
-					completed.then(() => {
-						throw new Error(
-							"Periodic event finished before requesting the held body",
-						);
-					}),
-				]);
+				await waitForHeldBody(held.requested, completed);
 				if (action === "opt-out") {
 					await optedIn.close();
 					const disabled = await open("/downloads?periodic=off");

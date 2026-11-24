@@ -31,6 +31,7 @@ export interface PeriodicConfig {
 	apiBaseUrl: string;
 }
 export interface PeriodicStatus {
+	verification?: string;
 	needsLogin?: boolean;
 	attempts?: number;
 	nextAttempt?: number;
@@ -122,7 +123,9 @@ export async function registerPeriodicRefresh(
 					apiBaseUrl,
 				} satisfies PeriodicConfig);
 			}
-			await writeOfflineRecord(periodicStatusKey(partition), undefined);
+			await writeOfflineRecord(periodicStatusKey(partition), {
+				verification: crypto.randomUUID(),
+			} satisfies PeriodicStatus);
 		});
 	} catch {
 		// Unsupported, uninstalled, denied and failed registrations have no UI/reporting.
