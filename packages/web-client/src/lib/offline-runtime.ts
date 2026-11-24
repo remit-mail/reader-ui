@@ -226,6 +226,16 @@ export class OfflineRuntime {
 		await requirePartition(partition);
 		return partition;
 	}
+	private async commit<T>(work: () => Promise<T>): Promise<T> {
+		try {
+			return await work();
+		} catch (error) {
+			this.report(error);
+			if (error instanceof DOMException)
+				throw new OfflineUnavailableError(error.message, error);
+			throw error;
+		}
+	}
 	async write<T>(work: () => Promise<T>): Promise<T> {
 		if (isUpdatePrepared())
 			throw new OfflineUnavailableError(
@@ -233,14 +243,9 @@ export class OfflineRuntime {
 			);
 		this.pending++;
 		try {
-			const result = await work();
+			const result = await this.commit(work);
 			void this.storage(!this.persistenceRequested).catch(this.report);
 			return result;
-		} catch (error) {
-			this.report(error);
-			if (error instanceof DOMException)
-				throw new OfflineUnavailableError(error.message, error);
-			throw error;
 		} finally {
 			this.pending--;
 		}
@@ -271,8 +276,8 @@ export class OfflineRuntime {
 		if (!partition)
 			throw new OfflineUnavailableError("No remembered offline identity");
 		const cacheKey = contentCacheKey(url);
-		const cached = await commitOffline(partition, () =>
-			readContent(partition, cacheKey, mime),
+		const cached = await this.commit(() =>
+			commitOffline(partition, () => readContent(partition, cacheKey, mime)),
 		);
 		if (cached && !this.refreshing) return cached;
 		await this.authorizeNetwork("GET");
@@ -296,8 +301,8 @@ export class OfflineRuntime {
 		if (!partition)
 			throw new OfflineUnavailableError("No remembered offline identity");
 		const key = `external-image:${partition.generation}:${JSON.stringify(["external-image", resolvedRemoteUrl])}`;
-		const saved = await commitOffline(partition, () =>
-			offlineRecord<Blob>(key),
+		const saved = await this.commit(() =>
+			commitOffline(partition, () => offlineRecord<Blob>(key)),
 		);
 		if (saved && !this.refreshing) return saved;
 		await this.authorizeNetwork("POST");

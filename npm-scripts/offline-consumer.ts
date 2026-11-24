@@ -8,6 +8,10 @@ import { chromium, type Page, type Route } from "playwright";
 
 const shellStatus =
 	/Session verified|session unverified|Opening downloads|Restoring downloads|MiB used|may be removed|Keep downloads on this device|Remove downloads|Verify your session to download mail|First-time offline sign-in|Persistent storage granted|Verify session \/ sign in|Could not save downloads/;
+const initialImageRequests = [
+	"https://tracking.invalid/pixel?token=one",
+	"https://tracking.invalid/pixel?token=refused",
+];
 
 interface Controls {
 	setSession(key: string, status?: number): void;
@@ -244,6 +248,14 @@ const remoteImageReady = async (page: Page) =>
 			image.naturalWidth === 1
 		);
 	});
+const recordOfflineReports = (page: Page) =>
+	page.evaluate(() => {
+		const reports: string[] = [];
+		window.pwaTest.offlineReports = reports;
+		window.addEventListener("remit:offline-error", (event) => {
+			reports.push((event as CustomEvent<Error>).detail.message);
+		});
+	});
 const attachment = async (page: Page) => {
 	const downloaded = page.waitForEvent("download");
 	await page
@@ -401,11 +413,28 @@ export async function testOfflineReading(
 			[],
 			"blocked images never reach the proxy",
 		);
+		await recordOfflineReports(page);
 		await page.getByRole("button", { name: "Load once", exact: true }).click();
 		await remoteImageReady(page);
-		assert.deepEqual(controls.imageProxyRequests, [
-			"https://tracking.invalid/pixel?token=one",
-		]);
+		assert.deepEqual(
+			controls.imageProxyRequests.toSorted(),
+			initialImageRequests,
+		);
+		const refusedSrc = await page
+			.frameLocator('iframe[title="Email content"]')
+			.locator('img[alt="refused image"]')
+			.getAttribute("src");
+		assert.ok(refusedSrc);
+		assert.match(refusedSrc, /^data:image\//);
+		assert.deepEqual(
+			await page.evaluate(() => window.pwaTest.offlineReports),
+			[],
+			"a refused image must not report a download failure",
+		);
+		assert.equal(
+			await page.getByTestId("message-body-error-banner").count(),
+			0,
+		);
 		assert.equal(tracking, 0, "permitted images use only the POST proxy");
 		await page.goto(`${origin}/downloads/new-mail`);
 		await page.getByRole("heading", { name: "New list page" }).waitFor();
@@ -500,8 +529,8 @@ export async function testOfflineReading(
 		await page.getByRole("button", { name: "Load once", exact: true }).click();
 		await remoteImageReady(page);
 		assert.deepEqual(
-			controls.imageProxyRequests,
-			["https://tracking.invalid/pixel?token=one"],
+			controls.imageProxyRequests.toSorted(),
+			initialImageRequests,
 			"a process restart recreates object URLs from saved bytes without a POST",
 		);
 		await attachment(page);
@@ -563,6 +592,39 @@ export async function testOfflineReading(
 		await page.waitForFunction(
 			() => !!window.pwaTest.offline()?.state.verified,
 		);
+		await recordOfflineReports(page);
+		const readFailures = await page.evaluate(async () => {
+			const runtime = window.pwaTest.offline();
+			if (!runtime) throw new Error("Offline runtime did not start");
+			const match = Cache.prototype.match;
+			const get = IDBObjectStore.prototype.get;
+			Cache.prototype.match = async () => {
+				throw new DOMException("Cache read failed", "UnknownError");
+			};
+			IDBObjectStore.prototype.get = function (key) {
+				if (String(key).startsWith("external-image:"))
+					throw new DOMException("Image read failed", "UnknownError");
+				return get.call(this, key);
+			};
+			try {
+				const content = await runtime
+					.content("/content/old-mail/html", "text/html", () =>
+						fetch("/content/old-mail/html"),
+					)
+					.catch((error: Error) => error.message);
+				const image = await runtime
+					.externalImage(
+						"/api/image-proxy",
+						"https://tracking.invalid/pixel?token=one",
+					)
+					.catch((error: Error) => error.message);
+				return [content, image];
+			} finally {
+				Cache.prototype.match = match;
+				IDBObjectStore.prototype.get = get;
+			}
+		});
+		assert.deepEqual(readFailures, ["Cache read failed", "Image read failed"]);
 		const imageQuotaFailure = await page.evaluate(async () => {
 			const runtime = window.pwaTest.offline()!;
 			const put = IDBObjectStore.prototype.put;
@@ -604,11 +666,11 @@ export async function testOfflineReading(
 			"failed admission/write leaves previously saved image bytes intact",
 		);
 		assert.deepEqual(
-			controls.imageProxyRequests,
+			controls.imageProxyRequests.toSorted(),
 			[
-				"https://tracking.invalid/pixel?token=one",
+				...initialImageRequests,
 				"https://tracking.invalid/pixel?token=quota",
-			],
+			].sort(),
 			"destination queries identify distinct records",
 		);
 		// Inject a failure at the actual Cache API write, leaving all browser stores real.
@@ -635,6 +697,16 @@ export async function testOfflineReading(
 			.getByRole("alert")
 			.filter({ hasText: "Cache quota exceeded" })
 			.waitFor();
+		assert.deepEqual(
+			await page.evaluate(() => window.pwaTest.offlineReports),
+			[
+				"Cache read failed",
+				"Image read failed",
+				"Image quota exceeded",
+				"Cache quota exceeded",
+			],
+			"each storage read or write failure reports exactly once",
+		);
 		const persistenceFailure = await page.evaluate(async () => {
 			const runtime = window.pwaTest.offline()!;
 			const persister = runtime.persister(runtime.state.partition!);
