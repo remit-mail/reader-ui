@@ -57,7 +57,7 @@ export async function testPeriodicReading(origin: string): Promise<void> {
 			Object.defineProperties(event, {
 				tag: { value: "remit-refresh-downloads" },
 				waitUntil: {
-					value: (promise: Promise<unknown>) => {
+					value(promise: Promise<unknown>) {
 						completion = promise;
 					},
 				},

@@ -325,7 +325,8 @@ test("10 MiB cap never stores oversized bodies or retries", async () => {
 });
 test("30 second deadline stops before another request", async () => {
 	const original = fetch;
-	const now = Date.now();
+	const now = 1000;
+	mock.method(Date, "now", () => now);
 	mock.method(
 		globalThis,
 		"fetch",
