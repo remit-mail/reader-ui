@@ -75,7 +75,7 @@ export async function testPeriodicReading(origin: string): Promise<void> {
 		await reopened.waitForFunction(() =>
 			document
 				.querySelector<HTMLIFrameElement>('iframe[title="Email content"]')
-				?.contentDocument?.body.textContent?.includes(
+				?.contentDocument?.body?.textContent?.includes(
 					"Background downloaded body",
 				),
 		);
