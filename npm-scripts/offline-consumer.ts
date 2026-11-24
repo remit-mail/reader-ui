@@ -225,7 +225,16 @@ export async function testBackgroundRefresh(
 			"Background refresh is off",
 		);
 		await waitForTag(settings, false);
-		assert.deepEqual(await snapshot(settings), beforeOff);
+		assert.deepEqual(
+			(await snapshot(settings))?.clientState,
+			beforeOff?.clientState,
+		);
+		assert.equal(
+			await settings.evaluate(
+				async () => !!(await caches.match("/content/late-mail/html")),
+			),
+			false,
+		);
 		assert.equal(await verify(settings), true);
 		await settings.evaluate(async () => {
 			await navigator.permissions.query({
