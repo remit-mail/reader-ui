@@ -1,10 +1,5 @@
-import { mailboxOperationsListMailboxesQueryKey } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
-import {
-	syncOperationsGetSyncStatus,
-	syncOperationsTriggerSync,
-} from "@remit/api-http-client/sdk.gen.ts";
+import { syncOperationsTriggerSync } from "@remit/api-http-client/sdk.gen.ts";
 import type { RemitImapAccountResponse } from "@remit/api-http-client/types.gen.ts";
-import { type QueryClient, useQueryClient } from "@tanstack/react-query";
 import pMap from "p-map";
 import { useCallback, useEffect, useRef } from "react";
 import { useErrorBanners } from "../components/ui/error-banner-context";
@@ -17,12 +12,8 @@ import {
 	subscribeHotSyncWindow,
 } from "../lib/hot-sync-window";
 import { getOfflineRuntime } from "../lib/offline-runtime";
+import type { SyncRoundTracker } from "../lib/sync-round-tracker";
 import { getRuntimeConfig } from "../runtime-config";
-import {
-	inboxSyncedAt,
-	REFRESH_TIMEOUT_MS,
-	waitForSettled,
-} from "./useRefreshControl";
 
 /**
  * Mailboxes are considered stale 15 minutes after the last successful sync.
@@ -103,11 +94,11 @@ export const currentPollIntervalMs = (
 export const POLL_CONCURRENCY = 5;
 
 /**
- * Module-level guard: which accounts have already had a background sync
- * fired in this browser tab's session. Survives layout re-mounts (route
- * changes) so re-mounting MailLayout does not spam SQS.
+ * Accounts already triggered by a background poll in this browser tab.
+ * Survives layout remounts so the stale-on-mount pass doesn't enqueue
+ * another round for them.
  */
-const triggeredAccountIds = new Set<string>();
+const polledAccountIds = new Set<string>();
 
 interface AccountLike {
 	accountId: string;
@@ -157,17 +148,17 @@ export const selectPollableAccountIds = (
  * should never reach into the module-level Set directly.
  */
 export const __resetStaleAccountSyncGuard = (): void => {
-	triggeredAccountIds.clear();
+	polledAccountIds.clear();
 };
 export const __peekStaleAccountSyncGuard = (): ReadonlySet<string> =>
-	triggeredAccountIds;
+	polledAccountIds;
 
 /** Release the per-account guard and preserve confirmed authentication refusals. */
 export const handleBackgroundSyncFailure = (
 	accountId: string,
 	error: unknown,
 ): void => {
-	triggeredAccountIds.delete(accountId);
+	polledAccountIds.delete(accountId);
 	if (isUnauthenticated(error)) {
 		escalate(error);
 		return;
@@ -179,71 +170,30 @@ export const handleBackgroundSyncFailure = (
 };
 
 /**
- * Trigger the same sync the pull-to-refresh path uses and invalidate the
- * mailbox-list query on success. `throwOnError: true` so a server failure
- * rejects instead of silently resolving with `{ error }` (the default),
- * which would let a 500 look like a successful sync and invalidate queries
- * anyway.
- */
-const runBackgroundSync = async (
-	accountId: string,
-	queryClient: QueryClient,
-): Promise<void> => {
-	const runtime = getOfflineRuntime();
-	if (runtime && !runtime.state.verified) return;
-	const readStatus = async () =>
-		(
-			await syncOperationsGetSyncStatus({
-				path: { accountId },
-				throwOnError: true,
-			})
-		).data;
-	const baseline = runtime ? await readStatus() : undefined;
-	await syncOperationsTriggerSync({ path: { accountId }, throwOnError: true });
-	if (runtime && baseline) {
-		const outcome = await waitForSettled({
-			accountId,
-			readStatus,
-			baselineLastSyncAt: baseline.lastSyncAt ?? 0,
-			baselineInboxSyncedAt: inboxSyncedAt(baseline),
-			deadline: Date.now() + REFRESH_TIMEOUT_MS,
-		});
-		if (outcome) {
-			runtime.report(new Error(outcome.message));
-			return;
-		}
-	}
-	await queryClient.invalidateQueries({
-		queryKey: mailboxOperationsListMailboxesQueryKey({ path: { accountId } }),
-	});
-};
-
-/**
  * Auto-trigger a background mailbox-list sync for every stale account the
  * first time MailLayout mounts in a session, then keep it fresh with a
  * recurring online poll for as long as the mail app stays open (#1251) —
  * the client-side replacement for the server's removed "online" sync tier.
  * The poll runs on the ambient interval, or the hot one for the few minutes
  * after somebody presses refresh, and only while the tab is visible.
- * Fire-and-forget: does not block render, and silently logs failures (this
- * is a best-effort background refresh — the user-visible UI for triggering
- * is the "Refresh mailboxes" button in Settings).
+ * The poll keeps at most one POST in flight per account.
  */
 export const useStaleAccountSync = (
 	accounts: RemitImapAccountResponse[],
+	tracker: SyncRoundTracker,
 ): void => {
-	const queryClient = useQueryClient();
 	const { pushError } = useErrorBanners();
-	// Hold the latest accounts in a ref so both effects can read them without
-	// re-running on every render; they re-run only when the joined accountId
+	// Hold the latest accounts in a ref so the polling effect can read them without
+	// re-running on every render; it re-runs only when the joined accountId
 	// list actually changes (account added / removed).
 	const accountsRef = useRef(accounts);
 	accountsRef.current = accounts;
 	const stableKey = accounts.map((a) => a.accountId).join(",");
 	const onFailure = useCallback(
 		(accountId: string, error: unknown) => {
+			if (isAbortError(error)) return;
 			handleBackgroundSyncFailure(accountId, error);
-			if (isUnauthenticated(error) || isAbortError(error)) return;
+			if (isUnauthenticated(error)) return;
 			const email = accountsRef.current.find(
 				(account) => account.accountId === accountId,
 			)?.email;
@@ -258,60 +208,54 @@ export const useStaleAccountSync = (
 		[pushError],
 	);
 
-	// biome-ignore lint/correctness/useExhaustiveDependencies: stableKey is a serialized account list used to trigger re-sync on account changes; adding it would cause issues without also referencing accountsRef
-	useEffect(() => {
-		if (getOfflineRuntime() && !getOfflineRuntime()?.state.verified) return;
-		const now = Date.now();
-		const stale = selectStaleAccountIds(accountsRef.current, now);
-		const fresh = stale.filter((id) => !triggeredAccountIds.has(id));
-		if (fresh.length === 0) return;
-
-		for (const accountId of fresh) triggeredAccountIds.add(accountId);
-		void pMap(
-			fresh,
-			(accountId) =>
-				runBackgroundSync(accountId, queryClient).catch((error: unknown) =>
-					onFailure(accountId, error),
-				),
-			{ concurrency: POLL_CONCURRENCY },
-		).then(() => getOfflineRuntime()?.refreshReading());
-	}, [stableKey, queryClient, onFailure]);
-
 	// biome-ignore lint/correctness/useExhaustiveDependencies: stableKey re-runs the poll loop when the account list changes; accountsRef supplies the live list each tick
 	useEffect(() => {
 		let lastPollAt = Date.now();
 		let timeoutId: ReturnType<typeof setTimeout> | undefined;
 		const inFlight = new Set<string>();
-
-		const poll = () => {
+		const controller = new AbortController();
+		const { signal } = controller;
+		const runPoll = (accountIds: string[]) => {
+			const runtime = getOfflineRuntime();
 			if (
+				signal.aborted ||
 				!navigator.onLine ||
-				(getOfflineRuntime() && !getOfflineRuntime()?.state.verified)
+				(runtime && !runtime.state.verified)
 			)
 				return;
 			lastPollAt = Date.now();
-			const ids = selectPollableAccountIds(
-				accountsRef.current.map((a) => a.accountId),
-				inFlight,
-			);
+			const ids = selectPollableAccountIds(accountIds, inFlight);
 			if (ids.length === 0) return;
-			// Mark every selected id in flight before dispatch (not as pMap
-			// starts each one) so a concurrency-queued id still counts as
-			// "already polling" for the next tick's `selectPollableAccountIds`
-			// check — no stacked requests even while waiting for a free slot.
 			for (const accountId of ids) inFlight.add(accountId);
 			void pMap(
 				ids,
-				(accountId) =>
-					runBackgroundSync(accountId, queryClient)
-						.catch((err: unknown) => {
-							onFailure(accountId, err);
-						})
-						.finally(() => {
-							inFlight.delete(accountId);
-						}),
+				async (accountId) => {
+					if (signal.aborted) return;
+					polledAccountIds.add(accountId);
+					const result = await syncOperationsTriggerSync({
+						path: { accountId },
+						throwOnError: true,
+						signal,
+					})
+						.finally(() => inFlight.delete(accountId))
+						.catch((error: unknown) => {
+							if (!signal.aborted) onFailure(accountId, error);
+						});
+					if (!result || signal.aborted) return;
+					tracker.noteRequested(accountId, result.data.requestedAt);
+				},
 				{ concurrency: POLL_CONCURRENCY },
-			).then(() => getOfflineRuntime()?.refreshReading());
+			);
+		};
+
+		runPoll(
+			selectStaleAccountIds(accountsRef.current, lastPollAt).filter(
+				(id) => !polledAccountIds.has(id),
+			),
+		);
+
+		const poll = () => {
+			runPoll(accountsRef.current.map((a) => a.accountId));
 		};
 
 		const tick = () => {
@@ -333,7 +277,7 @@ export const useStaleAccountSync = (
 		// and came back after the window lapsed is not due against a longer
 		// ambient interval, and used to stop polling for good (#1031).
 		const resumeVisible = () => {
-			if (document.visibilityState !== "visible") return;
+			if (signal.aborted || document.visibilityState !== "visible") return;
 			if (timeoutId !== undefined) clearTimeout(timeoutId);
 			const now = Date.now();
 			const intervalMs = currentPollIntervalMs(now);
@@ -394,11 +338,12 @@ export const useStaleAccountSync = (
 		const unsubscribeHotWindow = subscribeHotSyncWindow(handleHotWindow);
 
 		return () => {
+			controller.abort();
 			if (timeoutId !== undefined) clearTimeout(timeoutId);
 			document.removeEventListener("visibilitychange", handleVisibilityChange);
 			window.removeEventListener("online", handleReconnect);
 			window.removeEventListener("remit:session-verified", handleVerified);
 			unsubscribeHotWindow();
 		};
-	}, [stableKey, queryClient, onFailure]);
+	}, [stableKey, tracker, onFailure]);
 };

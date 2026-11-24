@@ -172,7 +172,7 @@ function MailLayout({ children }: { children: ReactNode }) {
 			},
 			String(renders),
 		),
-		createElement(MailFreshnessProvider, { accountIds: [], children }),
+		createElement(MailFreshnessProvider, { accounts: [], children }),
 	);
 }
 

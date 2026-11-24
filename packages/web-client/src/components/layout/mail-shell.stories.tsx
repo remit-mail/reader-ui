@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { HttpResponse, http } from "msw";
 import { expect, userEvent, waitFor, within } from "storybook/test";
 import { AppStory } from "../../mocks/story-frame/AppStory";
 import { mailHandlers } from "../../mocks/story-frame/mail-handlers";
@@ -35,6 +36,53 @@ const rows = (): HTMLElement[] =>
 
 const conversation = () =>
 	page().findByRole("heading", { level: 1, name: "Q3 planning" });
+
+const refreshRequestedAt = new Map<string, number>();
+export const RefreshFailed: Story = {
+	beforeEach: () => {
+		refreshRequestedAt.clear();
+	},
+	parameters: {
+		msw: {
+			handlers: [
+				http.post("/api/accounts/:accountId/sync", ({ params }) => {
+					const requestedAt = Date.now();
+					refreshRequestedAt.set(String(params.accountId), requestedAt);
+					return HttpResponse.json({
+						triggered: true,
+						message: "Sync requested",
+						requestedAt,
+					});
+				}),
+				http.get("/api/accounts/:accountId/sync/status", ({ params }) => {
+					const syncRequestedAt = refreshRequestedAt.get(
+						String(params.accountId),
+					);
+					return HttpResponse.json({
+						accountId: params.accountId,
+						syncRequestedAt,
+						syncPhase: syncRequestedAt === undefined ? "complete" : "error",
+						mailboxes: [],
+					});
+				}),
+				...mailHandlers(world),
+			],
+		},
+	},
+	play: async () => {
+		await expect(await conversation()).toBeVisible();
+		await userEvent.click(
+			await page().findByRole("button", { name: "Refresh all accounts" }),
+		);
+		await expect(
+			await page().findByRole(
+				"button",
+				{ name: "Refresh all accounts — failed: Sync failed for this account" },
+				{ timeout: 5000 },
+			),
+		).toBeVisible();
+	},
+};
 
 export const Default: Story = {
 	play: async () => {

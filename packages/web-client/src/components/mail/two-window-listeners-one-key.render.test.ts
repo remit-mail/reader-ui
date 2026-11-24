@@ -484,7 +484,7 @@ const briefRouter = (href: string): AnyRouter => {
 				ComposeProvider,
 				null,
 				createElement(MailFreshnessProvider, {
-					accountIds: [],
+					accounts: [],
 					// biome-ignore lint/correctness/noChildrenProp: no JSX in a `.ts` test, and createElement's variadic children do not satisfy a required prop
 					children: createElement(Outlet),
 				}),
