@@ -8,6 +8,7 @@ import {
 	mailWorld,
 	WORK,
 } from "../../mocks/story-frame/mail-world";
+import { makeConfig } from "../../test-support/fixtures";
 
 const world = mailWorld();
 const inbox = `/mail/${mailboxIdFor(WORK, "Inbox")}`;
@@ -37,15 +38,36 @@ const rows = (): HTMLElement[] =>
 const conversation = () =>
 	page().findByRole("heading", { level: 1, name: "Q3 planning" });
 
+const refreshQueued = new Set<string>();
 export const RefreshFailed: Story = {
+	beforeEach: () => {
+		refreshQueued.clear();
+	},
 	parameters: {
 		msw: {
 			handlers: [
+				// Fresh accounts keep the mount-time background poll out of this press.
+				http.get("/api/config", () =>
+					HttpResponse.json(
+						makeConfig(
+							world.accounts.map((account) => ({
+								...account,
+								lastSyncAt: Date.now(),
+							})),
+						),
+					),
+				),
+				http.post("/api/accounts/:accountId/sync", ({ params }) => {
+					refreshQueued.add(String(params.accountId));
+					return HttpResponse.json({ triggered: true });
+				}),
 				http.get("/api/accounts/:accountId/sync/status", ({ params }) =>
 					HttpResponse.json({
 						accountId: params.accountId,
 						lastSyncAt: 1,
-						syncPhase: "error",
+						syncPhase: refreshQueued.has(String(params.accountId))
+							? "error"
+							: "complete",
 						mailboxes: [],
 					}),
 				),

@@ -99,9 +99,9 @@ export const currentPollIntervalMs = (
 export const POLL_CONCURRENCY = 5;
 
 /**
- * Module-level guard: which accounts have already had a background sync
- * fired in this browser tab's session. Survives layout re-mounts (route
- * changes) so re-mounting MailLayout does not spam SQS.
+ * Accounts already triggered by a background poll in this browser tab.
+ * Survives layout remounts so the stale-on-mount pass doesn't enqueue
+ * another round for them.
  */
 const triggeredAccountIds = new Set<string>();
 
