@@ -10,6 +10,7 @@ import type { OfflineRuntime } from "../packages/web-client/src/lib/offline-runt
 import {
 	makeAccount,
 	makeConfig,
+	makeMailbox,
 	makeThreadMessage,
 	makeUserSettings,
 } from "../packages/web-client/src/test-support/fixtures.ts";
@@ -231,11 +232,7 @@ const server = createServer(async (request, response) => {
 			response.end(
 				JSON.stringify({
 					items: [
-						{
-							mailboxId: "periodic-inbox",
-							accountId: "acc-1",
-							fullPath: "INBOX",
-						},
+						makeMailbox({ mailboxId: "periodic-inbox", fullPath: "INBOX" }),
 					],
 				}),
 			);
