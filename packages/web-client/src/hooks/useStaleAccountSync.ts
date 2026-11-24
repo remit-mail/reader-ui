@@ -1,25 +1,27 @@
 import {
 	mailboxOperationsListMailboxesQueryKey,
-	syncOperationsGetSyncStatusQueryKey,
+	syncOperationsGetSyncStatusOptions,
 } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
 import { syncOperationsTriggerSync } from "@remit/api-http-client/sdk.gen.ts";
 import type {
 	RemitImapAccountResponse,
 	RemitImapAccountSyncStatusResponse,
 } from "@remit/api-http-client/types.gen.ts";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueries, useQueryClient } from "@tanstack/react-query";
 import pMap from "p-map";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
 import { useErrorBanners } from "../components/ui/error-banner-context";
 import { buildMutationErrorBanner } from "../components/ui/error-banners";
 import { isAbortError, isUnauthenticated } from "../lib/error-classifier";
 import { escalate } from "../lib/escalate";
 import {
+	getHotSyncWindowEnd,
 	HOT_POLL_INTERVAL_MS,
 	isHotSyncWindowActive,
 	subscribeHotSyncWindow,
 } from "../lib/hot-sync-window";
 import { getOfflineRuntime } from "../lib/offline-runtime";
+import { SYNC_ROUND_ERROR, syncRoundTracker } from "../lib/sync-round-tracker";
 import { getRuntimeConfig } from "../runtime-config";
 
 /**
@@ -176,11 +178,11 @@ export const handleBackgroundSyncFailure = (
 	});
 };
 
-interface BackgroundRound {
-	// Retain the first request so a later POST cannot hide a slow round.
-	requestedAt: number;
-	lastHandledAt?: number;
-}
+const REFRESH_POLL_MS = 2000;
+
+const statusReadings = (
+	results: readonly { data?: RemitImapAccountSyncStatusResponse }[],
+) => results.map(({ data }) => data);
 
 /**
  * Auto-trigger a background mailbox-list sync for every stale account the
@@ -199,7 +201,25 @@ export const useStaleAccountSync = (accounts: RemitImapAccountResponse[]) => {
 	// list actually changes (account added / removed).
 	const accountsRef = useRef(accounts);
 	accountsRef.current = accounts;
-	const rounds = useRef(new Map<string, BackgroundRound>());
+	const tracker = syncRoundTracker(queryClient);
+	const hotUntil = useSyncExternalStore(
+		subscribeHotSyncWindow,
+		getHotSyncWindowEnd,
+		() => 0,
+	);
+	const readings = useQueries({
+		queries: accounts.map(({ accountId }) => ({
+			...syncOperationsGetSyncStatusOptions({ path: { accountId } }),
+			enabled: () => Date.now() < hotUntil,
+			refetchInterval: () =>
+				isHotSyncWindowActive() ? REFRESH_POLL_MS : false,
+			refetchOnMount: false,
+			refetchOnWindowFocus: false,
+			refetchOnReconnect: false,
+			retry: false,
+		})),
+		combine: statusReadings,
+	});
 	const stableKey = accounts.map((a) => a.accountId).join(",");
 	const onFailure = useCallback(
 		(accountId: string, error: unknown) => {
@@ -220,29 +240,31 @@ export const useStaleAccountSync = (accounts: RemitImapAccountResponse[]) => {
 		[pushError],
 	);
 
-	const onSyncStatus = useCallback(
-		(accountId: string, status: RemitImapAccountSyncStatusResponse) => {
-			const round = rounds.current.get(accountId);
-			const { syncRequestedAt, syncPhase } = status;
-			if (
-				!round ||
-				syncRequestedAt === undefined ||
-				syncRequestedAt < round.requestedAt ||
-				(round.lastHandledAt !== undefined &&
-					syncRequestedAt <= round.lastHandledAt) ||
-				(syncPhase !== "error" && syncPhase !== "complete")
-			)
-				return;
-
-			round.lastHandledAt = syncRequestedAt;
-			if (syncPhase === "error") {
-				onFailure(accountId, new Error("Sync failed for this account"));
-			} else {
-				void getOfflineRuntime()?.refreshReading();
+	useEffect(() => {
+		tracker.check = () => {
+			for (const status of readings) {
+				if (!status) continue;
+				const { accountId } = status;
+				tracker.observe(
+					accountId,
+					status,
+					() => {
+						void queryClient.invalidateQueries({
+							queryKey: mailboxOperationsListMailboxesQueryKey({
+								path: { accountId },
+							}),
+						});
+						void getOfflineRuntime()?.refreshReading();
+					},
+					() => onFailure(accountId, new Error(SYNC_ROUND_ERROR)),
+				);
 			}
-		},
-		[onFailure],
-	);
+		};
+		tracker.check();
+		return () => {
+			tracker.check = undefined;
+		};
+	}, [readings, tracker, queryClient, onFailure]);
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: stableKey re-runs the poll loop when the account list changes; accountsRef supplies the live list each tick
 	useEffect(() => {
@@ -278,22 +300,7 @@ export const useStaleAccountSync = (accounts: RemitImapAccountResponse[]) => {
 							if (!signal.aborted) onFailure(accountId, error);
 						});
 					if (!result || signal.aborted) return;
-					void queryClient.invalidateQueries({
-						queryKey: mailboxOperationsListMailboxesQueryKey({
-							path: { accountId },
-						}),
-					});
-					if (!rounds.current.has(accountId)) {
-						rounds.current.set(accountId, {
-							requestedAt: result.data.requestedAt,
-						});
-					}
-					// The shared query can receive the outcome before the POST returns.
-					const status =
-						queryClient.getQueryData<RemitImapAccountSyncStatusResponse>(
-							syncOperationsGetSyncStatusQueryKey({ path: { accountId } }),
-						);
-					if (status) onSyncStatus(accountId, status);
+					tracker.noteRequested(accountId, result.data.requestedAt);
 				},
 				{ concurrency: POLL_CONCURRENCY },
 			);
@@ -396,7 +403,5 @@ export const useStaleAccountSync = (accounts: RemitImapAccountResponse[]) => {
 			window.removeEventListener("remit:session-verified", handleVerified);
 			unsubscribeHotWindow();
 		};
-	}, [stableKey, queryClient, onFailure, onSyncStatus]);
-
-	return onSyncStatus;
+	}, [stableKey, tracker, onFailure]);
 };

@@ -46,13 +46,11 @@ export const RefreshFailed: Story = {
 	parameters: {
 		msw: {
 			handlers: [
-				// Fresh accounts keep the mount-time background poll out of this press.
 				http.get("/api/config", () =>
 					HttpResponse.json(
 						makeConfig(
 							world.accounts.map((account) => ({
 								...account,
-								lastSyncAt: Date.now(),
 								connectionState: "reauth_required",
 							})),
 						),
@@ -88,9 +86,11 @@ export const RefreshFailed: Story = {
 			await page().findByRole("button", { name: "Refresh all accounts" }),
 		);
 		await expect(
-			await page().findByRole("button", {
-				name: "Refresh all accounts — failed: Sync failed for this account",
-			}),
+			await page().findByRole(
+				"button",
+				{ name: "Refresh all accounts — failed: Sync failed for this account" },
+				{ timeout: 5000 },
+			),
 		).toBeVisible();
 	},
 };

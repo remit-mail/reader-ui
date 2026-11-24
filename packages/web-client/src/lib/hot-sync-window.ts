@@ -33,6 +33,8 @@ export const startHotSyncWindow = (now: number = Date.now()): void => {
 export const isHotSyncWindowActive = (now: number = Date.now()): boolean =>
 	now < hotUntil;
 
+export const getHotSyncWindowEnd = (): number => hotUntil;
+
 /** Notifies on every press so a poll loop already asleep on the ambient
  * interval can reschedule onto the hot one instead of finishing its long wait
  * first. */

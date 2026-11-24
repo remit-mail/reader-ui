@@ -1,8 +1,5 @@
 import { syncOperationsGetSyncStatusOptions } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
-import type {
-	RemitImapAccountSyncStatusResponse,
-	RemitImapMailboxSyncProgress,
-} from "@remit/api-http-client/types.gen.ts";
+import type { RemitImapMailboxSyncProgress } from "@remit/api-http-client/types.gen.ts";
 import type { NavMailboxRole } from "@remit/ui";
 import { useQueries, useQueryClient } from "@tanstack/react-query";
 import {
@@ -118,10 +115,6 @@ export const useMailFreshness = (): MailFreshnessContextValue => {
 
 interface MailFreshnessProviderProps {
 	accountIds: readonly string[];
-	onSyncStatus?: (
-		accountId: string,
-		status: RemitImapAccountSyncStatusResponse,
-	) => void;
 	children: ReactNode;
 }
 
@@ -138,7 +131,6 @@ interface MailFreshnessProviderProps {
  */
 export function MailFreshnessProvider({
 	accountIds,
-	onSyncStatus,
 	children,
 }: MailFreshnessProviderProps) {
 	const queryClient = useQueryClient();
@@ -168,7 +160,6 @@ export function MailFreshnessProvider({
 		accountIds.forEach((accountId, index) => {
 			const data = queries[index]?.data;
 			if (!data) return;
-			onSyncStatus?.(accountId, data);
 			const current = highWaterMarksFrom(
 				data.mailboxes ?? [],
 				resultFolderIndex,
@@ -200,7 +191,7 @@ export function MailFreshnessProvider({
 			}
 		});
 		if (changed) setNewMail(next);
-	}, [accountIdsKey, updatedKey, onSyncStatus]);
+	}, [accountIdsKey, updatedKey]);
 
 	const hasNewMail = useCallback(
 		(ids: readonly string[]) => ids.some((id) => newMail.has(id)),
@@ -216,10 +207,7 @@ export function MailFreshnessProvider({
 				return next;
 			});
 			for (const accountId of ids) {
-				// `useRefreshControl` reads and writes this exact query key through
-				// `queryClient.fetchQuery` as its own wait settles, so this is the
-				// data that refresh just showed the user — never a round-old
-				// cached reading from this provider's own 60s interval.
+				// The round tracker and freshness observer share this status reading.
 				const data = queryClient.getQueryData(
 					syncOperationsGetSyncStatusOptions({ path: { accountId } }).queryKey,
 				) as
