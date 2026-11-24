@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { threadOperationsListThreadsQueryKey } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
 import { dehydrate, QueryClient } from "@tanstack/react-query";
-import { chromium, type Page, type Route } from "playwright";
+import { chromium, type Locator, type Page, type Route } from "playwright";
 
 const shellStatus =
 	/Session verified|session unverified|Opening downloads|Restoring downloads|MiB used|may be removed|Keep downloads on this device|Remove downloads|Verify your session to download mail|First-time offline sign-in|Persistent storage granted|Verify session \/ sign in|Could not save downloads/;
@@ -136,15 +136,15 @@ export async function testBackgroundRefresh(
 		setMessages("refresh-mail");
 		await run();
 		const afterRefresh = await snapshot();
-		assert.equal(
-			JSON.stringify(
-				afterRefresh?.clientState.queries.filter(
+		assert.deepEqual(
+			afterRefresh?.clientState.queries
+				.filter(
 					(query) =>
 						(query.queryKey[0] as { _id: string })._id ===
 						"threadOperationsListThreads",
-				),
-			),
-			JSON.stringify(clientState.queries),
+				)
+				.map(({ queryHash, state }) => ({ queryHash, state })),
+			clientState.queries.map(({ queryHash, state }) => ({ queryHash, state })),
 		);
 
 		setMessages("missing-mail", "next-mail");
@@ -981,19 +981,21 @@ export async function testOfflineReading(
 		await page
 			.getByRole("heading", { name: "Old category mail", exact: true })
 			.waitFor();
-		const reply = page
+		const replyCard = page
 			.getByTestId("conversation-messages")
-			.getByText("Reply sender", { exact: true });
+			.locator(":scope > div")
+			.filter({ has: page.getByText("Reply sender", { exact: true }) });
+		const reply = replyCard.getByText("Reply sender", { exact: true });
 		assert.equal(await reply.count(), 0);
 		controls.queueReply();
 		await reply.click({ timeout: 75_000 });
-		const replyBody = (page: Page) =>
-			page
+		const replyBody = (card: Locator) =>
+			card
 				.frameLocator('iframe[title="Email content"]')
 				.getByText("Body of the reply delivered while reading", {
 					exact: true,
 				});
-		await replyBody(page).waitFor();
+		await replyBody(replyCard).waitFor();
 		await page.waitForFunction(async () => {
 			const runtime = window.pwaTest.offline();
 			const partition = runtime?.state.partition;
@@ -1013,7 +1015,7 @@ export async function testOfflineReading(
 		await page
 			.getByRole("link", { name: "Reply delivered while reading", exact: true })
 			.click();
-		await replyBody(page).waitFor();
+		await replyBody(page.getByRole("article")).waitFor();
 		console.log(
 			"Offline consumer OK: process restarts, a reply delivered to an open thread, 90-day retention, both auth contexts, CID and attachment bytes, quota failures, tenant changes and cross-tab wipe races.",
 		);
