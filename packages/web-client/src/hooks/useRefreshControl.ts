@@ -52,6 +52,7 @@ const fetchStatus = (queryClient: QueryClient, accountId: string) =>
 	queryClient.fetchQuery({
 		...syncOperationsGetSyncStatusOptions({ path: { accountId } }),
 		staleTime: 0,
+		retry: false,
 	});
 
 /** The fields of `getSyncStatus` this wait reads, named so it can be driven

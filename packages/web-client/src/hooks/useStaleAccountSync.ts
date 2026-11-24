@@ -274,28 +274,23 @@ export const useStaleAccountSync = (
 				(getOfflineRuntime() && !getOfflineRuntime()?.state.verified)
 			)
 				return;
+			lastPollAt = Date.now();
 			const ids = selectPollableAccountIds(accountIds, inFlight);
+			if (ids.length === 0) return;
 			for (const accountId of ids) inFlight.add(accountId);
-			let refreshedReading = false;
 			void pMap(
 				ids,
-				async (accountId) => {
-					const settled = await runBackgroundSync(
-						accountId,
-						queryClient,
-						signal,
-					)
+				(accountId) =>
+					runBackgroundSync(accountId, queryClient, signal)
 						.catch((error: unknown) => {
 							if (!signal.aborted) onFailure(accountId, error);
 						})
-						.finally(() => inFlight.delete(accountId));
-					if (settled && !signal.aborted && !refreshedReading) {
-						refreshedReading = true;
-						void getOfflineRuntime()?.refreshReading(readingRef.current);
-					}
-				},
+						.finally(() => inFlight.delete(accountId)),
 				{ concurrency: POLL_CONCURRENCY },
-			);
+			).then((settled) => {
+				if (!signal.aborted && settled.some(Boolean))
+					return getOfflineRuntime()?.refreshReading(readingRef.current);
+			});
 		};
 
 		runPoll(
@@ -305,7 +300,6 @@ export const useStaleAccountSync = (
 		);
 
 		const poll = () => {
-			lastPollAt = Date.now();
 			runPoll(accountsRef.current.map((a) => a.accountId));
 		};
 
