@@ -29,8 +29,11 @@ type Story = StoryObj<typeof meta>;
 export const CreateRefused: Story = {
 	play: async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
-		await userEvent.type(await canvas.findByLabelText("Label name"), "Travel");
-		await userEvent.click(canvas.getByRole("button", { name: "Create label" }));
+		const [name] = await canvas.findAllByLabelText("Label name");
+		await userEvent.type(name, "Travel");
+		await userEvent.click(
+			canvas.getAllByRole("button", { name: "Create label" })[0],
+		);
 		await expect(
 			await canvas.findByText("A label with that name already exists."),
 		).toBeVisible();

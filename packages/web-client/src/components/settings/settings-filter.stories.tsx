@@ -1,10 +1,11 @@
+import "../../lib/client";
 import type { RemitImapFilterResponse } from "@remit/api-http-client/types.gen.ts";
 import { BottomSheet, type FolderTreeNode, type LabelOption } from "@remit/ui";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { HttpResponse, http } from "msw";
 import type { ReactNode } from "react";
-import { expect, userEvent, within } from "storybook/test";
+import { expect, userEvent, waitFor, within } from "storybook/test";
 import { ErrorBannerProvider } from "../ui/ErrorBannerProvider";
 import { FilterEditor } from "./FilterEditor";
 
@@ -154,6 +155,9 @@ export const SaveRefused: Story = {
 	parameters: {
 		msw: {
 			handlers: [
+				http.post("/api/accounts/:accountId/organize/preview", () =>
+					HttpResponse.json({ matchedCount: 8, messageIds: [] }),
+				),
 				http.patch("/api/accounts/:accountId/filters/:filterId", () =>
 					HttpResponse.json(
 						{ message: "A filter with that name already exists." },
@@ -167,7 +171,9 @@ export const SaveRefused: Story = {
 		const canvas = within(canvasElement);
 		await userEvent.clear(canvas.getByLabelText("Rule name"));
 		await userEvent.type(canvas.getByLabelText("Rule name"), "Travel");
-		await userEvent.click(canvas.getByRole("button", { name: "Save rule" }));
+		const save = canvas.getByRole("button", { name: "Save rule" });
+		await waitFor(() => expect(save).toBeEnabled());
+		await userEvent.click(save);
 		await expect(
 			await canvas.findByText("A filter with that name already exists."),
 		).toBeVisible();
