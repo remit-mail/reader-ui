@@ -66,7 +66,14 @@ const types: Record<string, string> = {
 let serving = dist;
 let failInstall = false;
 let briefProbe = true;
-let periodicMessages: string[] | undefined;
+let periodicInbox: { ids: string[]; continuationToken?: string } | undefined;
+const periodicDescriptions: string[] = [];
+const periodicSubjects: Record<string, string> = {
+	"saved-first": "Saved first page",
+	"saved-tail": "Saved older page",
+	"background-mail": "New background mail",
+	"gap-head": "Incompatible worker head",
+};
 let heldPeriodicBody:
 	| { status: number; requested(): void; released: Promise<void> }
 	| undefined;
@@ -172,7 +179,9 @@ const server = createServer(async (request, response) => {
 			response.statusCode = held?.status ?? 200;
 			response.setHeader("Content-Type", "text/html");
 			response.end("<p>Held background body</p>");
-		} else if (path === "/content/background-mail/body") {
+		} else if (
+			["/content/background-mail/body", "/content/gap-head/body"].includes(path)
+		) {
 			response.setHeader("Content-Type", "text/html");
 			response.end("<p>Background downloaded body</p>");
 		} else if (path.endsWith("/html")) {
@@ -249,7 +258,7 @@ const server = createServer(async (request, response) => {
 						: { error: "Session unavailable" },
 				),
 			);
-		} else if (periodicMessages && path === "/api/accounts/acc-1/mailboxes") {
+		} else if (periodicInbox && path === "/api/accounts/acc-1/mailboxes") {
 			response.end(
 				JSON.stringify({
 					items: [
@@ -258,13 +267,33 @@ const server = createServer(async (request, response) => {
 				}),
 			);
 		} else if (
-			periodicMessages &&
+			periodicInbox &&
 			path === "/api/mailboxes/periodic-inbox/threads"
 		) {
+			const cursor = new URL(request.url!, "http://localhost").searchParams.get(
+				"continuationToken",
+			);
+			const ids =
+				cursor === "saved-tail"
+					? ["saved-tail"]
+					: cursor
+						? []
+						: periodicInbox.ids;
+			const continuationToken = cursor
+				? undefined
+				: periodicInbox.continuationToken;
 			response.end(
 				JSON.stringify({
-					items: periodicMessages.map((messageId) => ({ messageId })),
-					hasMore: false,
+					items: ids.map((messageId) =>
+						makeThreadMessage({
+							messageId,
+							threadId: messageId,
+							mailboxId: "periodic-inbox",
+							subject: periodicSubjects[messageId] ?? messageId,
+						}),
+					),
+					continuationToken,
+					hasMore: !!continuationToken,
 				}),
 			);
 		} else if (path === "/api/threads/old-category-thread/messages") {
@@ -283,6 +312,7 @@ const server = createServer(async (request, response) => {
 		} else if (path.startsWith("/api/auth/")) response.end("null");
 		else if (path.startsWith("/api/messages/")) {
 			const messageId = path.split("/").at(-1)!;
+			if (periodicInbox) periodicDescriptions.push(messageId);
 			if (messageId === "deleted-mail") {
 				response.writeHead(404).end();
 				return;
@@ -295,9 +325,7 @@ const server = createServer(async (request, response) => {
 						subject:
 							messageId === "old-mail"
 								? "Old retained mail"
-								: messageId === "background-mail"
-									? "New background mail"
-									: "New list page",
+								: (periodicSubjects[messageId] ?? "New list page"),
 						date: 0,
 						from: [],
 						to: [],
@@ -326,7 +354,7 @@ const server = createServer(async (request, response) => {
 										dispositionFilename: "report.pdf",
 									}),
 								]
-							: periodicMessages?.includes(messageId)
+							: periodicInbox?.ids.includes(messageId)
 								? [
 										part(messageId, "body", "TEXT", "HTML", {
 											contentUrl: `/content/${messageId}/body`,
@@ -450,6 +478,31 @@ try {
 		"selecting old mail needs no second listing",
 	);
 	console.log("Firefox PWA installation and old category selection OK");
+
+	const downloads = await context.newPage();
+	await downloads.addInitScript(() => {
+		localStorage.setItem("pwa-offline-test", "yes");
+		localStorage.setItem("pwa-auth", "better");
+		const matchMedia = window.matchMedia.bind(window);
+		window.matchMedia = (query) =>
+			query === "(display-mode: standalone)"
+				? Object.defineProperty(matchMedia(query), "matches", { value: true })
+				: matchMedia(query);
+	});
+	const downloadIssues: string[] = [];
+	downloads.on("console", (message) => {
+		if (["error", "warning"].includes(message.type()))
+			downloadIssues.push(message.text());
+	});
+	downloads.on("pageerror", (error) => downloadIssues.push(error.message));
+	await downloads.goto(`${origin}/downloads`);
+	await downloads
+		.getByRole("heading", { name: "Downloaded mail", exact: true })
+		.waitFor();
+	await downloads.waitForFunction(() => !!navigator.serviceWorker.controller);
+	await downloads.waitForLoadState("networkidle");
+	assert.deepEqual(downloadIssues, []);
+	console.log("Firefox opens Downloaded mail silently in standalone display");
 	await context.close();
 	briefProbe = false;
 
@@ -868,8 +921,8 @@ try {
 	);
 	await restoredContext.close();
 	await testPeriodicReading(origin, {
-		messages: (ids) => {
-			periodicMessages = ids;
+		messages: (ids, continuationToken) => {
+			periodicInbox = { ids, continuationToken };
 		},
 		holdBody: (status = 200) => {
 			const requested = Promise.withResolvers<void>();
@@ -891,8 +944,9 @@ try {
 			sessionStatus = status;
 		},
 		contentRequests,
+		descriptionRequests: periodicDescriptions,
 	});
-	periodicMessages = undefined;
+	periodicInbox = undefined;
 	await testOfflineReading(origin, {
 		setSession: (key, status = 200) => {
 			tenant = key;

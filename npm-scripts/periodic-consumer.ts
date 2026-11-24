@@ -1,14 +1,12 @@
 import assert from "node:assert/strict";
-import { threadOperationsListThreadsQueryKey } from "@remit/api-http-client/@tanstack/react-query.gen.ts";
-import { dehydrate, QueryClient } from "@tanstack/react-query";
-import { chromium, firefox, type Page, type Worker } from "playwright";
-import { makeThreadMessage } from "../packages/web-client/src/test-support/fixtures.ts";
+import { chromium, type Page, type Worker } from "playwright";
 
 interface PeriodicControls {
-	messages(ids: string[]): void;
+	messages(ids: string[], continuationToken?: string): void;
 	holdBody(status?: number): { requested: Promise<void>; release(): void };
 	session(status: number | "malformed"): void;
 	contentRequests: string[];
+	descriptionRequests: string[];
 }
 
 function refresh(worker: Worker): Promise<void> {
@@ -40,55 +38,10 @@ function waitForHeldBody(requested: Promise<void>, completion: Promise<void>) {
 	]);
 }
 
-async function seedSavedInbox(page: Page): Promise<void> {
-	const client = new QueryClient({
-		defaultOptions: { queries: { gcTime: Infinity } },
-	});
-	const mailboxId = "periodic-inbox";
-	const key = threadOperationsListThreadsQueryKey({
-		baseUrl: "/api",
-		path: { mailboxId },
-		query: { order: "desc" },
-	});
-	client.setQueryData(key, {
-		pages: [
-			{
-				items: [
-					makeThreadMessage({
-						mailboxId,
-						messageId: "saved-first",
-						threadId: "saved-first",
-						subject: "Saved first page",
-					}),
-				],
-				continuationToken: "saved-tail",
-			},
-			{
-				items: [
-					makeThreadMessage({
-						mailboxId,
-						messageId: "saved-tail",
-						threadId: "saved-tail",
-						subject: "Saved older page",
-					}),
-				],
-			},
-		],
-		pageParams: [undefined, "saved-tail"],
-	});
-	const clientState = dehydrate(client);
-	client.clear();
-	await page.evaluate(async (clientState) => {
-		const runtime = window.pwaTest.offline();
-		const partition = runtime?.state.partition;
-		if (!runtime || !partition)
-			throw new Error("Offline partition unavailable");
-		await runtime.persister(partition).persistClient({
-			buster: String(partition.format),
-			timestamp: Date.now(),
-			clientState,
-		});
-	}, clientState);
+function settleOfflineWrites(page: Page): Promise<void> {
+	return page.evaluate(() =>
+		navigator.locks.request("remit-offline-storage", () => {}),
+	);
 }
 
 async function assertNoHeldBody(page: Page): Promise<void> {
@@ -164,11 +117,10 @@ export async function testPeriodicReading(
 					!!navigator.serviceWorker.controller &&
 					!!window.pwaTest.offline()?.state.verified,
 			);
-			await page.evaluate(() =>
-				navigator.locks.request("remit-offline-storage", () => {}),
-			);
+			await settleOfflineWrites(page);
 			return page;
 		};
+		controls.messages(["saved-first"], "saved-tail");
 		const page = await eligible("/downloads/background-mail");
 		await page
 			.getByText("This message has no body content.", { exact: true })
@@ -179,7 +131,11 @@ export async function testPeriodicReading(
 			),
 			{ tag: "remit-refresh-downloads", minInterval: 86400000 },
 		);
-		await seedSavedInbox(page);
+		await settleOfflineWrites(page);
+		await page.goto(`${origin}/mail/periodic-inbox`);
+		await page.getByText("Saved first page", { exact: true }).waitFor();
+		await page.getByText("Saved older page", { exact: true }).waitFor();
+		await settleOfflineWrites(page);
 		const worker = context.serviceWorkers()[0];
 		assert.ok(worker);
 		await page.close();
@@ -191,15 +147,19 @@ export async function testPeriodicReading(
 		await retainedDescription.close();
 		await context.setOffline(false);
 
-		controls.messages([
-			"deleted-mail",
-			"unavailable-202",
-			"unavailable-403",
-			"unavailable-404",
-			"oversized-mail",
-			"background-mail",
-			"failed-mail",
-		]);
+		controls.messages(
+			[
+				"deleted-mail",
+				"unavailable-202",
+				"unavailable-403",
+				"unavailable-404",
+				"oversized-mail",
+				"background-mail",
+				"background-mail",
+				"failed-mail",
+			],
+			"saved-tail",
+		);
 		const before = controls.contentRequests.length;
 		controls.session("malformed");
 		try {
@@ -215,7 +175,14 @@ export async function testPeriodicReading(
 		);
 		await (await eligible()).close();
 
+		const beforeDescriptions = controls.descriptionRequests.length;
 		await refresh(worker);
+		assert.equal(
+			controls.descriptionRequests
+				.slice(beforeDescriptions)
+				.filter((id) => id === "background-mail").length,
+			1,
+		);
 		assert.deepEqual(controls.contentRequests.slice(before), [
 			"/content/unavailable-202/body",
 			"/content/unavailable-403/body",
@@ -236,13 +203,34 @@ export async function testPeriodicReading(
 				),
 		);
 		await reopened.goto(`${origin}/mail/periodic-inbox`);
-		await reopened.getByText("Saved first page", { exact: true }).waitFor();
+		await reopened.getByText("New background mail", { exact: true }).waitFor();
 		await reopened.getByText("Saved older page", { exact: true }).waitFor();
+		assert.equal(
+			await reopened.getByText("Saved first page", { exact: true }).count(),
+			0,
+		);
 		await reopened.close();
 
 		await context.setOffline(false);
 		const renewed = await eligible();
 		await renewed.close();
+		controls.messages(["gap-head"], "gap-tail");
+		await refresh(worker);
+		await context.setOffline(true);
+		const gap = await open("/mail/periodic-inbox");
+		await gap.getByText("New background mail", { exact: true }).waitFor();
+		await gap.getByText("Saved older page", { exact: true }).waitFor();
+		assert.equal(
+			await gap.getByText("Incompatible worker head", { exact: true }).count(),
+			0,
+		);
+		await gap.goto(`${origin}/downloads`);
+		await gap
+			.getByRole("link", { name: "Incompatible worker head", exact: true })
+			.waitFor();
+		await gap.close();
+		await context.setOffline(false);
+
 		controls.messages(["held-mail"]);
 		const stale = controls.holdBody(401);
 		const staleRun = refresh(worker);
@@ -333,32 +321,7 @@ export async function testPeriodicReading(
 	} finally {
 		await browser.close();
 	}
-	const unsupported = await firefox.launch();
-	try {
-		const context = await unsupported.newContext();
-		await context.addInitScript(() => {
-			localStorage.setItem("pwa-offline-test", "yes");
-			localStorage.setItem("pwa-auth", "better");
-		});
-		const page = await context.newPage();
-		const issues: string[] = [];
-		page.on("console", (message) => {
-			if (["error", "warning"].includes(message.type()))
-				issues.push(message.text());
-		});
-		page.on("pageerror", (error) => issues.push(error.message));
-		await page.goto(`${origin}/downloads`);
-		await page
-			.getByRole("heading", { name: "Downloaded mail", exact: true })
-			.waitFor();
-		await page.waitForFunction(() => !!navigator.serviceWorker.controller);
-		await page.waitForLoadState("networkidle");
-		assert.deepEqual(issues, []);
-		await context.close();
-	} finally {
-		await unsupported.close();
-	}
 	console.log(
-		"Periodic packed consumer OK: Chromium downloads mail offline and guards wipe and opt-out. Firefox opens Downloaded mail silently.",
+		"Periodic packed consumer OK: Chromium joins compatible inbox pages and guards downloads across wipe and opt-out.",
 	);
 }
