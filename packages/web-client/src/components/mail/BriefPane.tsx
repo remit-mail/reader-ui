@@ -20,7 +20,6 @@ import {
 	useCallback,
 	useContext,
 	useMemo,
-	useState,
 } from "react";
 import { useDeleteMessages } from "../../hooks/useDeleteMessages";
 import { useIntelligenceDrawer } from "../../hooks/useIntelligenceDrawer";
@@ -52,7 +51,7 @@ import {
 } from "../../routing";
 import { useReplyWithText } from "../compose/reply-with-times";
 import { ConversationView } from "./ConversationView";
-import { DailyBrief } from "./DailyBrief";
+import { DailyBrief, useDailyBrief } from "./DailyBrief";
 import { IntelligenceDrawer } from "./IntelligenceDrawer";
 import { IntelligencePane } from "./IntelligencePane";
 import { MessageToolbar } from "./MessageToolbar";
@@ -63,7 +62,7 @@ import type { OpenMessageOptions } from "./ThreadListInteraction";
 /* ------------------------------------------------------------------ */
 
 interface BriefPaneContextValue {
-	onRowsChange: (rows: RemitImapThreadMessageResponse[]) => void;
+	brief: ReturnType<typeof useDailyBrief>;
 	/** The row the reader pointed at, which is the one the list highlights. */
 	selectedMessageId: string | undefined;
 	selectedThread: RemitImapThreadMessageResponse | undefined;
@@ -121,21 +120,12 @@ function BriefPaneProvider({ thread, children }: BriefPaneProps) {
 	const openThread = useOpenThread();
 	const closeThread = useCloseThread();
 	const goToSection = useGoToSection();
-	const { searchInput } = useMailContext();
+	const { searchInput, accounts } = useMailContext();
 	const threadId = thread?.threadId;
 	const pointedAtMessageId = thread?.messageId;
 
-	const [briefThreads, setBriefThreads] = useState<
-		RemitImapThreadMessageResponse[]
-	>([]);
-	const onRowsChange = useCallback((rows: RemitImapThreadMessageResponse[]) => {
-		setBriefThreads((previous) =>
-			previous.length === rows.length &&
-			previous.every((row, index) => row === rows[index])
-				? previous
-				: rows,
-		);
-	}, []);
+	const brief = useDailyBrief(accounts);
+	const briefThreads = brief.threads;
 
 	// The row the brief itself lists, preferred because a mutation patches it in
 	// place. A thread reached from a cross-folder search hit or a cold address is
@@ -237,7 +227,7 @@ function BriefPaneProvider({ thread, children }: BriefPaneProps) {
 
 	const { nextMessageId, previousMessageId } = useTriageLayer({
 		context: triage,
-		orderedIds: triage.orderedIds,
+		orderedIds: briefThreads.map((row) => row.messageId),
 		selectedMessageId,
 		// The list stays mounted under both writing surfaces, so the triage keys
 		// would otherwise fire at the message behind whatever is being typed — or
@@ -280,7 +270,7 @@ function BriefPaneProvider({ thread, children }: BriefPaneProps) {
 	);
 
 	const ctx: BriefPaneContextValue = {
-		onRowsChange,
+		brief,
 		selectedMessageId,
 		selectedThread,
 		conversation,
@@ -320,18 +310,13 @@ function BriefPaneProvider({ thread, children }: BriefPaneProps) {
  * Daily brief list. Mount in the `list` slot of `AppShellSlotted`.
  */
 function BriefList() {
-	const {
-		selectedMessageId,
-		onOpenThread,
-		triage,
-		onDeleteMessages,
-		onRowsChange,
-	} = useBriefPane();
+	const { selectedMessageId, onOpenThread, triage, onDeleteMessages, brief } =
+		useBriefPane();
 	const { accounts } = useMailContext();
 
 	return (
 		<DailyBrief
-			onRowsChange={onRowsChange}
+			data={brief}
 			accounts={accounts}
 			selectedMessageId={selectedMessageId}
 			onOpenThread={onOpenThread}

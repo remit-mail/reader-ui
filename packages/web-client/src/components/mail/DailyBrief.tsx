@@ -38,7 +38,6 @@ import {
 	type ReactNode,
 	type RefObject,
 	useCallback,
-	useEffect,
 	useMemo,
 	useState,
 } from "react";
@@ -360,7 +359,7 @@ function BriefSelectionChrome({
 // ---------------------------------------------------------------------------
 
 interface DailyBriefProps {
-	onRowsChange?: (rows: RemitImapThreadMessageResponse[]) => void;
+	data: ReturnType<typeof useDailyBrief>;
 	accounts: RemitImapAccountResponse[];
 	selectedMessageId?: string;
 	/**
@@ -379,22 +378,11 @@ interface DailyBriefProps {
 	onDeleteMessages: (messageIds: string[]) => void;
 }
 
-export function DailyBrief({
-	onRowsChange,
-	accounts,
-	selectedMessageId,
-	onOpenThread,
-	commandsRef,
-	onTriageContextChange,
-	onDeleteMessages,
-}: DailyBriefProps) {
+/** The pane owns the queries, filters and rows even while its phone list is unmounted. */
+export function useDailyBrief(accounts: RemitImapAccountResponse[]) {
 	const { searchQuery, searchInput, resultFolderIndex, onSearchChange } =
 		useMailContext();
 	const tokenContext = useSearchTokenContext();
-	const isDesktop = useIsDesktop();
-	const tier = useLayoutTier();
-	const wizard = useSelectionWizard();
-	const scopeSearchToMailbox = useScopeSearchToMailbox();
 
 	const nonMuted = useMemo(
 		() => sortAccountsByCreatedAt(accounts.filter((a) => !a.muted?.value)),
@@ -635,44 +623,62 @@ export function DailyBrief({
 		[requestFilters],
 	);
 	const narrowRows = useCallback(
-		(rows: RemitImapThreadMessageResponse[]): ThreadRowData[] =>
+		(
+			rows: RemitImapThreadMessageResponse[],
+		): RemitImapThreadMessageResponse[] =>
 			// One row per conversation, because that is what the server counted:
 			// `count` is thread-distinct, and a list keying on messageId puts twelve
 			// rows under a header reading one. Collapsed before anything reads a
 			// length, so the rows and the number are the same unit.
-			dedupeByThread(rows)
-				.map((thread) => toThreadRowData(thread, spamFolderIds))
-				.filter(
-					(t) =>
-						matchesBriefFilters(t, clientOnlyFilters) &&
-						matchesSearchTokens(t, residualTokens),
-				),
+			dedupeByThread(rows).filter((thread) => {
+				const row = toThreadRowData(thread, spamFolderIds);
+				return (
+					matchesBriefFilters(row, clientOnlyFilters) &&
+					matchesSearchTokens(row, residualTokens)
+				);
+			}),
 		[clientOnlyFilters, residualTokens, spamFolderIds],
+	);
+
+	const narrowedSections = useMemo(
+		() =>
+			sectionRows.map((section) => ({
+				...section,
+				rows: narrowRows(section.rows),
+			})),
+		[sectionRows, narrowRows],
+	);
+	const narrowedSearch = useMemo(
+		() => narrowRows(searchRows),
+		[searchRows, narrowRows],
 	);
 
 	const briefRows = useMemo<BriefCategoryResult[]>(
 		() =>
-			sectionRows.map((section) => ({
+			narrowedSections.map((section) => ({
 				category: section.category,
 				total: section.total,
 				atCap: section.atCap,
 				loading: section.loading,
 				failed: section.failed,
-				rows: narrowRows(section.rows),
+				rows: section.rows.map((thread) =>
+					toThreadRowData(thread, spamFolderIds),
+				),
 			})),
-		[sectionRows, narrowRows],
+		[narrowedSections, spamFolderIds],
 	);
 
 	const matchRows = useMemo<ThreadRowData[]>(
 		() =>
-			narrowRows(searchRows).map((row) => {
+			narrowedSearch.map((thread) => {
+				const row = toThreadRowData(thread, spamFolderIds);
 				const { folder } = resolveResultFolder(
 					resultFolderIndex,
 					row.mailboxId ? [row.mailboxId] : [],
 				);
 				return folder ? { ...row, folder } : row;
 			}),
-		[searchRows, narrowRows, resultFolderIndex],
+		[narrowedSearch, spamFolderIds, resultFolderIndex],
 	);
 
 	// Each section answers for itself, so a retry is that section's own request.
@@ -761,22 +767,83 @@ export function DailyBrief({
 		);
 	}, [underQuery, matchRows, briefRows, spamIds]);
 
-	// Publish the original rows behind the displayed sections so the pane's
-	// actions and swipe targets use the same mail as the list.
-	useEffect(() => {
-		const source = underQuery
-			? searchRows
-			: sectionRows.flatMap((section) => section.rows);
-		const byId = new Map(source.map((row) => [row.messageId, row]));
-		onRowsChange?.(
-			sections.flatMap((section) =>
-				section.threads.flatMap((row) => {
-					const original = byId.get(row.id);
-					return original ? [original] : [];
-				}),
-			),
-		);
-	}, [onRowsChange, sections, underQuery, searchRows, sectionRows]);
+	const threads = useMemo(
+		() =>
+			(underQuery
+				? narrowedSearch
+				: narrowedSections.flatMap((section) => section.rows)
+			).filter((row) => !spamIds?.has(row.messageId)),
+		[underQuery, narrowedSearch, narrowedSections, spamIds],
+	);
+
+	return {
+		threads,
+		nonMuted,
+		selectedAccountId,
+		setSelectedAccountId,
+		chipCategory,
+		chipFilters,
+		filterExpanded,
+		setFilterExpanded,
+		toggleChip,
+		selectChipCategory,
+		clearChips,
+		unseenByAccount,
+		failedAccounts,
+		underQuery,
+		sq,
+		queryTokens,
+		isLoading,
+		isError,
+		refetch,
+		filteredRows,
+		sections,
+		retrySection,
+		showAllSection,
+		briefSpamOffer,
+	};
+}
+
+export function DailyBrief({
+	data,
+	accounts,
+	selectedMessageId,
+	onOpenThread,
+	commandsRef,
+	onTriageContextChange,
+	onDeleteMessages,
+}: DailyBriefProps) {
+	const { searchQuery, searchInput, resultFolderIndex } = useMailContext();
+	const searching = searchInput.trim().length > 0;
+	const isDesktop = useIsDesktop();
+	const tier = useLayoutTier();
+	const wizard = useSelectionWizard();
+	const scopeSearchToMailbox = useScopeSearchToMailbox();
+	const {
+		nonMuted,
+		selectedAccountId,
+		setSelectedAccountId,
+		chipCategory,
+		chipFilters,
+		filterExpanded,
+		setFilterExpanded,
+		toggleChip,
+		selectChipCategory,
+		clearChips,
+		unseenByAccount,
+		failedAccounts,
+		underQuery,
+		sq,
+		queryTokens,
+		isLoading,
+		isError,
+		refetch,
+		filteredRows,
+		sections,
+		retrySection,
+		showAllSection,
+		briefSpamOffer,
+	} = data;
 
 	// A committed query puts rows the widened cross-folder search found into the
 	// body, and those messages are in folders the brief itself never loads. They
@@ -897,6 +964,8 @@ export function DailyBrief({
 		toggleChip,
 		selectChipCategory,
 		clearChips,
+		setFilterExpanded,
+		setSelectedAccountId,
 	]);
 
 	// The brief is genuinely empty (caught up) only when nothing is narrowing the

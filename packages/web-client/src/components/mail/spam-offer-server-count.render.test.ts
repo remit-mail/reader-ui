@@ -40,7 +40,7 @@ import {
 	mockFetch,
 } from "../../test-support/http";
 import { ComposeProvider } from "../compose/ComposeProvider";
-import { DailyBrief } from "./DailyBrief";
+import { DailyBrief, useDailyBrief } from "./DailyBrief";
 
 const ACCOUNT_A = "acc-a";
 const ACCOUNT_B = "acc-b";
@@ -166,6 +166,14 @@ const context = (): MailContextValue => ({
 	onRaiseIntelligence: () => undefined,
 });
 
+function Brief() {
+	return createElement(DailyBrief, {
+		data: useDailyBrief(accounts),
+		accounts,
+		onDeleteMessages: () => undefined,
+	});
+}
+
 const brief = (): ReactNode =>
 	createElement(MailFreshnessProvider, {
 		accountIds: [ACCOUNT_A, ACCOUNT_B],
@@ -173,10 +181,7 @@ const brief = (): ReactNode =>
 		children: createElement(
 			MailContext.Provider,
 			{ value: context() },
-			createElement(DailyBrief, {
-				accounts,
-				onDeleteMessages: () => undefined,
-			}),
+			createElement(Brief),
 		),
 	});
 

@@ -114,6 +114,50 @@ export const Phone: Story = {
 	},
 };
 
+export const PhoneRowsStayCurrent: Story = {
+	globals: phone,
+	args: { url: "/mail/brief?q=is%3Astarred" },
+	parameters: {
+		msw: {
+			handlers: mailHandlers(
+				mailWorld({
+					threads: world.threads
+						.filter((row) =>
+							["Q3 planning", "Autumn sale starts now"].includes(
+								row.subject ?? "",
+							),
+						)
+						.map((row) => ({ ...row, hasStars: true })),
+				}),
+			),
+		},
+	},
+	play: async ({ canvasElement }) => {
+		const canvas = within(canvasElement);
+		await userEvent.click(
+			await canvas.findByText("Q3 planning", {}, routeLoad),
+		);
+		await canvas.findByRole("heading", { name: "Q3 planning" });
+		const surface = canvasElement.querySelector<HTMLElement>(
+			'[style*="touch-action"]',
+		);
+		if (!surface) throw new Error("Missing phone swipe surface");
+		await waitFor(() =>
+			expect(surface).toHaveStyle({ touchAction: "pan-y pinch-zoom" }),
+		);
+		await userEvent.click(
+			await canvas.findByRole("button", { name: "Unstar" }),
+		);
+		await waitFor(() =>
+			expect(canvas.getByRole("button", { name: "Star" })).toHaveAttribute(
+				"aria-pressed",
+				"false",
+			),
+		);
+		await waitFor(() => expect(surface).toHaveStyle({ touchAction: "auto" }));
+	},
+};
+
 export const CaughtUp: Story = {
 	parameters: {
 		msw: { handlers: mailHandlers(mailWorld({ threads: [] })) },
