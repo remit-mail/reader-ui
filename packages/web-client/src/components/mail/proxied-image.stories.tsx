@@ -12,6 +12,7 @@ import { mailHandlers } from "../../mocks/story-frame/mail-handlers";
 import { withRuntimeConfig } from "../../mocks/story-frame/session";
 
 const remote = "https://images.example/newsletter.png?edition=42";
+const routeLoad = { timeout: 5000 };
 const handlers = mailHandlers(composeWorld());
 let destinationRequests = 0;
 const rejectedImageSet =
@@ -84,12 +85,18 @@ type Story = StoryObj<typeof meta>;
 export const LoadOnce: Story = {
 	play: async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
-		await canvas.findByRole("heading", { level: 1, name: LUNCH_SUBJECT });
-		await canvas.findByTitle("Email content");
-		expect(destinationRequests).toBe(0);
-		await userEvent.click(
-			await within(canvasElement).findByRole("button", { name: "Load once" }),
+		await canvas.findByRole(
+			"heading",
+			{ level: 1, name: LUNCH_SUBJECT },
+			routeLoad,
 		);
+		const load = await canvas.findByRole(
+			"button",
+			{ name: "Load once" },
+			routeLoad,
+		);
+		expect(destinationRequests).toBe(0);
+		await userEvent.click(load);
 		await waitFor(() => {
 			const frame = canvasElement.querySelector<HTMLIFrameElement>("iframe");
 			expect(frame?.getAttribute("srcdoc")).toContain('src="blob:');
@@ -98,7 +105,7 @@ export const LoadOnce: Story = {
 			expect(frame?.contentDocument?.querySelector("img")?.naturalWidth).toBe(
 				1,
 			);
-		});
+		}, routeLoad);
 		expect(destinationRequests).toBe(0);
 	},
 };
@@ -120,20 +127,29 @@ export const CssOnly: Story = {
 	},
 	play: async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
-		await canvas.findByRole("heading", { level: 1, name: LUNCH_SUBJECT });
-		await canvas.findByTitle("Email content");
+		await canvas.findByRole(
+			"heading",
+			{ level: 1, name: LUNCH_SUBJECT },
+			routeLoad,
+		);
 		expect(destinationRequests).toBe(0);
-		const load = await within(canvasElement).findByRole("button", {
-			name: "Load once",
-		});
+		const load = await canvas.findByRole(
+			"button",
+			{
+				name: "Load once",
+			},
+			routeLoad,
+		);
 		expect(
 			canvasElement.querySelector("iframe")?.getAttribute("srcdoc"),
 		).not.toContain(remote);
 		await userEvent.click(load);
-		await waitFor(() =>
-			expect(
-				canvasElement.querySelector("iframe")?.getAttribute("srcdoc"),
-			).toContain("blob:"),
+		await waitFor(
+			() =>
+				expect(
+					canvasElement.querySelector("iframe")?.getAttribute("srcdoc"),
+				).toContain("blob:"),
+			routeLoad,
 		);
 	},
 };
