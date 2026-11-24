@@ -90,7 +90,12 @@ export const OldCategoryRow: Story = {
 		const row = subject.closest<HTMLElement>("[data-list-row]");
 		if (!row) throw new Error("Missing old category row");
 		row.focus();
+		await waitFor(() => expect(row).toHaveAttribute("tabindex", "0"));
 		await userEvent.keyboard("s");
+		// Observe the list mutation before opening its conversation.
+		await waitFor(() =>
+			expect(row.querySelector(".lucide-star")).not.toBeNull(),
+		);
 		await userEvent.click(subject);
 		await expect(
 			await canvas.findByRole("heading", { name: "Autumn sale starts now" }),
