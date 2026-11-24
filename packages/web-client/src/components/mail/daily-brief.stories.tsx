@@ -40,7 +40,7 @@ const openFilters = async (
 	label: "Expand filters" | "Search filters" = "Expand filters",
 ) => {
 	const canvas = within(canvasElement);
-	await userEvent.click(await canvas.findByLabelText(label));
+	await userEvent.click(await canvas.findByLabelText(label, {}, routeLoad));
 };
 
 const pick = async (
@@ -48,7 +48,11 @@ const pick = async (
 	group: "Accounts" | "Categories" | "Attributes",
 	name: string,
 ) => {
-	const fieldset = await within(canvasElement).findByLabelText(group);
+	const fieldset = await within(canvasElement).findByLabelText(
+		group,
+		{},
+		routeLoad,
+	);
 	await userEvent.click(within(fieldset).getByRole("button", { name }));
 };
 
@@ -90,21 +94,31 @@ export const OldCategoryRow: Story = {
 		const row = subject.closest<HTMLElement>("[data-list-row]");
 		if (!row) throw new Error("Missing old category row");
 		row.focus();
-		await waitFor(() => expect(row).toHaveAttribute("tabindex", "0"));
+		await waitFor(
+			() => expect(row).toHaveAttribute("tabindex", "0"),
+			routeLoad,
+		);
 		await userEvent.keyboard("s");
 		// Observe the list mutation before opening its conversation.
-		await waitFor(() =>
-			expect(row.querySelector(".lucide-star")).not.toBeNull(),
+		await waitFor(
+			() => expect(row.querySelector(".lucide-star")).not.toBeNull(),
+			routeLoad,
 		);
 		await userEvent.click(subject);
 		await expect(
-			await canvas.findByRole("heading", { name: "Autumn sale starts now" }),
-		).toBeVisible();
-		await waitFor(() =>
-			expect(canvas.getByRole("button", { name: "Star" })).toHaveAttribute(
-				"aria-pressed",
-				"true",
+			await canvas.findByRole(
+				"heading",
+				{ name: "Autumn sale starts now" },
+				routeLoad,
 			),
+		).toBeVisible();
+		await waitFor(
+			() =>
+				expect(canvas.getByRole("button", { name: "Star" })).toHaveAttribute(
+					"aria-pressed",
+					"true",
+				),
+			routeLoad,
 		);
 	},
 };
@@ -142,24 +156,30 @@ export const PhoneRowsStayCurrent: Story = {
 		await userEvent.click(
 			await canvas.findByText("Q3 planning", {}, routeLoad),
 		);
-		await canvas.findByRole("heading", { name: "Q3 planning" });
+		await canvas.findByRole("heading", { name: "Q3 planning" }, routeLoad);
 		const surface = canvasElement.querySelector<HTMLElement>(
 			'[style*="touch-action"]',
 		);
 		if (!surface) throw new Error("Missing phone swipe surface");
-		await waitFor(() =>
-			expect(surface).toHaveStyle({ touchAction: "pan-y pinch-zoom" }),
+		await waitFor(
+			() => expect(surface).toHaveStyle({ touchAction: "pan-y pinch-zoom" }),
+			routeLoad,
 		);
 		await userEvent.click(
-			await canvas.findByRole("button", { name: "Unstar" }),
+			await canvas.findByRole("button", { name: "Unstar" }, routeLoad),
 		);
-		await waitFor(() =>
-			expect(canvas.getByRole("button", { name: "Star" })).toHaveAttribute(
-				"aria-pressed",
-				"false",
-			),
+		await waitFor(
+			() =>
+				expect(canvas.getByRole("button", { name: "Star" })).toHaveAttribute(
+					"aria-pressed",
+					"false",
+				),
+			routeLoad,
 		);
-		await waitFor(() => expect(surface).toHaveStyle({ touchAction: "auto" }));
+		await waitFor(
+			() => expect(surface).toHaveStyle({ touchAction: "auto" }),
+			routeLoad,
+		);
 	},
 };
 
@@ -181,11 +201,12 @@ export const FilteredToCategory: Story = {
 		await canvas.findByText("Q3 planning", {}, routeLoad);
 		await openFilters(canvasElement);
 		await pick(canvasElement, "Categories", "Newsletter");
-		await waitFor(() =>
-			expect(canvas.queryByText("Q3 planning")).not.toBeInTheDocument(),
+		await waitFor(
+			() => expect(canvas.queryByText("Q3 planning")).not.toBeInTheDocument(),
+			routeLoad,
 		);
 		await expect(
-			await canvas.findByText("This week in type systems"),
+			await canvas.findByText("This week in type systems", {}, routeLoad),
 		).toBeVisible();
 	},
 };
@@ -196,8 +217,12 @@ export const WorkOnly: Story = {
 		await canvas.findByText("Dinner on Saturday?", {}, routeLoad);
 		await openFilters(canvasElement);
 		await pick(canvasElement, "Accounts", "alice.tan");
-		await waitFor(() =>
-			expect(canvas.queryByText("Dinner on Saturday?")).not.toBeInTheDocument(),
+		await waitFor(
+			() =>
+				expect(
+					canvas.queryByText("Dinner on Saturday?"),
+				).not.toBeInTheDocument(),
+			routeLoad,
 		);
 		await expect(
 			await canvas.findByText("Q3 planning", {}, routeLoad),
@@ -219,7 +244,11 @@ export const SelectAllThenNarrow: Story = {
 		const canvas = within(canvasElement);
 		await canvas.findByText("Q3 planning", {}, routeLoad);
 		await expect(
-			await canvas.findByRole("button", { name: /^Show (all|\d+ more)/ }),
+			await canvas.findByRole(
+				"button",
+				{ name: /^Show (all|\d+ more)/ },
+				routeLoad,
+			),
 		).toBeVisible();
 		await openFilters(canvasElement);
 
@@ -227,10 +256,14 @@ export const SelectAllThenNarrow: Story = {
 		firstRow?.focus();
 		await expect(document.activeElement).toBe(firstRow);
 		await userEvent.keyboard("{Meta>}a{/Meta}");
-		await waitFor(() =>
-			expect(
-				canvas.getByText(/(loaded selected|messages? selected)$/),
-			).toHaveTextContent(`All ${rows(canvasElement).length} loaded selected`),
+		await waitFor(
+			() =>
+				expect(
+					canvas.getByText(/(loaded selected|messages? selected)$/),
+				).toHaveTextContent(
+					`All ${rows(canvasElement).length} loaded selected`,
+				),
+			routeLoad,
 		);
 		const selectedEverywhere = ticked(canvasElement);
 
@@ -238,9 +271,9 @@ export const SelectAllThenNarrow: Story = {
 
 		await pick(canvasElement, "Categories", "Newsletter");
 		await expect(
-			await canvas.findByText("Issue 1: notes from the field"),
+			await canvas.findByText("Issue 1: notes from the field", {}, routeLoad),
 		).toBeVisible();
-		await waitFor(() => expect(ticked(canvasElement)).toBe(0));
+		await waitFor(() => expect(ticked(canvasElement)).toBe(0), routeLoad);
 		await expect(
 			canvas.queryByText(/(loaded selected|messages? selected)$/),
 		).toBeNull();
@@ -254,8 +287,9 @@ export const ShiftArrowRange: Story = {
 		rows(canvasElement)[0]?.focus();
 		await userEvent.keyboard("j");
 		await userEvent.keyboard("{Shift>}{ArrowDown}{ArrowDown}{/Shift}");
-		await waitFor(() =>
-			expect(canvas.getByText("2 messages selected")).toBeInTheDocument(),
+		await waitFor(
+			() => expect(canvas.getByText("2 messages selected")).toBeInTheDocument(),
+			routeLoad,
 		);
 	},
 };
@@ -266,10 +300,14 @@ export const OpenWithJ: Story = {
 		await canvas.findByText("Q3 planning", {}, routeLoad);
 		rows(canvasElement)[0]?.focus();
 		await userEvent.keyboard("j");
-		await waitFor(() =>
-			expect(
-				canvas.getAllByText("Here is the countersigned copy for your records."),
-			).toHaveLength(2),
+		await waitFor(
+			() =>
+				expect(
+					canvas.getAllByText(
+						"Here is the countersigned copy for your records.",
+					),
+				).toHaveLength(2),
+			routeLoad,
 		);
 	},
 };
@@ -285,7 +323,9 @@ export const MultiSelect: Story = {
 			);
 			if (toggle) await userEvent.click(toggle);
 		}
-		await expect(await canvas.findByText("2 messages selected")).toBeVisible();
+		await expect(
+			await canvas.findByText("2 messages selected", {}, routeLoad),
+		).toBeVisible();
 	},
 };
 
@@ -296,7 +336,9 @@ export const MultiSelectPhone: Story = {
 		await canvas.findByText("Q3 planning", {}, routeLoad);
 		const first = rows(canvasElement)[0];
 		if (first) await longPress(first);
-		await expect(await canvas.findByText("1 message selected")).toBeVisible();
+		await expect(
+			await canvas.findByText("1 message selected", {}, routeLoad),
+		).toBeVisible();
 	},
 };
 
@@ -318,10 +360,12 @@ export const SearchWithChips: Story = {
 		await canvas.findByText("Signed lease attached", {}, routeLoad);
 		await openFilters(canvasElement);
 		await pick(canvasElement, "Attributes", "Unread");
-		await waitFor(() =>
-			expect(canvas.getByLabelText("Search mail")).toHaveValue(
-				"your is:unread",
-			),
+		await waitFor(
+			() =>
+				expect(canvas.getByLabelText("Search mail")).toHaveValue(
+					"your is:unread",
+				),
+			routeLoad,
 		);
 	},
 };
@@ -337,7 +381,11 @@ export const SearchOfChipsOnly: Story = {
 		);
 		await userEvent.click(offer);
 		await expect(
-			await canvas.findByText(/isn't a filter condition/, { selector: "p" }),
+			await canvas.findByText(
+				/isn't a filter condition/,
+				{ selector: "p" },
+				routeLoad,
+			),
 		).toBeVisible();
 	},
 };
@@ -349,10 +397,12 @@ export const SearchHitOutsideTheBrief: Story = {
 		await userEvent.click(
 			await canvas.findByText("Conference talk outline", {}, routeLoad),
 		);
-		await waitFor(() =>
-			expect(
-				canvas.getAllByText("Here is the rough structure for the keynote."),
-			).toHaveLength(2),
+		await waitFor(
+			() =>
+				expect(
+					canvas.getAllByText("Here is the rough structure for the keynote."),
+				).toHaveLength(2),
+			routeLoad,
 		);
 	},
 };

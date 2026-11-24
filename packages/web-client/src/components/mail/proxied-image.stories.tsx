@@ -105,7 +105,7 @@ export const LoadOnce: Story = {
 			expect(frame?.contentDocument?.querySelector("img")?.naturalWidth).toBe(
 				1,
 			);
-		});
+		}, routeLoad);
 		expect(destinationRequests).toBe(0);
 	},
 };
@@ -144,10 +144,12 @@ export const CssOnly: Story = {
 			canvasElement.querySelector("iframe")?.getAttribute("srcdoc"),
 		).not.toContain(remote);
 		await userEvent.click(load);
-		await waitFor(() =>
-			expect(
-				canvasElement.querySelector("iframe")?.getAttribute("srcdoc"),
-			).toContain("blob:"),
+		await waitFor(
+			() =>
+				expect(
+					canvasElement.querySelector("iframe")?.getAttribute("srcdoc"),
+				).toContain("blob:"),
+			routeLoad,
 		);
 	},
 };
