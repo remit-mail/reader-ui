@@ -7,6 +7,7 @@ import { mailWorld } from "../mocks/story-frame/mail-world";
 import { withRuntimeConfig } from "../mocks/story-frame/session";
 import { authClient } from "./better-auth-config";
 import { betterAuthProvider } from "./better-auth-provider";
+import { combinedAuthProvider } from "./combined-provider";
 
 const signedOut = http.get("/api/auth/get-session", () =>
 	HttpResponse.json(null),
@@ -34,6 +35,7 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const SignInTurnedOff: Story = {
+	args: { authProvider: combinedAuthProvider },
 	parameters: {
 		msw: {
 			handlers: [

@@ -5,7 +5,7 @@ import {
 	QueryClientProvider,
 } from "@tanstack/react-query";
 import { createMemoryHistory, RouterProvider } from "@tanstack/react-router";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import {
 	type AuthProvider,
 	AuthProviderProvider,
@@ -55,16 +55,19 @@ export function AppStory({
 			createMemoryHistory({ initialEntries: [url] }),
 		);
 	});
-	const { Shell } = authProvider;
+	const Provider = authProvider.Provider ?? Fragment;
+	const SessionGate = authProvider.SessionGate ?? Fragment;
 
 	return (
 		<QueryClientProvider client={queryClient}>
 			<AuthProviderProvider value={authProvider}>
 				<SettingsProvider value={{ settingsSlots, peopleDestinationUrl }}>
 					<InstallProvider enabled={pwaEnabled}>
-						<Shell>
-							<RouterProvider router={router} />
-						</Shell>
+						<Provider>
+							<SessionGate>
+								<RouterProvider router={router} />
+							</SessionGate>
+						</Provider>
 					</InstallProvider>
 				</SettingsProvider>
 			</AuthProviderProvider>

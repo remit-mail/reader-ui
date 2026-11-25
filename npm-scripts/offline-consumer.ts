@@ -295,6 +295,8 @@ export async function testOfflineReading(
 	let context = await launch();
 	try {
 		let page = await context.newPage();
+		const sessionStatus = () =>
+			page.evaluate(() => window.pwaTest.offline()?.snapshot().session?.status);
 		await page.addInitScript(() => {
 			Object.defineProperty(navigator.storage, "persist", {
 				async value() {
@@ -351,16 +353,105 @@ export async function testOfflineReading(
 			await recovery.evaluate(() => window.pwaTest.offline()?.state.partition),
 			undefined,
 		);
-		await recovery
-			.getByRole("button", { name: "Remove downloads and reload", exact: true })
-			.click();
+		const recoveryCdp = await context.newCDPSession(recovery);
+		await recoveryCdp.send("Browser.setPermission", {
+			permission: { name: "periodic-background-sync" },
+			setting: "prompt",
+			origin,
+		});
+		assert.equal(
+			await recovery.evaluate(async () => {
+				const { periodicSync } = await navigator.serviceWorker.ready;
+				const prototype = Object.getPrototypeOf(periodicSync) as NonNullable<
+					ServiceWorkerRegistration["periodicSync"]
+				>;
+				const unregister = prototype.unregister;
+				prototype.unregister = function (tag) {
+					sessionStorage.setItem("periodic-unregister", tag);
+					return unregister.call(this, tag);
+				};
+				return (
+					await navigator.permissions.query({
+						name: "periodic-background-sync" as PermissionName,
+					})
+				).state;
+			}),
+			"prompt",
+		);
+		const sessionUrl = `${origin}/api/session`;
+		const releaseBoot = Promise.withResolvers<void>();
+		let sessionRequests = 0;
+		await recovery.route(sessionUrl, async (route) => {
+			if (++sessionRequests === 1) await releaseBoot.promise;
+			await route.continue();
+		});
+		const bootRequest = recovery.waitForRequest(sessionUrl);
+		await Promise.all([
+			recovery.waitForEvent("load"),
+			recovery
+				.getByRole("button", {
+					name: "Remove downloads and reload",
+					exact: true,
+				})
+				.click(),
+		]);
+		const boot = await bootRequest;
+		assert.equal(
+			await recovery.evaluate(() =>
+				sessionStorage.getItem("periodic-unregister"),
+			),
+			null,
+			"removal at prompt permission never calls periodicSync.unregister",
+		);
+		await context.setOffline(true);
+		await recovery.waitForFunction(
+			() => window.pwaTest.offline()?.snapshot().session?.status === "offline",
+		);
+		await recovery.evaluate(() => {
+			window.addEventListener(
+				"online",
+				() => {
+					document.documentElement.dataset.reconnected = "yes";
+				},
+				{ once: true },
+			);
+		});
+		await context.setOffline(false);
+		await recovery.waitForFunction(
+			() => document.documentElement.dataset.reconnected === "yes",
+		);
+		assert.equal(sessionRequests, 1, "reconnect waits for the boot check");
+		const freshResponse = recovery.waitForResponse(
+			(response) =>
+				response.url() === sessionUrl && response.request() !== boot,
+		);
+		releaseBoot.resolve();
+		assert.equal((await freshResponse).status(), 200);
 		await recovery.waitForFunction(
 			() => !!window.pwaTest?.offline()?.state.verified,
 		);
 		await recovery
 			.getByRole("button", { name: "Remove downloads", exact: true })
 			.waitFor();
+		assert.equal(sessionRequests, 2, "reconnect makes one fresh session check");
+		assert.equal(
+			await recovery.evaluate(
+				() => window.pwaTest.offline()?.snapshot().session?.status,
+			),
+			"ready",
+		);
+		await context.setOffline(true);
+		await recovery.waitForFunction(
+			() => window.pwaTest.offline()?.snapshot().session?.status === "offline",
+		);
+		assert.equal(
+			await recovery.evaluate(
+				() => window.pwaTest.offline()?.snapshot().verified,
+			),
+			false,
+		);
 		await recovery.close();
+		await context.setOffline(false);
 		const installed = await context.newPage();
 		await installed.addInitScript(() => {
 			localStorage.setItem("pwa-offline-test", "yes");
@@ -549,6 +640,7 @@ export async function testOfflineReading(
 			await page.evaluate(() => window.pwaTest.offline()?.state.verified),
 			false,
 		);
+		assert.equal(await sessionStatus(), "offline");
 		const cached = await page.evaluate(async () => {
 			const names = (await caches.keys()).filter((name) =>
 				name.startsWith("remit-content-"),
@@ -578,12 +670,14 @@ export async function testOfflineReading(
 			.getByRole("alert")
 			.filter({ hasText: "Session verification failed: 503" })
 			.waitFor();
+		assert.equal(await sessionStatus(), "failed");
 		assert.equal(
 			await page.evaluate(() => window.pwaTest.reauthentications),
 			0,
 		);
 		controls.setSession("tenant-a", 401);
 		await page.evaluate(() => window.pwaTest.offline()!.verify());
+		assert.equal(await sessionStatus(), "signedOut");
 		await page.getByRole("alertdialog").waitFor();
 		await page
 			.getByRole("button", { name: "Continue reading downloaded mail" })
@@ -600,6 +694,12 @@ export async function testOfflineReading(
 		});
 		controls.setSession("tenant-a");
 		await page.evaluate(() => window.pwaTest.offline()!.verify());
+		assert.equal(await sessionStatus(), "ready");
+		controls.setSession("tenant-a", 302);
+		await page.evaluate(() => window.pwaTest.offline()?.verify());
+		assert.equal(await sessionStatus(), "signedOut");
+		controls.setSession("tenant-a");
+		await page.evaluate(() => window.pwaTest.offline()?.verify());
 		await page.waitForFunction(
 			() => !!window.pwaTest.offline()?.state.verified,
 		);

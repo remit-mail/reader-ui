@@ -86,5 +86,6 @@ export const LocalDevBanner: Story = {
 		const canvas = within(canvasElement);
 		await expect(await canvas.findByText("Local dev")).toBeVisible();
 		await expect(await canvas.findByText("Q3 planning")).toBeVisible();
+		await expect(canvas.queryByRole("tab", { name: "Sign In" })).toBeNull();
 	},
 };

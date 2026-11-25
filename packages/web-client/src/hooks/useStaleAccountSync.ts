@@ -293,12 +293,9 @@ export const useStaleAccountSync = (
 			if (document.visibilityState !== "visible") return;
 			const runtime = getOfflineRuntime();
 			if (runtime) {
-				void runtime
-					.verify()
-					.then((verified) => {
-						if (verified) resumeVisible();
-					})
-					.catch(runtime.report);
+				void runtime.verify().then((verified) => {
+					if (verified) resumeVisible();
+				});
 			} else resumeVisible();
 		};
 
@@ -320,14 +317,9 @@ export const useStaleAccountSync = (
 		const handleReconnect = () => {
 			const runtime = getOfflineRuntime();
 			if (runtime) {
-				void runtime
-					.verify()
-					.then((verified) => {
-						if (verified) {
-							poll();
-						}
-					})
-					.catch(runtime.report);
+				void runtime.verify().then((verified) => {
+					if (verified) poll();
+				});
 			} else poll();
 		};
 		const handleVerified = () => {

@@ -51,20 +51,14 @@ export interface AuthProvider {
 	resetToken(): void;
 	/** Identity context that must also exist during remembered offline reading. */
 	Provider?: FC<{ children: ReactNode }>;
-	/** Online-only gate, separate from Provider. Shell remains the legacy composition. */
+	/** Online-only gate that renders children once a session is established. */
 	SessionGate?: FC<{ children: ReactNode }>;
-	/** The sign-in gate: renders children only once a session is established. */
-	Shell: FC<{ children: ReactNode }>;
 	/**
 	 * Render-prop over the active session's identity and sign-out action.
 	 * Renders `fallback` when no session is active.
 	 */
 	Account: FC<AuthAccountProps>;
 }
-
-const Passthrough: FC<{ children?: ReactNode }> = ({ children }) => (
-	<>{children}</>
-);
 
 /**
  * The zero-identity provider. It has no session and no identity SDK, so a
@@ -76,7 +70,6 @@ export const noneAuthProvider: AuthProvider = {
 	configure: () => {},
 	getToken: async () => null,
 	resetToken: () => {},
-	Shell: Passthrough,
 	Account: ({ fallback = null }) => <>{fallback}</>,
 };
 

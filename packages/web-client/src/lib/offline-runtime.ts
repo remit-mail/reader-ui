@@ -34,6 +34,9 @@ export interface OfflineOptions {
 export interface OfflineState {
 	partition?: Partition;
 	verified: boolean;
+	session?:
+		| { status: "ready" | "signedOut" | "offline" }
+		| { status: "failed"; error: unknown };
 	usage?: number;
 	quota?: number;
 	persistent?: boolean;
@@ -105,23 +108,35 @@ export class OfflineRuntime {
 		if (partition) await requirePartition(partition);
 		if (this.revoked) return;
 		this.update({ partition });
-		await this.verify().catch(this.report);
+		window.addEventListener("offline", () =>
+			this.update({ verified: false, session: { status: "offline" } }),
+		);
+		window.addEventListener("online", () => {
+			void (this.verifying ?? Promise.resolve()).then(this.verify);
+		});
+		await this.verify();
 		void this.storage(
 			window.matchMedia("(display-mode: standalone)").matches,
 		).catch(this.report);
-		window.addEventListener("offline", () => this.update({ verified: false }));
-		window.addEventListener("online", () => {
-			void this.verify().catch(this.report);
-		});
 	}
 	verify = (): Promise<boolean> => {
-		this.verifying ??= this.verifyNow().finally(() => {
-			this.verifying = undefined;
-		});
+		this.verifying ??= this.verifyNow()
+			.catch((error: unknown) => {
+				this.update({ session: { status: "failed", error } });
+				this.report(error);
+				return false;
+			})
+			.finally(() => {
+				this.verifying = undefined;
+			});
 		return this.verifying;
 	};
 	private async verifyNow(): Promise<boolean> {
-		if (!navigator.onLine || this.revoked || isUpdatePrepared()) return false;
+		if (!navigator.onLine) {
+			this.update({ session: { status: "offline" } });
+			return false;
+		}
+		if (this.revoked || isUpdatePrepared()) return false;
 		const wasVerified = this.state.verified;
 		this.update({ verified: false });
 		const epoch = await storageLock(async () => {
@@ -141,8 +156,10 @@ export class OfflineRuntime {
 			return false;
 		}
 		const session = await readSession(this.options.sessionUrl);
-		if (!session || this.revoked) {
-			if (!session && !this.revoked && navigator.onLine) reportSignedOut();
+		if (this.revoked) return false;
+		if (!session) {
+			this.update({ session: { status: "signedOut" } });
+			if (navigator.onLine) reportSignedOut();
 			return false;
 		}
 		const unchanged = await offlineRecord<Partition>("partition");
@@ -174,7 +191,7 @@ export class OfflineRuntime {
 			return next;
 		});
 		if (this.revoked) return false;
-		this.update({ partition, verified: true });
+		this.update({ partition, verified: true, session: { status: "ready" } });
 		resetSignedOut();
 		if (!wasVerified) window.dispatchEvent(new Event("remit:session-verified"));
 		await syncBackgroundRefresh(partition, this.options.sessionUrl).catch(

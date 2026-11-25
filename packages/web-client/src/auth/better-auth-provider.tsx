@@ -11,7 +11,9 @@ import { type AuthProvider, navigateToSignIn } from "./provider";
  * from this module or anything it imports, so a build that composes only this
  * provider ships no Cognito code.
  */
-export const betterAuthProvider: AuthProvider = {
+export const betterAuthProvider: AuthProvider & {
+	SessionGate: typeof BetterAuthShell;
+} = {
 	reauthenticate: () => {
 		resetBetterAuthTokenCache();
 		navigateToSignIn();
@@ -19,6 +21,6 @@ export const betterAuthProvider: AuthProvider = {
 	configure: () => {},
 	getToken: fetchBetterAuthToken,
 	resetToken: resetBetterAuthTokenCache,
-	Shell: BetterAuthShell,
+	SessionGate: BetterAuthShell,
 	Account: BetterAuthAccount,
 };
