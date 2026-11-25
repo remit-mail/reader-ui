@@ -1,0 +1,22 @@
+{
+  "install": {
+    "title": "Installer l’application",
+    "share": "Touchez Partager dans Safari.",
+    "file": "Ouvrez le menu Fichier dans Safari.",
+    "homeScreen": "Choisissez Sur l’écran d’accueil.",
+    "dock": "Choisissez Ajouter au Dock.",
+    "close": "Compris",
+    "dismiss": "Masquer l’option d’installation",
+    "hidden": "L’option d’installation est masquée sur cet appareil.",
+    "restore": "Afficher à nouveau l’option d’installation"
+  },
+  "offlineStorage": {
+    "usage": "Courrier téléchargé : {{usage}} Mio utilisés",
+    "remove": "Supprimer les téléchargements",
+    "startupFailed": "Le courrier téléchargé n’a pas pu être ouvert. Supprimez les téléchargements sur cet appareil pour rouvrir l’application.",
+    "removeAndReload": "Supprimer les téléchargements et recharger",
+    "failed": "Les téléchargements n’ont pas pu être mis à jour",
+    "removeFailed": "Les téléchargements n’ont pas pu être supprimés. Réessayez.",
+    "continueReading": "Continuer à lire le courrier téléchargé"
+  }
+}

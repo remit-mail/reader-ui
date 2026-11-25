@@ -1,0 +1,22 @@
+{
+  "install": {
+    "title": "App installeren",
+    "share": "Tik op Deel in Safari.",
+    "file": "Open het menu Archief in Safari.",
+    "homeScreen": "Kies Zet op beginscherm.",
+    "dock": "Kies Voeg toe aan Dock.",
+    "close": "Begrepen",
+    "dismiss": "Installatieoptie verbergen",
+    "hidden": "De installatieoptie is verborgen op dit apparaat.",
+    "restore": "Installatieoptie opnieuw tonen"
+  },
+  "offlineStorage": {
+    "usage": "Gedownloade e-mail: {{usage}} MiB gebruikt",
+    "remove": "Downloads verwijderen",
+    "startupFailed": "Gedownloade e-mail kon niet worden geopend. Verwijder de downloads op dit apparaat om de app opnieuw te openen.",
+    "removeAndReload": "Downloads verwijderen en opnieuw laden",
+    "failed": "Downloads konden niet worden bijgewerkt",
+    "removeFailed": "Downloads konden niet worden verwijderd. Probeer het opnieuw.",
+    "continueReading": "Gedownloade e-mail blijven lezen"
+  }
+}

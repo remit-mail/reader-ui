@@ -1,0 +1,1 @@
+import{j as n}from"./iframe-4Y_dM_UU.js";import{n as i}from"./AppStory-CAgR-zfY.js";const r=o=>({...i,Account:({children:s})=>n.jsx(n.Fragment,{children:s({email:o,signOut:()=>{}})})}),e=o=>()=>{const s=globalThis.__REMIT_CONFIG__;return globalThis.__REMIT_CONFIG__=o,()=>{globalThis.__REMIT_CONFIG__=s}};export{r as s,e as w};

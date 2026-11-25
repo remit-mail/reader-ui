@@ -1,0 +1,1 @@
+const n=(t,r)=>{const a=Date.parse(t.searchParams.get("from")??""),e=Date.parse(t.searchParams.get("to")??"");return Number.isNaN(a)||Number.isNaN(e)?[...r]:r.filter(o=>{const s=Date.parse(o.start);return s>=a&&s<e})};export{n as i};

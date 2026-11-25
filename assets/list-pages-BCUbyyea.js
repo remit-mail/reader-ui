@@ -1,0 +1,1 @@
+async function*r(o,{maxPages:i=Number.POSITIVE_INFINITY,signal:a}={}){let t;for(let e=0;e<i;e+=1){if(a?.aborted)return;const n=await o(t);if(yield n.items,!n.continuationToken)return;t=n.continuationToken}}export{r as l};

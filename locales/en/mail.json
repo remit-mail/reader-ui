@@ -1,0 +1,12 @@
+{
+  "sidebar": {
+    "inbox": "Inbox",
+    "sent": "Sent",
+    "drafts": "Drafts",
+    "trash": "Trash",
+    "archive": "Archive",
+    "junk": "Spam",
+    "flagged": "Starred",
+    "all": "All Mail"
+  }
+}

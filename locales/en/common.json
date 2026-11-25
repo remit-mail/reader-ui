@@ -1,0 +1,25 @@
+{
+  "accessibility": {
+    "skipToContent": "Skip to main content"
+  },
+  "install": {
+    "title": "Install app",
+    "share": "Tap Share in Safari.",
+    "file": "Open the File menu in Safari.",
+    "homeScreen": "Choose Add to Home Screen.",
+    "dock": "Choose Add to Dock.",
+    "close": "Got it",
+    "dismiss": "Dismiss install option",
+    "hidden": "The install option is hidden on this device.",
+    "restore": "Show install option again"
+  },
+  "offlineStorage": {
+    "usage": "Downloaded mail: {{usage}} MiB used",
+    "remove": "Remove downloads",
+    "startupFailed": "Downloaded mail could not be opened. Remove downloads on this device to reopen the app.",
+    "removeAndReload": "Remove downloads and reload",
+    "failed": "Downloads could not be updated",
+    "removeFailed": "Downloads could not be removed. Try again.",
+    "continueReading": "Continue reading downloaded mail"
+  }
+}
